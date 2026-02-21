@@ -1,4 +1,4 @@
-# Swarm HQ - Handoff Documentation
+# Neuron HQ - Handoff Documentation
 **Date**: 2026-02-21
 **Session**: 3 - Repo cleanup & target registration
 **Next**: First live run + remaining agents
@@ -10,11 +10,11 @@
 ### What Was Done
 
 1. **Both repos diagnosed and cleaned up**
-   - Discovered swarm-hq had uncommitted session 2 work (manager.ts + handoff files)
+   - Discovered neuron-hq had uncommitted session 2 work (manager.ts + handoff files)
    - Discovered aurora-swarm-lab had ~30 uncommitted files from multiple earlier sessions
    - Verified no cross-contamination between repos
 
-2. **swarm-hq committed cleanly** (3 new commits on top of session 2)
+2. **neuron-hq committed cleanly** (3 new commits on top of session 2)
    - `e917919` Manager agent with Anthropic SDK
    - `5bc3731` Handoff docs reorganized
    - `c21f702` package-lock.json (npm install, pnpm not available)
@@ -28,7 +28,7 @@
    - `e906d64` Module improvements + all new tests
    - `1f8e68d` Docs, scripts, env, gitignore cleanup
 
-4. **aurora-swarm-lab registered as target in swarm-hq**
+4. **aurora-swarm-lab registered as target in neuron-hq**
    - File: `targets/repos.yaml`
    - verify_commands: `python -m pytest tests/ -x -q`
 
@@ -38,7 +38,7 @@
 
 ## Current Status
 
-### swarm-hq: 85% complete
+### neuron-hq: 85% complete
 
 #### Done
 - [x] Project scaffolding + all core modules
@@ -83,7 +83,7 @@
 ## Repo Relationship
 
 ```
-swarm-hq/                          ← Control plane (TypeScript)
+neuron-hq/                          ← Control plane (TypeScript)
   targets/repos.yaml               ← aurora-swarm-lab registered here
   src/core/agents/manager.ts       ← Orchestrates swarm over target repos
   workspaces/<runid>/              ← Git worktree copy of aurora-swarm-lab
@@ -94,8 +94,8 @@ aurora-swarm-lab/                  ← Target repo (Python AI assistant)
   tests/                           ← pytest
 ```
 
-swarm-hq **reads** aurora-swarm-lab by cloning into `workspaces/`.
-swarm-hq **never writes** directly to `/Users/mpmac/aurora-swarm-lab/`.
+neuron-hq **reads** aurora-swarm-lab by cloning into `workspaces/`.
+neuron-hq **never writes** directly to `/Users/mpmac/aurora-swarm-lab/`.
 
 ---
 
@@ -108,7 +108,7 @@ swarm-hq **never writes** directly to `/Users/mpmac/aurora-swarm-lab/`.
 export PATH="/opt/homebrew/opt/node@20/bin:$PATH"
 
 # 2. Configure API key
-cd /Users/mpmac/swarm-hq
+cd /Users/mpmac/neuron-hq
 cp .env.example .env
 # Edit .env: ANTHROPIC_API_KEY=sk-ant-...
 
@@ -122,7 +122,29 @@ cat runs/*/audit.jsonl
 cat runs/*/usage.json
 ```
 
-### Priority 2: Implement remaining agents
+### Priority 2: Replace execSync with async bash execution
+
+**File**: `src/core/agents/manager.ts` → `executeBash()`
+
+Manager-agenten använder `execSync` (synkront) för bash-kommandon. Det fungerar för MVP men blockerar hela Node.js-processen under körning — en begränsning vid längre kommandon (t.ex. `npm install`, långa tester).
+
+**Rekommenderad fix**: Byt till `child_process.exec` med Promise-wrapper:
+
+```typescript
+import { exec } from 'child_process';
+import { promisify } from 'util';
+const execAsync = promisify(exec);
+
+// I stället för execSync:
+const { stdout, stderr } = await execAsync(command, {
+  cwd: this.ctx.workspaceDir,
+  timeout: this.ctx.policy.getLimits().bash_timeout_seconds * 1000,
+});
+```
+
+Gör detta innan Implementer/Reviewer/Researcher byggs — de behöver alla bash-exec.
+
+### Priority 3: Implement remaining agents
 
 Use `src/core/agents/manager.ts` as template. Each agent needs:
 1. Anthropic SDK client (`claude-opus-4-6`)
@@ -180,10 +202,27 @@ npx tsx src/cli.ts    # instead of pnpm swarm
 
 ## Continuity
 
-**swarm-hq**: `/Users/mpmac/swarm-hq`, branch `main`, last commit `00de203`
+**neuron-hq**: `/Users/mpmac/swarm-hq` (⚠️ mappnamnet är ännu inte bytt — se nedan), branch `main`
 **aurora-swarm-lab**: `/Users/mpmac/aurora-swarm-lab`, branch `main`, last commit `1f8e68d`
 
 Both repos: clean working tree.
+
+---
+
+## Pending: Byt mappnamn
+
+Alla filer och docs är uppdaterade till "neuron-hq" men själva **mappen heter fortfarande `swarm-hq`** på disk.
+Gör detta i en ny terminal (stäng IDE:n mot mappen först):
+
+```bash
+mv /Users/mpmac/swarm-hq /Users/mpmac/neuron-hq
+```
+
+Git-historiken påverkas inte — git bryr sig inte om mappnamnet.
+Claude Code-sessionens minnesfil (om du vill bevara den):
+```bash
+mv ~/.claude/projects/-Users-mpmac-swarm-hq ~/.claude/projects/-Users-mpmac-neuron-hq
+```
 
 ---
 

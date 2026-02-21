@@ -3,7 +3,7 @@
 **Date**: 2026-02-21
 **Status**: Accepted
 **Deciders**: System Architect
-**Technical Story**: Swarm HQ security requirements
+**Technical Story**: Neuron HQ security requirements
 
 ## Context
 

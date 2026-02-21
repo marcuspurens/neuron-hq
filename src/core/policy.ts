@@ -99,7 +99,7 @@ export class PolicyEnforcer {
       return { allowed: true };
     }
 
-    // Allowed: Swarm HQ repo itself (for self-development)
+    // Allowed: Neuron HQ repo itself (for self-development)
     // This is a bit meta but necessary
     if (normalizedPath.startsWith(this.baseDir)) {
       // But NOT in other run directories

@@ -1,6 +1,6 @@
-# Swarm HQ Runbook
+# Neuron HQ Runbook
 
-Operational procedures for running and troubleshooting Swarm HQ.
+Operational procedures for running and troubleshooting Neuron HQ.
 
 ## Installation
 
@@ -16,8 +16,8 @@ Operational procedures for running and troubleshooting Swarm HQ.
 1. **Clone repo**
    ```bash
    cd /Users/mpmac
-   git clone <swarm-hq-url> swarm-hq
-   cd swarm-hq
+   git clone <neuron-hq-url> neuron-hq
+   cd neuron-hq
    ```
 
 2. **Install dependencies**
@@ -223,7 +223,7 @@ cat runs/<runid>/replay.md  # If replay was run
 
 ### Issues
 For bugs or feature requests:
-https://github.com/<your-org>/swarm-hq/issues
+https://github.com/<your-org>/neuron-hq/issues
 
 ### Support
 - Review documentation: `docs/`

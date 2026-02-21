@@ -58,7 +58,7 @@
 
 ### Good
 ```markdown
-# Swarm HQ
+# Neuron HQ
 
 A control plane for autonomous agent swarms.
 
@@ -71,7 +71,7 @@ A control plane for autonomous agent swarms.
 
 ### Bad
 ```markdown
-# Welcome to Swarm HQ!
+# Welcome to Neuron HQ!
 
 This is a really cool project that we built to make it easier to...
 (50 more lines of fluff)

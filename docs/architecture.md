@@ -1,14 +1,14 @@
-# Swarm HQ Architecture
+# Neuron HQ Architecture
 
 ## Overview
 
-Swarm HQ is a **control plane** that orchestrates autonomous agent swarms to develop code in target repositories. It provides isolation, auditability, policy enforcement, and artifact generation.
+Neuron HQ is a **control plane** that orchestrates autonomous agent swarms to develop code in target repositories. It provides isolation, auditability, policy enforcement, and artifact generation.
 
 ## System Components
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                    Swarm HQ                         │
+│                    Neuron HQ                         │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────┐  │
 │  │     CLI      │  │   Policy     │  │  Audit   │  │
 │  │  Commands    │  │  Enforcer    │  │  Logger  │  │
@@ -57,7 +57,7 @@ Swarm HQ is a **control plane** that orchestrates autonomous agent swarms to dev
 Agents can ONLY write to:
 - `workspaces/<runid>/` (target repo workspace)
 - `runs/<runid>/` (artifacts)
-- Swarm HQ repo itself (for self-development)
+- Neuron HQ repo itself (for self-development)
 
 Everything else is **read-only**.
 

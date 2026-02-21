@@ -1,4 +1,4 @@
-# Swarm HQ - Handoff Documentation
+# Neuron HQ - Handoff Documentation
 **Date**: 2026-02-21
 **Session**: 2 - Manager Agent SDK integration complete
 **Next**: First live test + remaining agents
@@ -111,7 +111,7 @@ ManagerAgent
 export PATH="/opt/homebrew/opt/node@20/bin:$PATH"
 
 # 2. Configure API key
-cd /Users/mpmac/swarm-hq
+cd /Users/mpmac/neuron-hq
 cp .env.example .env
 # Edit .env: ANTHROPIC_API_KEY=sk-ant-...
 
@@ -155,7 +155,7 @@ Use Manager agent as template. Each agent needs:
 ### Priority 3: Commit Changes
 
 ```bash
-cd /Users/mpmac/swarm-hq
+cd /Users/mpmac/neuron-hq
 git add src/core/agents/manager.ts
 git commit -m "Implement Manager agent with Anthropic SDK (claude-opus-4-6)"
 ```
@@ -212,7 +212,7 @@ Session 2 (minor, acceptable):
 
 ## Continuity
 
-**Repository**: `/Users/mpmac/swarm-hq`
+**Repository**: `/Users/mpmac/neuron-hq`
 **Branch**: `main`
 **Last commit**: `199524a` (handoff docs from session 1)
 **Uncommitted changes**: `src/core/agents/manager.ts` (+464 lines)

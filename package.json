@@ -1,5 +1,5 @@
 {
-  "name": "swarm-hq",
+  "name": "neuron-hq",
   "version": "0.1.0",
   "description": "Autonomous agent swarm control plane for developing target repos",
   "type": "module",

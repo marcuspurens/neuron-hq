@@ -1,7 +1,7 @@
-# Swarm HQ - Claude Code Instructions
+# Neuron HQ - Claude Code Instructions
 
 ## What is This Repo?
-Swarm HQ is a **control plane** for running autonomous agent swarms that develop other repos. It coordinates Manager, Implementer, Reviewer, and Researcher agents using the Anthropic Claude Agent SDK.
+Neuron HQ is a **control plane** for running autonomous agent swarms that develop other repos. It coordinates Manager, Implementer, Reviewer, and Researcher agents using the Anthropic Claude Agent SDK.
 
 ## Critical Rules (Read First)
 
@@ -9,7 +9,7 @@ Swarm HQ is a **control plane** for running autonomous agent swarms that develop
 - Agents **ONLY write** to:
   - `workspaces/<runid>/` (workspace copies of target repos)
   - `runs/<runid>/` (run artifacts)
-  - Swarm HQ code itself (when developing Swarm HQ)
+  - Neuron HQ code itself (when developing Neuron HQ)
 - Everything else is **read-only**
 
 ### 2. Policy Enforcement

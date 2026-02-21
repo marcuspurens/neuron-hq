@@ -1,4 +1,4 @@
-# Swarm HQ Runtime Limits
+# Neuron HQ Runtime Limits
 
 # Time limits
 max_run_hours: 8  # Maximum hours for a single run

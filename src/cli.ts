@@ -17,14 +17,14 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Base directory for Swarm HQ
+// Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
 
 const program = new Command();
 
 program
   .name('swarm')
-  .description('Swarm HQ - Autonomous agent swarm control plane')
+  .description('Neuron HQ - Autonomous agent swarm control plane')
   .version('0.1.0');
 
 // Target commands

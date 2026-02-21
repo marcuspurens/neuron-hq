@@ -1,4 +1,4 @@
-# Swarm HQ - Handoff Index
+# Neuron HQ - Handoff Index
 
 Latest handoff: [HANDOFF-2026-02-21T1500-session3-cleanup.md](docs/HANDOFF-2026-02-21T1500-session3-cleanup.md)
 

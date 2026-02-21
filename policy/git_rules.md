@@ -1,4 +1,4 @@
-# Git Rules for Swarm HQ
+# Git Rules for Neuron HQ
 
 ## Core Principles
 1. **Never write to main/master branch directly**

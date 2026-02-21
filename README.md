@@ -1,8 +1,8 @@
-# Swarm HQ
+# Neuron HQ
 
 **Autonomous agent swarm control plane for developing target repos**
 
-Swarm HQ coordinates Manager, Implementer, Reviewer, and Researcher agents to autonomously develop code in other repositories over 2-3 hour runs, with full audit trails, policy enforcement, and artifact generation.
+Neuron HQ coordinates Manager, Implementer, Reviewer, and Researcher agents to autonomously develop code in other repositories over 2-3 hour runs, with full audit trails, policy enforcement, and artifact generation.
 
 ## Quick Start
 
