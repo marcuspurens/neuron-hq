@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { type RunId, type StoplightStatus, type RiskLevel } from './types.js';
+import { type StoplightStatus } from './types.js';
 
 export class ArtifactsManager {
   constructor(private runDir: string) {}

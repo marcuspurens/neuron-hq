@@ -1,8 +1,14 @@
 import { type RunContext } from '../run.js';
+import { ImplementerAgent } from './implementer.js';
+import { ReviewerAgent } from './reviewer.js';
+import { ResearcherAgent } from './researcher.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
-import { execSync } from 'child_process';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 /**
  * Manager Agent - orchestrates the swarm using Anthropic SDK.
@@ -12,7 +18,10 @@ export class ManagerAgent {
   private anthropic: Anthropic;
   private maxIterations: number;
 
+  private baseDir: string;
+
   constructor(private ctx: RunContext, baseDir: string) {
+    this.baseDir = baseDir;
     this.promptPath = path.join(baseDir, 'prompts', 'manager.md');
 
     // Initialize Anthropic client
@@ -279,6 +288,39 @@ Stop when time limit approaches or when blockers are encountered.
           },
         },
       },
+      {
+        name: 'delegate_to_implementer',
+        description:
+          'Delegate a specific coding task to the Implementer agent. Use when you have a clear, well-defined implementation task.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            task: {
+              type: 'string',
+              description: 'The specific coding task for the Implementer to carry out',
+            },
+          },
+          required: ['task'],
+        },
+      },
+      {
+        name: 'delegate_to_reviewer',
+        description:
+          'Delegate a review of current workspace changes to the Reviewer agent. Use before committing or when risk assessment is needed.',
+        input_schema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'delegate_to_researcher',
+        description:
+          'Delegate research and idea generation to the Researcher agent. Use at the start of a run or when exploring unknowns.',
+        input_schema: {
+          type: 'object',
+          properties: {},
+        },
+      },
     ];
   }
 
@@ -316,6 +358,15 @@ Stop when time limit approaches or when blockers are encountered.
               result = await this.executeListFiles(
                 block.input as { path?: string }
               );
+              break;
+            case 'delegate_to_implementer':
+              result = await this.delegateToImplementer(block.input as { task: string });
+              break;
+            case 'delegate_to_reviewer':
+              result = await this.delegateToReviewer();
+              break;
+            case 'delegate_to_researcher':
+              result = await this.delegateToResearcher();
               break;
             default:
               result = `Error: Unknown tool ${block.name}`;
@@ -365,9 +416,8 @@ Stop when time limit approaches or when blockers are encountered.
 
     try {
       // Execute command in workspace directory
-      const output = execSync(command, {
+      const { stdout } = await execAsync(command, {
         cwd: this.ctx.workspaceDir,
-        encoding: 'utf-8',
         maxBuffer: 10 * 1024 * 1024, // 10MB
         timeout: this.ctx.policy.getLimits().bash_timeout_seconds * 1000,
       });
@@ -375,7 +425,7 @@ Stop when time limit approaches or when blockers are encountered.
       // Log successful execution
       await this.ctx.manifest.addCommand(command, 0);
 
-      return output;
+      return stdout;
     } catch (error: any) {
       // Log failed execution
       await this.ctx.manifest.addCommand(command, error.status || 1);
@@ -487,41 +537,104 @@ Stop when time limit approaches or when blockers are encountered.
   }
 
   /**
+   * Delegate a coding task to the Implementer agent.
+   */
+  private async delegateToImplementer(input: { task: string }): Promise<string> {
+    console.log('Delegating to Implementer agent...');
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'manager',
+      tool: 'delegate_to_implementer',
+      allowed: true,
+      note: `Delegating task: ${input.task.slice(0, 120)}`,
+    });
+    const implementer = new ImplementerAgent(this.ctx, this.baseDir);
+    await implementer.run(input.task);
+    return 'Implementer agent completed successfully.';
+  }
+
+  /**
+   * Delegate a review to the Reviewer agent.
+   */
+  private async delegateToReviewer(): Promise<string> {
+    console.log('Delegating to Reviewer agent...');
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'manager',
+      tool: 'delegate_to_reviewer',
+      allowed: true,
+      note: 'Delegating review to Reviewer agent',
+    });
+    const reviewer = new ReviewerAgent(this.ctx, this.baseDir);
+    await reviewer.run();
+    return 'Reviewer agent completed successfully.';
+  }
+
+  /**
+   * Delegate research to the Researcher agent.
+   */
+  private async delegateToResearcher(): Promise<string> {
+    console.log('Delegating to Researcher agent...');
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'manager',
+      tool: 'delegate_to_researcher',
+      allowed: true,
+      note: 'Delegating research to Researcher agent',
+    });
+    const researcher = new ResearcherAgent(this.ctx, this.baseDir);
+    await researcher.run();
+    return 'Researcher agent completed successfully.';
+  }
+
+  /**
    * Write default artifacts at end of run.
+   * Only writes a file if it hasn't already been written by a sub-agent.
    */
   private async writeDefaultArtifacts(): Promise<void> {
-    // Write questions.md (empty for now - could be populated by agent)
-    await this.ctx.artifacts.writeQuestions([]);
+    // questions.md: write if missing (no blockers by default)
+    await this.writeIfAbsent('questions.md', async () => {
+      await this.ctx.artifacts.writeQuestions([]);
+    });
 
-    // Write ideas.md (placeholder)
-    const ideas = [
-      '# Ideas for Future Work',
-      '',
-      '(To be populated by Researcher agent)',
-    ].join('\n');
-    await this.ctx.artifacts.writeIdeas(ideas);
+    // ideas.md: write if researcher didn't already write it
+    await this.writeIfAbsent('ideas.md', async () => {
+      await this.ctx.artifacts.writeIdeas('# Ideas\n\n(No research was conducted this run.)');
+    });
 
-    // Write knowledge.md (placeholder)
-    const knowledge = [
-      '# Knowledge',
-      '',
-      '## What we learned',
-      '- Manager agent completed run with Anthropic SDK',
-      '',
-      '## Assumptions',
-      '- Implementer, Reviewer, Researcher agents not yet integrated',
-      '',
-      '## Open questions',
-      '- None',
-    ].join('\n');
-    await this.ctx.artifacts.writeKnowledge(knowledge);
+    // knowledge.md: write if missing
+    await this.writeIfAbsent('knowledge.md', async () => {
+      const knowledge = [
+        '# Knowledge',
+        '',
+        '## What we learned',
+        `- Manager agent completed run for: ${this.ctx.target.name}`,
+        '',
+        '## Assumptions',
+        '- See brief.md for task description',
+        '',
+        '## Open questions',
+        '- None',
+      ].join('\n');
+      await this.ctx.artifacts.writeKnowledge(knowledge);
+    });
 
-    // Write sources.md (placeholder)
-    const sources = [
-      '# Research Sources',
-      '',
-      '(To be populated by Researcher agent)',
-    ].join('\n');
-    await this.ctx.artifacts.writeSources(sources);
+    // sources.md: write if researcher didn't already write it
+    await this.writeIfAbsent(path.join('research', 'sources.md'), async () => {
+      await this.ctx.artifacts.writeSources('# Research Sources\n\n(No sources collected this run.)');
+    });
+  }
+
+  /**
+   * Write a file only if it doesn't already exist in the run dir.
+   */
+  private async writeIfAbsent(relativePath: string, write: () => Promise<void>): Promise<void> {
+    const fullPath = path.join(this.ctx.runDir, relativePath);
+    try {
+      await fs.access(fullPath);
+      // File exists — skip
+    } catch {
+      await write();
+    }
   }
 }

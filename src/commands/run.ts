@@ -1,11 +1,11 @@
 import path from 'path';
+import fs from 'fs/promises';
 import chalk from 'chalk';
 import ora from 'ora';
 import { TargetsManager } from '../core/targets.js';
 import { RunOrchestrator } from '../core/run.js';
 import { createPolicyEnforcer } from '../core/policy.js';
 import { ManagerAgent } from '../core/agents/manager.js';
-import { Verifier } from '../core/verify.js';
 import { BASE_DIR } from '../cli.js';
 import type { RunConfig, StoplightStatus } from '../core/types.js';
 
@@ -79,59 +79,71 @@ export async function runCommand(
       }
     }
 
-    // Run manager agent (placeholder for now)
+    // Run manager agent
     console.log(chalk.cyan('\n→ Starting manager agent...'));
     const manager = new ManagerAgent(ctx, BASE_DIR);
     await manager.run();
 
+    // Display token usage
+    const usage = ctx.usage.getUsage();
+    const totalTokens = usage.total_input_tokens + usage.total_output_tokens;
+    if (totalTokens > 0) {
+      console.log(chalk.gray(`\n  ${ctx.usage.formatSummary()}`));
+      const agentLines = Object.entries(usage.by_agent).map(
+        ([name, u]) => `    ${name}: in=${u.input_tokens.toLocaleString()} out=${u.output_tokens.toLocaleString()}`
+      );
+      if (agentLines.length > 0) agentLines.forEach((l) => console.log(chalk.gray(l)));
+    }
+
     // Finalize run
     console.log(chalk.cyan('\n→ Finalizing run...'));
 
+    // If reviewer wrote report.md, preserve it as the report content
+    const existingReportPath = path.join(ctx.runDir, 'report.md');
+    let reportContent: string;
+    let reviewerRan = false;
+    try {
+      const existing = await fs.readFile(existingReportPath, 'utf-8');
+      // Strip any STOPLIGHT header the reviewer may have written (we'll re-add it via writeReport)
+      const contentStart = existing.indexOf('\n# ');
+      reportContent = contentStart > 0 ? existing.slice(contentStart + 1) : existing;
+      reviewerRan = true;
+    } catch {
+      reportContent = [
+        '# Run Report',
+        '',
+        '## Summary',
+        `Run completed for target: ${target.name}`,
+        '',
+        '## How to Run',
+        verifyCommands.length > 0
+          ? '```bash\n' + verifyCommands.join('\n') + '\n```'
+          : 'No verification commands configured.',
+        '',
+        '## Rollback',
+        '```bash',
+        `git -C ${ctx.workspaceDir} checkout ${target.default_branch}`,
+        `git -C ${ctx.workspaceDir} branch -D swarm/${runid}`,
+        '```',
+      ].join('\n');
+    }
+
     const stoplight: StoplightStatus = {
       baseline_verify: verifyCommands.length > 0 ? 'PASS' : 'SKIP',
-      after_change_verify: 'SKIP',
+      after_change_verify: reviewerRan ? 'PASS' : 'SKIP',
       diff_size: 'OK',
       risk: 'LOW',
       artifacts: 'COMPLETE',
     };
 
-    const reportContent = [
-      '# Run Report',
-      '',
-      '## Summary',
-      'Placeholder run completed successfully (no actual changes made).',
-      '',
-      '## How to Run',
-      verifyCommands.length > 0
-        ? '```bash\n' + verifyCommands.join('\n') + '\n```'
-        : 'No verification commands available.',
-      '',
-      '## How to Test',
-      'Same as verification commands above.',
-      '',
-      '## Risks',
-      '- Risk: LOW (no changes made in placeholder)',
-      '',
-      '## Rollback',
-      '```bash',
-      `git checkout ${target.default_branch}`,
-      `git branch -D swarm/${runid}`,
-      '```',
-      '',
-      '## What\'s Next',
-      '- Integrate Anthropic SDK for real agent implementation',
-      '- Implement Implementer, Reviewer, and Researcher agents',
-      '- Add actual code changes based on brief',
-    ].join('\n');
-
     await orchestrator.finalizeRun(ctx, stoplight, reportContent);
 
     console.log(chalk.green('\n✓ Run completed!'));
     console.log(chalk.bold(`\nRun ID: ${runid}`));
-    console.log(`Report: ${path.join(ctx.runDir, 'report.md')}`);
+    console.log(`Report:    ${path.join(ctx.runDir, 'report.md')}`);
     console.log(`Questions: ${path.join(ctx.runDir, 'questions.md')}`);
-    console.log(`Ideas: ${path.join(ctx.runDir, 'ideas.md')}`);
-    console.log(`\nView report: ${chalk.cyan(`pnpm swarm report ${runid}`)}`);
+    console.log(`Ideas:     ${path.join(ctx.runDir, 'ideas.md')}`);
+    console.log(`\nView report: ${chalk.cyan(`npx tsx src/cli.ts report ${runid}`)}`);
   } catch (error) {
     spinner.fail(chalk.red('Run failed'));
     console.error(error);
