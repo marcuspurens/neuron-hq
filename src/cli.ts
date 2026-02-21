@@ -1,8 +1,15 @@
 #!/usr/bin/env node
+import { config } from 'dotenv';
 import { Command } from 'commander';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import chalk from 'chalk';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from project root before anything else
+config({ path: path.resolve(__dirname, '..', '.env') });
+
 import {
   targetAddCommand,
   targetListCommand,
@@ -13,9 +20,6 @@ import {
   logsCommand,
   reportCommand,
 } from './commands/index.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
