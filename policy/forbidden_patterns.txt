@@ -1,0 +1,48 @@
+# Forbidden command patterns (one pattern per line)
+# These are BLOCKED regardless of allowlist
+
+# Destructive operations
+^rm\s+-rf
+^sudo\s+
+^su\s+
+\bsudo\b
+
+# Network operations (unless explicit opt-in)
+^curl(\s|$)
+^wget(\s|$)
+^nc(\s|$)
+^netcat(\s|$)
+
+# Git danger zone
+git\s+push\s+--force
+git\s+push\s+-f\b
+git\s+reset\s+--hard
+git\s+clean\s+-f
+git\s+rebase\s+--force
+git\s+filter-branch
+
+# System modifications
+^shutdown(\s|$)
+^reboot(\s|$)
+^halt(\s|$)
+^init(\s|$)
+
+# Process manipulation
+^kill\s+-9
+^killall(\s|$)
+^pkill(\s|$)
+
+# Dangerous file operations
+\brm\s+.*-rf\b
+\bchmod\s+777\b
+\bchown\s+
+
+# Environment manipulation
+^export\s+PATH=
+^unset\s+PATH
+
+# Shell escapes
+;\s*sh\b
+;\s*bash\b
+`.*`
+\$\(.*eval

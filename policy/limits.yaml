@@ -1,0 +1,35 @@
+# Swarm HQ Runtime Limits
+
+# Time limits
+max_run_hours: 8  # Maximum hours for a single run
+default_run_hours: 3  # Default if not specified
+bash_timeout_seconds: 600  # 10 minutes per bash command
+verification_timeout_seconds: 1800  # 30 minutes for full test suite
+
+# Iteration limits
+max_iterations_per_run: 50  # Maximum agent iterations before forced stop
+max_wip_features: 1  # Work in progress limit (focus on one thing at a time)
+
+# Diff limits
+diff_warn_lines: 150  # Warn if diff exceeds this
+diff_block_lines: 300  # Block if diff exceeds this (require split)
+
+# Research limits
+max_web_searches_per_run: 10  # Maximum web searches allowed
+max_sources_per_research: 20  # Maximum sources in research/sources.md
+
+# Question limits
+max_blocker_questions: 3  # Maximum blockers in questions.md
+max_ideas: 10  # Maximum ideas in ideas.md
+
+# File size limits
+max_file_size_bytes: 10485760  # 10MB max file size for processing
+max_artifact_size_bytes: 5242880  # 5MB max artifact file size
+
+# Audit limits
+audit_log_max_entries: 10000  # Rotate audit.jsonl if exceeds
+manifest_checksum_algorithm: "sha256"
+
+# Retry/backoff
+max_command_retries: 2
+retry_backoff_seconds: 5

@@ -1,0 +1,15 @@
+# Swarm HQ Target Repositories
+# Add targets using: pnpm swarm target add <name> <path-or-url>
+
+targets: []
+
+# Example:
+# targets:
+#   - name: my-app
+#     path: /Users/mpmac/my-app
+#     default_branch: main
+#     verify_commands:
+#       - pnpm install
+#       - pnpm typecheck
+#       - pnpm lint
+#       - pnpm test

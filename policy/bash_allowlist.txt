@@ -1,0 +1,70 @@
+# Bash command allowlist (one pattern per line)
+# Patterns are matched as regex against the full command
+
+# Read operations
+^ls(\s|$)
+^cat(\s|$)
+^grep(\s|$)
+^rg(\s|$)
+^ripgrep(\s|$)
+^sed(\s|$)
+^awk(\s|$)
+^pwd(\s|$)
+^head(\s|$)
+^tail(\s|$)
+^find(\s|$)
+^tree(\s|$)
+^wc(\s|$)
+
+# Git operations (workspace only - enforced by file-scope check)
+^git\s+status
+^git\s+diff
+^git\s+log
+^git\s+show
+^git\s+branch
+^git\s+checkout
+^git\s+switch
+^git\s+add
+^git\s+commit
+^git\s+rev-parse
+^git\s+config\s+--local
+
+# Python (if present in target)
+^python(\d+(\.\d+)?)?\s+-m\s+venv
+^python(\d+(\.\d+)?)?\s+-m\s+pip
+^pip(\d+)?\s+install
+^pytest
+^ruff
+^mypy
+^black
+^isort
+
+# Node/pnpm (if present in target)
+^node(\s|$)
+^npm(\s|$)
+^pnpm(\s|$)
+^yarn(\s|$)
+^corepack(\s|$)
+
+# Build/test tools
+^make(\s|$)
+^cargo(\s|$)
+^go\s+(build|test|mod)
+^mvn(\s|$)
+^gradle(\s|$)
+
+# Safe utilities
+^echo(\s|$)
+^printf(\s|$)
+^which(\s|$)
+^type(\s|$)
+^basename(\s|$)
+^dirname(\s|$)
+^realpath(\s|$)
+^mkdir(\s|$)
+^touch(\s|$)
+^cp(\s|$)
+^mv(\s|$)
+
+# Directory navigation (allowed but cwd is tracked)
+^cd(\s|$)
