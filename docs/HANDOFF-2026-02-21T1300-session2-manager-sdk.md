@@ -111,12 +111,12 @@ ManagerAgent
 export PATH="/opt/homebrew/opt/node@20/bin:$PATH"
 
 # 2. Configure API key
-cd /Users/mpmac/neuron-hq
+cd /Users/mpmac/Documents/VS Code/neuron-hq
 cp .env.example .env
 # Edit .env: ANTHROPIC_API_KEY=sk-ant-...
 
 # 3. Add test target
-npx tsx src/cli.ts target add test-demo /Users/mpmac/aurora-swarm-lab
+npx tsx src/cli.ts target add test-demo /Users/mpmac/Documents/VS Code/aurora-swarm-lab
 
 # 4. Run minimal swarm (6 minutes)
 npx tsx src/cli.ts run test-demo --hours 0.1
@@ -155,7 +155,7 @@ Use Manager agent as template. Each agent needs:
 ### Priority 3: Commit Changes
 
 ```bash
-cd /Users/mpmac/neuron-hq
+cd /Users/mpmac/Documents/VS Code/neuron-hq
 git add src/core/agents/manager.ts
 git commit -m "Implement Manager agent with Anthropic SDK (claude-opus-4-6)"
 ```
@@ -212,7 +212,7 @@ Session 2 (minor, acceptable):
 
 ## Continuity
 
-**Repository**: `/Users/mpmac/neuron-hq`
+**Repository**: `/Users/mpmac/Documents/VS Code/neuron-hq`
 **Branch**: `main`
 **Last commit**: `199524a` (handoff docs from session 1)
 **Uncommitted changes**: `src/core/agents/manager.ts` (+464 lines)

@@ -3,7 +3,7 @@
 
 targets:
   - name: aurora-swarm-lab
-    path: /Users/mpmac/aurora-swarm-lab
+    path: /Users/mpmac/Documents/VS Code/aurora-swarm-lab
     default_branch: main
     verify_commands:
       - python -m pytest tests/ -x -q

@@ -32,6 +32,10 @@
    - File: `targets/repos.yaml`
    - verify_commands: `python -m pytest tests/ -x -q`
 
+5. **Both repos moved to `/Users/mpmac/Documents/VS Code/`** (end of session 3)
+   - `/Users/mpmac/Documents/VS Code/neuron-hq`
+   - `/Users/mpmac/Documents/VS Code/aurora-swarm-lab`
+
 ### Both repos are now: clean working tree, no dirty state
 
 ---
@@ -95,7 +99,7 @@ aurora-swarm-lab/                  ← Target repo (Python AI assistant)
 ```
 
 neuron-hq **reads** aurora-swarm-lab by cloning into `workspaces/`.
-neuron-hq **never writes** directly to `/Users/mpmac/aurora-swarm-lab/`.
+neuron-hq **never writes** directly to `/Users/mpmac/Documents/VS Code/aurora-swarm-lab/`.
 
 ---
 
@@ -108,7 +112,7 @@ neuron-hq **never writes** directly to `/Users/mpmac/aurora-swarm-lab/`.
 export PATH="/opt/homebrew/opt/node@20/bin:$PATH"
 
 # 2. Configure API key
-cd /Users/mpmac/neuron-hq
+cd "/Users/mpmac/Documents/VS Code/neuron-hq"
 cp .env.example .env
 # Edit .env: ANTHROPIC_API_KEY=sk-ant-...
 
@@ -202,26 +206,25 @@ npx tsx src/cli.ts    # instead of pnpm swarm
 
 ## Continuity
 
-**neuron-hq**: `/Users/mpmac/swarm-hq` (⚠️ mappnamnet är ännu inte bytt — se nedan), branch `main`
-**aurora-swarm-lab**: `/Users/mpmac/aurora-swarm-lab`, branch `main`, last commit `1f8e68d`
+**neuron-hq**: `/Users/mpmac/Documents/VS Code/neuron-hq`, branch `main`
+**aurora-swarm-lab**: `/Users/mpmac/Documents/VS Code/aurora-swarm-lab`, branch `main`, last commit `1f8e68d`
 
 Both repos: clean working tree.
 
 ---
 
-## Pending: Byt mappnamn
+## Note: Repo Move Complete
 
-Alla filer och docs är uppdaterade till "neuron-hq" men själva **mappen heter fortfarande `swarm-hq`** på disk.
-Gör detta i en ny terminal (stäng IDE:n mot mappen först):
+Both repos now live under `/Users/mpmac/Documents/VS Code/`:
 
+- `/Users/mpmac/Documents/VS Code/neuron-hq`
+- `/Users/mpmac/Documents/VS Code/aurora-swarm-lab`
+
+All path references in `targets/repos.yaml` and handoff docs have been updated.
+
+If you want to preserve the Claude Code memory file for this project, rename it:
 ```bash
-mv /Users/mpmac/swarm-hq /Users/mpmac/neuron-hq
-```
-
-Git-historiken påverkas inte — git bryr sig inte om mappnamnet.
-Claude Code-sessionens minnesfil (om du vill bevara den):
-```bash
-mv ~/.claude/projects/-Users-mpmac-swarm-hq ~/.claude/projects/-Users-mpmac-neuron-hq
+mv ~/.claude/projects/-Users-mpmac-swarm-hq "-Users-mpmac-Documents-VS Code-neuron-hq"
 ```
 
 ---
