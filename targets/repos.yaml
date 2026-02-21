@@ -1,7 +1,12 @@
 # Swarm HQ Target Repositories
 # Add targets using: pnpm swarm target add <name> <path-or-url>
 
-targets: []
+targets:
+  - name: aurora-swarm-lab
+    path: /Users/mpmac/aurora-swarm-lab
+    default_branch: main
+    verify_commands:
+      - python -m pytest tests/ -x -q
 
 # Example:
 # targets:
