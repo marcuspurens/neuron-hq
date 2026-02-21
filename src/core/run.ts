@@ -177,7 +177,7 @@ export class RunOrchestrator {
     const artifactPaths = ctx.artifacts.getArtifactPaths();
     const checksums: Record<string, string> = {};
 
-    for (const [name, filePath] of Object.entries(artifactPaths)) {
+    for (const [, filePath] of Object.entries(artifactPaths)) {
       try {
         const checksum = await ManifestManager.checksumFile(filePath);
         checksums[path.basename(filePath)] = checksum;
@@ -187,6 +187,88 @@ export class RunOrchestrator {
     }
 
     await ctx.manifest.addChecksums(checksums);
+  }
+
+  /**
+   * Resume a previous run using its existing workspace.
+   * Creates a new run directory but reuses the old workspace (preserving changes).
+   */
+  async resumeRun(
+    oldRunId: RunId,
+    newRunId: RunId,
+    target: Target,
+    hours: number
+  ): Promise<RunContext> {
+    // Point to the existing workspace from the old run
+    const workspaceDir = path.join(this.baseDir, 'workspaces', oldRunId, target.name);
+    const runDir = path.join(this.baseDir, 'runs', newRunId);
+
+    // Verify old workspace exists
+    try {
+      await fs.access(workspaceDir);
+    } catch {
+      throw new Error(
+        `Workspace for run '${oldRunId}' not found at: ${workspaceDir}\n` +
+        `The workspace may have been deleted after the original run completed.`
+      );
+    }
+
+    await fs.mkdir(runDir, { recursive: true });
+
+    // Initialize components (same as initRun)
+    const artifacts = new ArtifactsManager(runDir);
+    await artifacts.init();
+
+    const audit = new AuditLogger(path.join(runDir, 'audit.jsonl'));
+    const manifest = new ManifestManager(path.join(runDir, 'manifest.json'));
+    const usage = new UsageTracker(newRunId);
+    const redactor = new Redactor();
+    const verifier = new Verifier(workspaceDir, this.policy.getLimits().verification_timeout_seconds);
+    const git = new GitOperations(workspaceDir);
+    const currentSHA = await git.getCurrentSHA();
+
+    // Continue on the same branch the old run was using
+    const workspaceBranch = `swarm/${oldRunId}`;
+
+    await manifest.create({
+      runid: newRunId,
+      target_name: target.name,
+      target_start_sha: currentSHA,
+      workspace_branch: workspaceBranch,
+      started_at: new Date().toISOString(),
+      commands: [],
+      checksums: {},
+    });
+
+    // Copy brief from old run (fall back to placeholder if missing)
+    const oldBriefPath = path.join(this.baseDir, 'runs', oldRunId, 'brief.md');
+    try {
+      const briefContent = await fs.readFile(oldBriefPath, 'utf-8');
+      await artifacts.writeBrief(briefContent);
+    } catch {
+      await artifacts.writeBrief(`# Resumed Run\n\nResumed from: ${oldRunId}\n\nNo brief found in previous run.`);
+    }
+
+    const endTime = new Date();
+    endTime.setHours(endTime.getHours() + hours);
+
+    return {
+      runid: newRunId,
+      target,
+      hours,
+      workspaceDir,
+      runDir,
+      artifacts,
+      audit,
+      manifest,
+      usage,
+      redactor,
+      verifier,
+      git,
+      policy: this.policy,
+      startTime: new Date(),
+      endTime,
+    };
   }
 
   /**
