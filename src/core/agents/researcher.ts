@@ -146,6 +146,13 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
 
         messages.push({ role: 'assistant', content: response.content });
 
+        // Print agent reasoning (text blocks)
+        for (const block of response.content) {
+          if (block.type === 'text' && block.text.trim()) {
+            console.log(`\n[Researcher] ${block.text.trim()}`);
+          }
+        }
+
         if (response.stop_reason === 'end_turn') {
           const hasToolUse = response.content.some(
             (block: Anthropic.ContentBlock) => block.type === 'tool_use'

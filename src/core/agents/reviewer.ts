@@ -64,6 +64,7 @@ export class ReviewerAgent {
     const reviewerPrompt = await this.loadPrompt();
 
     const limits = this.ctx.policy.getLimits();
+    const briefContent = await this.loadBrief();
     const contextInfo = `
 # Run Context
 
@@ -86,14 +87,28 @@ export class ReviewerAgent {
 - **write_file**: Write files to the runs directory (report.md, questions.md)
 - **list_files**: List files in a directory
 
+# Brief (Acceptance Criteria to Verify)
+
+${briefContent}
+
 # Your Mission
 
-Review the current state of the workspace. Check git diff, run verifications,
+Review the current state of the workspace. For every acceptance criterion in the brief above,
+run actual bash commands to verify whether it was delivered. Check git diff, run verifications,
 assess risk (LOW/MED/HIGH), and write a STOPLIGHT report to report.md.
 Block if policy is violated or verification fails.
 `;
 
     return `${reviewerPrompt}\n\n${contextInfo}`;
+  }
+
+  private async loadBrief(): Promise<string> {
+    const briefPath = path.join(this.ctx.runDir, 'brief.md');
+    try {
+      return await fs.readFile(briefPath, 'utf-8');
+    } catch {
+      return '(brief.md not found — cannot verify acceptance criteria)';
+    }
   }
 
   private async runAgentLoop(systemPrompt: string): Promise<void> {
@@ -104,12 +119,17 @@ Block if policy is violated or verification fails.
 
 Steps:
 1. Run \`git diff\` and \`git status\` to see what changed
-2. Run verification commands if available
+2. For EVERY acceptance criterion in the brief, run actual commands to verify:
+   - Use \`ls <file>\` to confirm files exist
+   - Use \`grep -r "<function>" .\` to confirm code exists
+   - Run tests if available
+   Report the actual command output. Mark ✅ VERIFIED or ❌ NOT VERIFIED based on real output.
 3. Assess risk level (LOW/MED/HIGH)
-4. Write STOPLIGHT report to ${path.join(this.ctx.runDir, 'report.md')}
+4. Write report to ${path.join(this.ctx.runDir, 'report.md')} — start with the Swedish summary table,
+   then the "Planerat vs Levererat" table, then the STOPLIGHT section
 5. If there are blockers, update questions.md
 
-Be thorough and objective.`,
+IMPORTANT: Never claim something is done without running a command to verify it.`,
       },
     ];
 
@@ -141,6 +161,13 @@ Be thorough and objective.`,
         );
 
         messages.push({ role: 'assistant', content: response.content });
+
+        // Print agent reasoning (text blocks)
+        for (const block of response.content) {
+          if (block.type === 'text' && block.text.trim()) {
+            console.log(`\n[Reviewer] ${block.text.trim()}`);
+          }
+        }
 
         if (response.stop_reason === 'end_turn') {
           const hasToolUse = response.content.some(

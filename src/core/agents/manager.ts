@@ -2,6 +2,10 @@ import { type RunContext } from '../run.js';
 import { ImplementerAgent } from './implementer.js';
 import { ReviewerAgent } from './reviewer.js';
 import { ResearcherAgent } from './researcher.js';
+import { MergerAgent } from './merger.js';
+import { HistorianAgent } from './historian.js';
+import { TesterAgent } from './tester.js';
+import { LibrarianAgent } from './librarian.js';
 import { truncateToolResult, trimMessages } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -187,6 +191,13 @@ Stop when time limit approaches or when blockers are encountered.
           content: response.content,
         });
 
+        // Print agent reasoning (text blocks)
+        for (const block of response.content) {
+          if (block.type === 'text' && block.text.trim()) {
+            console.log(`\n[Manager] ${block.text.trim()}`);
+          }
+        }
+
         // Check if agent wants to stop
         if (response.stop_reason === 'end_turn') {
           // Check if there are tool uses
@@ -323,6 +334,52 @@ Stop when time limit approaches or when blockers are encountered.
           properties: {},
         },
       },
+      {
+        name: 'delegate_to_merger',
+        description:
+          'Delegate the merge step to the Merger agent. Use after Reviewer has approved changes. ' +
+          'First call generates a merge plan and requests user approval. ' +
+          'Second call (after user writes APPROVED in answers.md) copies files and commits.',
+        input_schema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'delegate_to_historian',
+        description:
+          'Delegate run summary writing to the Historian agent. ' +
+          'Call this LAST — after all other agents have finished. ' +
+          'The Historian reads the run artifacts and writes to memory/runs.md (always), ' +
+          'memory/errors.md (if problems occurred), and memory/patterns.md (if new patterns emerged).',
+        input_schema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'delegate_to_tester',
+        description:
+          'Delegate independent test execution to the Tester agent. ' +
+          'Call this after the Implementer has finished, before or after the Reviewer. ' +
+          'The Tester discovers the test framework, runs the full suite, and writes test_report.md.',
+        input_schema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'delegate_to_librarian',
+        description:
+          'Delegate research to the Librarian agent. ' +
+          'The Librarian searches arxiv and Anthropic docs for recent AI techniques ' +
+          'and writes new findings to memory/techniques.md. ' +
+          'Call this manually when the user requests a knowledge update.',
+        input_schema: {
+          type: 'object',
+          properties: {},
+        },
+      },
     ];
   }
 
@@ -369,6 +426,18 @@ Stop when time limit approaches or when blockers are encountered.
               break;
             case 'delegate_to_researcher':
               result = await this.delegateToResearcher();
+              break;
+            case 'delegate_to_merger':
+              result = await this.delegateToMerger();
+              break;
+            case 'delegate_to_historian':
+              result = await this.delegateToHistorian();
+              break;
+            case 'delegate_to_tester':
+              result = await this.delegateToTester();
+              break;
+            case 'delegate_to_librarian':
+              result = await this.delegateToLibrarian();
               break;
             default:
               result = `Error: Unknown tool ${block.name}`;
@@ -587,6 +656,78 @@ Stop when time limit approaches or when blockers are encountered.
     const researcher = new ResearcherAgent(this.ctx, this.baseDir);
     await researcher.run();
     return 'Researcher agent completed successfully.';
+  }
+
+  /**
+   * Delegate run summary writing to the Historian agent.
+   */
+  private async delegateToLibrarian(): Promise<string> {
+    console.log('Delegating to Librarian agent...');
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'manager',
+      tool: 'delegate_to_librarian',
+      allowed: true,
+      note: 'Delegating research to Librarian agent',
+    });
+    const librarian = new LibrarianAgent(this.ctx, this.baseDir);
+    await librarian.run();
+    return 'Librarian agent completed. New techniques may have been added to memory/techniques.md.';
+  }
+
+  private async delegateToHistorian(): Promise<string> {
+    console.log('Delegating to Historian agent...');
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'manager',
+      tool: 'delegate_to_historian',
+      allowed: true,
+      note: 'Delegating run summary to Historian agent',
+    });
+    const historian = new HistorianAgent(this.ctx, this.baseDir);
+    await historian.run();
+    return 'Historian agent completed successfully.';
+  }
+
+  /**
+   * Delegate independent test execution to the Tester agent.
+   */
+  private async delegateToTester(): Promise<string> {
+    console.log('Delegating to Tester agent...');
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'manager',
+      tool: 'delegate_to_tester',
+      allowed: true,
+      note: 'Delegating test execution to Tester agent',
+    });
+    const tester = new TesterAgent(this.ctx, this.baseDir);
+    try {
+      return await tester.run();
+    } catch (error) {
+      const msg =
+        `TESTER ERROR: ${error}. ` +
+        `Do NOT call delegate_to_tester again — retrying will cause the same failure. ` +
+        `Report test results as unavailable and proceed to the next step.`;
+      console.error('Tester agent failed:', error);
+      return msg;
+    }
+  }
+
+  /**
+   * Delegate the merge step to the Merger agent.
+   */
+  private async delegateToMerger(): Promise<string> {
+    console.log('Delegating to Merger agent...');
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'manager',
+      tool: 'delegate_to_merger',
+      allowed: true,
+      note: 'Delegating merge to Merger agent',
+    });
+    const merger = new MergerAgent(this.ctx, this.baseDir);
+    return await merger.run();
   }
 
   /**

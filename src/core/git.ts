@@ -109,4 +109,24 @@ export class GitOperations {
       return false;
     }
   }
+
+  /**
+   * Initialize a fresh git repo in workspaceDir and commit all files.
+   * Used after copyDirectory so the workspace is isolated from the parent git repo.
+   */
+  static async initWorkspace(workspaceDir: string, targetName: string): Promise<void> {
+    const env = {
+      ...process.env,
+      GIT_AUTHOR_NAME: 'Neuron HQ',
+      GIT_AUTHOR_EMAIL: 'neuronhq@local',
+      GIT_COMMITTER_NAME: 'Neuron HQ',
+      GIT_COMMITTER_EMAIL: 'neuronhq@local',
+    };
+    await execAsync('git init', { cwd: workspaceDir });
+    await execAsync('git add -A', { cwd: workspaceDir });
+    await execAsync(`git commit -m "Workspace: initial copy from ${targetName}"`, {
+      cwd: workspaceDir,
+      env,
+    });
+  }
 }

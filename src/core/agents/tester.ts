@@ -1,5 +1,4 @@
 import { type RunContext } from '../run.js';
-import { truncateToolResult, trimMessages } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
@@ -9,15 +8,16 @@ import { promisify } from 'util';
 const execAsync = promisify(exec);
 
 /**
- * Implementer Agent - writes code changes to the workspace.
+ * Tester Agent - independently runs the test suite and reports results.
+ * Has no knowledge of what the Implementer did — pure quality gate.
  */
-export class ImplementerAgent {
+export class TesterAgent {
   private promptPath: string;
   private anthropic: Anthropic;
   private maxIterations: number;
 
   constructor(private ctx: RunContext, baseDir: string) {
-    this.promptPath = path.join(baseDir, 'prompts', 'implementer.md');
+    this.promptPath = path.join(baseDir, 'prompts', 'tester.md');
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
@@ -33,93 +33,94 @@ export class ImplementerAgent {
   }
 
   /**
-   * Execute the implementer's task loop.
+   * Run the tester — discovers test framework, runs tests, writes test_report.md.
+   * Returns a one-line verdict string.
    */
-  async run(task: string): Promise<void> {
+  async run(): Promise<string> {
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
-      role: 'implementer',
+      role: 'tester',
       tool: 'run',
       allowed: true,
-      note: `Implementer agent started. Task: ${task.slice(0, 120)}`,
+      note: 'Tester agent started',
     });
 
     try {
       const systemPrompt = await this.buildSystemPrompt();
-      await this.runAgentLoop(systemPrompt, task);
-
-      console.log('Implementer agent completed successfully.');
+      const verdict = await this.runAgentLoop(systemPrompt);
+      console.log('Tester agent completed.');
+      return verdict;
     } catch (error) {
       await this.ctx.audit.log({
         ts: new Date().toISOString(),
-        role: 'implementer',
+        role: 'tester',
         tool: 'run',
         allowed: false,
-        note: `Implementer agent failed: ${error}`,
+        note: `Tester agent failed: ${error}`,
       });
       throw error;
     }
   }
 
   private async buildSystemPrompt(): Promise<string> {
-    const implementerPrompt = await this.loadPrompt();
+    const testerPrompt = await this.loadPrompt();
 
     const contextInfo = `
 # Run Context
 
 - **Run ID**: ${this.ctx.runid}
 - **Target**: ${this.ctx.target.name}
-- **Time limit**: ${this.ctx.hours} hours (ends at ${this.ctx.endTime.toISOString()})
 - **Workspace**: ${this.ctx.workspaceDir}
-- **Max iterations**: ${this.maxIterations}
+- **Run artifacts**: ${this.ctx.runDir}
+- **Test report path**: ${path.join(this.ctx.runDir, 'test_report.md')}
 
-# Available Tools
+# Your Task
 
-- **bash_exec**: Execute bash commands (policy-gated)
-- **read_file**: Read files from the workspace
-- **write_file**: Write files to the workspace (policy-gated)
-- **list_files**: List files in a directory
-
-# Policy Constraints
-
-All bash commands and file writes are subject to policy enforcement.
-Keep diffs under 150 lines per iteration. Run fast checks after each change.
+Discover the test framework in the workspace, run the full test suite,
+and write test_report.md to the run artifacts directory.
 `;
 
-    return `${implementerPrompt}\n\n${contextInfo}`;
+    return `${testerPrompt}\n\n${contextInfo}`;
   }
 
-  private async runAgentLoop(systemPrompt: string, task: string): Promise<void> {
+  private async runAgentLoop(systemPrompt: string): Promise<string> {
     const messages: Anthropic.MessageParam[] = [
       {
         role: 'user',
-        content: `Your task:\n\n${task}\n\nPlease implement this change following the implementer guidelines. Keep diffs small (<150 lines), verify after each change, and follow existing code patterns.`,
+        content:
+          `Discover the test framework and run the full test suite in the workspace.\n\n` +
+          `1. Use list_files to inspect the workspace root.\n` +
+          `2. Identify the test framework.\n` +
+          `3. Run the tests with bash_exec.\n` +
+          `4. Write test_report.md to ${path.join(this.ctx.runDir, 'test_report.md')}.\n` +
+          `5. Return your one-line verdict.`,
       },
     ];
 
     let iteration = 0;
+    let lastVerdict = 'TESTS UNKNOWN: Tester did not complete.';
 
     while (iteration < this.maxIterations) {
       iteration++;
 
       if (new Date() > this.ctx.endTime) {
-        console.log('Time limit reached. Stopping implementer loop.');
+        console.log('Time limit reached. Stopping tester loop.');
         break;
       }
 
-      console.log(`\n=== Implementer iteration ${iteration}/${this.maxIterations} ===`);
+      console.log(`\n=== Tester iteration ${iteration}/${this.maxIterations} ===`);
 
       try {
         const response = await this.anthropic.messages.create({
           model: 'claude-opus-4-6',
-          max_tokens: 8192,
+          max_tokens: 4096,
           system: systemPrompt,
-          messages: trimMessages(messages),
+          messages,
           tools: this.defineTools(),
         });
 
         this.ctx.usage.recordTokens(
-          'implementer',
+          'tester',
           response.usage.input_tokens,
           response.usage.output_tokens
         );
@@ -129,37 +130,45 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
         // Print agent reasoning (text blocks)
         for (const block of response.content) {
           if (block.type === 'text' && block.text.trim()) {
-            console.log(`\n[Implementer] ${block.text.trim()}`);
+            console.log(`\n[Tester] ${block.text.trim()}`);
+          }
+        }
+
+        // Extract any text verdict from the last text block
+        for (const block of response.content) {
+          if (block.type === 'text' && block.text.match(/^(TESTS (PASS|FAIL)|NO TESTS)/i)) {
+            lastVerdict = block.text.trim().split('\n')[0];
           }
         }
 
         if (response.stop_reason === 'end_turn') {
           const hasToolUse = response.content.some(
-            (block: Anthropic.ContentBlock) => block.type === 'tool_use'
+            (b: Anthropic.ContentBlock) => b.type === 'tool_use'
           );
           if (!hasToolUse) {
-            console.log('Implementer finished (no more tool calls).');
+            console.log('Tester finished (no more tool calls).');
             break;
           }
         }
 
         const toolResults = await this.executeTools(response.content);
-
         if (toolResults.length > 0) {
           messages.push({ role: 'user', content: toolResults });
         } else {
-          console.log('Implementer finished (no tool calls).');
+          console.log('Tester finished (no tool calls).');
           break;
         }
       } catch (error) {
-        console.error('Error in implementer loop:', error);
+        console.error('Error in tester loop:', error);
         throw error;
       }
     }
 
     if (iteration >= this.maxIterations) {
-      console.log('Implementer: max iterations reached.');
+      console.log('Tester: max iterations reached.');
     }
+
+    return lastVerdict;
   }
 
   private defineTools(): Anthropic.Tool[] {
@@ -167,7 +176,7 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
       {
         name: 'bash_exec',
         description:
-          'Execute a bash command in the workspace. Subject to policy allowlist/forbidden patterns.',
+          'Execute a bash command in the workspace. Use to run tests (pytest, npm test, etc.) and inspect files.',
         input_schema: {
           type: 'object',
           properties: {
@@ -181,13 +190,13 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
       },
       {
         name: 'read_file',
-        description: 'Read the contents of a file.',
+        description: 'Read a file from the workspace (e.g. package.json, pyproject.toml).',
         input_schema: {
           type: 'object',
           properties: {
             path: {
               type: 'string',
-              description: 'File path relative to workspace or absolute path',
+              description: 'Absolute path or workspace-relative path',
             },
           },
           required: ['path'],
@@ -195,18 +204,17 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
       },
       {
         name: 'write_file',
-        description:
-          'Write content to a file. Subject to policy file scope validation.',
+        description: 'Write test_report.md to the runs directory.',
         input_schema: {
           type: 'object',
           properties: {
             path: {
               type: 'string',
-              description: 'File path relative to workspace or absolute path',
+              description: 'Absolute path (must be inside runs dir)',
             },
             content: {
               type: 'string',
-              description: 'Content to write to the file',
+              description: 'Content to write',
             },
           },
           required: ['path', 'content'],
@@ -214,13 +222,13 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
       },
       {
         name: 'list_files',
-        description: 'List files in a directory.',
+        description: 'List files in a directory to discover test framework.',
         input_schema: {
           type: 'object',
           properties: {
             path: {
               type: 'string',
-              description: 'Directory path to list (defaults to workspace root)',
+              description: 'Directory path (defaults to workspace root)',
             },
           },
         },
@@ -235,7 +243,7 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
 
     for (const block of content) {
       if (block.type === 'tool_use') {
-        console.log(`Implementer executing tool: ${block.name}`);
+        console.log(`Tester executing tool: ${block.name}`);
         this.ctx.usage.recordToolCall(block.name);
 
         try {
@@ -281,7 +289,7 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
 
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
-      role: 'implementer',
+      role: 'tester',
       tool: 'bash_exec',
       allowed: policyCheck.allowed,
       policy_event: policyCheck.reason,
@@ -293,17 +301,22 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
     }
 
     try {
-      const { stdout } = await execAsync(command, {
+      const { stdout, stderr } = await execAsync(command, {
         cwd: this.ctx.workspaceDir,
         maxBuffer: 10 * 1024 * 1024,
         timeout: this.ctx.policy.getLimits().bash_timeout_seconds * 1000,
       });
-
       await this.ctx.manifest.addCommand(command, 0);
-      return truncateToolResult(stdout);
+      // Include stderr in output — test runners often write results to stderr
+      return (stdout + (stderr ? '\n' + stderr : '')).trim();
     } catch (error: any) {
       await this.ctx.manifest.addCommand(command, error.status || 1);
-      return `Command failed (exit ${error.status || 1}):\n${error.stderr || error.message}`;
+      // For test runners, exit code != 0 means tests failed — include full output
+      const out = [
+        error.stdout || '',
+        error.stderr || '',
+      ].filter(Boolean).join('\n');
+      return `Exit ${error.status || 1}:\n${out || error.message}`;
     }
   }
 
@@ -315,16 +328,14 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
 
     try {
       const content = await fs.readFile(absolutePath, 'utf-8');
-
       await this.ctx.audit.log({
         ts: new Date().toISOString(),
-        role: 'implementer',
+        role: 'tester',
         tool: 'read_file',
         allowed: true,
         files_touched: [absolutePath],
       });
-
-      return truncateToolResult(content);
+      return content;
     } catch (error: any) {
       return `Error reading file: ${error.message}`;
     }
@@ -334,13 +345,13 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
     const { path: filePath, content } = input;
     const absolutePath = path.isAbsolute(filePath)
       ? filePath
-      : path.join(this.ctx.workspaceDir, filePath);
+      : path.join(this.ctx.runDir, filePath);
 
     const policyCheck = this.ctx.policy.checkFileWriteScope(absolutePath, this.ctx.runid);
 
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
-      role: 'implementer',
+      role: 'tester',
       tool: 'write_file',
       allowed: policyCheck.allowed,
       policy_event: policyCheck.reason,

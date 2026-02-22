@@ -32,6 +32,7 @@
 # Python (if present in target)
 ^python(\d+(\.\d+)?)?\s+-m\s+venv
 ^python(\d+(\.\d+)?)?\s+-m\s+pip
+^python(\d+(\.\d+)?)?\s+-m\s+pytest
 ^pip(\d+)?\s+install
 ^pytest
 ^ruff
@@ -42,6 +43,7 @@
 # Node/pnpm (if present in target)
 ^node(\s|$)
 ^npm(\s|$)
+^npx(\s|$)
 ^pnpm(\s|$)
 ^yarn(\s|$)
 ^corepack(\s|$)

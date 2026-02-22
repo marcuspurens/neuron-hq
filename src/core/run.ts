@@ -74,7 +74,7 @@ export class RunOrchestrator {
     const startSHA = await git.getCurrentSHA();
 
     // Create workspace branch
-    const workspaceBranch = `swarm/${runid}`;
+    const workspaceBranch = `neuron/${runid}`;
     await git.createBranch(workspaceBranch);
 
     // Initialize manifest
@@ -120,11 +120,13 @@ export class RunOrchestrator {
   private async prepareWorkspace(target: Target, workspaceDir: string): Promise<void> {
     // Check if target.path is a URL or local path
     if (target.path.startsWith('http://') || target.path.startsWith('https://')) {
-      // Clone from URL
+      // Clone from URL — preserves git history and creates isolated repo
       await GitOperations.clone(target.path, workspaceDir);
     } else {
-      // Copy from local path
+      // Copy from local path, then initialize a fresh git repo so workspace
+      // is isolated from any parent git repo (e.g. neuron-hq itself)
       await this.copyDirectory(target.path, workspaceDir);
+      await GitOperations.initWorkspace(workspaceDir, target.name);
     }
   }
 
@@ -228,7 +230,7 @@ export class RunOrchestrator {
     const currentSHA = await git.getCurrentSHA();
 
     // Continue on the same branch the old run was using
-    const workspaceBranch = `swarm/${oldRunId}`;
+    const workspaceBranch = `neuron/${oldRunId}`;
 
     await manifest.create({
       runid: newRunId,
