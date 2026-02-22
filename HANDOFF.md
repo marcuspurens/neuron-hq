@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-02-22T1850-session16-verification.md](docs/HANDOFF-2026-02-22T1850-session16-verification.md)
+Senaste handoff: [HANDOFF-2026-02-22T1940-session16-features.md](docs/HANDOFF-2026-02-22T1940-session16-features.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -24,6 +24,7 @@ Senaste handoff: [HANDOFF-2026-02-22T1850-session16-verification.md](docs/HANDOF
 | 2026-02-22 | 17:34 | 13b | Strukturerat minne + namnbyte | [länk](docs/HANDOFF-2026-02-22-session13-namnbyte-och-minne.md) |
 | 2026-02-22 | 18:01 | 14 | Historian-fix + Librarian smoke test | [länk](docs/HANDOFF-2026-02-22-session14-historian-fix.md) |
 | 2026-02-22 | 18:31 | 15 | Manager-bugfix + Nivå 2 Streaming | [länk](docs/HANDOFF-2026-02-22-session15-streaming.md) |
-| 2026-02-22 | 18:50 | 16 | Verifieringskörning | [länk](docs/HANDOFF-2026-02-22T1850-session16-verification.md) |
+| 2026-02-22 | 18:50 | 16a | Verifieringskörning | [länk](docs/HANDOFF-2026-02-22T1850-session16-verification.md) |
+| 2026-02-22 | 19:40 | 16b | Auto-trigger + Länkade minnen | [länk](docs/HANDOFF-2026-02-22T1940-session16-features.md) |
 
 > **Not:** Session 1 och 6 saknas — handoffs skapades inte vid dessa tillfällen.
