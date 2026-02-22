@@ -109,13 +109,25 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
       console.log(`\n=== Librarian iteration ${iteration}/${this.maxIterations} ===`);
 
       try {
-        const response = await this.anthropic.messages.create({
+        const stream = this.anthropic.messages.stream({
           model: 'claude-opus-4-6',
           max_tokens: 4096,
           system: systemPrompt,
           messages,
           tools: this.defineTools(),
         });
+
+        let prefixPrinted = false;
+        stream.on('text', (text) => {
+          if (!prefixPrinted) {
+            process.stdout.write('\n[Librarian] ');
+            prefixPrinted = true;
+          }
+          process.stdout.write(text);
+        });
+
+        const response = await stream.finalMessage();
+        if (prefixPrinted) process.stdout.write('\n');
 
         this.ctx.usage.recordTokens(
           'librarian',
@@ -124,13 +136,6 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
         );
 
         messages.push({ role: 'assistant', content: response.content });
-
-        // Print agent reasoning (text blocks)
-        for (const block of response.content) {
-          if (block.type === 'text' && block.text.trim()) {
-            console.log(`\n[Librarian] ${block.text.trim()}`);
-          }
-        }
 
         if (response.stop_reason === 'end_turn') {
           const hasToolUse = response.content.some(

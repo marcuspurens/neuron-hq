@@ -146,13 +146,25 @@ IMPORTANT: Never claim something is done without running a command to verify it.
       console.log(`\n=== Reviewer iteration ${iteration}/${this.maxIterations} ===`);
 
       try {
-        const response = await this.anthropic.messages.create({
+        const stream = this.anthropic.messages.stream({
           model: 'claude-opus-4-6',
           max_tokens: 8192,
           system: systemPrompt,
           messages,
           tools: this.defineTools(),
         });
+
+        let prefixPrinted = false;
+        stream.on('text', (text) => {
+          if (!prefixPrinted) {
+            process.stdout.write('\n[Reviewer] ');
+            prefixPrinted = true;
+          }
+          process.stdout.write(text);
+        });
+
+        const response = await stream.finalMessage();
+        if (prefixPrinted) process.stdout.write('\n');
 
         this.ctx.usage.recordTokens(
           'reviewer',
@@ -161,13 +173,6 @@ IMPORTANT: Never claim something is done without running a command to verify it.
         );
 
         messages.push({ role: 'assistant', content: response.content });
-
-        // Print agent reasoning (text blocks)
-        for (const block of response.content) {
-          if (block.type === 'text' && block.text.trim()) {
-            console.log(`\n[Reviewer] ${block.text.trim()}`);
-          }
-        }
 
         if (response.stop_reason === 'end_turn') {
           const hasToolUse = response.content.some(

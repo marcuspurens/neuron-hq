@@ -130,13 +130,25 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
       console.log(`\n=== Researcher iteration ${iteration}/${this.maxIterations} ===`);
 
       try {
-        const response = await this.anthropic.messages.create({
+        const stream = this.anthropic.messages.stream({
           model: 'claude-opus-4-6',
           max_tokens: 8192,
           system: systemPrompt,
           messages: trimMessages(messages),
           tools: this.defineTools(),
         });
+
+        let prefixPrinted = false;
+        stream.on('text', (text) => {
+          if (!prefixPrinted) {
+            process.stdout.write('\n[Researcher] ');
+            prefixPrinted = true;
+          }
+          process.stdout.write(text);
+        });
+
+        const response = await stream.finalMessage();
+        if (prefixPrinted) process.stdout.write('\n');
 
         this.ctx.usage.recordTokens(
           'researcher',
@@ -145,13 +157,6 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
         );
 
         messages.push({ role: 'assistant', content: response.content });
-
-        // Print agent reasoning (text blocks)
-        for (const block of response.content) {
-          if (block.type === 'text' && block.text.trim()) {
-            console.log(`\n[Researcher] ${block.text.trim()}`);
-          }
-        }
 
         if (response.stop_reason === 'end_turn') {
           const hasToolUse = response.content.some(

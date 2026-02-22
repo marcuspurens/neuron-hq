@@ -172,13 +172,25 @@ Stop when time limit approaches or when blockers are encountered.
 
       try {
         const trimmedMessages = trimMessages(messages);
-        const response = await this.anthropic.messages.create({
+        const stream = this.anthropic.messages.stream({
           model: 'claude-opus-4-6',
           max_tokens: 8192,
           system: systemPrompt,
           messages: trimmedMessages,
           tools: this.defineTools(),
         });
+
+        let prefixPrinted = false;
+        stream.on('text', (text) => {
+          if (!prefixPrinted) {
+            process.stdout.write('\n[Manager] ');
+            prefixPrinted = true;
+          }
+          process.stdout.write(text);
+        });
+
+        const response = await stream.finalMessage();
+        if (prefixPrinted) process.stdout.write('\n');
 
         // Track token usage
         this.ctx.usage.recordTokens(
@@ -192,13 +204,6 @@ Stop when time limit approaches or when blockers are encountered.
           role: 'assistant',
           content: response.content,
         });
-
-        // Print agent reasoning (text blocks)
-        for (const block of response.content) {
-          if (block.type === 'text' && block.text.trim()) {
-            console.log(`\n[Manager] ${block.text.trim()}`);
-          }
-        }
 
         // Check if agent wants to stop
         if (response.stop_reason === 'end_turn') {

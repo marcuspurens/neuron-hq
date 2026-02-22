@@ -110,13 +110,25 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
       console.log(`\n=== Implementer iteration ${iteration}/${this.maxIterations} ===`);
 
       try {
-        const response = await this.anthropic.messages.create({
+        const stream = this.anthropic.messages.stream({
           model: 'claude-opus-4-6',
           max_tokens: 8192,
           system: systemPrompt,
           messages: trimMessages(messages),
           tools: this.defineTools(),
         });
+
+        let prefixPrinted = false;
+        stream.on('text', (text) => {
+          if (!prefixPrinted) {
+            process.stdout.write('\n[Implementer] ');
+            prefixPrinted = true;
+          }
+          process.stdout.write(text);
+        });
+
+        const response = await stream.finalMessage();
+        if (prefixPrinted) process.stdout.write('\n');
 
         this.ctx.usage.recordTokens(
           'implementer',
@@ -125,13 +137,6 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
         );
 
         messages.push({ role: 'assistant', content: response.content });
-
-        // Print agent reasoning (text blocks)
-        for (const block of response.content) {
-          if (block.type === 'text' && block.text.trim()) {
-            console.log(`\n[Implementer] ${block.text.trim()}`);
-          }
-        }
 
         if (response.stop_reason === 'end_turn') {
           const hasToolUse = response.content.some(

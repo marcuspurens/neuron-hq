@@ -45,7 +45,7 @@ export type PolicyLimits = z.infer<typeof PolicyLimitsSchema>;
 // Audit log entry
 export const AuditEntrySchema = z.object({
   ts: z.string(), // ISO timestamp
-  role: z.enum(['manager', 'implementer', 'reviewer', 'researcher', 'tester', 'merger', 'historian']),
+  role: z.enum(['manager', 'implementer', 'reviewer', 'researcher', 'tester', 'merger', 'historian', 'librarian']),
   tool: z.string(),
   allowed: z.boolean(),
   input_hash: z.string().optional(),

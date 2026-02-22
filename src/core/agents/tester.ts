@@ -111,13 +111,25 @@ and write test_report.md to the run artifacts directory.
       console.log(`\n=== Tester iteration ${iteration}/${this.maxIterations} ===`);
 
       try {
-        const response = await this.anthropic.messages.create({
+        const stream = this.anthropic.messages.stream({
           model: 'claude-opus-4-6',
           max_tokens: 4096,
           system: systemPrompt,
           messages,
           tools: this.defineTools(),
         });
+
+        let prefixPrinted = false;
+        stream.on('text', (text) => {
+          if (!prefixPrinted) {
+            process.stdout.write('\n[Tester] ');
+            prefixPrinted = true;
+          }
+          process.stdout.write(text);
+        });
+
+        const response = await stream.finalMessage();
+        if (prefixPrinted) process.stdout.write('\n');
 
         this.ctx.usage.recordTokens(
           'tester',
@@ -126,13 +138,6 @@ and write test_report.md to the run artifacts directory.
         );
 
         messages.push({ role: 'assistant', content: response.content });
-
-        // Print agent reasoning (text blocks)
-        for (const block of response.content) {
-          if (block.type === 'text' && block.text.trim()) {
-            console.log(`\n[Tester] ${block.text.trim()}`);
-          }
-        }
 
         // Extract any text verdict from the last text block
         for (const block of response.content) {

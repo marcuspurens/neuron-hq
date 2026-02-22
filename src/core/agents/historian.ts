@@ -131,13 +131,25 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
       console.log(`\n=== Historian iteration ${iteration}/${this.maxIterations} ===`);
 
       try {
-        const response = await this.anthropic.messages.create({
+        const stream = this.anthropic.messages.stream({
           model: 'claude-opus-4-6',
           max_tokens: 4096,
           system: systemPrompt,
           messages,
           tools: this.defineTools(),
         });
+
+        let prefixPrinted = false;
+        stream.on('text', (text) => {
+          if (!prefixPrinted) {
+            process.stdout.write('\n[Historian] ');
+            prefixPrinted = true;
+          }
+          process.stdout.write(text);
+        });
+
+        const response = await stream.finalMessage();
+        if (prefixPrinted) process.stdout.write('\n');
 
         this.ctx.usage.recordTokens(
           'historian',
@@ -146,13 +158,6 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
         );
 
         messages.push({ role: 'assistant', content: response.content });
-
-        // Print agent reasoning (text blocks)
-        for (const block of response.content) {
-          if (block.type === 'text' && block.text.trim()) {
-            console.log(`\n[Historian] ${block.text.trim()}`);
-          }
-        }
 
         if (response.stop_reason === 'end_turn') {
           const hasToolUse = response.content.some(
