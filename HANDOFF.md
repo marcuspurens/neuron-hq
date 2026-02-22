@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-02-22T2210-session17-search-memory-autotrigger.md](docs/HANDOFF-2026-02-22T2210-session17-search-memory-autotrigger.md)
+Senaste handoff: [HANDOFF-2026-02-22T2330-session18-run6-mcp-refactor.md](docs/HANDOFF-2026-02-22T2330-session18-run6-mcp-refactor.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -27,5 +27,6 @@ Senaste handoff: [HANDOFF-2026-02-22T2210-session17-search-memory-autotrigger.md
 | 2026-02-22 | 18:50 | 16a | Verifieringskörning | [länk](docs/HANDOFF-2026-02-22T1850-session16-verification.md) |
 | 2026-02-22 | 19:40 | 16b | Auto-trigger + Länkade minnen | [länk](docs/HANDOFF-2026-02-22T1940-session16-features.md) |
 | 2026-02-22 | 22:10 | 17 | search_memory i Historian + Auto-trigger fix | [länk](docs/HANDOFF-2026-02-22T2210-session17-search-memory-autotrigger.md) |
+| 2026-02-22 | 23:30 | 18 | Branch-merge + Körning #6 (test_mcp_server refactor) | [länk](docs/HANDOFF-2026-02-22T2330-session18-run6-mcp-refactor.md) |
 
 > **Not:** Session 1 och 6 saknas — handoffs skapades inte vid dessa tillfällen.
