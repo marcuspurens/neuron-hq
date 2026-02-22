@@ -1,4 +1,5 @@
 import { type RunContext } from '../run.js';
+import { searchMemoryFiles } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
@@ -221,6 +222,22 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
         },
       },
       {
+        name: 'search_memory',
+        description:
+          'Search across all memory files (runs, patterns, errors, techniques) for a keyword. ' +
+          'Use to find related entries when writing Keywords/Relaterat fields.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'The keyword or phrase to search for (case-insensitive)',
+            },
+          },
+          required: ['query'],
+        },
+      },
+      {
         name: 'write_to_memory',
         description:
           'Append a formatted entry to a memory file. ' +
@@ -266,6 +283,9 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
               break;
             case 'read_memory_file':
               result = await this.executeReadMemoryFile(block.input as { file: string });
+              break;
+            case 'search_memory':
+              result = await this.executeSearchMemory(block.input as { query: string });
               break;
             case 'write_to_memory':
               result = await this.executeWriteToMemory(
@@ -333,6 +353,18 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
     } catch {
       return `(file not found: ${file}.md)`;
     }
+  }
+
+  private async executeSearchMemory(input: { query: string }): Promise<string> {
+    const { query } = input;
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'historian',
+      tool: 'search_memory',
+      allowed: true,
+      note: `Searching memory files for: ${query}`,
+    });
+    return await searchMemoryFiles(query, this.memoryDir);
   }
 
   /**
