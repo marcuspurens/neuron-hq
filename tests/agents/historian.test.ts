@@ -79,6 +79,7 @@ describe('HistorianAgent', () => {
     expect(names).toContain('read_file');
     expect(names).toContain('read_memory_file');
     expect(names).toContain('write_to_memory');
+    expect(names).toContain('search_memory');
   });
 
   it('does not define deprecated append_to_swarm_log tool', () => {
@@ -193,6 +194,60 @@ describe('HistorianAgent', () => {
       const result = await (agent as any).executeReadMemoryFile({ file: 'invalid' });
       expect(result).toContain('Error');
       expect(result).toContain('invalid');
+    });
+  });
+
+  describe('search_memory', () => {
+    it('returns matches when query exists in a memory file', async () => {
+      await fs.mkdir(memoryDir, { recursive: true });
+      await fs.writeFile(
+        path.join(memoryDir, 'errors.md'),
+        '# Errors\n\n## Context overflow\n**Session:** test\n**Symptom:** Krasch vid context overflow\n\n---\n'
+      );
+
+      const result = await (agent as any).executeSearchMemory({ query: 'context overflow' });
+      expect(result).toContain('Context overflow');
+    });
+
+    it('returns no-matches message when query does not exist', async () => {
+      await fs.mkdir(memoryDir, { recursive: true });
+      await fs.writeFile(path.join(memoryDir, 'runs.md'), '# Runs\n\n## Körning test\n\n---\n');
+
+      const result = await (agent as any).executeSearchMemory({ query: 'nonexistent-xyz-query' });
+      expect(result).toContain('No matches found');
+    });
+
+    it('searches across multiple memory files', async () => {
+      await fs.mkdir(memoryDir, { recursive: true });
+      await fs.writeFile(
+        path.join(memoryDir, 'patterns.md'),
+        '# Patterns\n\n## Streaming pattern\n**Kontext:** streaming\n\n---\n'
+      );
+      await fs.writeFile(
+        path.join(memoryDir, 'errors.md'),
+        '# Errors\n\n## Streaming bugg\n**Session:** test\n**Symptom:** streaming krasch\n\n---\n'
+      );
+
+      const result = await (agent as any).executeSearchMemory({ query: 'streaming' });
+      expect(result).toContain('patterns.md');
+      expect(result).toContain('errors.md');
+    });
+
+    it('is case-insensitive', async () => {
+      await fs.mkdir(memoryDir, { recursive: true });
+      await fs.writeFile(
+        path.join(memoryDir, 'runs.md'),
+        '# Runs\n\n## Körning test\n**Uppgift:** AURORA target fix\n\n---\n'
+      );
+
+      const result = await (agent as any).executeSearchMemory({ query: 'aurora' });
+      expect(result).toContain('AURORA');
+    });
+
+    it('returns empty result gracefully when no memory files exist', async () => {
+      // memoryDir doesn't exist yet
+      const result = await (agent as any).executeSearchMemory({ query: 'anything' });
+      expect(result).toContain('No matches found');
     });
   });
 
