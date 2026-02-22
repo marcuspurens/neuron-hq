@@ -79,6 +79,8 @@ Only write if something went wrong in this run:
 **Orsak:** <root cause>
 **Lösning:** <how to fix or avoid>
 **Status:** ⚠️ Identifierat / ✅ Löst
+**Keywords:** <comma-separated keywords, e.g. context-overflow, tester-agent, streaming>
+**Relaterat:** <optional links to related entries, e.g. patterns.md#TitleOfPattern, techniques.md#PaperTitle>
 
 ---
 ```
@@ -92,6 +94,8 @@ Only write if a new pattern emerged that worked well:
 **Kontext:** <when/where this was discovered>
 **Lösning:** <what was done>
 **Effekt:** <why it worked / what it improved>
+**Keywords:** <comma-separated keywords, e.g. librarian, memory, delegation>
+**Relaterat:** <optional links to related entries, e.g. errors.md#TitleOfError, techniques.md#PaperTitle>
 
 ---
 ```
@@ -113,3 +117,4 @@ Only write if a new pattern emerged that worked well:
 - **read_file**: Read brief.md, audit.jsonl, report.md, questions.md, merge_summary.md from runs dir
 - **read_memory_file**: Read a memory file (runs, patterns, errors, techniques) — use to verify what was written during this run
 - **write_to_memory**: Write an entry to a specific memory file (runs, patterns, or errors)
+- **search_memory**: Search across all memory files for a keyword — use to find related entries when writing Keywords/Relaterat fields

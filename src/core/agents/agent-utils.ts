@@ -1,4 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
+import fs from 'fs/promises';
+import path from 'path';
 
 /**
  * Max characters returned from any single tool result.
@@ -84,4 +86,44 @@ export function trimMessages(
   }
 
   return trimmed;
+}
+
+/**
+ * Max characters returned from searchMemoryFiles.
+ */
+const MAX_SEARCH_RESULT_CHARS = 2000;
+
+/**
+ * Search all memory files for a query string (case-insensitive substring match).
+ * Returns matching entries (sections starting with ## ) truncated to MAX_SEARCH_RESULT_CHARS.
+ */
+export async function searchMemoryFiles(query: string, memoryDir: string): Promise<string> {
+  const files = ['runs.md', 'patterns.md', 'errors.md', 'techniques.md'];
+  const lowerQuery = query.toLowerCase();
+  const matches: string[] = [];
+
+  for (const fileName of files) {
+    const filePath = path.join(memoryDir, fileName);
+    let content: string;
+    try {
+      content = await fs.readFile(filePath, 'utf-8');
+    } catch {
+      continue;
+    }
+
+    // Split into sections by ## headers
+    const sections = content.split(/(?=^## )/m);
+    for (const section of sections) {
+      if (section.toLowerCase().includes(lowerQuery)) {
+        matches.push(`[${fileName}]\n${section.trim()}`);
+      }
+    }
+  }
+
+  if (matches.length === 0) {
+    return `No matches found for "${query}" in memory files.`;
+  }
+
+  const result = matches.join('\n\n---\n\n');
+  return truncateToolResult(result, MAX_SEARCH_RESULT_CHARS);
 }

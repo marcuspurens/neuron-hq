@@ -6,7 +6,7 @@ import { MergerAgent } from './merger.js';
 import { HistorianAgent } from './historian.js';
 import { TesterAgent } from './tester.js';
 import { LibrarianAgent } from './librarian.js';
-import { truncateToolResult, trimMessages } from './agent-utils.js';
+import { truncateToolResult, trimMessages, searchMemoryFiles } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
@@ -25,9 +25,11 @@ export class ManagerAgent {
 
   private baseDir: string;
   private memoryDir: string;
+  private librarianAutoTrigger: boolean;
 
-  constructor(private ctx: RunContext, baseDir: string) {
+  constructor(private ctx: RunContext, baseDir: string, librarianAutoTrigger = false) {
     this.baseDir = baseDir;
+    this.librarianAutoTrigger = librarianAutoTrigger;
     this.promptPath = path.join(baseDir, 'prompts', 'manager.md');
     this.memoryDir = path.join(baseDir, 'memory');
 
@@ -153,7 +155,7 @@ Stop when time limit approaches or when blockers are encountered.
     const messages: Anthropic.MessageParam[] = [
       {
         role: 'user',
-        content: `Here is your brief:\n\n${brief}\n\nPlease proceed with planning and implementation.`,
+        content: `Here is your brief:\n\n${brief}\n\nPlease proceed with planning and implementation.${this.librarianAutoTrigger ? '\n\n⚡ Auto-trigger: After Historian has completed, automatically delegate to Librarian for an arxiv knowledge update.' : ''}`,
       },
     ];
 
@@ -326,6 +328,22 @@ Stop when time limit approaches or when blockers are encountered.
         },
       },
       {
+        name: 'search_memory',
+        description:
+          'Search across all memory files (runs, patterns, errors, techniques) for a keyword. ' +
+          'Returns matching entries. Use to find related patterns or research before delegating.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'The keyword or phrase to search for (case-insensitive)',
+            },
+          },
+          required: ['query'],
+        },
+      },
+      {
         name: 'delegate_to_implementer',
         description:
           'Delegate a specific coding task to the Implementer agent. Use when you have a clear, well-defined implementation task.',
@@ -444,6 +462,9 @@ Stop when time limit approaches or when blockers are encountered.
               break;
             case 'read_memory_file':
               result = await this.executeReadMemoryFile(block.input as { file: string });
+              break;
+            case 'search_memory':
+              result = await this.executeSearchMemory(block.input as { query: string });
               break;
             case 'delegate_to_implementer':
               result = await this.delegateToImplementer(block.input as { task: string });
@@ -632,6 +653,21 @@ Stop when time limit approaches or when blockers are encountered.
     } catch (error: any) {
       return `Error listing files: ${error.message}`;
     }
+  }
+
+  /**
+   * Search all memory files for a keyword.
+   */
+  private async executeSearchMemory(input: { query: string }): Promise<string> {
+    const { query } = input;
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'manager',
+      tool: 'search_memory',
+      allowed: true,
+      note: `Searching memory for: ${query}`,
+    });
+    return searchMemoryFiles(query, this.memoryDir);
   }
 
   /**

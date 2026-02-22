@@ -80,6 +80,12 @@ describe('ManagerAgent', () => {
       expect(names).toContain('read_memory_file');
     });
 
+    it('includes search_memory tool', () => {
+      const tools: Array<{ name: string }> = (agent as any).defineTools();
+      const names = tools.map((t) => t.name);
+      expect(names).toContain('search_memory');
+    });
+
     it('includes all delegate tools', () => {
       const tools: Array<{ name: string }> = (agent as any).defineTools();
       const names = tools.map((t) => t.name);
@@ -90,6 +96,40 @@ describe('ManagerAgent', () => {
       expect(names).toContain('delegate_to_historian');
       expect(names).toContain('delegate_to_tester');
       expect(names).toContain('delegate_to_librarian');
+    });
+  });
+
+  describe('search_memory', () => {
+    it('returns no-match message when memory dir is empty', async () => {
+      const result = await (agent as any).executeSearchMemory({ query: 'streaming' });
+      expect(result).toContain('No matches found');
+    });
+
+    it('finds matching entries across memory files', async () => {
+      await fs.mkdir(memoryDir, { recursive: true });
+      await fs.writeFile(
+        path.join(memoryDir, 'patterns.md'),
+        '# Patterns\n\n## Streaming Output\nText streams live.\n\n---\n'
+      );
+      await fs.writeFile(
+        path.join(memoryDir, 'errors.md'),
+        '# Errors\n\n## Context Overflow\nAgent crashed.\n\n---\n'
+      );
+
+      const result = await (agent as any).executeSearchMemory({ query: 'streaming' });
+      expect(result).toContain('Streaming Output');
+      expect(result).not.toContain('Context Overflow');
+    });
+
+    it('search is case-insensitive', async () => {
+      await fs.mkdir(memoryDir, { recursive: true });
+      await fs.writeFile(
+        path.join(memoryDir, 'techniques.md'),
+        '# Techniques\n\n## MemGPT Paper\nMemory system.\n\n---\n'
+      );
+
+      const result = await (agent as any).executeSearchMemory({ query: 'memgpt' });
+      expect(result).toContain('MemGPT Paper');
     });
   });
 

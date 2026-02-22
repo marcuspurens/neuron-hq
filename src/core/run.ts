@@ -28,6 +28,21 @@ export interface RunContext {
   endTime: Date;
 }
 
+/**
+ * Count completed runs by reading memory/runs.md.
+ * Returns 0 if the file doesn't exist or is empty.
+ */
+export async function countMemoryRuns(memoryDir: string): Promise<number> {
+  const runsFile = path.join(memoryDir, 'runs.md');
+  try {
+    const content = await fs.readFile(runsFile, 'utf-8');
+    const matches = content.match(/^## Körning /gm);
+    return matches ? matches.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export class RunOrchestrator {
   constructor(
     private baseDir: string,

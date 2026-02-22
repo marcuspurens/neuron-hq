@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import chalk from 'chalk';
 import ora from 'ora';
 import { TargetsManager } from '../core/targets.js';
-import { RunOrchestrator } from '../core/run.js';
+import { RunOrchestrator, countMemoryRuns } from '../core/run.js';
 import { createPolicyEnforcer } from '../core/policy.js';
 import { ManagerAgent } from '../core/agents/manager.js';
 import { BASE_DIR } from '../cli.js';
@@ -79,9 +79,18 @@ export async function runCommand(
       }
     }
 
+    // Check if Librarian auto-trigger should fire (every 5th completed run)
+    const memoryDir = path.join(BASE_DIR, 'memory');
+    const completedRuns = await countMemoryRuns(memoryDir);
+    const librarianAutoTrigger = completedRuns > 0 && completedRuns % 5 === 0;
+
+    if (librarianAutoTrigger) {
+      console.log(chalk.magenta(`  ⚡ Auto-trigger: Librarian will run after Historian (run #${completedRuns + 1} in cycle)`));
+    }
+
     // Run manager agent
     console.log(chalk.cyan('\n→ Starting manager agent...'));
-    const manager = new ManagerAgent(ctx, BASE_DIR);
+    const manager = new ManagerAgent(ctx, BASE_DIR, librarianAutoTrigger);
     await manager.run();
 
     // Display token usage

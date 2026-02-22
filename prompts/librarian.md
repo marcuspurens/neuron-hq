@@ -42,6 +42,8 @@ systems, and autonomous software development. You then write structured entries 
 **Kärna:** <2-3 sentences describing the core technique>
 **Nyckelresultat:** <key metric or finding, if any>
 **Relevans för Neuron HQ:** <1-2 sentences on how this could apply>
+**Keywords:** <comma-separated keywords, e.g. memory, retrieval, context-window, agent>
+**Relaterat:** <optional links to related entries in other memory files, e.g. patterns.md#LibrarianReadAfterWrite>
 
 ---
 ```
@@ -69,3 +71,4 @@ systems, and autonomous software development. You then write structured entries 
 - **fetch_url**: Fetch content from a URL (arxiv API or docs page). Returns plain text.
 - **read_memory_file**: Read the current contents of a memory file to check for duplicates.
 - **write_to_techniques**: Append a formatted entry to memory/techniques.md.
+- **search_memory**: Search across all memory files for a keyword — use to find related patterns/errors when writing the Relaterat field.

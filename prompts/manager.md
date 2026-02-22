@@ -48,6 +48,17 @@ At end of run, ensure these exist:
 - knowledge.md (learnings and assumptions)
 - All audit/manifest/usage files
 
+## Memory Tools
+
+- **`read_memory_file(file)`**: Read a full memory file (runs/patterns/errors/techniques)
+- **`search_memory(query)`**: Search across all memory files for a keyword — use before delegating to check if related patterns or research already exists
+
+## Auto-trigger Librarian
+
+If the brief contains a line starting with `⚡ Auto-trigger:`, this is a milestone run
+(every 5th completed run). After Historian has completed, automatically delegate to Librarian
+for an arxiv knowledge update — no manual instruction needed.
+
 ## Verifying Librarian Output
 
 After `delegate_to_librarian` completes, use `read_memory_file(file="techniques")` to verify
