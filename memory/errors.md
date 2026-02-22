@@ -76,3 +76,21 @@ Appendas av Historian-agenten när problem identifieras.
 **Status:** ⚠️ Identifierat
 
 ---
+
+## Manager duplicerar Researchers arbete
+**Session:** 20260222-1757-aurora-swarm-lab
+**Symptom:** Manager läste ~15 filer och körde ~10 bash-kommandon efter att Researcher redan slutfört identisk analys och levererat ideas.md med 10 förslag
+**Orsak:** Manager verifierar inte bara att Researcher levererade korrekt — den upprepar hela analysen själv och skriver egna ideas.md/knowledge.md till workspace
+**Lösning:** Manager-prompten bör instruera att (1) läsa Researchers ideas.md, (2) verifiera att den uppfyller briefens krav, (3) delegera vidare utan att upprepa analysen. Manager ska vara koordinator, inte utförare.
+**Status:** ⚠️ Identifierat
+
+---
+
+## Bash-kommentarer i Manager-kommandon triggar policyblockering
+**Session:** 20260222-1757-aurora-swarm-lab
+**Symptom:** Tre bash_exec-anrop från Manager blockerades med "BLOCKED: not in allowlist"
+**Orsak:** Kommandon innehöll inledande `#`-kommentarer (t.ex. `# Check for type hints coverage\ngrep -rn ...`), vilket troligen inte matchade den tillåtna kommandomönsterlistan
+**Lösning:** Agenter bör köra rena kommandon utan inbäddade kommentarer. Alternativt bör allowlisten uppdateras för att tillåta kommentarer i bash-kommandon.
+**Status:** ⚠️ Identifierat
+
+---

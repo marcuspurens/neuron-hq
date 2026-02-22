@@ -201,3 +201,51 @@ Uppdateras av Librarian-agenten.
 **Relevans för Neuron HQ:** Direkt relevant för vår Tester-agent — motiverar att explicit kräva att Implementer-agenten genererar tester som en integrerad del av varje PR, inte som en efterhandskonstruktion. Att test-PRs tar längre tid bekräftar att Manager bör allokera extra tid/tokens när testgenerering ingår i uppdraget.
 
 ---
+
+## Live-Evo: Online Evolution of Agentic Memory from Continuous Feedback (2026)
+**Källa:** arxiv:2602.02369 | Yaolun Zhang et al.
+**Kärna:** Live-Evo är ett online self-evolving minnessystem som lär sig från kontinuerliga dataströmmar istället för statiska train/test-splits. Separerar "vad som hände" från "hur det ska användas" via en Experience Bank och en Meta-Guideline Bank. Uppdaterar erfarenhetsvikter baserat på feedback — erfarenheter som konsekvent hjälper förstärks medan vilseledande eller inaktuella erfarenheter nedvärderas och gradvis glöms, analogt med förstärkning och förfall i mänskligt minne.
+**Nyckelresultat:** 20.8% förbättring i Brier score och 12.9% ökad avkastning på Prophet Arena-benchmark under en 10-veckorshorisont. Transfererar även till deep-research-benchmarks med konsistenta förbättringar.
+**Relevans för Neuron HQ:** Direkt applicerbart på Historian-agentens hantering av patterns.md och errors.md. Istället för att ackumulera mönster utan urval kunde ett Live-Evo-liknande viktningssystem automatiskt nedprioritera inaktuella mönster och förstärka de som konsekvent leder till framgångsrika implementeringar. Adresserar samma problem som TAME men med online-lärande istället för dual-memory.
+
+---
+
+## xMemory: Beyond RAG for Agent Memory — Retrieval by Decoupling and Aggregation (2026)
+**Källa:** arxiv:2602.02007 | Zhanghao Hu et al.
+**Kärna:** xMemory utmanar standard RAG-pipelines för agentminne genom att observera att agentminne är en begränsad, koherent dialogström med högt korrelerade spann — inte ett stort heterogent korpus som RAG designades för. Fast top-k similarity retrieval returnerar redundant kontext. xMemory bygger istället en hierarki av intakta enheter via ett sparsity-semantics-mål som styr minnesdelning och sammanslagning. Vid inferens hämtar systemet top-down: väljer kompakta, diversa teman för multi-fact-frågor och expanderar till episoder och råmeddelanden bara när det minskar osäkerheten.
+**Nyckelresultat:** Konsistenta förbättringar i svarskvalitet och tokeneffektivitet på LoCoMo och PerLTQA med de tre senaste LLM-modellerna.
+**Relevans för Neuron HQ:** Viktigt designbeslut för hur agenter söker i våra minnesfiler. Vår nuvarande approach med att läsa hela filer är analogt med naiv RAG. xMemorys hierarkiska hämtning — först teman/kategorier, sedan detaljer vid behov — kunde implementeras som en tvåstegs-läsning: först en sammanfattningsfil, sedan specifika sektioner. Minskar tokenförbrukning och redundans.
+
+---
+
+## SkillJect: Automating Stealthy Skill-Based Prompt Injection for Coding Agents (2026)
+**Källa:** arxiv:2602.14211 | Xiaojun Jia et al.
+**Kärna:** SkillJect är det första automatiserade ramverket för stealth prompt injection riktad mot agent-skills — den växande abstraktionen som paketerar långformatinstruktioner och hjälpskript för kodningsagenter. Använder en sluten loop med tre agenter: en Attack Agent som syntetiserar injektions-skills med explicita stealth-begränsningar, en Code Agent som exekverar uppgifter med de injicerade skripten, och en Evaluate Agent som loggar verktygsanrop och verifierar om skadliga beteenden utlöstes. Gömmer adversarial operationer i hjälpskript och injicerar optimerade trigger-prompts.
+**Nyckelresultat:** Konsekvent höga attack success rates i diverse kodningsagent-miljöer och verkliga mjukvaruutvecklingsuppgifter, även med stealth-begränsningar.
+**Relevans för Neuron HQ:** Direkt säkerhetsvarning för vår arkitektur. Om agenter använder externa verktyg, beroenden eller kodsnippets kunde en SkillJect-liknande attack injicera skadlig kod via till synes harmlösa instruktioner. Förstärker behovet av AgentSys-liknande minnesisolering (redan dokumenterad) och motiverar att Reviewer-agenten explicit verifierar att inga oväntade verktygsanrop eller filoperationer sker.
+
+---
+
+## How AI Coding Agents Communicate: PR Description Characteristics and Human Review Responses (2026)
+**Källa:** arxiv:2602.17084 | Kan Watanabe et al.
+**Kärna:** Empirisk analys av pull requests från fem AI-kodningsagenter baserat på AIDev-datasetet. Analyserar hur agenter skiljer sig i PR-beskrivningsstil (strukturella features), samt hur mänskliga granskare svarar i termer av granskningsaktivitet, svarstid, sentiment och merge-utfall. Visar att PR-presentationens karaktär påverkar granskarnas engagemang och slutresultat.
+**Nyckelresultat:** AI-kodningsagenter uppvisar distinkt olika PR-beskrivningsstilar som korrelerar med skillnader i reviewer-engagemang, svarstid och merge-rates. Stor variation mellan agenter i hur de kommunicerar ändringar.
+**Relevans för Neuron HQ:** Relevant för hur vår Implementer-agent strukturerar sina commit-meddelanden och PR-beskrivningar. Om agenten genererar tydligt strukturerade beskrivningar (syfte, ändringar, testresultat) ökar sannolikheten att Reviewer-agenten (och mänskliga granskare) snabbt förstår och godkänner ändringarna. Motiverar att standardisera output-formatet från Implementer.
+
+---
+
+## Solving Context Window Overflow in AI Agents via Memory Pointers (2025)
+**Källa:** arxiv:2511.22729 | Anton Bulle Labate et al.
+**Kärna:** Introducerar en metod som ersätter rå verktygsutdata i agentens kontextfönster med minnespointers. Istället för att fylla kontexten med stora verktygsresponser lagras utdatan externt, och agenten interagerar via referenser. Detta bevarar full verktygsfunktionalitet, möjliggör sömlös integration i agentworkflows, och eliminerar informationsförlust som uppstår vid trunkering eller sammanfattning.
+**Nyckelresultat:** Cirka 7x färre tokens jämfört med traditionella workflows, samtidigt som fullständiga verktygsresponser bevaras. Validerad på en verklig materialvetenskaplig applikation som inte kan köras med konventionella workflows.
+**Relevans för Neuron HQ:** Direkt tillämpbar princip för vår Researcher-agent som kan få stora kodsvar eller dokumentationsutdrag. Istället för att dumpa hela filinnehåll i kontexten kunde Researcher lagra dem externt och referera via pointers — detta frigör kontextutrymme för resonemang. Komplementerar vår befintliga MECW-insikt om att kontextfönster är mer begränsade än annonserat.
+
+---
+
+## DeepMiner: Beyond Turn Limits — Training Deep Search Agents with Dynamic Context Window (2025)
+**Källa:** arxiv:2510.08276 | Qiaoyu Tang et al.
+**Kärna:** DeepMiner introducerar dynamisk kontextfönsterhantering för multi-turn-agenter med lång horisont. Använder en sliding window-mekanism utan beroende av externa sammanfattningsmodeller, vilket möjliggör nästan 100 interaktionsrundor inom standard 32k kontextlängd. Genererar komplexa men verifierbara fråga-svar-par via en omvänd konstruktionsmetod från autentiska webbkällor, vilket säkerställer utmanande och pålitlig träningsdata.
+**Nyckelresultat:** 33.5% accuracy på BrowseComp-en — nästan 20 procentenheters förbättring jämfört med bästa open-source-agent. Konsistenta förbättringar på BrowseComp-zh, XBench-DeepSearch och GAIA. Möjliggör ~100 rundor inom 32k kontext.
+**Relevans för Neuron HQ:** Direkt relevant för vår Manager → Researcher/Implementer-pipeline som kan kräva många iterationer. DeepMiners sliding window-strategi (utan extern sammanfattning) kunde tillämpas för att låta agenter arbeta i fler steg utan att tappa tidigare kontext. Speciellt användbart för Implementer som itererar med Tester/Reviewer i många rundor.
+
+---

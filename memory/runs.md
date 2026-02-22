@@ -55,3 +55,21 @@ Manager delegerade till Librarian två gånger istället för en — första gå
 - Run-artefakter (report.md, questions.md) måste kopieras från workspace till runs-katalogen för att Historian ska kunna läsa dem
 
 ---
+
+## Körning 20260222-1757-aurora-swarm-lab — aurora-swarm-lab
+**Datum:** 2026-02-22
+**Uppgift:** Analysera aurora-swarm-lab och lista förbättringsförslag utan kodändringar, sedan delegera till Librarian för arxiv-sökning kopplad till fynden.
+**Resultat:** ✅ 3 av 3 acceptanskriterier klara — ideas.md med 10 förslag finns i runs-katalogen, techniques.md uppdaterades med 6 nya entries, inga kodändringar gjordes
+
+**Vad som fungerade:**
+Researcher genomförde en grundlig analys — läste ~20 filer och körde ~25 bash-kommandon för att kartlägga kodbasen (radräkning, grep efter mönster, test-coverage). Resulterade i en utmärkt `ideas.md` med 10 detaljerade förbättringsförslag inklusive tradeoffs och åtgärdsförslag. Librarian sökte arxiv framgångsrikt (6 fetch-anrop) och skrev 6 nya technique-entries till `memory/techniques.md` med korrekt format och relevans-koppling. Inga filer ändrades i target-repot (verifierat via `git status`).
+
+**Vad som inte fungerade:**
+Manager duplicerade arbete genom att själv läsa ~15 filer och köra ~10 bash-kommandon efter att Researcher redan slutfört sin analys — skrev sedan en egen `ideas.md` och `knowledge.md` till workspace-katalogen (inte runs). Tre bash-kommandon från Manager blockerades av säkerhetspolicyn (kommentarer i bash-kommandon triggade "not in allowlist"). Report.md och questions.md skrevs återigen till workspace istället för runs-katalogen — samma kända problem som förra körningen.
+
+**Lärdomar:**
+- Manager bör lita på Researchers leverabler istället för att upprepa samma analys — det slösade ~30% av körningens tokens
+- Bash-kommandon med inledande `#`-kommentarer blockeras av policy — Manager behöver lära sig att köra rena kommandon utan inbäddade kommentarer
+- Run-artefakter (report.md, questions.md) hamnar fortfarande i workspace — det identifierade problemet från session 20260222-1651 är fortfarande olöst
+
+---
