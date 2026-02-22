@@ -1,8 +1,15 @@
 #!/usr/bin/env node
+import { config } from 'dotenv';
 import { Command } from 'commander';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import chalk from 'chalk';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from project root before anything else
+config({ path: path.resolve(__dirname, '..', '.env') });
+
 import {
   targetAddCommand,
   targetListCommand,
@@ -14,16 +21,13 @@ import {
   reportCommand,
 } from './commands/index.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
 
 const program = new Command();
 
 program
-  .name('swarm')
+  .name('neuron')
   .description('Neuron HQ - Autonomous agent swarm control plane')
   .version('0.1.0');
 
@@ -45,7 +49,7 @@ target
 // Run commands
 program
   .command('run <target>')
-  .description('Run a swarm on a target repository')
+  .description('Run agents on a target repository')
   .option('--hours <hours>', 'Runtime limit in hours', '3')
   .option('--brief <path>', 'Path to brief file', 'briefs/today.md')
   .action(runCommand);

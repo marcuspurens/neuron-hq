@@ -1,8 +1,19 @@
 import { type RunContext } from '../run.js';
+import { ImplementerAgent } from './implementer.js';
+import { ReviewerAgent } from './reviewer.js';
+import { ResearcherAgent } from './researcher.js';
+import { MergerAgent } from './merger.js';
+import { HistorianAgent } from './historian.js';
+import { TesterAgent } from './tester.js';
+import { LibrarianAgent } from './librarian.js';
+import { truncateToolResult, trimMessages } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
-import { execSync } from 'child_process';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 /**
  * Manager Agent - orchestrates the swarm using Anthropic SDK.
@@ -12,8 +23,13 @@ export class ManagerAgent {
   private anthropic: Anthropic;
   private maxIterations: number;
 
+  private baseDir: string;
+  private memoryDir: string;
+
   constructor(private ctx: RunContext, baseDir: string) {
+    this.baseDir = baseDir;
     this.promptPath = path.join(baseDir, 'prompts', 'manager.md');
+    this.memoryDir = path.join(baseDir, 'memory');
 
     // Initialize Anthropic client
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -155,13 +171,26 @@ Stop when time limit approaches or when blockers are encountered.
       console.log(`\n=== Manager iteration ${iteration}/${this.maxIterations} ===`);
 
       try {
-        const response = await this.anthropic.messages.create({
+        const trimmedMessages = trimMessages(messages);
+        const stream = this.anthropic.messages.stream({
           model: 'claude-opus-4-6',
           max_tokens: 8192,
           system: systemPrompt,
-          messages,
+          messages: trimmedMessages,
           tools: this.defineTools(),
         });
+
+        let prefixPrinted = false;
+        stream.on('text', (text) => {
+          if (!prefixPrinted) {
+            process.stdout.write('\n[Manager] ');
+            prefixPrinted = true;
+          }
+          process.stdout.write(text);
+        });
+
+        const response = await stream.finalMessage();
+        if (prefixPrinted) process.stdout.write('\n');
 
         // Track token usage
         this.ctx.usage.recordTokens(
@@ -279,6 +308,102 @@ Stop when time limit approaches or when blockers are encountered.
           },
         },
       },
+      {
+        name: 'read_memory_file',
+        description:
+          'Read the current contents of a memory file. ' +
+          'Use this to verify what Librarian wrote to techniques.md instead of using bash.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            file: {
+              type: 'string',
+              enum: ['runs', 'patterns', 'errors', 'techniques'],
+              description: 'Which memory file to read (without .md extension)',
+            },
+          },
+          required: ['file'],
+        },
+      },
+      {
+        name: 'delegate_to_implementer',
+        description:
+          'Delegate a specific coding task to the Implementer agent. Use when you have a clear, well-defined implementation task.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            task: {
+              type: 'string',
+              description: 'The specific coding task for the Implementer to carry out',
+            },
+          },
+          required: ['task'],
+        },
+      },
+      {
+        name: 'delegate_to_reviewer',
+        description:
+          'Delegate a review of current workspace changes to the Reviewer agent. Use before committing or when risk assessment is needed.',
+        input_schema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'delegate_to_researcher',
+        description:
+          'Delegate research and idea generation to the Researcher agent. Use at the start of a run or when exploring unknowns.',
+        input_schema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'delegate_to_merger',
+        description:
+          'Delegate the merge step to the Merger agent. Use after Reviewer has approved changes. ' +
+          'First call generates a merge plan and requests user approval. ' +
+          'Second call (after user writes APPROVED in answers.md) copies files and commits.',
+        input_schema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'delegate_to_historian',
+        description:
+          'Delegate run summary writing to the Historian agent. ' +
+          'Call this LAST — after all other agents have finished. ' +
+          'The Historian reads the run artifacts and writes to memory/runs.md (always), ' +
+          'memory/errors.md (if problems occurred), and memory/patterns.md (if new patterns emerged).',
+        input_schema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'delegate_to_tester',
+        description:
+          'Delegate independent test execution to the Tester agent. ' +
+          'Call this after the Implementer has finished, before or after the Reviewer. ' +
+          'The Tester discovers the test framework, runs the full suite, and writes test_report.md.',
+        input_schema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'delegate_to_librarian',
+        description:
+          'Delegate research to the Librarian agent. ' +
+          'The Librarian searches arxiv and Anthropic docs for recent AI techniques ' +
+          'and writes new findings to memory/techniques.md. ' +
+          'Call this manually when the user requests a knowledge update.',
+        input_schema: {
+          type: 'object',
+          properties: {},
+        },
+      },
     ];
   }
 
@@ -316,6 +441,30 @@ Stop when time limit approaches or when blockers are encountered.
               result = await this.executeListFiles(
                 block.input as { path?: string }
               );
+              break;
+            case 'read_memory_file':
+              result = await this.executeReadMemoryFile(block.input as { file: string });
+              break;
+            case 'delegate_to_implementer':
+              result = await this.delegateToImplementer(block.input as { task: string });
+              break;
+            case 'delegate_to_reviewer':
+              result = await this.delegateToReviewer();
+              break;
+            case 'delegate_to_researcher':
+              result = await this.delegateToResearcher();
+              break;
+            case 'delegate_to_merger':
+              result = await this.delegateToMerger();
+              break;
+            case 'delegate_to_historian':
+              result = await this.delegateToHistorian();
+              break;
+            case 'delegate_to_tester':
+              result = await this.delegateToTester();
+              break;
+            case 'delegate_to_librarian':
+              result = await this.delegateToLibrarian();
               break;
             default:
               result = `Error: Unknown tool ${block.name}`;
@@ -365,9 +514,8 @@ Stop when time limit approaches or when blockers are encountered.
 
     try {
       // Execute command in workspace directory
-      const output = execSync(command, {
+      const { stdout } = await execAsync(command, {
         cwd: this.ctx.workspaceDir,
-        encoding: 'utf-8',
         maxBuffer: 10 * 1024 * 1024, // 10MB
         timeout: this.ctx.policy.getLimits().bash_timeout_seconds * 1000,
       });
@@ -375,7 +523,7 @@ Stop when time limit approaches or when blockers are encountered.
       // Log successful execution
       await this.ctx.manifest.addCommand(command, 0);
 
-      return output;
+      return truncateToolResult(stdout);
     } catch (error: any) {
       // Log failed execution
       await this.ctx.manifest.addCommand(command, error.status || 1);
@@ -407,7 +555,7 @@ Stop when time limit approaches or when blockers are encountered.
         files_touched: [absolutePath],
       });
 
-      return content;
+      return truncateToolResult(content);
     } catch (error: any) {
       return `Error reading file: ${error.message}`;
     }
@@ -487,41 +635,202 @@ Stop when time limit approaches or when blockers are encountered.
   }
 
   /**
+   * Read a memory file from the memory/ directory.
+   */
+  private async executeReadMemoryFile(input: { file: string }): Promise<string> {
+    const { file } = input;
+    const validFiles = ['runs', 'patterns', 'errors', 'techniques'];
+    if (!validFiles.includes(file)) {
+      return `Error: Invalid memory file "${file}". Must be one of: ${validFiles.join(', ')}`;
+    }
+
+    const filePath = path.join(this.memoryDir, `${file}.md`);
+    try {
+      const content = await fs.readFile(filePath, 'utf-8');
+      await this.ctx.audit.log({
+        ts: new Date().toISOString(),
+        role: 'manager',
+        tool: 'read_memory_file',
+        allowed: true,
+        files_touched: [filePath],
+      });
+      return content;
+    } catch {
+      return `(file not found: ${file}.md)`;
+    }
+  }
+
+  /**
+   * Delegate a coding task to the Implementer agent.
+   */
+  private async delegateToImplementer(input: { task: string }): Promise<string> {
+    console.log('Delegating to Implementer agent...');
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'manager',
+      tool: 'delegate_to_implementer',
+      allowed: true,
+      note: `Delegating task: ${input.task.slice(0, 120)}`,
+    });
+    const implementer = new ImplementerAgent(this.ctx, this.baseDir);
+    await implementer.run(input.task);
+    return 'Implementer agent completed successfully.';
+  }
+
+  /**
+   * Delegate a review to the Reviewer agent.
+   */
+  private async delegateToReviewer(): Promise<string> {
+    console.log('Delegating to Reviewer agent...');
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'manager',
+      tool: 'delegate_to_reviewer',
+      allowed: true,
+      note: 'Delegating review to Reviewer agent',
+    });
+    const reviewer = new ReviewerAgent(this.ctx, this.baseDir);
+    await reviewer.run();
+    return 'Reviewer agent completed successfully.';
+  }
+
+  /**
+   * Delegate research to the Researcher agent.
+   */
+  private async delegateToResearcher(): Promise<string> {
+    console.log('Delegating to Researcher agent...');
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'manager',
+      tool: 'delegate_to_researcher',
+      allowed: true,
+      note: 'Delegating research to Researcher agent',
+    });
+    const researcher = new ResearcherAgent(this.ctx, this.baseDir);
+    await researcher.run();
+    return 'Researcher agent completed successfully.';
+  }
+
+  /**
+   * Delegate run summary writing to the Historian agent.
+   */
+  private async delegateToLibrarian(): Promise<string> {
+    console.log('Delegating to Librarian agent...');
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'manager',
+      tool: 'delegate_to_librarian',
+      allowed: true,
+      note: 'Delegating research to Librarian agent',
+    });
+    const librarian = new LibrarianAgent(this.ctx, this.baseDir);
+    await librarian.run();
+    return 'Librarian agent completed. New techniques may have been added to memory/techniques.md.';
+  }
+
+  private async delegateToHistorian(): Promise<string> {
+    console.log('Delegating to Historian agent...');
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'manager',
+      tool: 'delegate_to_historian',
+      allowed: true,
+      note: 'Delegating run summary to Historian agent',
+    });
+    const historian = new HistorianAgent(this.ctx, this.baseDir);
+    await historian.run();
+    return 'Historian agent completed successfully.';
+  }
+
+  /**
+   * Delegate independent test execution to the Tester agent.
+   */
+  private async delegateToTester(): Promise<string> {
+    console.log('Delegating to Tester agent...');
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'manager',
+      tool: 'delegate_to_tester',
+      allowed: true,
+      note: 'Delegating test execution to Tester agent',
+    });
+    const tester = new TesterAgent(this.ctx, this.baseDir);
+    try {
+      return await tester.run();
+    } catch (error) {
+      const msg =
+        `TESTER ERROR: ${error}. ` +
+        `Do NOT call delegate_to_tester again — retrying will cause the same failure. ` +
+        `Report test results as unavailable and proceed to the next step.`;
+      console.error('Tester agent failed:', error);
+      return msg;
+    }
+  }
+
+  /**
+   * Delegate the merge step to the Merger agent.
+   */
+  private async delegateToMerger(): Promise<string> {
+    console.log('Delegating to Merger agent...');
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'manager',
+      tool: 'delegate_to_merger',
+      allowed: true,
+      note: 'Delegating merge to Merger agent',
+    });
+    const merger = new MergerAgent(this.ctx, this.baseDir);
+    return await merger.run();
+  }
+
+  /**
    * Write default artifacts at end of run.
+   * Only writes a file if it hasn't already been written by a sub-agent.
    */
   private async writeDefaultArtifacts(): Promise<void> {
-    // Write questions.md (empty for now - could be populated by agent)
-    await this.ctx.artifacts.writeQuestions([]);
+    // questions.md: write if missing (no blockers by default)
+    await this.writeIfAbsent('questions.md', async () => {
+      await this.ctx.artifacts.writeQuestions([]);
+    });
 
-    // Write ideas.md (placeholder)
-    const ideas = [
-      '# Ideas for Future Work',
-      '',
-      '(To be populated by Researcher agent)',
-    ].join('\n');
-    await this.ctx.artifacts.writeIdeas(ideas);
+    // ideas.md: write if researcher didn't already write it
+    await this.writeIfAbsent('ideas.md', async () => {
+      await this.ctx.artifacts.writeIdeas('# Ideas\n\n(No research was conducted this run.)');
+    });
 
-    // Write knowledge.md (placeholder)
-    const knowledge = [
-      '# Knowledge',
-      '',
-      '## What we learned',
-      '- Manager agent completed run with Anthropic SDK',
-      '',
-      '## Assumptions',
-      '- Implementer, Reviewer, Researcher agents not yet integrated',
-      '',
-      '## Open questions',
-      '- None',
-    ].join('\n');
-    await this.ctx.artifacts.writeKnowledge(knowledge);
+    // knowledge.md: write if missing
+    await this.writeIfAbsent('knowledge.md', async () => {
+      const knowledge = [
+        '# Knowledge',
+        '',
+        '## What we learned',
+        `- Manager agent completed run for: ${this.ctx.target.name}`,
+        '',
+        '## Assumptions',
+        '- See brief.md for task description',
+        '',
+        '## Open questions',
+        '- None',
+      ].join('\n');
+      await this.ctx.artifacts.writeKnowledge(knowledge);
+    });
 
-    // Write sources.md (placeholder)
-    const sources = [
-      '# Research Sources',
-      '',
-      '(To be populated by Researcher agent)',
-    ].join('\n');
-    await this.ctx.artifacts.writeSources(sources);
+    // sources.md: write if researcher didn't already write it
+    await this.writeIfAbsent(path.join('research', 'sources.md'), async () => {
+      await this.ctx.artifacts.writeSources('# Research Sources\n\n(No sources collected this run.)');
+    });
+  }
+
+  /**
+   * Write a file only if it doesn't already exist in the run dir.
+   */
+  private async writeIfAbsent(relativePath: string, write: () => Promise<void>): Promise<void> {
+    const fullPath = path.join(this.ctx.runDir, relativePath);
+    try {
+      await fs.access(fullPath);
+      // File exists — skip
+    } catch {
+      await write();
+    }
   }
 }

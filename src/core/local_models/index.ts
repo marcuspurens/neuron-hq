@@ -3,8 +3,8 @@
  *
  * TODO: Implement local model eval commands.
  * This will support:
- * - pnpm swarm local-model eval --provider ollama --model <MODEL> --runid <runid>
- * - pnpm swarm local-model eval --provider openai-compatible --base-url <URL> --model <MODEL> --runid <runid>
+ * - pnpm neuron local-model eval --provider ollama --model <MODEL> --runid <runid>
+ * - pnpm neuron local-model eval --provider openai-compatible --base-url <URL> --model <MODEL> --runid <runid>
  *
  * NO auto-download, NO auto-pull. User must explicitly opt-in.
  */

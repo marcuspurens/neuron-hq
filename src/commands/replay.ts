@@ -15,7 +15,6 @@ export async function replayCommand(runid: string): Promise<void> {
 
     // Load manifest
     const manifestManager = new ManifestManager(manifestPath);
-    const manifest = await manifestManager.load();
 
     // Verify checksums
     console.log(chalk.bold('Verifying artifact checksums...'));
