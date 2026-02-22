@@ -53,3 +53,12 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Effekt:** Hög kvalitet på leverabeln — varje förslag backas av kvantitativa data snarare än subjektiva omdömen. Gör det möjligt att direkt prioritera och agera.
 
 ---
+
+## Reviewer git-stash baseline-jämförelse
+**Kontext:** Körning 20260222-1901 — Reviewer verifierade conftest.py-refaktorering mot 187 tester
+**Lösning:** Reviewer körde `git stash` → `pytest tests/ -x -q` (baseline: 187 passed) → `git stash pop` → `pytest tests/ -x -q` (after: 187 passed) för att verifiera att ändringarna inte bröt något. Kombinerades med AST-analys för docstrings och ruff/mypy på enbart ändrade filer.
+**Effekt:** Ger objektivt bevis att refaktoreringen är neutral — samma testantal före och efter. Mycket starkare verifiering än att bara köra testerna en gång.
+**Keywords:** reviewer, baseline, git-stash, pytest, verifiering
+**Relaterat:** patterns.md#Brief-innehåll injiceras i Reviewer för korrekt kriteriecheck
+
+---
