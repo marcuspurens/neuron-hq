@@ -1,4 +1,5 @@
 import { type RunContext } from '../run.js';
+import { truncateToolResult, trimMessages } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
@@ -133,7 +134,7 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
           model: 'claude-opus-4-6',
           max_tokens: 8192,
           system: systemPrompt,
-          messages,
+          messages: trimMessages(messages),
           tools: this.defineTools(),
         });
 
@@ -312,7 +313,7 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
       });
 
       await this.ctx.manifest.addCommand(command, 0);
-      return stdout;
+      return truncateToolResult(stdout);
     } catch (error: any) {
       await this.ctx.manifest.addCommand(command, error.status || 1);
       return `Command failed (exit ${error.status || 1}):\n${error.stderr || error.message}`;
@@ -336,7 +337,7 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
         files_touched: [absolutePath],
       });
 
-      return content;
+      return truncateToolResult(content);
     } catch (error: any) {
       return `Error reading file: ${error.message}`;
     }

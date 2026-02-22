@@ -2,6 +2,7 @@ import { type RunContext } from '../run.js';
 import { ImplementerAgent } from './implementer.js';
 import { ReviewerAgent } from './reviewer.js';
 import { ResearcherAgent } from './researcher.js';
+import { truncateToolResult, trimMessages } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
@@ -164,11 +165,12 @@ Stop when time limit approaches or when blockers are encountered.
       console.log(`\n=== Manager iteration ${iteration}/${this.maxIterations} ===`);
 
       try {
+        const trimmedMessages = trimMessages(messages);
         const response = await this.anthropic.messages.create({
           model: 'claude-opus-4-6',
           max_tokens: 8192,
           system: systemPrompt,
-          messages,
+          messages: trimmedMessages,
           tools: this.defineTools(),
         });
 
@@ -425,7 +427,7 @@ Stop when time limit approaches or when blockers are encountered.
       // Log successful execution
       await this.ctx.manifest.addCommand(command, 0);
 
-      return stdout;
+      return truncateToolResult(stdout);
     } catch (error: any) {
       // Log failed execution
       await this.ctx.manifest.addCommand(command, error.status || 1);
@@ -457,7 +459,7 @@ Stop when time limit approaches or when blockers are encountered.
         files_touched: [absolutePath],
       });
 
-      return content;
+      return truncateToolResult(content);
     } catch (error: any) {
       return `Error reading file: ${error.message}`;
     }

@@ -1,4 +1,5 @@
 import { type RunContext } from '../run.js';
+import { truncateToolResult, trimMessages } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
@@ -113,7 +114,7 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
           model: 'claude-opus-4-6',
           max_tokens: 8192,
           system: systemPrompt,
-          messages,
+          messages: trimMessages(messages),
           tools: this.defineTools(),
         });
 
@@ -292,7 +293,7 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
       });
 
       await this.ctx.manifest.addCommand(command, 0);
-      return stdout;
+      return truncateToolResult(stdout);
     } catch (error: any) {
       await this.ctx.manifest.addCommand(command, error.status || 1);
       return `Command failed (exit ${error.status || 1}):\n${error.stderr || error.message}`;
@@ -316,7 +317,7 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
         files_touched: [absolutePath],
       });
 
-      return content;
+      return truncateToolResult(content);
     } catch (error: any) {
       return `Error reading file: ${error.message}`;
     }
