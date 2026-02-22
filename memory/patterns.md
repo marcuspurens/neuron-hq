@@ -39,3 +39,10 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Effekt:** Säker merge-process — inget kopieras utan explicit godkännande
 
 ---
+
+## Librarian dubbelkontrollerar med read-after-write
+**Kontext:** Körning 20260222-1651 — Librarian smoke test
+**Lösning:** Librarian läser tillbaka `techniques.md` efter att ha skrivit alla entries, vilket verifierar att skrivningarna faktiskt sparades korrekt
+**Effekt:** Ger tillförlitlig bekräftelse att entries skrevs — Manager kan lita på Librarian-resultatet utan att själv behöva verifiera filen
+
+---

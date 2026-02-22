@@ -49,3 +49,30 @@ Appendas av Historian-agenten när problem identifieras.
 **Status:** ✅ Dokumenterat, alternativ lösning implementerad
 
 ---
+
+## Librarian smoke test producerade inga artefakter
+**Session:** 20260222-1639-aurora-swarm-lab
+**Symptom:** Endast brief.md skapades. Ingen report.md, questions.md eller merge_summary.md finns. Librarian-agenten verkar aldrig ha exekverats.
+**Orsak:** Okänt — troligen delegerade orchestratorn aldrig till Librarian, eller så saknas Librarian-agenten i swarm-konfigurationen. Ingen audit.jsonl kontrollerad.
+**Lösning:** Verifiera att Librarian-agenten är registrerad och tillgänglig i swarm-konfigurationen. Kontrollera audit.jsonl för eventuella felmeddelanden. Säkerställ att orchestratorn korrekt delegerar efter att brief skapats.
+**Status:** ⚠️ Identifierat
+
+---
+
+## Manager söker Librarian-output i workspace istället för delat minne
+**Session:** 20260222-1651-aurora-swarm-lab
+**Symptom:** Manager hittade inte techniques.md i workspace efter lyckad Librarian-delegation, trots att Librarian korrekt skrev 9 entries till den delade memory/techniques.md
+**Orsak:** Librarian skriver till den delade `memory/techniques.md` (via write_to_techniques), men Manager letade i workspace-katalogen `workspaces/.../aurora-swarm-lab/memory/techniques.md`
+**Lösning:** Manager-prompten eller verifieringslogiken behöver uppdateras för att veta att Librarian-output hamnar i den delade memory-katalogen, inte i workspace. Alternativt bör Librarian-agenten returnera en sammanfattning av vad som skrevs så Manager inte behöver leta själv.
+**Status:** ⚠️ Identifierat
+
+---
+
+## Run-artefakter skrivs till workspace men inte till runs-katalogen
+**Session:** 20260222-1651-aurora-swarm-lab
+**Symptom:** report.md och questions.md saknas i runs-katalogen, trots att Manager skrev dem till workspace
+**Orsak:** Manager skrev artefakter (report.md, questions.md, ideas.md, knowledge.md) till workspace-katalogen men de kopierades aldrig till runs-katalogen. Historian kunde därför inte läsa dem.
+**Lösning:** Orchestratorn eller Manager behöver kopiera run-artefakter (report.md, questions.md) till runs-katalogen efter körning, eller skriva direkt dit. Alternativt bör Historian kunna läsa från workspace-katalogen som fallback.
+**Status:** ⚠️ Identifierat
+
+---
