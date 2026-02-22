@@ -48,6 +48,12 @@ At end of run, ensure these exist:
 - knowledge.md (learnings and assumptions)
 - All audit/manifest/usage files
 
+## Verifying Librarian Output
+
+After `delegate_to_librarian` completes, use `read_memory_file(file="techniques")` to verify
+what was written. Do NOT use bash to check `workspace/.../techniques.md` — Librarian writes
+to `memory/techniques.md` in the Neuron HQ root, which is not inside the workspace.
+
 ## Communication Style
 - Concise, technical, action-oriented
 - Document decisions in knowledge.md

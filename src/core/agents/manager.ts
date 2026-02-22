@@ -24,10 +24,12 @@ export class ManagerAgent {
   private maxIterations: number;
 
   private baseDir: string;
+  private memoryDir: string;
 
   constructor(private ctx: RunContext, baseDir: string) {
     this.baseDir = baseDir;
     this.promptPath = path.join(baseDir, 'prompts', 'manager.md');
+    this.memoryDir = path.join(baseDir, 'memory');
 
     // Initialize Anthropic client
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -302,6 +304,23 @@ Stop when time limit approaches or when blockers are encountered.
         },
       },
       {
+        name: 'read_memory_file',
+        description:
+          'Read the current contents of a memory file. ' +
+          'Use this to verify what Librarian wrote to techniques.md instead of using bash.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            file: {
+              type: 'string',
+              enum: ['runs', 'patterns', 'errors', 'techniques'],
+              description: 'Which memory file to read (without .md extension)',
+            },
+          },
+          required: ['file'],
+        },
+      },
+      {
         name: 'delegate_to_implementer',
         description:
           'Delegate a specific coding task to the Implementer agent. Use when you have a clear, well-defined implementation task.',
@@ -417,6 +436,9 @@ Stop when time limit approaches or when blockers are encountered.
               result = await this.executeListFiles(
                 block.input as { path?: string }
               );
+              break;
+            case 'read_memory_file':
+              result = await this.executeReadMemoryFile(block.input as { file: string });
               break;
             case 'delegate_to_implementer':
               result = await this.delegateToImplementer(block.input as { task: string });
@@ -604,6 +626,32 @@ Stop when time limit approaches or when blockers are encountered.
       return formatted || '(empty directory)';
     } catch (error: any) {
       return `Error listing files: ${error.message}`;
+    }
+  }
+
+  /**
+   * Read a memory file from the memory/ directory.
+   */
+  private async executeReadMemoryFile(input: { file: string }): Promise<string> {
+    const { file } = input;
+    const validFiles = ['runs', 'patterns', 'errors', 'techniques'];
+    if (!validFiles.includes(file)) {
+      return `Error: Invalid memory file "${file}". Must be one of: ${validFiles.join(', ')}`;
+    }
+
+    const filePath = path.join(this.memoryDir, `${file}.md`);
+    try {
+      const content = await fs.readFile(filePath, 'utf-8');
+      await this.ctx.audit.log({
+        ts: new Date().toISOString(),
+        role: 'manager',
+        tool: 'read_memory_file',
+        allowed: true,
+        files_touched: [filePath],
+      });
+      return content;
+    } catch {
+      return `(file not found: ${file}.md)`;
     }
   }
 
