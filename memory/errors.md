@@ -94,3 +94,14 @@ Appendas av Historian-agenten när problem identifieras.
 **Status:** ⚠️ Identifierat
 
 ---
+
+## Implementer transform-skript blockeras av policy
+**Session:** 20260222-2113-aurora-swarm-lab
+**Symptom:** Implementer försökte skriva ett Python-transformskript till /tmp/transform.py — blockerades med "file write outside allowed scope". Försökte sedan köra inline Python via bash med heredoc (cat > /tmp/transform.py << 'PYEOF') — blockerades med "matches forbidden pattern". Även `rm` av hjälpfil blockerades.
+**Orsak:** Säkerhetspolicyn tillåter bara write_file till workspace-katalogen och specifika runs-katalogen. /tmp och bash-kommandon med `.*`-liknande mönster (heredocs, backticks) blockeras.
+**Lösning:** Implementer bör alltid skriva direkt till target-filen med write_file istället för att skapa hjälpskript. Om filen är stor, läs originalet först, gör ändringarna mentalt, och skriv hela filen i ett anrop.
+**Status:** ✅ Löst (Implementer lyckades efter att byta strategi till direkt write_file)
+**Keywords:** implementer, policy, write_file, transform-skript, bash-block, tmp
+**Relaterat:** patterns.md#Implementer: direktskrivning slår transform-skript
+
+---

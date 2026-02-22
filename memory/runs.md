@@ -91,3 +91,21 @@ Inga kända problem. Manager duplicerade viss research (läste testfiler och kö
 - Reviewer-tekniken att göra `git stash` → köra baseline-tester → `git stash pop` → köra tester igen ger pålitlig before/after-jämförelse
 
 ---
+
+## Körning 20260222-2113-aurora-swarm-lab — aurora-swarm-lab
+**Datum:** 2026-02-22
+**Uppgift:** Refaktorera tests/test_mcp_server.py (813 rader, 34 tester) att använda conftest.py-fixtures istället för upprepad boilerplate
+**Resultat:** ✅ 7 av 7 uppgifter klara — 28 tester använder nu `db`-fixture, 111 rader borttagna netto, alla 187 tester gröna, merge till main (commit e65bf57)
+
+**Vad som fungerade:**
+Hela pipeline-kedjan (Research → Implement → Test → Review → Merge) körde komplett utan blockers, andra körningen i rad med felfri end-to-end. Researcher kategoriserade alla 34 tester i fixture-grupper (A: no fixtures, B: db-only, C: db+extra env, D: db+artifact_root, E: db+ingest_allowlist, F: db+obsidian) med detaljerade Python-analyser. Implementer levererade en ren mekanisk refaktorering — 28 tester ersatte 3-raders db-boilerplate med `db`-fixture, 2 tester använder `artifact_root`, 3 använder `ingest_allowlist`, import av `init_db` borttagen. Reviewer verifierade alla 8 acceptanskriterier med konkreta kommandon (grep, git diff --numstat, ruff, mypy, baseline git stash-jämförelse).
+
+**Vad som inte fungerade:**
+Manager duplicerade Researchers arbete igen — körde ~10 egna bash-analyser (grep, python-kategorisering) efter att Researcher redan slutfört sin kartläggning. Implementer hade problem med sin första approach: en transform-script-strategi blockerades av policy (write_file utanför scope, bash-kommandon med backtick-mönster) och krävde git checkout + fullständig omskrivning av hela filen. Totalt 2 bash-kommandon från Researcher och 2 från Implementer blockerades av säkerhetspolicyn.
+
+**Lärdomar:**
+- Implementer bör skriva filen direkt istället för att skapa transform-skript — write_file till target-filen fungerar alltid, men hjälpskript blockeras ofta av policy
+- Manager-duplicering av Researcher-arbete är ett ihållande mönster (dokumenterat i 3 av 6 körningar) — behöver arkitekturell lösning, inte bara påminnelse
+- Conftest-fixture-refaktorering av test_mcp_server.py var en naturlig uppföljning till körning 20260222-1901 — briefen var utmärkt på att specificera exakt vilka tester som behövde vilka fixtures, vilket gjorde implementeringen mekanisk och förutsägbar
+
+---

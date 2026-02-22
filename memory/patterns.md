@@ -62,3 +62,12 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Relaterat:** patterns.md#Brief-innehåll injiceras i Reviewer för korrekt kriteriecheck
 
 ---
+
+## Implementer: direktskrivning slår transform-skript
+**Kontext:** Körning 20260222-2113 — Implementer försökte först skapa ett Python-transform-skript för att mekaniskt refaktorera test_mcp_server.py, men write_file till /tmp blockerades och bash med inline-skript blev för komplext
+**Lösning:** Implementer gjorde git checkout, läste hela originalfilen, applicerade ändringarna mentalt, och skrev hela den refaktorerade filen med en enda write_file-anrop direkt till target-filen
+**Effekt:** Snabbare och pålitligare — inga policy-blockeringar, inga mellansteg som kan misslyckas. write_file till workspace-filer är alltid tillåtet.
+**Keywords:** implementer, write_file, transform-skript, policy, refaktorering
+**Relaterat:** errors.md#Implementer transform-skript blockeras av policy
+
+---
