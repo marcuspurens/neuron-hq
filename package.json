@@ -9,7 +9,7 @@
   },
   "packageManager": "pnpm@8.15.0",
   "scripts": {
-    "swarm": "tsx src/cli.ts",
+    "neuron": "tsx src/cli.ts",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

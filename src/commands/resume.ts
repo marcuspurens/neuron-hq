@@ -111,12 +111,12 @@ export async function resumeCommand(runid: string, options: { hours: string }): 
       '',
       '## Target',
       `- Name: ${target.name}`,
-      `- Branch: swarm/${runid}`,
+      `- Branch: neuron/${runid}`,
       '',
       '## Rollback',
       '```bash',
       `git -C ${ctx.workspaceDir} checkout ${target.default_branch}`,
-      `git -C ${ctx.workspaceDir} branch -D swarm/${runid}`,
+      `git -C ${ctx.workspaceDir} branch -D neuron/${runid}`,
       '```',
     ].join('\n');
 

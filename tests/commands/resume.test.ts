@@ -157,7 +157,7 @@ describe('RunOrchestrator.resumeRun', () => {
       'utf-8'
     );
     const manifest = JSON.parse(manifestContent);
-    expect(manifest.workspace_branch).toBe(`swarm/${oldRunId}`);
+    expect(manifest.workspace_branch).toBe(`neuron/${oldRunId}`);
   });
 });
 

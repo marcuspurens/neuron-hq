@@ -49,7 +49,7 @@ export async function targetListCommand(): Promise<void> {
 
     if (targets.length === 0) {
       console.log(chalk.yellow('No targets configured.'));
-      console.log(`Run: ${chalk.cyan('pnpm swarm target add <name> <path>')}`);
+      console.log(`Run: ${chalk.cyan('pnpm neuron target add <name> <path>')}`);
       return;
     }
 

@@ -22,23 +22,23 @@ cp .env.example .env
 ### 3. Add a Target Repo
 
 ```bash
-pnpm swarm target add my-app /path/to/my-app
+pnpm neuron target add my-app /path/to/my-app
 ```
 
 ### 4. Write Your Brief
 
 Edit `briefs/today.md` with what you want to achieve.
 
-### 5. Run the Swarm
+### 5. Start a Run
 
 ```bash
-pnpm swarm run my-app --hours 3
+pnpm neuron run my-app --hours 3
 ```
 
 ### 6. Review Results
 
 ```bash
-pnpm swarm report <runid>
+pnpm neuron report <runid>
 cat runs/<runid>/questions.md
 cat runs/<runid>/ideas.md
 ```
@@ -46,33 +46,33 @@ cat runs/<runid>/ideas.md
 ## Daily Workflow
 
 1. **Morning**: Edit `briefs/today.md` with your goals
-2. **Start run**: `pnpm swarm run <target> --hours 3`
-3. **Go do other work** while swarm operates autonomously
+2. **Start run**: `pnpm neuron run <target> --hours 3`
+3. **Go do other work** while the agents operate autonomously
 4. **Afternoon**: Review `runs/<runid>/report.md`, `questions.md`, `ideas.md`
 5. **If blockers**: Answer in `runs/<runid>/answers.md`
-6. **Resume**: `pnpm swarm resume <runid> --hours 2`
+6. **Resume**: `pnpm neuron resume <runid> --hours 2`
 7. **Repeat** until satisfied
 
 ## CLI Commands
 
 ### Target Management
 ```bash
-pnpm swarm target add <name> <path-or-url>   # Add target repo
-pnpm swarm target list                        # List all targets
+pnpm neuron target add <name> <path-or-url>   # Add target repo
+pnpm neuron target list                        # List all targets
 ```
 
-### Running Swarms
+### Running
 ```bash
-pnpm swarm run <target> --hours 3            # Start new run
-pnpm swarm resume <runid> --hours 2          # Resume run
-pnpm swarm status                            # List all runs
+pnpm neuron run <target> --hours 3            # Start new run
+pnpm neuron resume <runid> --hours 2          # Resume run
+pnpm neuron status                            # List all runs
 ```
 
 ### Results & Logs
 ```bash
-pnpm swarm report <runid>                    # Show report
-pnpm swarm logs <runid>                      # Show artifact paths
-pnpm swarm replay <runid>                    # Re-run verification
+pnpm neuron report <runid>                    # Show report
+pnpm neuron logs <runid>                      # Show artifact paths
+pnpm neuron replay <runid>                    # Re-run verification
 ```
 
 ## What Gets Created

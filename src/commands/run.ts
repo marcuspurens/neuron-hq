@@ -13,7 +13,7 @@ export async function runCommand(
   targetName: string,
   options: { hours: string; brief: string }
 ): Promise<void> {
-  const spinner = ora('Initializing swarm run...').start();
+  const spinner = ora('Initializing neuron run...').start();
 
   try {
     // Load target
@@ -23,7 +23,7 @@ export async function runCommand(
 
     if (!target) {
       spinner.fail(chalk.red(`Target '${targetName}' not found`));
-      console.log(`Run: ${chalk.cyan(`pnpm swarm target add ${targetName} <path>`)}`);
+      console.log(`Run: ${chalk.cyan(`pnpm neuron target add ${targetName} <path>`)}`);
       process.exit(1);
     }
 
@@ -123,7 +123,7 @@ export async function runCommand(
         '## Rollback',
         '```bash',
         `git -C ${ctx.workspaceDir} checkout ${target.default_branch}`,
-        `git -C ${ctx.workspaceDir} branch -D swarm/${runid}`,
+        `git -C ${ctx.workspaceDir} branch -D neuron/${runid}`,
         '```',
       ].join('\n');
     }

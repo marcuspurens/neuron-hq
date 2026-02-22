@@ -27,7 +27,7 @@ export const BASE_DIR = path.resolve(__dirname, '..');
 const program = new Command();
 
 program
-  .name('swarm')
+  .name('neuron')
   .description('Neuron HQ - Autonomous agent swarm control plane')
   .version('0.1.0');
 
@@ -49,7 +49,7 @@ target
 // Run commands
 program
   .command('run <target>')
-  .description('Run a swarm on a target repository')
+  .description('Run agents on a target repository')
   .option('--hours <hours>', 'Runtime limit in hours', '3')
   .option('--brief <path>', 'Path to brief file', 'briefs/today.md')
   .action(runCommand);

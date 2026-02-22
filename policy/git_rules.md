@@ -4,7 +4,7 @@
 1. **Never write to main/master branch directly**
 2. **Never force push** (unless explicitly allowed in policy)
 3. **Never rewrite published history**
-4. **All work happens in workspace branches** (swarm/<runid>)
+4. **All work happens in workspace branches** (neuron/<runid>)
 
 ## Allowed Operations
 
@@ -17,8 +17,8 @@
 - `git rev-parse`
 
 ### Workspace Operations (safe in workspace)
-- `git checkout -b swarm/<runid>` (create workspace branch)
-- `git switch swarm/<runid>` (switch to workspace branch)
+- `git checkout -b neuron/<runid>` (create workspace branch)
+- `git switch neuron/<runid>` (switch to workspace branch)
 - `git add <files>` (stage changes)
 - `git commit -m "message"` (commit to workspace branch)
 - `git config --local` (workspace-local config only)
@@ -37,8 +37,8 @@
 ## Branch Policy
 
 ### Workspace Branch Naming
-- Pattern: `swarm/<runid>`
-- Example: `swarm/20260221-1430-feature-auth`
+- Pattern: `neuron/<runid>`
+- Example: `neuron/20260221-1430-feature-auth`
 
 ### Protection Rules
 - Reviewer must verify branch before any push
