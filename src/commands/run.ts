@@ -82,7 +82,7 @@ export async function runCommand(
     // Check if Librarian auto-trigger should fire (every 5th completed run)
     const memoryDir = path.join(BASE_DIR, 'memory');
     const completedRuns = await countMemoryRuns(memoryDir);
-    const librarianAutoTrigger = completedRuns > 0 && completedRuns % 5 === 0;
+    const librarianAutoTrigger = (completedRuns + 1) % 5 === 0;
 
     if (librarianAutoTrigger) {
       console.log(chalk.magenta(`  ⚡ Auto-trigger: Librarian will run after Historian (run #${completedRuns + 1} in cycle)`));
