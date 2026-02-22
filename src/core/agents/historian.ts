@@ -95,9 +95,12 @@ Required:
 
 Artifacts to read:
 - ${path.join(this.ctx.runDir, 'brief.md')}
-- ${path.join(this.ctx.runDir, 'report.md')}
+- ${path.join(this.ctx.runDir, 'report.md')} (may be a generic fallback — use audit.jsonl as ground truth)
 - ${path.join(this.ctx.runDir, 'questions.md')}
+- ${path.join(this.ctx.runDir, 'audit.jsonl')} (lists every tool call — use this to verify what actually happened)
 - ${path.join(this.ctx.runDir, 'merge_summary.md')} (may not exist — skip if missing)
+
+If the brief involved Librarian, call read_memory_file(file="techniques") to count how many entries exist and verify what was written.
 `;
 
     return `${historianPrompt}\n\n${contextInfo}`;
@@ -196,6 +199,23 @@ Artifacts to read:
         },
       },
       {
+        name: 'read_memory_file',
+        description:
+          'Read the current contents of a memory file. ' +
+          'Use to verify what was written (e.g. count techniques.md entries after a Librarian run).',
+        input_schema: {
+          type: 'object',
+          properties: {
+            file: {
+              type: 'string',
+              enum: ['runs', 'patterns', 'errors', 'techniques'],
+              description: 'Which memory file to read (without .md extension)',
+            },
+          },
+          required: ['file'],
+        },
+      },
+      {
         name: 'write_to_memory',
         description:
           'Append a formatted entry to a memory file. ' +
@@ -239,6 +259,9 @@ Artifacts to read:
             case 'read_file':
               result = await this.executeReadFile(block.input as { path: string });
               break;
+            case 'read_memory_file':
+              result = await this.executeReadMemoryFile(block.input as { file: string });
+              break;
             case 'write_to_memory':
               result = await this.executeWriteToMemory(
                 block.input as { file: MemoryFile; entry: string }
@@ -281,6 +304,29 @@ Artifacts to read:
       return content;
     } catch {
       return `(file not found: ${filePath})`;
+    }
+  }
+
+  private async executeReadMemoryFile(input: { file: string }): Promise<string> {
+    const { file } = input;
+    const validFiles = ['runs', 'patterns', 'errors', 'techniques'];
+    if (!validFiles.includes(file)) {
+      return `Error: Invalid memory file "${file}". Must be one of: ${validFiles.join(', ')}`;
+    }
+
+    const filePath = path.join(this.memoryDir, `${file}.md`);
+    try {
+      const content = await fs.readFile(filePath, 'utf-8');
+      await this.ctx.audit.log({
+        ts: new Date().toISOString(),
+        role: 'historian',
+        tool: 'read_memory_file',
+        allowed: true,
+        files_touched: [filePath],
+      });
+      return content;
+    } catch {
+      return `(file not found: ${file}.md)`;
     }
   }
 

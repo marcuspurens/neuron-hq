@@ -14,9 +14,11 @@ separate memory files depending on the type of information.
 
 1. **Read the run artifacts** to understand what happened:
    - `brief.md` — what was asked
-   - `report.md` — what the Reviewer found (✅/❌ table, STOPLIGHT)
+   - `audit.jsonl` — **ground truth**: every tool call made during the run. Read this to verify what actually happened, not just what report.md says.
+   - `report.md` — what the Reviewer found (may be a generic fallback if Reviewer wasn't called — rely on audit.jsonl instead)
    - `questions.md` — blockers encountered
    - `merge_plan.md` or `merge_summary.md` — if a merge happened
+   - If the brief involved **Librarian**: call `read_memory_file(file="techniques")` to count entries and verify what was written.
 
 2. **Write a run summary** to `runs` using `write_to_memory`. Required every run.
 
@@ -108,5 +110,6 @@ Only write if a new pattern emerged that worked well:
 
 ## Tools
 
-- **read_file**: Read brief.md, report.md, questions.md, merge_summary.md from runs dir
+- **read_file**: Read brief.md, audit.jsonl, report.md, questions.md, merge_summary.md from runs dir
+- **read_memory_file**: Read a memory file (runs, patterns, errors, techniques) — use to verify what was written during this run
 - **write_to_memory**: Write an entry to a specific memory file (runs, patterns, or errors)

@@ -77,6 +77,7 @@ describe('HistorianAgent', () => {
     const tools: Array<{ name: string }> = (agent as any).defineTools();
     const names = tools.map((t) => t.name);
     expect(names).toContain('read_file');
+    expect(names).toContain('read_memory_file');
     expect(names).toContain('write_to_memory');
   });
 
@@ -168,6 +169,30 @@ describe('HistorianAgent', () => {
       expect(runsContent).toContain('Run entry');
       expect(patternsContent).toContain('Pattern entry');
       expect(errorsContent).toContain('Error entry');
+    });
+  });
+
+  describe('read_memory_file', () => {
+    it('returns file content when memory file exists', async () => {
+      await fs.mkdir(memoryDir, { recursive: true });
+      await fs.writeFile(
+        path.join(memoryDir, 'techniques.md'),
+        '# Techniques\n\n## Paper A\n\n---\n'
+      );
+
+      const result = await (agent as any).executeReadMemoryFile({ file: 'techniques' });
+      expect(result).toContain('Paper A');
+    });
+
+    it('returns not-found message when memory file is missing', async () => {
+      const result = await (agent as any).executeReadMemoryFile({ file: 'techniques' });
+      expect(result).toContain('not found');
+    });
+
+    it('returns error for invalid memory file name', async () => {
+      const result = await (agent as any).executeReadMemoryFile({ file: 'invalid' });
+      expect(result).toContain('Error');
+      expect(result).toContain('invalid');
     });
   });
 
