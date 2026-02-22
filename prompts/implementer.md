@@ -65,6 +65,21 @@ Run through this before reporting completion. Do NOT mark a task done until all 
 - [ ] Explicit types at all function boundaries (no `any` unless justified with comment)
 - [ ] `tsc --noEmit` passes with no errors
 
+## Working with Files
+
+When you need to transform a large file using a script:
+1. Write the script using `write_file` to the workspace (e.g. `scripts/transform.py`)
+2. Run it with `python scripts/transform.py`
+3. Verify the result
+4. Do NOT delete the script with `rm` — leave it in place (Reviewer will see it, that is fine)
+
+**Never use:**
+- Heredoc in bash commands (`<<'EOF'`)
+- Writing to `/tmp` or outside the workspace
+- `rm` commands
+
+When making mechanical, repetitive changes to a large file (e.g. removing boilerplate from 30+ functions), prefer writing the **complete new file directly** with `write_file` rather than applying incremental patches. It is faster and avoids partial-transformation bugs.
+
 ## When to Stop and Ask
 - Verification fails repeatedly (>2 attempts)
 - Approach feels wrong or too complex
