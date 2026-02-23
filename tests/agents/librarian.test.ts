@@ -193,4 +193,24 @@ describe('LibrarianAgent', () => {
       vi.unstubAllGlobals();
     });
   });
+
+  describe('integration: full write flow', () => {
+    it('appends multiple entries without overwriting', async () => {
+      await agent.executeWriteToTechniques({
+        entry: '## Alpha Technique (2026)\n**Källa:** arxiv:1111\n**Kärna:** First.\n\n---',
+      });
+      await agent.executeWriteToTechniques({
+        entry: '## Beta Technique (2026)\n**Källa:** arxiv:2222\n**Kärna:** Second.\n\n---',
+      });
+      await agent.executeWriteToTechniques({
+        entry: '## Gamma Technique (2026)\n**Källa:** arxiv:3333\n**Kärna:** Third.\n\n---',
+      });
+
+      const content = await fs.readFile(path.join(memoryDir, 'techniques.md'), 'utf-8');
+      expect(content.startsWith('# Techniques')).toBe(true);
+      expect(content).toContain('Alpha Technique');
+      expect(content).toContain('Beta Technique');
+      expect(content).toContain('Gamma Technique');
+    });
+  });
 });

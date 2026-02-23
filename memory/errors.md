@@ -55,7 +55,7 @@ Appendas av Historian-agenten när problem identifieras.
 **Symptom:** Endast brief.md skapades. Ingen report.md, questions.md eller merge_summary.md finns. Librarian-agenten verkar aldrig ha exekverats.
 **Orsak:** Okänt — troligen delegerade orchestratorn aldrig till Librarian, eller så saknas Librarian-agenten i swarm-konfigurationen. Ingen audit.jsonl kontrollerad.
 **Lösning:** Verifiera att Librarian-agenten är registrerad och tillgänglig i swarm-konfigurationen. Kontrollera audit.jsonl för eventuella felmeddelanden. Säkerställ att orchestratorn korrekt delegerar efter att brief skapats.
-**Status:** ⚠️ Identifierat
+**Status:** ✅ Löst — audit.jsonl bekräftar att Librarian körde och skrev 8 poster till techniques.md. Felet berodde på felaktig diagnos (ingen audit.jsonl-kontroll).
 
 ---
 
@@ -111,7 +111,7 @@ Appendas av Historian-agenten när problem identifieras.
 **Symptom:** Briefen specificerade 3 ruff-fel (E741 whisper_client:183, F841 main.py:308, F841 test_intake_youtube:33) men vid körning visade sig 2 av 3 (E741, F841 i main.py) redan vara fixade i repot. Istället fanns 8 andra fel (7× F401, 1× F841).
 **Orsak:** Briefen baserades på analys från körning #4 (20260222-1316) utan att verifiera aktuellt tillstånd. Mellan körning #4 och #7 hade repot ändrats (troligen genom körning #4:s egna auto-fixar eller manuella ändringar).
 **Lösning:** Kör alltid en baseline-verifiering (`ruff check .`, `pytest tests/ -x -q`) som del av brief-skapandet, inte bara vid körningens start. Briefen bör innehålla faktisk `ruff check`-output, inte cachade resultat från äldre körningar.
-**Status:** ⚠️ Identifierat
+**Status:** ✅ Dokumenterat och löst — runbook-avsnitt tillagt i körning #9 (docs/runbook.md).
 **Keywords:** brief, baseline, ruff, stale-data, inaktuell
 **Relaterat:** patterns.md#Implementer anpassar sig till faktiskt repo-tillstånd vid inaktuell brief
 
@@ -136,5 +136,27 @@ Appendas av Historian-agenten när problem identifieras.
 **Status:** ✅ Löst (session 21: manager.ts exponerar nu runDir, manager.md instruerar absolut sökväg, merger.ts fallback till workspace)
 **Keywords:** manager, merger, answers.md, runs-katalog, workspace, sökväg
 **Relaterat:** errors.md#Run-artefakter skrivs till workspace men inte till runs-katalogen
+
+---
+
+## Librarian-sökvägsproblem löst i manager.md
+**Session:** 20260223-0700-neuron-hq
+**Symptom:** Ursprungligt problem (session 20260222-1651): Manager sökte Librarian-output i workspace istället för delat minne
+**Orsak:** Manager-prompten saknade information om att Librarian skriver till delat `memory/techniques.md`, inte workspace
+**Lösning:** Körning #9 lade till explicit vägledning i `prompts/manager.md` (+4 rader) som förklarar att Librarian-output hamnar i delat minne och inte ska sökas i workspace
+**Status:** ✅ Löst
+**Keywords:** librarian, manager, sökväg, techniques.md, delat-minne
+**Relaterat:** errors.md#Manager söker Librarian-output i workspace istället för delat minne
+
+---
+
+## Brief-baseline-rutin dokumenterad i runbook
+**Session:** 20260223-0700-neuron-hq
+**Symptom:** Ursprungligt problem (session 20260222-2253): Brief baserades på inaktuella data — ruff-fel som redan var fixade specificerades
+**Orsak:** Ingen rutin för att köra baseline-verifiering vid brief-skapande, bara vid körningens start
+**Lösning:** Körning #9 lade till `## Baseline-verifiering vid brief-skapande` i `docs/runbook.md` (+23 rader) med steg: (1) kör alltid baseline, (2) kopiera faktisk output, (3) datumstämpla
+**Status:** ✅ Löst
+**Keywords:** brief, baseline, runbook, stale-data, verifiering
+**Relaterat:** errors.md#Brief med inaktuella ruff-fel
 
 ---
