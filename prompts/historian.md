@@ -23,6 +23,10 @@ separate memory files depending on the type of information.
 2. **Write a run summary** to `runs` using `write_to_memory`. Required every run.
 
 3. **Write to `errors`** if anything went wrong — blockers, unexpected failures, agent mistakes.
+   **Before writing anything**: call `search_memory(query="<error keyword>")` to check if an
+   existing entry already covers the same symptom.
+   - If a ⚠️ entry already exists → use `update_error_status` to close it in place. Do NOT append a new ✅ entry.
+   - If no existing entry → create a new one with `write_to_memory(file="errors", ...)`.
    Use concrete language: what happened, why, and how to avoid it next time.
 
 4. **Write to `patterns`** if something worked especially well — a technique worth repeating.
