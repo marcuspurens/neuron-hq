@@ -40,6 +40,29 @@ Operational procedures for running and troubleshooting Neuron HQ.
 
 ## Daily Operations
 
+## Baseline-verifiering vid brief-skapande
+
+Before writing a brief, always run the target's verification commands to get **current** state:
+
+1. **Run baseline** in the target repo:
+   ```bash
+   cd /path/to/target-repo
+   npm test          # or: python -m pytest / ruff check .
+   ```
+
+2. **Copy actual output** into the brief — never use cached results from earlier runs.
+
+3. **Date-stamp** the baseline in the brief:
+   ```markdown
+   ## Baseline (2026-02-23 07:00)
+   npm test → 166 passed, 0 failed
+   ruff check . → All checks passed
+   ```
+
+**Why this matters**: Körning #7 was based on ruff errors that had already been fixed.
+The swarm wasted tokens trying to fix non-existent problems. Fresh baseline = accurate brief.
+
+
 ### Starting a New Run
 
 1. **Edit brief**

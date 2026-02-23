@@ -99,6 +99,27 @@ describe('ManagerAgent', () => {
     });
   });
 
+  describe('buildSystemPrompt — runDir context', () => {
+    it('includes runDir in the system prompt', async () => {
+      const prompt = await (agent as any).buildSystemPrompt();
+      expect(prompt).toContain('Run artifacts dir');
+      expect(prompt).toContain(runDir);
+    });
+
+    it('runDir in the prompt is an absolute path', async () => {
+      const prompt = await (agent as any).buildSystemPrompt();
+      const match = prompt.match(/Run artifacts dir\*\*: (.+)/);
+      expect(match).not.toBeNull();
+      expect(match![1]).toMatch(/^\//);
+    });
+
+    it('includes workspace dir in the system prompt', async () => {
+      const prompt = await (agent as any).buildSystemPrompt();
+      expect(prompt).toContain('Workspace');
+      expect(prompt).toContain(workspaceDir);
+    });
+  });
+
   describe('search_memory', () => {
     it('returns no-match message when memory dir is empty', async () => {
       const result = await (agent as any).executeSearchMemory({ query: 'streaming' });

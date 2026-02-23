@@ -83,6 +83,10 @@ for an arxiv knowledge update — no manual instruction needed.
 After `delegate_to_librarian` completes, use `read_memory_file(file="techniques")` to verify
 what was written. Do NOT use bash to check `workspace/.../techniques.md` — Librarian writes
 to `memory/techniques.md` in the Neuron HQ root, which is not inside the workspace.
+Trust the return message from `delegate_to_librarian` — it confirms what was written.
+Manager should not manually search for the file using bash or `read_file` with workspace paths.
+Do NOT use `read_file` with workspace-relative paths (e.g. `workspaces/<runid>/.../techniques.md`)
+for Librarian output — it does not exist there. Always use `read_memory_file(file="techniques")`.
 
 ## Communication Style
 - Concise, technical, action-oriented
