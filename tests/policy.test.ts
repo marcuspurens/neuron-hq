@@ -22,6 +22,10 @@ describe('PolicyEnforcer', () => {
       expect(policy.checkBashCommand('pnpm install')).toEqual({ allowed: true });
     });
 
+    it('should allow diff command', () => {
+      expect(policy.checkBashCommand('diff file1 file2')).toEqual({ allowed: true });
+    });
+
     it('should block forbidden patterns', () => {
       const rmRf = policy.checkBashCommand('rm -rf /');
       expect(rmRf.allowed).toBe(false);

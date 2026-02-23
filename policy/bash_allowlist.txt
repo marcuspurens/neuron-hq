@@ -15,6 +15,7 @@
 ^find(\s|$)
 ^tree(\s|$)
 ^wc(\s|$)
+^diff(\s|$)
 
 # Git operations (workspace only - enforced by file-scope check)
 ^git\s+status
