@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-02-23T0720-session20-neuronhq-self.md](docs/HANDOFF-2026-02-23T0720-session20-neuronhq-self.md)
+Senaste handoff: [HANDOFF-2026-02-23T0900-session21-directfixes-rundir.md](docs/HANDOFF-2026-02-23T0900-session21-directfixes-rundir.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -30,5 +30,6 @@ Senaste handoff: [HANDOFF-2026-02-23T0720-session20-neuronhq-self.md](docs/HANDO
 | 2026-02-22 | 23:30 | 18 | Branch-merge + Körning #6 (test_mcp_server refactor) | [länk](docs/HANDOFF-2026-02-22T2330-session18-run6-mcp-refactor.md) |
 | 2026-02-23 | 00:30 | 19 | Körning #7: ruff+coverage + daglig samtalrutin | [länk](docs/HANDOFF-2026-02-23T0030-session19-run7-ruff-coverage.md) |
 | 2026-02-23 | 07:20 | 20 | Self-hosting: neuron-hq som target + körning #8 | [länk](docs/HANDOFF-2026-02-23T0720-session20-neuronhq-self.md) |
+| 2026-02-23 | 09:00 | 21 | Direktfixar: runDir, Merger-fallback, bash-kommentarer | [länk](docs/HANDOFF-2026-02-23T0900-session21-directfixes-rundir.md) |
 
 > **Not:** Session 1 och 6 saknas — handoffs skapades inte vid dessa tillfällen.

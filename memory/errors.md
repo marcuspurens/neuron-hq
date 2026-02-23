@@ -91,7 +91,7 @@ Appendas av Historian-agenten när problem identifieras.
 **Symptom:** Tre bash_exec-anrop från Manager blockerades med "BLOCKED: not in allowlist"
 **Orsak:** Kommandon innehöll inledande `#`-kommentarer (t.ex. `# Check for type hints coverage\ngrep -rn ...`), vilket troligen inte matchade den tillåtna kommandomönsterlistan
 **Lösning:** Agenter bör köra rena kommandon utan inbäddade kommentarer. Alternativt bör allowlisten uppdateras för att tillåta kommentarer i bash-kommandon.
-**Status:** ⚠️ Identifierat
+**Status:** ✅ Löst (session 21: explicit "Never # comments" instruktion tillagd i prompts/manager.md)
 
 ---
 
@@ -133,7 +133,7 @@ Appendas av Historian-agenten när problem identifieras.
 **Symptom:** Merger delegerades tre gånger. Vid andra delegationen hittade Merger fortfarande inte answers.md i runs-katalogen trots att Manager hade skrivit "APPROVED" — filen låg i workspace-katalogen. Manager fick manuellt `cp` filen till runs-katalogen innan tredje delegationen lyckades.
 **Orsak:** Manager använde `write_file` till workspace-sökvägen (`workspaces/.../neuron-hq/answers.md`) istället för runs-katalogen (`runs/20260223-.../answers.md`). Merger letar specifikt i runs-katalogen.
 **Lösning:** Manager-prompten bör instruera att answers.md ska skrivas direkt till runs-katalogen, alternativt bör Merger även kontrollera workspace-katalogen som fallback. Detta är ett återkommande mönster — samma typ av sökvägsproblem dokumenterades i session 20260222-1651 (run-artefakter i workspace).
-**Status:** ⚠️ Identifierat
+**Status:** ✅ Löst (session 21: manager.ts exponerar nu runDir, manager.md instruerar absolut sökväg, merger.ts fallback till workspace)
 **Keywords:** manager, merger, answers.md, runs-katalog, workspace, sökväg
 **Relaterat:** errors.md#Run-artefakter skrivs till workspace men inte till runs-katalogen
 
