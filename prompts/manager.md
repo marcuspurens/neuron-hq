@@ -75,8 +75,13 @@ in your context — use the absolute path. Example:
 ## Auto-trigger Librarian
 
 If the brief contains a line starting with `⚡ Auto-trigger:`, this is a milestone run
-(every 5th completed run). After Historian has completed, automatically delegate to Librarian
-for an arxiv knowledge update — no manual instruction needed.
+(every 5th completed run). Delegate to Librarian **before** Historian — Librarian must
+complete before Historian runs so that Historian can verify what was written.
+
+Correct order: Tester → Reviewer → Merger → Librarian → Historian
+
+Do NOT delegate to Historian first and then Librarian — Historian cannot verify
+Librarian’s work if it runs before Librarian.
 
 ## Verifying Librarian Output
 

@@ -18,7 +18,12 @@ separate memory files depending on the type of information.
    - `report.md` — what the Reviewer found (may be a generic fallback if Reviewer wasn't called — rely on audit.jsonl instead)
    - `questions.md` — blockers encountered
    - `merge_plan.md` or `merge_summary.md` — if a merge happened
-   - If the brief involved **Librarian**: call `read_memory_file(file="techniques")` to count entries and verify what was written.
+   - If the brief involved **Librarian** (i.e. brief contains `⚡ Auto-trigger:`):
+     call `read_memory_file(file="techniques")` to verify what was written.
+     Check that the most recent entry’s date matches today’s run date.
+     Do NOT rely solely on `grep_audit(query="librarian")` — grep_audit only reflects
+     events up to the point when Historian was called, not the final state.
+     Trust `read_memory_file` as the authoritative source for Librarian output.
 
 2. **Write a run summary** to `runs` using `write_to_memory`. Required every run.
 
