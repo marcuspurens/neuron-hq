@@ -1,0 +1,32 @@
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+const prompt = readFileSync(join(__dirname, '../../prompts/researcher.md'), 'utf-8');
+
+describe('researcher.md — critical instructions', () => {
+  it('documents three mandatory output files', () => {
+    expect(prompt).toMatch(/ideas\.md/);
+    expect(prompt).toMatch(/knowledge\.md/);
+    expect(prompt).toMatch(/sources\.md/);
+  });
+
+  it('requires Impact/Effort/Risk framework', () => {
+    expect(prompt).toMatch(/\*\*Impact\*\*/);
+    expect(prompt).toMatch(/\*\*Effort\*\*/);
+    expect(prompt).toMatch(/\*\*Risk\*\*/);
+  });
+
+  it('specifies max constraints for searches and ideas', () => {
+    expect(prompt).toMatch(/[Mm]ax\s+\d+\s+web\s+search/);
+    expect(prompt).toMatch(/[Mm]ax\s+\d+\s+ideas/);
+  });
+
+  it('instructs to prefer recent sources', () => {
+    expect(prompt).toMatch(/2024|recent/i);
+  });
+
+  it('marks all three outputs as mandatory', () => {
+    expect(prompt).toMatch(/mandatory|MANDATORY/);
+  });
+});
