@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
-import { countMemoryRuns } from '../../src/core/run.js';
+import { countMemoryRuns, RunOrchestrator, type RunContext } from '../../src/core/run.js';
 
 describe('countMemoryRuns', () => {
   const tmpDirs: string[] = [];
@@ -75,5 +75,41 @@ describe('countMemoryRuns', () => {
     await fs.writeFile(path.join(dir, 'runs.md'), content);
     const count = await countMemoryRuns(dir);
     expect(count).toBe(1);
+  });
+});
+
+describe('RunOrchestrator.isTimeExpired', () => {
+  it('returns false when endTime is in the future', () => {
+    const orchestrator = new RunOrchestrator();
+    const ctx = { endTime: new Date(Date.now() + 60_000) } as RunContext;
+    expect(orchestrator.isTimeExpired(ctx)).toBe(false);
+  });
+
+  it('returns true when endTime is in the past', () => {
+    const orchestrator = new RunOrchestrator();
+    const ctx = { endTime: new Date(Date.now() - 1_000) } as RunContext;
+    expect(orchestrator.isTimeExpired(ctx)).toBe(true);
+  });
+});
+
+describe('RunOrchestrator.getTimeRemainingMs', () => {
+  it('returns positive ms when endTime is in the future', () => {
+    const orchestrator = new RunOrchestrator();
+    const ctx = { endTime: new Date(Date.now() + 60_000) } as RunContext;
+    const remaining = orchestrator.getTimeRemainingMs(ctx);
+    expect(remaining).toBeGreaterThan(0);
+    expect(remaining).toBeLessThanOrEqual(60_000);
+  });
+
+  it('returns 0 when endTime is in the past', () => {
+    const orchestrator = new RunOrchestrator();
+    const ctx = { endTime: new Date(Date.now() - 1_000) } as RunContext;
+    expect(orchestrator.getTimeRemainingMs(ctx)).toBe(0);
+  });
+
+  it('returns 0 when endTime is exactly now', () => {
+    const orchestrator = new RunOrchestrator();
+    const ctx = { endTime: new Date(Date.now() - 1) } as RunContext;
+    expect(orchestrator.getTimeRemainingMs(ctx)).toBe(0);
   });
 });

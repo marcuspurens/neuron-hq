@@ -28,6 +28,9 @@ export interface RunContext {
   endTime: Date;
 }
 
+/** Directories to skip when copying a target repo to workspace. */
+const COPY_SKIP_DIRS: ReadonlySet<string> = new Set(['.git', 'node_modules', '.venv', 'workspaces', 'runs']);
+
 /**
  * Count completed runs by reading memory/runs.md.
  * Returns 0 if the file doesn't exist or is empty.
@@ -60,6 +63,32 @@ export class RunOrchestrator {
   }
 
   /**
+   * Build shared context components used by both initRun and resumeRun.
+   */
+  private async _buildContext(params: {
+    runDir: string;
+    workspaceDir: string;
+    runid: RunId;
+  }): Promise<{
+    artifacts: ArtifactsManager;
+    audit: AuditLogger;
+    manifest: ManifestManager;
+    usage: UsageTracker;
+    redactor: Redactor;
+    verifier: Verifier;
+  }> {
+    const { runDir, workspaceDir, runid } = params;
+    const artifacts = new ArtifactsManager(runDir);
+    await artifacts.init();
+    const audit = new AuditLogger(path.join(runDir, 'audit.jsonl'));
+    const manifest = new ManifestManager(path.join(runDir, 'manifest.json'));
+    const usage = new UsageTracker(runid);
+    const redactor = new Redactor();
+    const verifier = new Verifier(workspaceDir, this.policy.getLimits().verification_timeout_seconds);
+    return { artifacts, audit, manifest, usage, redactor, verifier };
+  }
+
+  /**
    * Initialize a new run.
    */
   async initRun(config: RunConfig): Promise<RunContext> {
@@ -73,14 +102,8 @@ export class RunOrchestrator {
     await fs.mkdir(runDir, { recursive: true });
 
     // Initialize components
-    const artifacts = new ArtifactsManager(runDir);
-    await artifacts.init();
-
-    const audit = new AuditLogger(path.join(runDir, 'audit.jsonl'));
-    const manifest = new ManifestManager(path.join(runDir, 'manifest.json'));
-    const usage = new UsageTracker(runid);
-    const redactor = new Redactor();
-    const verifier = new Verifier(workspaceDir, this.policy.getLimits().verification_timeout_seconds);
+    const { artifacts, audit, manifest, usage, redactor, verifier } =
+      await this._buildContext({ runDir, workspaceDir, runid });
 
     // Clone or copy target repo to workspace
     await this.prepareWorkspace(target, workspaceDir);
@@ -153,15 +176,10 @@ export class RunOrchestrator {
     const entries = await fs.readdir(src, { withFileTypes: true });
 
     for (const entry of entries) {
+      if (COPY_SKIP_DIRS.has(entry.name)) continue;
+
       const srcPath = path.join(src, entry.name);
       const destPath = path.join(dest, entry.name);
-
-      // Skip .git directory when copying
-      if (entry.name === '.git') continue;
-      // Skip node_modules, .venv, etc.
-      if (entry.name === 'node_modules' || entry.name === '.venv') continue;
-      // Skip neuron-hq runtime artifacts (can be huge — not needed in workspace)
-      if (entry.name === 'workspaces' || entry.name === 'runs') continue;
 
       if (entry.isDirectory()) {
         await this.copyDirectory(srcPath, destPath);
@@ -234,15 +252,10 @@ export class RunOrchestrator {
 
     await fs.mkdir(runDir, { recursive: true });
 
-    // Initialize components (same as initRun)
-    const artifacts = new ArtifactsManager(runDir);
-    await artifacts.init();
+    // Initialize components
+    const { artifacts, audit, manifest, usage, redactor, verifier } =
+      await this._buildContext({ runDir, workspaceDir, runid: newRunId });
 
-    const audit = new AuditLogger(path.join(runDir, 'audit.jsonl'));
-    const manifest = new ManifestManager(path.join(runDir, 'manifest.json'));
-    const usage = new UsageTracker(newRunId);
-    const redactor = new Redactor();
-    const verifier = new Verifier(workspaceDir, this.policy.getLimits().verification_timeout_seconds);
     const git = new GitOperations(workspaceDir);
     const currentSHA = await git.getCurrentSHA();
 
@@ -291,9 +304,17 @@ export class RunOrchestrator {
   }
 
   /**
+   * Get the number of milliseconds remaining until the run time limit.
+   * Returns 0 if the time limit has already passed.
+   */
+  getTimeRemainingMs(ctx: RunContext): number {
+    return Math.max(0, ctx.endTime.getTime() - Date.now());
+  }
+
+  /**
    * Check if run time limit exceeded.
    */
   isTimeExpired(ctx: RunContext): boolean {
-    return new Date() > ctx.endTime;
+    return this.getTimeRemainingMs(ctx) === 0;
   }
 }
