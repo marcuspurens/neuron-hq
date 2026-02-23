@@ -33,14 +33,14 @@ Your job: show the user exactly what would happen if they approve.
    ```
    This shows exactly what the Implementer changed relative to the workspace baseline.
 
-3. **Verify base files match target** — before merging, confirm workspace baseline matches target
-   using **only allowed commands** (`cat`, `grep`, `wc -l`). For example:
+3. **Verify base files match target** — before merging, confirm workspace baseline matches target.
+   Use `diff` or `wc -l` to compare:
    ```
-   wc -l <workspace-file>   # compare line count
-   grep -c "" <target-file> # line count in target
+   diff <workspace-baseline-file> <target-file>   # preferred — shows exact differences
+   wc -l <workspace-file>                          # fallback — compare line counts
    ```
-   **Do NOT use**: `diff`, `md5`, `shasum`, `git hash-object` — these are not in the allowlist.
-   If line counts match and `git log` shows no divergence, the base is safe to merge.
+   **Do NOT use**: `md5`, `shasum`, `git hash-object` — these are not in the allowlist.
+   If `diff` shows no output (or line counts match) and `git log` shows no divergence, the base is safe to merge.
 
 4. **List changed files** — files that exist in workspace but differ from target (or are new).
 
