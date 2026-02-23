@@ -109,3 +109,57 @@ Manager duplicerade Researchers arbete igen — körde ~10 egna bash-analyser (g
 - Conftest-fixture-refaktorering av test_mcp_server.py var en naturlig uppföljning till körning 20260222-1901 — briefen var utmärkt på att specificera exakt vilka tester som behövde vilka fixtures, vilket gjorde implementeringen mekanisk och förutsägbar
 
 ---
+
+## Körning 20260222-2253-aurora-swarm-lab — aurora-swarm-lab
+**Datum:** 2026-02-22
+**Uppgift:** Fixa kvarstående ruff-fel (3 specificerade), lägg till `[tool.ruff]` i pyproject.toml, och kör testcoverage-rapport
+**Resultat:** ✅ 5 av 5 acceptanskriterier klara — ruff passerar utan fel, 187 tester gröna, ruff-config tillagd, coverage-rapport skapad (75%)
+
+**Vad som fungerade:**
+Implementern upptäckte att 2 av 3 specificerade ruff-fel (E741 i whisper_client.py, F841 i main.py) redan var fixade i repot sedan tidigare, och anpassade sig korrekt genom att istället fixa de 8 faktiska felen (7× F401 oanvända imports i testfiler, 1× F841 i test_intake_youtube.py). Ruff-konfigurationen i pyproject.toml inkluderade pragmatiska ignores för E501 (107 fel) och I001 (75 fel) med TODO-kommentarer — väldokumenterat i questions.md och knowledge.md. Hela pipelinen (Research → Implement → Test → Review → Merge-plan) körde komplett. Reviewer verifierade alla 9 individuella kriterier med konkreta kommandon och git-diff-analys (86 rader total, 16 rader faktisk kodändring).
+
+**Vad som inte fungerade:**
+Briefen var delvis inaktuell — 2 av 3 specificerade ruff-fel existerade inte längre i repot (troligen fixade i körning #4). Implementern behövde köra `ruff --fix` först för att ta de auto-fixbara felen, sedan manuellt fixa den kvarvarande F841. Manager delegerade till Merger två gånger — andra gången berodde troligen på att `answers.md` saknades vid första delegationen. Två bash-kommandon från Merger blockerades av policy (diff-kommandon mellan workspace och target). Coverage-rapporten skapades i workspace-katalogen (`runs/20260222-.../coverage_report.md`) snarare än direkt i runs-artefaktkatalogen.
+
+**Lärdomar:**
+- Brief bör bygga på färsk baseline — kör `ruff check .` direkt innan brief-skapande för att undvika att specificera redan fixade fel
+- Ruff-konfiguration med `select = ["E", "F", "W", "I"]` kan trigga hundratals nya fel — ignore-listan behöver planeras i förväg eller läggas till iterativt
+- Implementer som anpassar sig till verkligt repo-tillstånd istället för att slaviskt följa en inaktuell brief producerar bättre resultat — flexibiliteten var avgörande här
+
+---
+
+## Körning 20260222-2314-aurora-swarm-lab-resume — aurora-swarm-lab
+**Datum:** 2026-02-22
+**Uppgift:** Återuppta körning 20260222-2253 för att granska och merga ruff-fixar, ruff-konfiguration och coverage-rapport till aurora-swarm-lab
+**Resultat:** ✅ 5 av 5 uppgifter klara — Review godkänd, merge genomförd (commit 99f0168), alla verifieringar gröna
+
+**Vad som fungerade:**
+Resume-flödet fungerade smidigt — Manager identifierade att all implementation redan var klar i workspace och hoppade direkt till Review + Merge utan att delegera till Researcher eller Implementer. Reviewer var extremt grundlig: verifierade alla 9 individuella acceptanskriterier med konkreta kommandon, körde säkerhetsskanning av diffen, bekräftade att 2 av 3 briefens specificerade ruff-fel redan var fixade i tidigare körningar. Merger kopierade 8 filer (pyproject.toml + 7 testfiler, totalt 9 insertions/7 deletions) och committade med tydligt conventional-commit-meddelande. Manager körde post-merge-verifiering i target-repot: `ruff check .` → "All checks passed!", `pytest` → 187 passed.
+
+**Vad som inte fungerade:**
+Merger fick ett `git commit`-kommando blockerat av policy — commit-meddelandet innehöll backtick-tecken (`\``) som matchade förbjudna mönster. Merger anpassade sig direkt genom att byta till enkla citattecken och lyckades vid andra försöket. Utöver detta inga problem.
+
+**Lärdomar:**
+- Resume-körningar som enbart gör Review + Merge är effektiva — ingen duplicering av research/implementation, ren verifierings- och leveranskedja
+- Merger bör undvika backtick-tecken i git commit-meddelanden — enkla citattecken och vanlig text fungerar alltid
+- Post-merge-verifiering i target-repot (inte bara workspace) ger sista-instans-bekräftelse att merge var korrekt
+
+---
+
+## Körning 20260223-0619-neuron-hq — neuron-hq
+**Datum:** 2026-02-23
+**Uppgift:** Self-hosting: åtgärda tre dokumenterade promptproblem (researcher.md, manager.md, implementer.md) och lägga till enhetstester för truncateToolResult och trimMessages
+**Resultat:** ✅ 6 av 6 acceptanskriterier klara — alla promptfixer levererade, 11 nya tester (164 totalt), merge till main (commit 08596bc)
+
+**Vad som fungerade:**
+Första self-hosting-körningen — svärmen riktades mot sin egen kodbas för att fixa dokumenterade fel från errors.md. Manager hoppade smart över Researcher och delegerade direkt till Implementer eftersom briefen var tillräckligt prescriptiv. Implementer levererade alla 4 ändringar (3 promptfiler + testfil, 124 rader diff) och verifierade med tsc och npm test. Reviewer var extremt grundlig — verifierade varje acceptanskriterium med grep-kommandon, bekräftade att inga förbjudna filer ändrats, och godkände med LOW risk. Tester verifierade 164/164 gröna. Alla tre dokumenterade errors (knowledge.md saknas, Manager duplicering, Implementer glömmer commit) åtgärdades direkt i prompterna.
+
+**Vad som inte fungerade:**
+Merger delegerades tre gånger. Första gången skrev Merger merge_plan.md och väntade på answers.md — men Manager hade skrivit answers.md till workspace-katalogen, inte runs-katalogen. Manager behövde manuellt kopiera filen med `cp`. Merger hade också 4 bash-kommandon blockerade av policy (diff och md5 mot target) vid första delegationen, och ytterligare 3 md5-kommandon blockerade vid andra. Ändringarna låg kvar som unstaged i workspace — ironiskt nog exakt det problem som uppgift 3 adresserade för framtida körningar.
+
+**Lärdomar:**
+- Self-hosting fungerar — svärmen kan framgångsrikt modifiera sina egna promptfiler och tester, vilket stänger feedback-loopen från errors.md
+- Manager bör skriva answers.md direkt till runs-katalogen (inte workspace) — Merger letar efter den i runs-katalogen
+- Att hoppa över Researcher vid prescriptiva briefs sparar tokens och tid utan kvalitetsförlust
+
+---

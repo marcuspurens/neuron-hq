@@ -28,7 +28,7 @@ Appendas av Historian-agenten när problem identifieras.
 **Symptom:** ruff-fixar låg kvar som unstaged trots att testerna var gröna
 **Orsak:** Ingen explicit checklista-steg för commit i Implementer-prompten
 **Lösning:** Lägg till "git commit"-steg i Quality Checklist i `prompts/implementer.md`
-**Status:** ⚠️ Identifierat, ej åtgärdat i prompten ännu
+**Status:** ✅ Löst (körning #8: explicit git commit-steg tillagt i implementer.md Quality Checklist)
 
 ---
 
@@ -37,7 +37,7 @@ Appendas av Historian-agenten när problem identifieras.
 **Symptom:** knowledge.md saknades som körningsartefakt
 **Orsak:** Researcher-prompten betonade ideas.md mer än knowledge.md
 **Lösning:** Förtydliga att knowledge.md är obligatorisk i Researcher-prompten
-**Status:** ⚠️ Identifierat, ej åtgärdat i prompten ännu
+**Status:** ✅ Löst (körning #8: Required Outputs-sektion tillagd i researcher.md med knowledge.md som mandatory)
 
 ---
 
@@ -82,7 +82,7 @@ Appendas av Historian-agenten när problem identifieras.
 **Symptom:** Manager läste ~15 filer och körde ~10 bash-kommandon efter att Researcher redan slutfört identisk analys och levererat ideas.md med 10 förslag
 **Orsak:** Manager verifierar inte bara att Researcher levererade korrekt — den upprepar hela analysen själv och skriver egna ideas.md/knowledge.md till workspace
 **Lösning:** Manager-prompten bör instruera att (1) läsa Researchers ideas.md, (2) verifiera att den uppfyller briefens krav, (3) delegera vidare utan att upprepa analysen. Manager ska vara koordinator, inte utförare.
-**Status:** ⚠️ Identifierat
+**Status:** ✅ Löst (körning #8: "After Researcher Completes"-sektion tillagd i manager.md med explicit "do NOT repeat analysis")
 
 ---
 
@@ -103,5 +103,38 @@ Appendas av Historian-agenten när problem identifieras.
 **Status:** ✅ Löst (Implementer lyckades efter att byta strategi till direkt write_file)
 **Keywords:** implementer, policy, write_file, transform-skript, bash-block, tmp
 **Relaterat:** patterns.md#Implementer: direktskrivning slår transform-skript
+
+---
+
+## Brief med inaktuella ruff-fel
+**Session:** 20260222-2253-aurora-swarm-lab
+**Symptom:** Briefen specificerade 3 ruff-fel (E741 whisper_client:183, F841 main.py:308, F841 test_intake_youtube:33) men vid körning visade sig 2 av 3 (E741, F841 i main.py) redan vara fixade i repot. Istället fanns 8 andra fel (7× F401, 1× F841).
+**Orsak:** Briefen baserades på analys från körning #4 (20260222-1316) utan att verifiera aktuellt tillstånd. Mellan körning #4 och #7 hade repot ändrats (troligen genom körning #4:s egna auto-fixar eller manuella ändringar).
+**Lösning:** Kör alltid en baseline-verifiering (`ruff check .`, `pytest tests/ -x -q`) som del av brief-skapandet, inte bara vid körningens start. Briefen bör innehålla faktisk `ruff check`-output, inte cachade resultat från äldre körningar.
+**Status:** ⚠️ Identifierat
+**Keywords:** brief, baseline, ruff, stale-data, inaktuell
+**Relaterat:** patterns.md#Implementer anpassar sig till faktiskt repo-tillstånd vid inaktuell brief
+
+---
+
+## Merger git commit blockerat av backtick i commit-meddelande
+**Session:** 20260222-2314-aurora-swarm-lab-resume
+**Symptom:** Merger försökte köra `git commit -m "..."` med backtick-tecken i meddelandet (t.ex. `\`from pathlib import Path\``). Kommandot blockerades av säkerhetspolicyn med "BLOCKED: matches forbidden pattern: \`.*\`".
+**Orsak:** Policyn tolkar backtick-tecken som potentiellt farliga (command substitution i bash). Merger använde backticks för att markera kodnamn i commit-meddelandet.
+**Lösning:** Merger anpassade sig direkt — skrev om commit-meddelandet med enkla citattecken (`'from pathlib import Path'`) istället för backticks. Fungerade vid andra försöket.
+**Status:** ✅ Löst
+**Keywords:** merger, git-commit, policy, backtick, forbidden-pattern
+**Relaterat:** errors.md#Implementer transform-skript blockeras av policy
+
+---
+
+## Manager skriver answers.md till workspace istället för runs-katalogen
+**Session:** 20260223-0619-neuron-hq
+**Symptom:** Merger delegerades tre gånger. Vid andra delegationen hittade Merger fortfarande inte answers.md i runs-katalogen trots att Manager hade skrivit "APPROVED" — filen låg i workspace-katalogen. Manager fick manuellt `cp` filen till runs-katalogen innan tredje delegationen lyckades.
+**Orsak:** Manager använde `write_file` till workspace-sökvägen (`workspaces/.../neuron-hq/answers.md`) istället för runs-katalogen (`runs/20260223-.../answers.md`). Merger letar specifikt i runs-katalogen.
+**Lösning:** Manager-prompten bör instruera att answers.md ska skrivas direkt till runs-katalogen, alternativt bör Merger även kontrollera workspace-katalogen som fallback. Detta är ett återkommande mönster — samma typ av sökvägsproblem dokumenterades i session 20260222-1651 (run-artefakter i workspace).
+**Status:** ⚠️ Identifierat
+**Keywords:** manager, merger, answers.md, runs-katalog, workspace, sökväg
+**Relaterat:** errors.md#Run-artefakter skrivs till workspace men inte till runs-katalogen
 
 ---

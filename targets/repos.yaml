@@ -8,6 +8,12 @@ targets:
     verify_commands:
       - python -m pytest tests/ -x -q
 
+  - name: neuron-hq
+    path: /Users/mpmac/Documents/VS Code/neuron-hq
+    default_branch: main
+    verify_commands:
+      - npm test
+
 # Example:
 # targets:
 #   - name: my-app

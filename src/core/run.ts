@@ -160,6 +160,8 @@ export class RunOrchestrator {
       if (entry.name === '.git') continue;
       // Skip node_modules, .venv, etc.
       if (entry.name === 'node_modules' || entry.name === '.venv') continue;
+      // Skip neuron-hq runtime artifacts (can be huge — not needed in workspace)
+      if (entry.name === 'workspaces' || entry.name === 'runs') continue;
 
       if (entry.isDirectory()) {
         await this.copyDirectory(srcPath, destPath);

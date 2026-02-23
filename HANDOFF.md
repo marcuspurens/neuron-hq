@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-02-22T2330-session18-run6-mcp-refactor.md](docs/HANDOFF-2026-02-22T2330-session18-run6-mcp-refactor.md)
+Senaste handoff: [HANDOFF-2026-02-23T0720-session20-neuronhq-self.md](docs/HANDOFF-2026-02-23T0720-session20-neuronhq-self.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -28,5 +28,7 @@ Senaste handoff: [HANDOFF-2026-02-22T2330-session18-run6-mcp-refactor.md](docs/H
 | 2026-02-22 | 19:40 | 16b | Auto-trigger + Länkade minnen | [länk](docs/HANDOFF-2026-02-22T1940-session16-features.md) |
 | 2026-02-22 | 22:10 | 17 | search_memory i Historian + Auto-trigger fix | [länk](docs/HANDOFF-2026-02-22T2210-session17-search-memory-autotrigger.md) |
 | 2026-02-22 | 23:30 | 18 | Branch-merge + Körning #6 (test_mcp_server refactor) | [länk](docs/HANDOFF-2026-02-22T2330-session18-run6-mcp-refactor.md) |
+| 2026-02-23 | 00:30 | 19 | Körning #7: ruff+coverage + daglig samtalrutin | [länk](docs/HANDOFF-2026-02-23T0030-session19-run7-ruff-coverage.md) |
+| 2026-02-23 | 07:20 | 20 | Self-hosting: neuron-hq som target + körning #8 | [länk](docs/HANDOFF-2026-02-23T0720-session20-neuronhq-self.md) |
 
 > **Not:** Session 1 och 6 saknas — handoffs skapades inte vid dessa tillfällen.
