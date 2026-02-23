@@ -30,4 +30,16 @@ describe('merger.md — critical instructions', () => {
     const modified = prompt.replaceAll('APPROVED', 'REMOVED');
     expect(modified).not.toMatch(/APPROVED/);
   });
+
+  it('uses diff for base-file verification', () => {
+    expect(prompt).toMatch(/diff/);
+  });
+
+  it('uses git diff HEAD~1 for workspace inspection', () => {
+    expect(prompt).toMatch(/git diff HEAD~1/);
+  });
+
+  it('returns MERGER_PLAN_READY signal', () => {
+    expect(prompt).toMatch(/MERGER_PLAN_READY/);
+  });
 });
