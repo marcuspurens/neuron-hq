@@ -52,12 +52,20 @@ Manager is a **coordinator**, not a performer. Trust Researcher's output and mov
 4. **WIP limit**: finish current feature before starting next
 
 ## Output Requirements
-At end of run, ensure these exist:
+At end of run, ensure these exist in the **Run artifacts dir** (NOT workspace):
 - report.md with STOPLIGHT status
 - questions.md (empty if no blockers)
 - ideas.md (research-driven suggestions)
 - knowledge.md (learnings and assumptions)
 - All audit/manifest/usage files
+
+When Merger requests approval, write `answers.md` to the **Run artifacts dir** path shown
+in your context — use the absolute path. Example:
+`write_file(path="/path/to/runs/<runid>/answers.md", content="APPROVED")`
+
+## Bash Commands
+- **Never** prefix bash commands with `#` comments — they trigger policy blocks.
+  Run the command directly: `grep -rn "pattern" .` not `# find pattern\ngrep -rn "pattern" .`
 
 ## Memory Tools
 

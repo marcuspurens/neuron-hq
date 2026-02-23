@@ -106,6 +106,19 @@ describe('MergerAgent', () => {
       const phase = await agent.detectPhase();
       expect(phase).toBe('execute');
     });
+
+    it('returns execute phase when answers.md is in workspace (fallback)', async () => {
+      await fs.writeFile(path.join(workspaceDir, 'answers.md'), 'APPROVED');
+      const phase = await agent.detectPhase();
+      expect(phase).toBe('execute');
+    });
+
+    it('returns plan when neither runDir nor workspace answers.md contains APPROVED', async () => {
+      await fs.writeFile(path.join(runDir, 'answers.md'), 'No, reject this.');
+      await fs.writeFile(path.join(workspaceDir, 'answers.md'), 'Pending review.');
+      const phase = await agent.detectPhase();
+      expect(phase).toBe('plan');
+    });
   });
 
   describe('bash policy', () => {

@@ -72,14 +72,20 @@ export class MergerAgent {
    * Detect which phase to run based on answers.md.
    */
   async detectPhase(): Promise<'plan' | 'execute'> {
-    const answersPath = path.join(this.ctx.runDir, 'answers.md');
-    try {
-      const content = await fs.readFile(answersPath, 'utf-8');
-      if (content.toUpperCase().includes('APPROVED')) {
-        return 'execute';
+    // Check runDir first, then workspace as fallback (in case Manager wrote there)
+    const candidatePaths = [
+      path.join(this.ctx.runDir, 'answers.md'),
+      path.join(this.ctx.workspaceDir, 'answers.md'),
+    ];
+    for (const answersPath of candidatePaths) {
+      try {
+        const content = await fs.readFile(answersPath, 'utf-8');
+        if (content.toUpperCase().includes('APPROVED')) {
+          return 'execute';
+        }
+      } catch {
+        // file doesn't exist at this path — try next
       }
-    } catch {
-      // answers.md doesn't exist — plan phase
     }
     return 'plan';
   }

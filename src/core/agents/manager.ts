@@ -124,14 +124,15 @@ export class ManagerAgent {
 - **Target**: ${this.ctx.target.name}
 - **Time limit**: ${this.ctx.hours} hours (ends at ${this.ctx.endTime.toISOString()})
 - **Workspace**: ${this.ctx.workspaceDir}
+- **Run artifacts dir**: ${this.ctx.runDir}
 - **Max iterations**: ${this.maxIterations}
 
 # Available Tools
 
 You have access to these tools:
 - **bash_exec**: Execute bash commands (policy-gated)
-- **read_file**: Read files from the workspace
-- **write_file**: Write files to the workspace (policy-gated)
+- **read_file**: Read files from the workspace or run artifacts dir
+- **write_file**: Write files to the workspace or run artifacts dir (policy-gated)
 - **list_files**: List files in a directory
 
 # Policy Constraints
