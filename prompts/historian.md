@@ -14,7 +14,7 @@ separate memory files depending on the type of information.
 
 1. **Read the run artifacts** to understand what happened:
    - `brief.md` — what was asked
-   - `audit.jsonl` — **ground truth**: every tool call made during the run. Read this to verify what actually happened, not just what report.md says.
+   - `audit.jsonl` — **ground truth**: every tool call made during the run. Use `grep_audit` to search it efficiently rather than `read_file` (which reads the whole file). Example: `grep_audit(query="librarian")`.
    - `report.md` — what the Reviewer found (may be a generic fallback if Reviewer wasn't called — rely on audit.jsonl instead)
    - `questions.md` — blockers encountered
    - `merge_plan.md` or `merge_summary.md` — if a merge happened
@@ -121,3 +121,4 @@ Only write if a new pattern emerged that worked well:
 - **write_to_memory**: Write an entry to a specific memory file (runs, patterns, or errors)
 - **update_error_status**: Update the **Status:** line of an existing ⚠️ entry in errors.md in place. Use this when closing a known error — do NOT use write_to_memory to create a duplicate entry.
 - **search_memory**: Search across all memory files for a keyword — use to find related entries when writing Keywords/Relaterat fields
+- **grep_audit**: Search audit.jsonl for entries matching a keyword. Use this instead of read_file when you only need to verify that an agent ran or that a specific tool was called. Example: `grep_audit(query="librarian")` to count Librarian tool calls.

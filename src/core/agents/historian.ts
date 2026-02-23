@@ -287,6 +287,25 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
           required: ['title', 'new_status'],
         },
       },
+      {
+        name: 'grep_audit',
+        description:
+          'Search audit.jsonl for entries matching a keyword. More efficient than read_file ' +
+          'when you only need to verify that a specific agent ran or a specific tool was called. ' +
+          'Returns matching JSON lines formatted one per line, truncated to 3000 chars.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description:
+                'Keyword to search for (case-insensitive). E.g. agent role "librarian", ' +
+                'tool name "write_to_techniques", or any other term.',
+            },
+          },
+          required: ['query'],
+        },
+      },
     ];
   }
 
@@ -322,6 +341,9 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
               result = await this.executeUpdateErrorStatus(
                 block.input as { title: string; new_status: string }
               );
+              break;
+            case 'grep_audit':
+              result = await this.executeGrepAudit(block.input as { query: string });
               break;
             default:
               result = `Error: Unknown tool ${block.name}`;
@@ -484,4 +506,46 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
 
     return `Updated status of "${title}" in errors.md`;
   }
+
+  /**
+   * Search audit.jsonl for entries matching a keyword (case-insensitive).
+   */
+  private async executeGrepAudit(input: { query: string }): Promise<string> {
+    const { query } = input;
+    const filePath = path.join(this.ctx.runDir, 'audit.jsonl');
+
+    let raw: string;
+    try {
+      raw = await fs.readFile(filePath, 'utf-8');
+    } catch {
+      return `(audit.jsonl not found in ${this.ctx.runDir})`;
+    }
+
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'historian',
+      tool: 'grep_audit',
+      allowed: true,
+      note: `Searching audit.jsonl for: ${query}`,
+    });
+
+    const lowerQuery = query.toLowerCase();
+    const matchingLines = raw
+      .split('\n')
+      .filter((line) => line.trim() && line.toLowerCase().includes(lowerQuery));
+
+    if (matchingLines.length === 0) {
+      return `No entries in audit.jsonl match "${query}".`;
+    }
+
+    const result = `Found ${matchingLines.length} matching entries:\n\n` + matchingLines.join('\n');
+
+    // Truncate to avoid context overflow
+    const MAX_CHARS = 3000;
+    if (result.length > MAX_CHARS) {
+      return result.slice(0, MAX_CHARS) + `\n\n[... truncated, ${result.length - MAX_CHARS} chars dropped ...]`;
+    }
+    return result;
+  }
+
 }

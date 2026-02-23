@@ -81,6 +81,7 @@ describe('HistorianAgent', () => {
     expect(names).toContain('write_to_memory');
     expect(names).toContain('search_memory');
     expect(names).toContain('update_error_status');
+    expect(names).toContain('grep_audit');
   });
 
   it('does not define deprecated append_to_swarm_log tool', () => {
@@ -324,4 +325,58 @@ describe('HistorianAgent', () => {
       expect(result).toContain('not found');
     });
   });
+
+  describe('grep_audit', () => {
+    it('returns matching lines from audit.jsonl', async () => {
+      const auditContent = [
+        JSON.stringify({ ts: '2026-02-23T10:00:00Z', role: 'librarian', tool: 'write_to_techniques', allowed: true }),
+        JSON.stringify({ ts: '2026-02-23T10:00:01Z', role: 'historian', tool: 'run', allowed: true }),
+        JSON.stringify({ ts: '2026-02-23T10:00:02Z', role: 'librarian', tool: 'write_to_techniques', allowed: true }),
+      ].join('\n');
+
+      await fs.mkdir(runDir, { recursive: true });
+      await fs.writeFile(path.join(runDir, 'audit.jsonl'), auditContent);
+
+      const result = await (agent as any).executeGrepAudit({ query: 'librarian' });
+      expect(result).toContain('Found 2 matching entries');
+      expect(result).toContain('write_to_techniques');
+    });
+
+    it('returns no-match message when query has no hits', async () => {
+      const auditContent = JSON.stringify({ ts: '2026-02-23T10:00:00Z', role: 'manager', tool: 'run', allowed: true });
+      await fs.mkdir(runDir, { recursive: true });
+      await fs.writeFile(path.join(runDir, 'audit.jsonl'), auditContent);
+
+      const result = await (agent as any).executeGrepAudit({ query: 'librarian' });
+      expect(result).toContain('No entries');
+      expect(result).toContain('librarian');
+    });
+
+    it('returns not-found message when audit.jsonl is missing', async () => {
+      const result = await (agent as any).executeGrepAudit({ query: 'anything' });
+      expect(result).toContain('not found');
+    });
+
+    it('is case-insensitive', async () => {
+      const auditContent = JSON.stringify({ ts: '2026-02-23T10:00:00Z', role: 'Librarian', tool: 'Run', allowed: true });
+      await fs.mkdir(runDir, { recursive: true });
+      await fs.writeFile(path.join(runDir, 'audit.jsonl'), auditContent);
+
+      const result = await (agent as any).executeGrepAudit({ query: 'librarian' });
+      expect(result).toContain('Found 1 matching entries');
+    });
+
+    it('truncates output when result exceeds 3000 chars', async () => {
+      const lines = Array.from({ length: 30 }, (_, i) =>
+        JSON.stringify({ ts: '2026-02-23T10:00:00Z', role: 'librarian', tool: 'write_to_techniques', index: i, padding: 'x'.repeat(80) })
+      ).join('\n');
+
+      await fs.mkdir(runDir, { recursive: true });
+      await fs.writeFile(path.join(runDir, 'audit.jsonl'), lines);
+
+      const result = await (agent as any).executeGrepAudit({ query: 'librarian' });
+      expect(result).toContain('truncated');
+    });
+  });
+
 });
