@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
 import Anthropic from '@anthropic-ai/sdk';
-import { searchMemoryFiles, truncateToolResult, trimMessages, MAX_TOOL_RESULT_CHARS } from '../../src/core/agents/agent-utils.js';
+import { searchMemoryFiles, truncateToolResult, trimMessages, MAX_TOOL_RESULT_CHARS, withRetry, isOverloadedError } from '../../src/core/agents/agent-utils.js';
 
 describe('searchMemoryFiles', () => {
   const tmpDirs: string[] = [];
@@ -131,6 +131,78 @@ describe('truncateToolResult', () => {
   it('returns string at exactly maxChars unchanged', () => {
     const input = 'd'.repeat(MAX_TOOL_RESULT_CHARS);
     expect(truncateToolResult(input)).toBe(input);
+  });
+});
+
+describe('withRetry', () => {
+  it('returns result immediately on success', async () => {
+    let calls = 0;
+    const result = await withRetry(async () => {
+      calls++;
+      return 'ok';
+    });
+    expect(result).toBe('ok');
+    expect(calls).toBe(1);
+  });
+
+  it('retries on overloaded_error and succeeds on second attempt', async () => {
+    let calls = 0;
+    const result = await withRetry(
+      async () => {
+        calls++;
+        if (calls < 2) throw new Error('{"type":"error","error":{"type":"overloaded_error"}}');
+        return 'success';
+      },
+      3,
+      0
+    );
+    expect(result).toBe('success');
+    expect(calls).toBe(2);
+  });
+
+  it('throws after maxAttempts retries on overloaded_error', async () => {
+    let calls = 0;
+    await expect(
+      withRetry(
+        async () => {
+          calls++;
+          throw new Error('{"type":"error","error":{"type":"overloaded_error"}}');
+        },
+        3,
+        0
+      )
+    ).rejects.toThrow('overloaded_error');
+    expect(calls).toBe(3);
+  });
+
+  it('throws immediately on non-overloaded errors without retry', async () => {
+    let calls = 0;
+    await expect(
+      withRetry(
+        async () => {
+          calls++;
+          throw new Error('Some other API error');
+        },
+        3,
+        0
+      )
+    ).rejects.toThrow('Some other API error');
+    expect(calls).toBe(1);
+  });
+});
+
+describe('isOverloadedError', () => {
+  it('returns true for overloaded_error message', () => {
+    expect(isOverloadedError(new Error('{"type":"overloaded_error"}'))).toBe(true);
+  });
+
+  it('returns false for other errors', () => {
+    expect(isOverloadedError(new Error('rate_limit_error'))).toBe(false);
+  });
+
+  it('returns false for non-Error values', () => {
+    expect(isOverloadedError('string error')).toBe(false);
+    expect(isOverloadedError(null)).toBe(false);
   });
 });
 

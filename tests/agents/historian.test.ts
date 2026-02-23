@@ -80,6 +80,7 @@ describe('HistorianAgent', () => {
     expect(names).toContain('read_memory_file');
     expect(names).toContain('write_to_memory');
     expect(names).toContain('search_memory');
+    expect(names).toContain('update_error_status');
   });
 
   it('does not define deprecated append_to_swarm_log tool', () => {
@@ -248,6 +249,62 @@ describe('HistorianAgent', () => {
       // memoryDir doesn't exist yet
       const result = await (agent as any).executeSearchMemory({ query: 'anything' });
       expect(result).toContain('No matches found');
+    });
+  });
+
+  describe('update_error_status', () => {
+    const errorsContent = `# Errors\n\n## Context overflow i Tester-agenten\n**Session:** 11\n**Symptom:** Krasch\n**Status:** ⚠️ Identifierat\n\n---\n\n## Annat fel\n**Session:** 12\n**Status:** ✅ Löst\n\n---\n`;
+
+    it('updates Status line of matching section in place', async () => {
+      await fs.mkdir(memoryDir, { recursive: true });
+      await fs.writeFile(path.join(memoryDir, 'errors.md'), errorsContent);
+
+      const result = await (agent as any).executeUpdateErrorStatus({
+        title: 'Context overflow i Tester-agenten',
+        new_status: '✅ Löst — fixed in run #12',
+      });
+
+      expect(result).toContain('Updated status');
+      const updated = await fs.readFile(path.join(memoryDir, 'errors.md'), 'utf-8');
+      expect(updated).toContain('**Status:** ✅ Löst — fixed in run #12');
+      expect(updated).not.toContain('**Status:** ⚠️ Identifierat');
+    });
+
+    it('does not modify other sections', async () => {
+      await fs.mkdir(memoryDir, { recursive: true });
+      await fs.writeFile(path.join(memoryDir, 'errors.md'), errorsContent);
+
+      await (agent as any).executeUpdateErrorStatus({
+        title: 'Context overflow i Tester-agenten',
+        new_status: '✅ Löst',
+      });
+
+      const updated = await fs.readFile(path.join(memoryDir, 'errors.md'), 'utf-8');
+      expect(updated).toContain('## Annat fel');
+      expect(updated).toContain('**Status:** ✅ Löst\n');
+    });
+
+    it('returns error when section title not found', async () => {
+      await fs.mkdir(memoryDir, { recursive: true });
+      await fs.writeFile(path.join(memoryDir, 'errors.md'), errorsContent);
+
+      const result = await (agent as any).executeUpdateErrorStatus({
+        title: 'Nonexistent section',
+        new_status: '✅ Löst',
+      });
+
+      expect(result).toContain('Error');
+      expect(result).toContain('Nonexistent section');
+    });
+
+    it('returns error when errors.md does not exist', async () => {
+      const result = await (agent as any).executeUpdateErrorStatus({
+        title: 'Any title',
+        new_status: '✅ Löst',
+      });
+
+      expect(result).toContain('Error');
+      expect(result).toContain('errors.md not found');
     });
   });
 

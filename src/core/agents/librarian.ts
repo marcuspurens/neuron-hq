@@ -1,4 +1,5 @@
 import { type RunContext } from '../run.js';
+import { withRetry } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
@@ -109,25 +110,28 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
       console.log(`\n=== Librarian iteration ${iteration}/${this.maxIterations} ===`);
 
       try {
-        const stream = this.anthropic.messages.stream({
-          model: 'claude-opus-4-6',
-          max_tokens: 4096,
-          system: systemPrompt,
-          messages,
-          tools: this.defineTools(),
-        });
+        const response = await withRetry(async () => {
+          const stream = this.anthropic.messages.stream({
+            model: 'claude-opus-4-6',
+            max_tokens: 4096,
+            system: systemPrompt,
+            messages,
+            tools: this.defineTools(),
+          });
 
-        let prefixPrinted = false;
-        stream.on('text', (text) => {
-          if (!prefixPrinted) {
-            process.stdout.write('\n[Librarian] ');
-            prefixPrinted = true;
-          }
-          process.stdout.write(text);
-        });
+          let prefixPrinted = false;
+          stream.on('text', (text) => {
+            if (!prefixPrinted) {
+              process.stdout.write('\n[Librarian] ');
+              prefixPrinted = true;
+            }
+            process.stdout.write(text);
+          });
 
-        const response = await stream.finalMessage();
-        if (prefixPrinted) process.stdout.write('\n');
+          const msg = await stream.finalMessage();
+          if (prefixPrinted) process.stdout.write('\n');
+          return msg;
+        });
 
         this.ctx.usage.recordTokens(
           'librarian',

@@ -89,6 +89,53 @@ export function trimMessages(
 }
 
 /**
+ * Maximum number of retry attempts for overloaded API errors.
+ */
+export const MAX_RETRY_ATTEMPTS = 3;
+
+/**
+ * Base delay in ms for exponential backoff: 5s, 10s, 20s.
+ */
+export const RETRY_BASE_DELAY_MS = 5_000;
+
+/**
+ * Returns true if an error is an Anthropic overloaded_error.
+ */
+export function isOverloadedError(error: unknown): boolean {
+  if (error instanceof Error) {
+    return error.message.includes('overloaded_error');
+  }
+  return false;
+}
+
+/**
+ * Execute an async function with exponential backoff retry on overloaded_error.
+ * Retries up to maxAttempts times. Other errors are thrown immediately.
+ */
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxAttempts = MAX_RETRY_ATTEMPTS,
+  baseDelayMs = RETRY_BASE_DELAY_MS
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error: unknown) {
+      if (!isOverloadedError(error) || attempt === maxAttempts) {
+        throw error;
+      }
+      const delayMs = baseDelayMs * Math.pow(2, attempt - 1);
+      console.log(
+        `  API overloaded — retrying in ${delayMs / 1000}s (attempt ${attempt}/${maxAttempts})...`
+      );
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  // unreachable, but needed for TypeScript
+  throw new Error('withRetry: exhausted all attempts');
+}
+
+/**
  * Max characters returned from searchMemoryFiles.
  */
 const MAX_SEARCH_RESULT_CHARS = 2000;

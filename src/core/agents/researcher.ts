@@ -1,5 +1,5 @@
 import { type RunContext } from '../run.js';
-import { truncateToolResult, trimMessages } from './agent-utils.js';
+import { truncateToolResult, trimMessages, withRetry } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
@@ -130,25 +130,28 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
       console.log(`\n=== Researcher iteration ${iteration}/${this.maxIterations} ===`);
 
       try {
-        const stream = this.anthropic.messages.stream({
-          model: 'claude-opus-4-6',
-          max_tokens: 8192,
-          system: systemPrompt,
-          messages: trimMessages(messages),
-          tools: this.defineTools(),
-        });
+        const response = await withRetry(async () => {
+          const stream = this.anthropic.messages.stream({
+            model: 'claude-opus-4-6',
+            max_tokens: 8192,
+            system: systemPrompt,
+            messages: trimMessages(messages),
+            tools: this.defineTools(),
+          });
 
-        let prefixPrinted = false;
-        stream.on('text', (text) => {
-          if (!prefixPrinted) {
-            process.stdout.write('\n[Researcher] ');
-            prefixPrinted = true;
-          }
-          process.stdout.write(text);
-        });
+          let prefixPrinted = false;
+          stream.on('text', (text) => {
+            if (!prefixPrinted) {
+              process.stdout.write('\n[Researcher] ');
+              prefixPrinted = true;
+            }
+            process.stdout.write(text);
+          });
 
-        const response = await stream.finalMessage();
-        if (prefixPrinted) process.stdout.write('\n');
+          const msg = await stream.finalMessage();
+          if (prefixPrinted) process.stdout.write('\n');
+          return msg;
+        });
 
         this.ctx.usage.recordTokens(
           'researcher',

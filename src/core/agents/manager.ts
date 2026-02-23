@@ -6,7 +6,7 @@ import { MergerAgent } from './merger.js';
 import { HistorianAgent } from './historian.js';
 import { TesterAgent } from './tester.js';
 import { LibrarianAgent } from './librarian.js';
-import { truncateToolResult, trimMessages, searchMemoryFiles } from './agent-utils.js';
+import { truncateToolResult, trimMessages, searchMemoryFiles, withRetry } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
@@ -175,25 +175,28 @@ Stop when time limit approaches or when blockers are encountered.
 
       try {
         const trimmedMessages = trimMessages(messages);
-        const stream = this.anthropic.messages.stream({
-          model: 'claude-opus-4-6',
-          max_tokens: 8192,
-          system: systemPrompt,
-          messages: trimmedMessages,
-          tools: this.defineTools(),
-        });
+        const response = await withRetry(async () => {
+          const stream = this.anthropic.messages.stream({
+            model: 'claude-opus-4-6',
+            max_tokens: 8192,
+            system: systemPrompt,
+            messages: trimmedMessages,
+            tools: this.defineTools(),
+          });
 
-        let prefixPrinted = false;
-        stream.on('text', (text) => {
-          if (!prefixPrinted) {
-            process.stdout.write('\n[Manager] ');
-            prefixPrinted = true;
-          }
-          process.stdout.write(text);
-        });
+          let prefixPrinted = false;
+          stream.on('text', (text) => {
+            if (!prefixPrinted) {
+              process.stdout.write('\n[Manager] ');
+              prefixPrinted = true;
+            }
+            process.stdout.write(text);
+          });
 
-        const response = await stream.finalMessage();
-        if (prefixPrinted) process.stdout.write('\n');
+          const msg = await stream.finalMessage();
+          if (prefixPrinted) process.stdout.write('\n');
+          return msg;
+        });
 
         // Track token usage
         this.ctx.usage.recordTokens(

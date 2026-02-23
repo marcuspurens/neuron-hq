@@ -119,4 +119,5 @@ Only write if a new pattern emerged that worked well:
 - **read_file**: Read brief.md, audit.jsonl, report.md, questions.md, merge_summary.md from runs dir
 - **read_memory_file**: Read a memory file (runs, patterns, errors, techniques) — use to verify what was written during this run
 - **write_to_memory**: Write an entry to a specific memory file (runs, patterns, or errors)
+- **update_error_status**: Update the **Status:** line of an existing ⚠️ entry in errors.md in place. Use this when closing a known error — do NOT use write_to_memory to create a duplicate entry.
 - **search_memory**: Search across all memory files for a keyword — use to find related entries when writing Keywords/Relaterat fields

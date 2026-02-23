@@ -1,5 +1,5 @@
 import { type RunContext } from '../run.js';
-import { searchMemoryFiles } from './agent-utils.js';
+import { searchMemoryFiles, withRetry } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
@@ -132,25 +132,28 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
       console.log(`\n=== Historian iteration ${iteration}/${this.maxIterations} ===`);
 
       try {
-        const stream = this.anthropic.messages.stream({
-          model: 'claude-opus-4-6',
-          max_tokens: 4096,
-          system: systemPrompt,
-          messages,
-          tools: this.defineTools(),
-        });
+        const response = await withRetry(async () => {
+          const stream = this.anthropic.messages.stream({
+            model: 'claude-opus-4-6',
+            max_tokens: 4096,
+            system: systemPrompt,
+            messages,
+            tools: this.defineTools(),
+          });
 
-        let prefixPrinted = false;
-        stream.on('text', (text) => {
-          if (!prefixPrinted) {
-            process.stdout.write('\n[Historian] ');
-            prefixPrinted = true;
-          }
-          process.stdout.write(text);
-        });
+          let prefixPrinted = false;
+          stream.on('text', (text) => {
+            if (!prefixPrinted) {
+              process.stdout.write('\n[Historian] ');
+              prefixPrinted = true;
+            }
+            process.stdout.write(text);
+          });
 
-        const response = await stream.finalMessage();
-        if (prefixPrinted) process.stdout.write('\n');
+          const msg = await stream.finalMessage();
+          if (prefixPrinted) process.stdout.write('\n');
+          return msg;
+        });
 
         this.ctx.usage.recordTokens(
           'historian',
@@ -261,6 +264,29 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
           required: ['file', 'entry'],
         },
       },
+      {
+        name: 'update_error_status',
+        description:
+          'Update the **Status:** line of an existing entry in memory/errors.md. ' +
+          'Use this instead of write_to_memory when closing an existing ⚠️ entry. ' +
+          'Finds the section by exact title and replaces its Status line in place. ' +
+          'Do NOT use write_to_memory to create a duplicate entry.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            title: {
+              type: 'string',
+              description: 'The exact section title (text after ## ) of the entry to update',
+            },
+            new_status: {
+              type: 'string',
+              description:
+                'The new status text, e.g. "✅ Löst — fixed in run #12 by adding withRetry()"',
+            },
+          },
+          required: ['title', 'new_status'],
+        },
+      },
     ];
   }
 
@@ -290,6 +316,11 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
             case 'write_to_memory':
               result = await this.executeWriteToMemory(
                 block.input as { file: MemoryFile; entry: string }
+              );
+              break;
+            case 'update_error_status':
+              result = await this.executeUpdateErrorStatus(
+                block.input as { title: string; new_status: string }
               );
               break;
             default:
@@ -407,5 +438,50 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
     } catch (error: any) {
       return `Error writing to memory/${file}.md: ${error.message}`;
     }
+  }
+
+  /**
+   * Update the **Status:** line of an existing entry in errors.md in place.
+   */
+  private async executeUpdateErrorStatus(input: {
+    title: string;
+    new_status: string;
+  }): Promise<string> {
+    const { title, new_status } = input;
+    const filePath = path.join(this.memoryDir, 'errors.md');
+
+    let content: string;
+    try {
+      content = await fs.readFile(filePath, 'utf-8');
+    } catch {
+      return `Error: errors.md not found`;
+    }
+
+    const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const sectionRegex = new RegExp(
+      `(## ${escaped}\\n[\\s\\S]*?\\*\\*Status:\\*\\*)[^\\n]*`,
+      'g'
+    );
+
+    if (!sectionRegex.test(content)) {
+      return `Error: Section "${title}" not found in errors.md, or it has no **Status:** line`;
+    }
+
+    const updated = content.replace(
+      new RegExp(`(## ${escaped}\\n[\\s\\S]*?\\*\\*Status:\\*\\*)[^\\n]*`, 'g'),
+      `$1 ${new_status}`
+    );
+
+    await fs.writeFile(filePath, updated, 'utf-8');
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'historian',
+      tool: 'update_error_status',
+      allowed: true,
+      files_touched: [filePath],
+      note: `Updated status of "${title}" to: ${new_status}`,
+    });
+
+    return `Updated status of "${title}" in errors.md`;
   }
 }
