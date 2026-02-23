@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-02-23T0900-session21-directfixes-rundir.md](docs/HANDOFF-2026-02-23T0900-session21-directfixes-rundir.md)
+Senaste handoff: [HANDOFF-2026-02-23T0930-session25-run12-retry-vitest-historian.md](docs/HANDOFF-2026-02-23T0930-session25-run12-retry-vitest-historian.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -31,5 +31,8 @@ Senaste handoff: [HANDOFF-2026-02-23T0900-session21-directfixes-rundir.md](docs/
 | 2026-02-23 | 00:30 | 19 | Körning #7: ruff+coverage + daglig samtalrutin | [länk](docs/HANDOFF-2026-02-23T0030-session19-run7-ruff-coverage.md) |
 | 2026-02-23 | 07:20 | 20 | Self-hosting: neuron-hq som target + körning #8 | [länk](docs/HANDOFF-2026-02-23T0720-session20-neuronhq-self.md) |
 | 2026-02-23 | 09:00 | 21 | Direktfixar: runDir, Merger-fallback, bash-kommentarer | [länk](docs/HANDOFF-2026-02-23T0900-session21-directfixes-rundir.md) |
+| 2026-02-23 | 09:00 | 22 | Körning #9: runDir verifierad, Librarian-sökväg, baseline-rutin | [länk](docs/HANDOFF-2026-02-23T0900-session22-run9-rundir-verified.md) |
+| 2026-02-23 | 08:30 | 23 | Körning #10: stäng falska larm + Librarian integration-test | [länk](docs/HANDOFF-2026-02-23T0830-session23-run10-false-alarms-closed.md) |
+| 2026-02-23 | 09:30 | 24+25 | Körning #11+#12: errors-hygien, API-retry, Vitest-fix, Historian update-in-place | [länk](docs/HANDOFF-2026-02-23T0930-session25-run12-retry-vitest-historian.md) |
 
 > **Not:** Session 1 och 6 saknas — handoffs skapades inte vid dessa tillfällen.
