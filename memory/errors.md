@@ -64,7 +64,7 @@ Appendas av Historian-agenten när problem identifieras.
 **Symptom:** Manager hittade inte techniques.md i workspace efter lyckad Librarian-delegation, trots att Librarian korrekt skrev 9 entries till den delade memory/techniques.md
 **Orsak:** Librarian skriver till den delade `memory/techniques.md` (via write_to_techniques), men Manager letade i workspace-katalogen `workspaces/.../aurora-swarm-lab/memory/techniques.md`
 **Lösning:** Manager-prompten eller verifieringslogiken behöver uppdateras för att veta att Librarian-output hamnar i den delade memory-katalogen, inte i workspace. Alternativt bör Librarian-agenten returnera en sammanfattning av vad som skrevs så Manager inte behöver leta själv.
-**Status:** ⚠️ Identifierat
+**Status:** ✅ Löst — körning #9 lade till explicit vägledning i prompts/manager.md om att Librarian-output hamnar i delat memory/, inte workspace. Se "Librarian-sökvägsproblem löst i manager.md" i samma fil.
 
 ---
 
@@ -73,7 +73,7 @@ Appendas av Historian-agenten när problem identifieras.
 **Symptom:** report.md och questions.md saknas i runs-katalogen, trots att Manager skrev dem till workspace
 **Orsak:** Manager skrev artefakter (report.md, questions.md, ideas.md, knowledge.md) till workspace-katalogen men de kopierades aldrig till runs-katalogen. Historian kunde därför inte läsa dem.
 **Lösning:** Orchestratorn eller Manager behöver kopiera run-artefakter (report.md, questions.md) till runs-katalogen efter körning, eller skriva direkt dit. Alternativt bör Historian kunna läsa från workspace-katalogen som fallback.
-**Status:** ⚠️ Identifierat
+**Status:** ✅ Löst — session 21 exponerade runDir i manager.ts, uppdaterade manager.md med absolut sökväg, och lade till workspace-fallback i merger.ts. Se "Manager skriver answers.md till workspace istället för runs-katalogen" i samma fil.
 
 ---
 

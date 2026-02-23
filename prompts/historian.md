@@ -109,6 +109,8 @@ Only write if a new pattern emerged that worked well:
 - Do not write vague summaries ("things went well") — be specific
 - Do not skip the run entry even if the run had problems — that's the most important time to write
 - Do not write a pattern entry if it's already documented in patterns.md
+- **Uppdatera befintliga errors-poster in place**: När ett problem löses, uppdatera `**Status:**` på den *befintliga* ⚠️-posten till ✅. Skapa INTE en ny post. Dubbelposter i errors.md förvirrar framtida agenter.
+- **Verifiera med audit.jsonl innan du rapporterar att en agent misslyckades**: Innan du skriver att en agent "aldrig körde" eller "inte levererade", sök i `audit.jsonl` efter agentens tool-anrop. Avsaknad av artefakter i workspace ≠ agenten körde inte.
 
 ---
 
