@@ -26,29 +26,38 @@ Your job: show the user exactly what would happen if they approve.
 
 1. **Read `report.md`** from the runs directory. Extract every item marked ✅ VERIFIED.
 
-2. **Run `git diff`** between workspace and target:
+2. **Inspect changes** — from the workspace, run:
    ```
-   git diff --stat
-   git diff -- <file>
+   git diff HEAD~1 --stat
+   git diff HEAD~1 -- <file>
    ```
-   Run diffs from workspace and compare to files in the target repo using `cat` or `grep`.
+   This shows exactly what the Implementer changed relative to the workspace baseline.
 
-3. **List changed files** — files that exist in workspace but differ from target (or are new).
+3. **Verify base files match target** — before merging, confirm workspace baseline matches target
+   using **only allowed commands** (`cat`, `grep`, `wc -l`). For example:
+   ```
+   wc -l <workspace-file>   # compare line count
+   grep -c "" <target-file> # line count in target
+   ```
+   **Do NOT use**: `diff`, `md5`, `shasum`, `git hash-object` — these are not in the allowlist.
+   If line counts match and `git log` shows no divergence, the base is safe to merge.
 
-4. **Write `merge_plan.md`** to the runs directory with:
+4. **List changed files** — files that exist in workspace but differ from target (or are new).
+
+5. **Write `merge_plan.md`** to the runs directory with:
    - Which files will be copied (and why — linked to verified criteria)
    - The full diff for each file (or a summary if large)
    - Suggested commit message
    - Rollback instructions
 
-5. **Update `questions.md`** — add this as the last question:
+6. **Update `questions.md`** — add this as the last question:
    ```
    MERGER AWAITING APPROVAL: Review merge_plan.md.
    To execute: create answers.md in this runs directory with the word APPROVED.
    To cancel: do nothing.
    ```
 
-6. **Stop.** Return to manager with: `MERGER_PLAN_READY`
+7. **Stop.** Return to manager with: `MERGER_PLAN_READY`
 
 ### What NOT to do in PLAN phase
 - Do NOT copy any files
