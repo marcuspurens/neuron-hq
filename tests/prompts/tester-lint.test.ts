@@ -26,4 +26,9 @@ describe('tester.md — critical instructions', () => {
     expect(prompt).toMatch(/[Dd]iscover|detect/);
     expect(prompt).toMatch(/vitest|pytest/);
   });
+
+  it('regression guard: test would fail if critical keyword removed', () => {
+    const modified = prompt.replaceAll('test_report.md', 'REMOVED');
+    expect(modified).not.toMatch(/test_report\.md/);
+  });
 });

@@ -29,4 +29,9 @@ describe('researcher.md — critical instructions', () => {
   it('marks all three outputs as mandatory', () => {
     expect(prompt).toMatch(/mandatory|MANDATORY/);
   });
+
+  it('regression guard: test would fail if critical keyword removed', () => {
+    const modified = prompt.replaceAll('ideas.md', 'REMOVED');
+    expect(modified).not.toMatch(/ideas\.md/);
+  });
 });

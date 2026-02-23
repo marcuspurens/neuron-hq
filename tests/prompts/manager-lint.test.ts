@@ -25,4 +25,9 @@ describe('manager.md — critical instructions', () => {
   it('instructs to use read_memory_file for librarian output', () => {
     expect(prompt).toMatch(/read_memory_file/);
   });
+
+  it('regression guard: test would fail if critical keyword removed', () => {
+    const modified = prompt.replaceAll('STOPLIGHT', 'REMOVED');
+    expect(modified).not.toMatch(/STOPLIGHT/);
+  });
 });

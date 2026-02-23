@@ -25,4 +25,9 @@ describe('merger.md — critical instructions', () => {
   it('forbids force push', () => {
     expect(prompt).toMatch(/force push/i);
   });
+
+  it('regression guard: test would fail if critical keyword removed', () => {
+    const modified = prompt.replaceAll('APPROVED', 'REMOVED');
+    expect(modified).not.toMatch(/APPROVED/);
+  });
 });

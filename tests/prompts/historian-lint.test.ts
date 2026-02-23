@@ -24,4 +24,9 @@ describe('historian.md — critical instructions', () => {
   it('instructs to verify with audit.jsonl before reporting agent failure', () => {
     expect(prompt).toMatch(/audit\.jsonl/);
   });
+
+  it('regression guard: test would fail if critical keyword removed', () => {
+    const modified = prompt.replaceAll('grep_audit', 'REMOVED');
+    expect(modified).not.toMatch(/grep_audit/);
+  });
 });

@@ -25,4 +25,9 @@ describe('reviewer.md — critical instructions', () => {
   it('forbids claiming something is done without running a command', () => {
     expect(prompt).toMatch(/NEVER claim|never.*claim|without.*command|run.*command/i);
   });
+
+  it('regression guard: test would fail if critical keyword removed', () => {
+    const modified = prompt.replaceAll('STOPLIGHT', 'REMOVED');
+    expect(modified).not.toMatch(/STOPLIGHT/);
+  });
 });
