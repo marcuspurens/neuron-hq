@@ -21,13 +21,13 @@ describe('prompt lint coverage', () => {
     expect(missing, `These prompts lack lint tests: ${missing.join(', ')}`).toHaveLength(0);
   });
 
-  it('has at least 7 prompt files guarded', () => {
+  it('has at least 8 prompt files guarded', () => {
     const promptFiles = readdirSync(promptsDir).filter(f => f.endsWith('.md'));
-    expect(promptFiles.length).toBeGreaterThanOrEqual(7);
+    expect(promptFiles.length).toBeGreaterThanOrEqual(8);
   });
 
-  it('has at least 7 lint test files', () => {
+  it('has at least 8 lint test files', () => {
     const lintTests = readdirSync(testsDir).filter(f => f.endsWith('-lint.test.ts'));
-    expect(lintTests.length).toBeGreaterThanOrEqual(7);
+    expect(lintTests.length).toBeGreaterThanOrEqual(8);
   });
 });

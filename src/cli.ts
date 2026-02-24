@@ -20,6 +20,7 @@ import {
   logsCommand,
   reportCommand,
 } from './commands/index.js';
+import { runBriefAgent } from './core/agents/brief-agent.js';
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
@@ -79,6 +80,14 @@ program
   .command('report <runid>')
   .description('Show report for a run')
   .action(reportCommand);
+
+// Brief agent command
+program
+  .command('brief <target>')
+  .description('Start an interactive session to create a brief')
+  .action(async (target: string) => {
+    await runBriefAgent(target);
+  });
 
 // Parse arguments
 program.parse();
