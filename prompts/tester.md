@@ -43,9 +43,11 @@ Use `bash_exec` to run the discovered test command with coverage enabled. Captur
 - jest: `npm test -- --coverage --silent`
 - make: `make test` (no coverage flag — report whatever output you get)
 
-If tests fail, re-run with verbose flags to get failure details only:
-- pytest: `python -m pytest tests/ -q --tb=short`
-- vitest: `npx vitest run --reporter=verbose`
+If tests fail, re-run to capture full failure details:
+- pytest: `python -m pytest tests/ -q --tb=short --no-header`
+- vitest: `npx vitest run --reporter=verbose 2>&1 | head -80`
+
+Capture the output — it will be used in the Failing Tests section of the report.
 
 **IMPORTANT — output size**: Coverage output can be very long. In your report and
 in your conversation, include ONLY the TOTAL/summary line (e.g. `TOTAL  12345  1234   90%`),
@@ -98,7 +100,22 @@ Write to `runs/<runid>/test_report.md` using `write_file`. Use this format:
 
 ## Failing Tests
 
-<If any failures, list them here with test name and error message.>
+<If any failures, for EACH failing test include:>
+<1. Test name (full path, e.g. tests/core/run.test.ts > RunOrchestrator > creates workspace)>
+<2. Error message (the actual assertion or exception message)>
+<3. Stack trace excerpt — the 3-5 most relevant lines showing WHERE the failure occurred>
+<4. File + line number where the failure originated>
+
+<Format per failing test:>
+
+### `<test name>`
+**Error:** `<error message>`
+**Location:** `<file>:<line>`
+**Trace:**
+```
+<3-5 lines of stack trace>
+```
+
 <If none: "(none)">
 
 ## Full Output
@@ -113,8 +130,8 @@ Write to `runs/<runid>/test_report.md` using `write_file`. Use this format:
 Return a one-line verdict:
 - `TESTS PASS: N/N tests passed. Coverage: N%.`
 - `TESTS PASS: N/N tests passed. Coverage: N% (⚠️ below 80%).`
-- `TESTS FAILING: N failed out of N. Coverage: N%. See test_report.md.`
-- `TESTS FAILING: N failed out of N. Coverage unavailable. See test_report.md.`
+- `TESTS FAILING: N failed out of N. Coverage: N%. Failing: <comma-separated test names>. See test_report.md for stack traces.`
+- `TESTS FAILING: N failed out of N. Coverage unavailable. Failing: <comma-separated test names>. See test_report.md for stack traces.`
 
 ---
 

@@ -27,6 +27,18 @@ describe('tester.md — critical instructions', () => {
     expect(prompt).toMatch(/vitest|pytest/);
   });
 
+  it('requires Location field in failing test format', () => {
+    expect(prompt).toMatch(/\*\*Location:\*\*/);
+  });
+
+  it('requires Trace field with code block in failing test format', () => {
+    expect(prompt).toMatch(/\*\*Trace:\*\*/);
+  });
+
+  it('includes failing test names in return message to Manager', () => {
+    expect(prompt).toMatch(/Failing:.*comma-separated/);
+  });
+
   it('regression guard: test would fail if critical keyword removed', () => {
     const modified = prompt.replaceAll('test_report.md', 'REMOVED');
     expect(modified).not.toMatch(/test_report\.md/);
