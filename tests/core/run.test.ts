@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
-import { countMemoryRuns, RunOrchestrator, COPY_SKIP_DIRS, type RunContext } from '../../src/core/run.js';
+import { countMemoryRuns, countCompletedRuns, maybeInjectMetaTrigger, RunOrchestrator, COPY_SKIP_DIRS, type RunContext } from '../../src/core/run.js';
 import { GitOperations } from '../../src/core/git.js';
 import { PolicyEnforcer } from '../../src/core/policy.js';
 import { type RunConfig, type RunId, type StoplightStatus } from '../../src/core/types.js';
@@ -80,6 +80,61 @@ describe('countMemoryRuns', () => {
     await fs.writeFile(path.join(dir, 'runs.md'), content);
     const count = await countMemoryRuns(dir);
     expect(count).toBe(1);
+  });
+});
+
+describe('maybeInjectMetaTrigger', () => {
+  it('injects trigger at run 10, 20, 30', () => {
+    const brief = 'Test brief';
+    for (const count of [10, 20, 30]) {
+      const result = maybeInjectMetaTrigger(brief, count);
+      expect(result).toContain('⚡ Meta-trigger: META_ANALYSIS');
+    }
+  });
+
+  it('does NOT inject trigger at run 9, 11, 15', () => {
+    const brief = 'Test brief';
+    for (const count of [9, 11, 15]) {
+      const result = maybeInjectMetaTrigger(brief, count);
+      expect(result).not.toContain('⚡ Meta-trigger: META_ANALYSIS');
+    }
+  });
+
+  it('does NOT inject trigger at run 0', () => {
+    const result = maybeInjectMetaTrigger('Test brief', 0);
+    expect(result).not.toContain('⚡ Meta-trigger: META_ANALYSIS');
+  });
+});
+
+describe('countCompletedRuns', () => {
+  const tmpDirs: string[] = [];
+
+  afterEach(async () => {
+    for (const dir of tmpDirs) {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+    tmpDirs.length = 0;
+  });
+
+  it('counts directories excluding -resume suffix', async () => {
+    const tmpDir = path.join(os.tmpdir(), `test-runs-${Date.now()}`);
+    tmpDirs.push(tmpDir);
+    await fs.mkdir(tmpDir, { recursive: true });
+
+    // Create regular run dirs
+    await fs.mkdir(path.join(tmpDir, '20260101-0001-test'));
+    await fs.mkdir(path.join(tmpDir, '20260101-0002-test'));
+    await fs.mkdir(path.join(tmpDir, '20260101-0003-test'));
+    // Create resume dir (should be excluded)
+    await fs.mkdir(path.join(tmpDir, '20260101-0004-test-resume'));
+
+    const count = await countCompletedRuns(tmpDir);
+    expect(count).toBe(3);
+  });
+
+  it('returns 0 for non-existent directory', async () => {
+    const count = await countCompletedRuns('/tmp/nonexistent-dir-12345');
+    expect(count).toBe(0);
   });
 });
 

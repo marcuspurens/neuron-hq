@@ -46,6 +46,29 @@ export async function countMemoryRuns(memoryDir: string): Promise<number> {
   }
 }
 
+/**
+ * Count completed runs by counting directories in the runs/ dir.
+ * Excludes resume runs (directories ending with '-resume').
+ */
+export async function countCompletedRuns(runsDir: string): Promise<number> {
+  try {
+    const entries = await fs.readdir(runsDir, { withFileTypes: true });
+    return entries.filter(e => e.isDirectory() && !e.name.endsWith('-resume')).length;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Pure function: inject Meta-trigger into brief content if runCount is a multiple of 10.
+ */
+export function maybeInjectMetaTrigger(briefContent: string, runCount: number): string {
+  if (runCount > 0 && runCount % 10 === 0) {
+    return briefContent + '\n\n⚡ Meta-trigger: META_ANALYSIS';
+  }
+  return briefContent;
+}
+
 export class RunOrchestrator {
   constructor(
     private baseDir: string,
@@ -98,6 +121,10 @@ export class RunOrchestrator {
     const workspaceDir = path.join(this.baseDir, 'workspaces', runid, target.name);
     const runDir = path.join(this.baseDir, 'runs', runid);
 
+    // Count existing runs BEFORE creating the new run directory
+    const runsDir = path.dirname(runDir);
+    const runCount = await countCompletedRuns(runsDir);
+
     await fs.mkdir(workspaceDir, { recursive: true });
     await fs.mkdir(runDir, { recursive: true });
 
@@ -126,9 +153,10 @@ export class RunOrchestrator {
       checksums: {},
     });
 
-    // Copy brief to run directory
+    // Copy brief to run directory, with possible meta-trigger injection
     const briefContent = await fs.readFile(config.brief_path, 'utf-8');
-    await artifacts.writeBrief(briefContent);
+    const processedBrief = maybeInjectMetaTrigger(briefContent, runCount);
+    await artifacts.writeBrief(processedBrief);
 
     const endTime = new Date();
     endTime.setHours(endTime.getHours() + hours);
