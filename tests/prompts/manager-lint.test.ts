@@ -30,4 +30,9 @@ describe('manager.md — critical instructions', () => {
     const modified = prompt.replaceAll('STOPLIGHT', 'REMOVED');
     expect(modified).not.toMatch(/STOPLIGHT/);
   });
+
+  it('includes Meta-trigger instructions for meta-analysis', () => {
+    expect(prompt).toMatch(/Meta-trigger/);
+    expect(prompt).toMatch(/META_ANALYSIS/);
+  });
 });

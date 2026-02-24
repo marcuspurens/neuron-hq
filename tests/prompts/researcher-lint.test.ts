@@ -43,4 +43,9 @@ describe('researcher.md — critical instructions', () => {
     const modified = prompt.replaceAll('ideas.md', 'REMOVED');
     expect(modified).not.toMatch(/ideas\.md/);
   });
+
+  it('includes META_ANALYSIS mode with meta_analysis.md format', () => {
+    expect(prompt).toMatch(/META_ANALYSIS/);
+    expect(prompt).toMatch(/meta_analysis\.md/);
+  });
 });

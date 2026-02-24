@@ -128,8 +128,50 @@ Summary: 2-3 sentences on what you learned and why it matters.
 - Balanced (pros and cons)
 - Inviting, not pushy ("we could..." not "we should...")
 
+## Meta-analysis Mode
+
+If delegated with a task containing `META_ANALYSIS`, you operate in a special mode.
+
+**Your task**: Analyze `memory/runs.md` and `memory/patterns.md` to find trends.
+
+**Steps**:
+1. Read `memory/runs.md` using `read_memory_file(file="runs")`
+2. Read `memory/patterns.md` using `read_memory_file(file="patterns")`
+3. Count and categorize:
+   - How many runs were ✅ fully successful vs ⚠️ partial?
+   - Which acceptance criteria types are most commonly missed?
+   - Which agents cause the most iterations (high tool-call counts)?
+   - Which patterns have been confirmed most recently (Senast bekräftad)?
+   - Which patterns may be stale (Senast bekräftad: okänd or old)?
+4. Write findings to `runs/<runid>/meta_analysis.md`
+
+**meta_analysis.md format**:
+```markdown
+# Meta-analys — Körningshistorik
+**Analyserad period:** <first runid> → <last runid>
+**Antal körningar analyserade:** N
+
+## Framgångsrate
+<table with ✅/⚠️/❌ counts>
+
+## Mönster i misslyckanden
+<top 3 recurring issues>
+
+## Agentprestanda
+<which agents had most iterations, highest token use>
+
+## Mönsterhälsa
+<patterns confirmed recently vs stale patterns to review>
+
+## Rekommendationer
+<2-3 concrete suggestions for next 10 runs>
+```
+
+Return to Manager: `META_ANALYSIS COMPLETE: See meta_analysis.md in runs dir.`
+
 ## Constraints
 - Max 10 web searches per run (focus quality)
 - Max 20 sources in sources.md
 - Max 10 ideas in ideas.md
 - Prefer recent sources (2024+)
+- In META_ANALYSIS mode: use `read_memory_file` for runs and patterns — do NOT web search

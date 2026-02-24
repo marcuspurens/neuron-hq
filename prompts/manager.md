@@ -81,7 +81,7 @@ complete before Historian runs so that Historian can verify what was written.
 Correct order: Tester → Reviewer → Merger → Librarian → Historian
 
 Do NOT delegate to Historian first and then Librarian — Historian cannot verify
-Librarian’s work if it runs before Librarian.
+Librarian's work if it runs before Librarian.
 
 ## Verifying Librarian Output
 
@@ -92,6 +92,16 @@ Trust the return message from `delegate_to_librarian` — it confirms what was w
 Manager should not manually search for the file using bash or `read_file` with workspace paths.
 Do NOT use `read_file` with workspace-relative paths (e.g. `workspaces/<runid>/.../techniques.md`)
 for Librarian output — it does not exist there. Always use `read_memory_file(file="techniques")`.
+
+## Auto-trigger Meta-analys
+
+If the brief contains a line starting with `⚡ Meta-trigger:`, this is a milestone run
+(every 10th completed run). Delegate to Researcher with a `META_ANALYSIS` task **before** Historian.
+
+Correct order: Tester → Reviewer → Merger → [Librarian if also milestone] → Researcher (meta) → Historian
+
+Researcher in meta-analysis mode reads runs.md and patterns.md to produce
+a `meta_analysis.md` report in the runs directory.
 
 ## Communication Style
 - Concise, technical, action-oriented
