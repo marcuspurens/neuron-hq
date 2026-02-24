@@ -5,6 +5,7 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 import { TargetsManager } from '../targets.js';
+import { trimMessages, withRetry } from './agent-utils.js';
 
 /**
  * Generate a URL-safe slug from a text string.
@@ -22,8 +23,8 @@ export function generateSlug(text: string): string {
 }
 
 /**
- * Interactive Brief Agent that guides users through creating structured briefs.
- * Does NOT use RunContext — operates standalone from the CLI.
+ * Interactive Brief Agent that guides users through creating structured briefs
+ * via a streaming conversational chat loop.
  */
 export class BriefAgent {
   constructor(
@@ -33,7 +34,7 @@ export class BriefAgent {
   ) {}
 
   /**
-   * Run the interactive brief creation session.
+   * Run the interactive brief creation chat session.
    * @returns Path to the generated brief file.
    */
   async run(): Promise<string> {
@@ -43,10 +44,55 @@ export class BriefAgent {
     }
 
     try {
-      const answers = await this.askQuestions();
+      const anthropic = new Anthropic();
+      const systemPrompt = this.loadSystemPrompt();
       const repoContext = this.getRepoContext();
-      const briefContent = await this.generateBrief(answers, repoContext);
-      const briefPath = this.writeBrief(answers.goal, briefContent);
+      const exampleBriefs = this.loadExampleBriefs();
+      const today = new Date().toISOString().slice(0, 10);
+
+      const fullSystemPrompt = [
+        systemPrompt,
+        '\n\n## Repository Context\n\n',
+        `Target: ${this.targetName}\nDate: ${today}\n\n`,
+        repoContext,
+        '\n\n## Example Briefs\n\n',
+        exampleBriefs,
+      ].join('');
+
+      const messages: Anthropic.MessageParam[] = [];
+
+      // Initial greeting from Claude
+      const openingMsg = 'Hej! Jag vill skapa en ny brief.';
+      const greeting = await this.streamResponse(
+        anthropic,
+        fullSystemPrompt,
+        [{ role: 'user', content: openingMsg }]
+      );
+      messages.push({ role: 'user', content: openingMsg });
+      messages.push({ role: 'assistant', content: greeting });
+
+      const MAX_TURNS = 30;
+      let briefPath = '';
+
+      for (let turn = 0; turn < MAX_TURNS; turn++) {
+        const userInput = await this.rl!.question('\n> ');
+        if (!userInput.trim()) continue;
+
+        messages.push({ role: 'user', content: userInput });
+
+        const response = await this.streamResponse(
+          anthropic,
+          fullSystemPrompt,
+          messages
+        );
+        messages.push({ role: 'assistant', content: response });
+
+        if (response.includes('✅ Brief created:')) {
+          briefPath = this.extractAndSaveBrief(response);
+          break;
+        }
+      }
+
       return briefPath;
     } finally {
       if (ownRl && this.rl) {
@@ -55,35 +101,65 @@ export class BriefAgent {
     }
   }
 
-  private async askQuestions(): Promise<BriefAnswers> {
-    const rl = this.rl!;
+  /**
+   * Stream a response from the Anthropic API, printing tokens as they arrive.
+   * Follows the same pattern as manager.ts.
+   */
+  private async streamResponse(
+    anthropic: Anthropic,
+    systemPrompt: string,
+    messages: Anthropic.MessageParam[]
+  ): Promise<string> {
+    const trimmedMessages = trimMessages(messages);
+    const response = await withRetry(async () => {
+      const stream = anthropic.messages.stream({
+        model: 'claude-opus-4-6',
+        max_tokens: 8192,
+        system: systemPrompt,
+        messages: trimmedMessages,
+      });
 
-    const goal = await rl.question(
-      'Vad vill du uppnå med den här körningen? '
+      let prefixPrinted = false;
+      stream.on('text', (text) => {
+        if (!prefixPrinted) {
+          process.stdout.write('\n[Brief Agent] ');
+          prefixPrinted = true;
+        }
+        process.stdout.write(text);
+      });
+
+      const msg = await stream.finalMessage();
+      if (prefixPrinted) process.stdout.write('\n');
+      return msg;
+    });
+
+    const textBlock = response.content.find(
+      (b): b is Anthropic.TextBlock => b.type === 'text'
     );
+    return textBlock?.text ?? '';
+  }
 
-    console.log(
-      'Hur vet du att det lyckades? (acceptanskriterier — en per rad, avsluta med tom rad)'
+  /**
+   * Extract brief content from Claude's response and save it to disk.
+   */
+  private extractAndSaveBrief(response: string): string {
+    const briefMatch = response.match(
+      /(# Brief[\s\S]*?)(?=\n✅ Brief created:|$)/
     );
-    const criteria: string[] = [];
-    let line = await rl.question('> ');
-    while (line.trim() !== '') {
-      criteria.push(line.trim());
-      line = await rl.question('> ');
-    }
+    const briefContent = briefMatch ? briefMatch[1].trim() : response;
 
-    const filesInput = await rl.question(
-      'Vilka filer tror du berörs? (eller tryck Enter för att låta agenten föreslå) '
-    );
+    const titleMatch = briefContent.match(/# Brief — (.+)/);
+    const title = titleMatch ? titleMatch[1] : 'untitled';
+    const slug = generateSlug(title).slice(0, 60);
 
-    const risk = await rl.question('Hur hög är risken? (low/medium/high) ');
+    const today = new Date().toISOString().slice(0, 10);
+    const filename = `${today}-${slug}.md`;
+    const briefsDir = join(this.baseDir, 'briefs');
+    mkdirSync(briefsDir, { recursive: true });
+    const fullPath = join(briefsDir, filename);
+    writeFileSync(fullPath, briefContent, 'utf-8');
 
-    return {
-      goal,
-      criteria,
-      files: filesInput.trim() || null,
-      risk: normalizeRisk(risk.trim()),
-    };
+    return fullPath;
   }
 
   private getRepoContext(): string {
@@ -114,56 +190,6 @@ export class BriefAgent {
     return parts.join('\n\n');
   }
 
-  private async generateBrief(
-    answers: BriefAnswers,
-    repoContext: string
-  ): Promise<string> {
-    const systemPrompt = this.loadSystemPrompt();
-    const exampleBriefs = this.loadExampleBriefs();
-
-    const today = new Date().toISOString().slice(0, 10);
-    const userMessage = `
-# User Answers
-
-**Goal:** ${answers.goal}
-
-**Acceptance Criteria:**
-${answers.criteria.map((c, i) => `${i + 1}. ${c}`).join('\n')}
-
-**Files:** ${answers.files ?? '(none provided — please suggest based on repo structure)'}
-
-**Risk:** ${answers.risk}
-
-# Repository Context
-
-**Target:** ${this.targetName}
-**Date:** ${today}
-
-${repoContext}
-
-# Example Briefs
-
-${exampleBriefs}
-
----
-
-Please generate a complete brief in the exact format specified in your instructions.
-`;
-
-    const anthropic = new Anthropic();
-    const message = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMessage }],
-    });
-
-    const textBlock = message.content.find(
-      (b): b is Anthropic.TextBlock => b.type === 'text'
-    );
-    return textBlock?.text ?? '';
-  }
-
   private loadSystemPrompt(): string {
     const promptPath = join(this.baseDir, 'prompts', 'brief-agent.md');
     return readFileSync(promptPath, 'utf-8');
@@ -188,34 +214,6 @@ Please generate a complete brief in the exact format specified in your instructi
       return '(no example briefs found)';
     }
   }
-
-  private writeBrief(goal: string, content: string): string {
-    const today = new Date().toISOString().slice(0, 10);
-    const slug = generateSlug(goal).slice(0, 60);
-    const filename = `${today}-${slug}.md`;
-    const briefsDir = join(this.baseDir, 'briefs');
-
-    mkdirSync(briefsDir, { recursive: true });
-    const fullPath = join(briefsDir, filename);
-    writeFileSync(fullPath, content, 'utf-8');
-    return fullPath;
-  }
-}
-
-/** Normalize risk input to uppercase standard form. */
-function normalizeRisk(input: string): string {
-  const lower = input.toLowerCase();
-  if (lower === 'low') return 'LOW';
-  if (lower === 'medium' || lower === 'med') return 'MEDIUM';
-  if (lower === 'high') return 'HIGH';
-  return 'MEDIUM';
-}
-
-interface BriefAnswers {
-  goal: string;
-  criteria: string[];
-  files: string | null;
-  risk: string;
 }
 
 /**
@@ -223,7 +221,6 @@ interface BriefAnswers {
  * Resolves target, creates BriefAgent, calls run(), prints path.
  */
 export async function runBriefAgent(targetName: string): Promise<void> {
-  // Dynamic import to get BASE_DIR without circular dependency
   const { BASE_DIR } = await import('../../cli.js');
 
   const targetsManager = new TargetsManager(
@@ -240,5 +237,7 @@ export async function runBriefAgent(targetName: string): Promise<void> {
   const agent = new BriefAgent(targetName, BASE_DIR);
   const briefPath = await agent.run();
 
-  console.log(`\n✅ Brief created: ${briefPath}`);
+  if (briefPath) {
+    console.log(`\n✅ Brief created: ${briefPath}`);
+  }
 }
