@@ -37,6 +37,12 @@ separate memory files depending on the type of information.
 4. **Write to `patterns`** if something worked especially well — a technique worth repeating.
    Only write here if there's a genuinely new pattern, not already in the file.
 
+   When writing a new pattern, always include **Senast bekräftad:** set to the current runid.
+
+   When an existing pattern was visibly confirmed during this run (e.g. the brief explicitly
+   used that technique, or audit.jsonl shows the pattern in action), update its
+   **Senast bekräftad:** field using write_to_memory with the current runid.
+
 5. **Check invariants**: Läs `memory/invariants.md`. Om körningen avslöjar en
    ny strukturinvariant (något som alltid måste gälla i systemet) — lägg till
    den med `write_to_memory`. Format:
@@ -109,8 +115,10 @@ Only write if a new pattern emerged that worked well:
 **Kontext:** <when/where this was discovered>
 **Lösning:** <what was done>
 **Effekt:** <why it worked / what it improved>
-**Keywords:** <comma-separated keywords, e.g. librarian, memory, delegation>
-**Relaterat:** <optional links to related entries, e.g. errors.md#TitleOfError, techniques.md#PaperTitle>
+**Keywords:** <comma-separated keywords>
+**Relaterat:** <optional links>
+**Körningar:** #<N>
+**Senast bekräftad:** <runid or "okänd">
 
 ---
 ```

@@ -10,6 +10,7 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Lösning:** Kör tester med `-q --cov-report=term` och begränsa output till max 30 rader
 **Effekt:** Tester-agenten klarar nu hela testsviten utan overflow
 **Körningar:** #11
+**Senast bekräftad:** okänd
 
 ---
 
@@ -18,6 +19,7 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Lösning:** `initWorkspace()` i `src/core/git.ts` sätter upp separat git-repo i workspace-mappen
 **Effekt:** Alla commits från Implementer hamnar i rätt repo
 **Körningar:** #11
+**Senast bekräftad:** okänd
 
 ---
 
@@ -26,6 +28,7 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Lösning:** `src/core/agents/reviewer.ts` skickar brief-innehåll till Reviewer i system prompt
 **Effekt:** Reviewer kontrollerar nu faktiskt levererat vs planerat per kriterium
 **Körningar:** #9
+**Senast bekräftad:** okänd
 
 ---
 
@@ -34,6 +37,7 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Lösning:** Briefs namnges `briefs/<YYYY-MM-DD>-<slug>.md`
 **Effekt:** Historik bevaras, rätt brief pekas ut med `--brief`-flaggan
 **Körningar:** #9
+**Senast bekräftad:** okänd
 
 ---
 
@@ -42,6 +46,7 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Lösning:** Merger skriver merge_plan.md, väntar på att `answers.md` innehåller "APPROVED"
 **Effekt:** Säker merge-process — inget kopieras utan explicit godkännande
 **Körningar:** #10
+**Senast bekräftad:** okänd
 
 ---
 
@@ -50,6 +55,7 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Lösning:** Librarian läser tillbaka `techniques.md` efter att ha skrivit alla entries, vilket verifierar att skrivningarna faktiskt sparades korrekt
 **Effekt:** Ger tillförlitlig bekräftelse att entries skrevs — Manager kan lita på Librarian-resultatet utan att själv behöva verifiera filen
 **Körningar:** #?
+**Senast bekräftad:** okänd
 
 ---
 
@@ -58,6 +64,7 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Lösning:** Researcher kombinerade tre signaltyper: (1) filläsning av nyckelfiler (config, core, moduler), (2) kvantitativa bash-grep-analyser (radräkning, mönsterfrekvens som `load_settings()` 46 gånger, `except Exception` 89 gånger), (3) arkitekturella observationer (2590-raders god-modul, saknad conftest.py). Resulterade i ideas.md med 10 prioriterade förslag med impact/effort/risk-bedömning och konkreta tradeoffs.
 **Effekt:** Hög kvalitet på leverabeln — varje förslag backas av kvantitativa data snarare än subjektiva omdömen. Gör det möjligt att direkt prioritera och agera.
 **Körningar:** #?
+**Senast bekräftad:** okänd
 
 ---
 
@@ -68,6 +75,7 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Keywords:** reviewer, baseline, git-stash, pytest, verifiering
 **Relaterat:** patterns.md#Brief-innehåll injiceras i Reviewer för korrekt kriteriecheck
 **Körningar:** #?
+**Senast bekräftad:** okänd
 
 ---
 
@@ -78,6 +86,7 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Keywords:** implementer, write_file, transform-skript, policy, refaktorering
 **Relaterat:** errors.md#Implementer transform-skript blockeras av policy
 **Körningar:** #?
+**Senast bekräftad:** okänd
 
 ---
 
@@ -88,6 +97,7 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Keywords:** implementer, brief, baseline, ruff, anpassning, stale-brief
 **Relaterat:** errors.md#Brief med inaktuella ruff-fel
 **Körningar:** #?
+**Senast bekräftad:** okänd
 
 ---
 
@@ -98,6 +108,7 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Keywords:** resume, manager, reviewer, merger, pipeline, avbruten-körning
 **Relaterat:** patterns.md#Tvåfas-Merger (PLAN/EXECUTE via answers.md)
 **Körningar:** #?
+**Senast bekräftad:** okänd
 
 ---
 
@@ -108,6 +119,7 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Keywords:** self-hosting, errors.md, feedback-loop, prompt-fix, meta-förbättring
 **Relaterat:** errors.md#Implementer glömde git commit efter lyckade fixar, errors.md#Researcher skapade inte knowledge.md, errors.md#Manager duplicerar Researchers arbete
 **Körningar:** #8
+**Senast bekräftad:** okänd
 
 ---
 
@@ -118,6 +130,7 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Keywords:** audit.jsonl, errors.md, historian, falska-larm, verifiering
 **Relaterat:** errors.md#Librarian smoke test producerade inga artefakter
 **Körningar:** #10
+**Senast bekräftad:** okänd
 
 ---
 
@@ -128,6 +141,7 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Keywords:** prompt-lint, tester, vitest, regex, guardrails, implementer, regression
 **Relaterat:** errors.md#Implementer committade bara testfil, inte implementeringsfiler
 **Körningar:** #14
+**Senast bekräftad:** okänd
 
 ---
 
@@ -138,6 +152,7 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Keywords:** agent-ordning, timing, delegation, librarian, historian, guardrail, race-condition
 **Relaterat:** errors.md#Librarian auto-trigger ignorerades av Manager
 **Körningar:** #16
+**Senast bekräftad:** okänd
 
 ---
 
@@ -148,5 +163,72 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Keywords:** meta-test, coverage, prompt-lint, guardrails, ci, regression
 **Relaterat:** patterns.md#Prompt-lint-tester: regex-validering av prompt-filer
 **Körningar:** #18
+**Senast bekräftad:** okänd
+
+---
+
+## Explicita strukturinvarianter i memory/invariants.md
+**Kontext:** Körning 20260223-1509-neuron-hq — coverage.test.ts fångade en implicit invariant (varje prompt behöver lint-test) men det saknades ett explicit ställe att förvara strukturkrav som alltid måste gälla
+**Lösning:** Skapade `memory/invariants.md` med format `[INV-NNN]` + beskrivning + `Vaktas av:` (vilken test/mekanism garanterar invarianten) + `Tillagd:` (körningsnummer). Historian-prompten uppdaterades med steg 5 som instruerar att läsa invariants.md och lägga till nya invarianter vid behov. Lint-test (`invariants-lint.test.ts`) vaktar formatet.
+**Effekt:** Implicita constraints som tidigare bara levde i testlogik görs explicita och sökbara — alla agenter kan läsa invariants.md för att förstå systemets strukturregler. Forskning (StructMemEval 2026, LoCoMo-Plus 2026) bekräftar att explicita constraints förbättrar retrieval-kvalitet jämfört med implicita.
+**Keywords:** invariants, memory, strukturkrav, guardrails, historian, explicita-constraints
+**Relaterat:** patterns.md#Meta-test (coverage.test.ts) som vaktar prompt-lint-täckning, patterns.md#Prompt-lint-tester: regex-validering av prompt-filer
+**Körningar:** #19
+**Senast bekräftad:** okänd
+
+---
+
+## Merger NO-OP-detektion vid redan mergade ändringar
+**Kontext:** Körning 20260223-2218-resume — en resume-körning startade trots att originalköningens merge redan var klar. Merger kopierade filer men `diff` visade identiskt innehåll.
+**Lösning:** Merger jämförde workspace- och target-filer med `diff`, detekterade att de var byte-identiska, och rapporterade "NO-OP MERGE" utan att skapa en tom commit. merge_summary.md dokumenterade tydligt att ändringarna redan fanns.
+**Effekt:** Undviker tomma commits i git-historiken och ger tydlig feedback till Historian om vad som hände. Resume-körningar som är redundanta avslutas rent.
+**Keywords:** merger, no-op, resume, diff, identical, idempotent
+**Relaterat:** patterns.md#Resume-körning hoppar direkt till Review+Merge
+**Körningar:** #?
+**Senast bekräftad:** okänd
+
+---
+
+## Exakt feloutput + fixförslag i brief ger kirurgiska leveranser
+**Kontext:** Körning 20260223-2248 — Briefen innehöll faktisk mypy-output med radnummer, förklarade rot-orsaken per felgrupp (typ-annotation vs tilldelning, borttagen API), och gav kodsnuttar med rätt fix
+**Lösning:** Inkludera i briefen: (1) baseline tool-output (mypy/ruff/etc) med exakta rad- och felnummer, (2) kort analys av varför felet uppstår, (3) föreslagen fix som kodsnutt. Svärmen kan då implementera direkt utan att själv behöva diagnosticera.
+**Effekt:** 6/6 acceptanskriterier godkända i första körningen. Diffen var 5 insertions, 4 deletions — minimalt scope. Ingen iteration behövdes. Jämfört med körning #7 (103 mypy-fel utan analys → ofullständig leverans) visar detta att förarbete i briefen betalar sig kraftigt.
+**Keywords:** brief, mypy, diagnostik, fix-förslag, kirurgisk, scope, effektivitet
+**Relaterat:** patterns.md#Implementer anpassar sig till faktiskt repo-tillstånd vid inaktuell brief
+**Körningar:** #?
+**Senast bekräftad:** okänd
+
+---
+
+## Manager-only verifiering vid redan mergade resume-körningar
+**Kontext:** Körning 20260224-0647-resume — alla ändringar redan mergade, Manager delegerade inte till någon sub-agent (varken Reviewer eller Merger)
+**Lösning:** Manager verifierade workspace-tillståndet solo: läste filer, körde tester (vitest + npm test), tsc --noEmit, git log i target-repot, och konstaterade att commit redan fanns på main. Skrev report.md och questions.md direkt utan delegering. Enda delegering var till Historian som sista steg.
+**Effekt:** Snabbaste möjliga resume-flöde — ~10 tool-anrop istället för 30+ vid Review+Merge-pipeline. Visar att Manager kan kortslutas till ren verifieringsagent när all implementation och merge redan är klar. Eliminerar onödig Reviewer- och Merger-overhead.
+**Keywords:** manager, resume, no-op, verifiering, delegering, effektivitet, solo
+**Relaterat:** patterns.md#Resume-körning hoppar direkt till Review+Merge, patterns.md#Merger NO-OP-detektion vid redan mergade ändringar
+**Körningar:** #?
+**Senast bekräftad:** okänd
+
+---
+
+## Merger som commit-message-korrigent vid avvikelse
+**Kontext:** Körning 20260224-0812-neuron-hq — Implementer skrev eget commit-meddelande som avvek från briefens specifikation
+**Lösning:** Merger läste briefens exakta commit-meddelande (`feat: improve tester failure reporting with stack traces and file locations`) och använde det vid `git commit` till target-repot, istället för Implementers workspace-commit-meddelande (`feat: improve Tester agent failure reporting with structured trace details`). Tvåfas-mergen (workspace-commit → target-commit) ger Merger möjlighet att korrigera metadata utan att ändra koden.
+**Effekt:** Slutresultatet i target-repot matchar briefens specifikation trots att Implementer avvek. Visar att Merger inte bara är en kopiator utan en aktiv kvalitetsbarriär som kan rätta till avvikelser i metadata (commit-meddelande, filval, etc.) innan merge.
+**Keywords:** merger, commit-message, kvalitetsbarriär, tvåfas-merge, brief-compliance
+**Relaterat:** patterns.md#Tvåfas-Merger (PLAN/EXECUTE via answers.md)
+**Körningar:** #?
+**Senast bekräftad:** okänd
+
+---
+
+## Memory-producer → memory-consumer-koppling via prompt-instruktioner
+**Kontext:** Körning #26 — techniques.md hade 30+ entries men ingen agent läste dem. Researcher genererade idéer utan att ta del av den samlade forskningen. Briefen beskrev det som "ett bibliotek ingen lånar ur".
+**Lösning:** Lade till steg 1b i `prompts/researcher.md` som instruerar Researcher att läsa `memory/techniques.md` via `read_memory_file(file="techniques")` innan webbaserad sökning, och citera relevanta paper i ideas.md via ett nytt `Research support`-fält. Prompt-lint-test vaktar att instruktionen kvarstår.
+**Effekt:** Stänger den sista länken i kedjan Librarian → techniques.md → Researcher → ideas.md. Forskning som Librarian samlar in kan nu direkt påverka Researchers förslag istället för att ligga oanvänd. Principen generaliserar: varje minnesfil behöver minst en explicit konsument i en agents prompt, annars ackumuleras data utan nytta.
+**Keywords:** memory, techniques.md, researcher, librarian, feedback-loop, prompt-koppling, consumer-producer
+**Relaterat:** patterns.md#Self-hosting: svärmen fixar sina egna dokumenterade fel, patterns.md#Explicita strukturinvarianter i memory/invariants.md
+**Körningar:** #?
+**Senast bekräftad:** okänd
 
 ---

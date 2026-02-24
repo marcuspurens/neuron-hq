@@ -29,4 +29,8 @@ describe('historian.md — critical instructions', () => {
     const modified = prompt.replaceAll('grep_audit', 'REMOVED');
     expect(modified).not.toMatch(/grep_audit/);
   });
+
+  it('includes Senast bekräftad in pattern entry format', () => {
+    expect(prompt).toMatch(/Senast bekräftad/);
+  });
 });
