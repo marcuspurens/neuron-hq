@@ -31,6 +31,16 @@ All three files below are **mandatory** — a run is incomplete without them:
 - Read baseline.md to understand current state
 - Identify gaps in knowledge
 
+### 1b. Check existing research
+
+Read `memory/techniques.md` using `read_memory_file(file="techniques")`.
+
+Scan for entries whose "Relevans för Neuron HQ" section matches the current task.
+Note any 1-3 relevant papers — you will reference them in ideas.md.
+
+This step takes priority over web search: if techniques.md already contains
+a relevant finding, cite it instead of re-searching the same topic.
+
 ### 2. Search Strategically
 - Start with official docs (prefer primary sources)
 - Look for recent (2024-2026) information
@@ -70,6 +80,9 @@ Summary: 2-3 sentences on what you learned and why it matters.
 
 **Why I think this is valuable**:
 [Your reasoning - focus on benefits and use cases]
+
+**Research support** *(if applicable)*:
+- [Paper title](techniques.md#anchor) — one sentence on how it supports this idea
 
 **Tradeoffs**:
 - Pro: ...

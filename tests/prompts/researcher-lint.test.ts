@@ -30,6 +30,15 @@ describe('researcher.md — critical instructions', () => {
     expect(prompt).toMatch(/mandatory|MANDATORY/);
   });
 
+  it('instructs to check techniques.md for existing research', () => {
+    expect(prompt).toMatch(/read_memory_file\(file="techniques"\)/);
+    expect(prompt).toMatch(/techniques\.md/);
+  });
+
+  it('includes Research support field in ideas format', () => {
+    expect(prompt).toMatch(/\*\*Research support\*\*/);
+  });
+
   it('regression guard: test would fail if critical keyword removed', () => {
     const modified = prompt.replaceAll('ideas.md', 'REMOVED');
     expect(modified).not.toMatch(/ideas\.md/);
