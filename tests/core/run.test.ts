@@ -5,6 +5,7 @@ import os from 'os';
 import { countMemoryRuns, RunOrchestrator, COPY_SKIP_DIRS, type RunContext } from '../../src/core/run.js';
 import { GitOperations } from '../../src/core/git.js';
 import { PolicyEnforcer } from '../../src/core/policy.js';
+import { type RunConfig, type RunId, type StoplightStatus } from '../../src/core/types.js';
 
 const mockPolicy = { getLimits: () => ({ verification_timeout_seconds: 30 }) } as unknown as PolicyEnforcer;
 
@@ -214,5 +215,114 @@ describe('COPY_SKIP_DIRS', () => {
     expect(COPY_SKIP_DIRS.has('workspaces')).toBe(true);
     expect(COPY_SKIP_DIRS.has('runs')).toBe(true);
     expect(COPY_SKIP_DIRS.has('.venv')).toBe(true);
+  });
+});
+
+describe('RunOrchestrator.initRun', () => {
+  const tmpDirs: string[] = [];
+
+  afterEach(async () => {
+    for (const dir of tmpDirs) {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+    tmpDirs.length = 0;
+  });
+
+  async function setup() {
+    const baseDir = await fs.mkdtemp(path.join(os.tmpdir(), 'neuron-run-test-'));
+    tmpDirs.push(baseDir);
+    const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), 'neuron-source-'));
+    tmpDirs.push(sourceDir);
+    await fs.writeFile(path.join(sourceDir, 'README.md'), '# test source');
+    const briefFile = path.join(baseDir, 'brief.md');
+    await fs.writeFile(briefFile, '# Test Brief\n\nTest content.');
+
+    const orch = new RunOrchestrator(baseDir, mockPolicy);
+    const runid = '20260101-0000-test' as RunId;
+    const config: RunConfig = {
+      runid,
+      target: { name: 'test-target', path: sourceDir, default_branch: 'main' },
+      hours: 1,
+      brief_path: briefFile,
+    };
+    const ctx = await orch.initRun(config);
+    return { baseDir, ctx, runid };
+  }
+
+  it('creates workspace directory at correct path', async () => {
+    const { baseDir, ctx, runid } = await setup();
+    expect(ctx.workspaceDir).toBe(path.join(baseDir, 'workspaces', runid, 'test-target'));
+    await fs.access(ctx.workspaceDir);
+  });
+
+  it('creates run directory at correct path', async () => {
+    const { baseDir, ctx, runid } = await setup();
+    expect(ctx.runDir).toBe(path.join(baseDir, 'runs', runid));
+    await fs.access(ctx.runDir);
+  });
+
+  it('sets endTime to approximately hours from now', async () => {
+    const { ctx } = await setup();
+    const diff = Math.abs(ctx.endTime.getTime() - (Date.now() + 1 * 3600_000));
+    expect(diff).toBeLessThan(5000);
+  });
+});
+
+describe('RunOrchestrator.finalizeRun', () => {
+  const tmpDirs: string[] = [];
+
+  afterEach(async () => {
+    for (const dir of tmpDirs) {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+    tmpDirs.length = 0;
+  });
+
+  async function setup() {
+    const baseDir = await fs.mkdtemp(path.join(os.tmpdir(), 'neuron-run-test-'));
+    tmpDirs.push(baseDir);
+    const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), 'neuron-source-'));
+    tmpDirs.push(sourceDir);
+    await fs.writeFile(path.join(sourceDir, 'README.md'), '# test source');
+    const briefFile = path.join(baseDir, 'brief.md');
+    await fs.writeFile(briefFile, '# Test Brief\n\nTest content.');
+
+    const orch = new RunOrchestrator(baseDir, mockPolicy);
+    const runid = '20260101-0000-test' as RunId;
+    const config: RunConfig = {
+      runid,
+      target: { name: 'test-target', path: sourceDir, default_branch: 'main' },
+      hours: 1,
+      brief_path: briefFile,
+    };
+    const ctx = await orch.initRun(config);
+    return { orch, ctx };
+  }
+
+  const stoplight: StoplightStatus = {
+    baseline_verify: 'PASS',
+    after_change_verify: 'PASS',
+    diff_size: 'OK',
+    risk: 'LOW',
+    artifacts: 'COMPLETE',
+  };
+
+  it('writes report.md to runDir', async () => {
+    const { orch, ctx } = await setup();
+    await orch.finalizeRun(ctx, stoplight, '# Test Report');
+    const content = await fs.readFile(path.join(ctx.runDir, 'report.md'), 'utf-8');
+    expect(content).toContain('# Test Report');
+  });
+
+  it('writes usage.json to runDir', async () => {
+    const { orch, ctx } = await setup();
+    await orch.finalizeRun(ctx, stoplight, '');
+    await fs.access(path.join(ctx.runDir, 'usage.json'));
+  });
+
+  it('writes redaction_report.md to runDir', async () => {
+    const { orch, ctx } = await setup();
+    await orch.finalizeRun(ctx, stoplight, '');
+    await fs.access(path.join(ctx.runDir, 'redaction_report.md'));
   });
 });
