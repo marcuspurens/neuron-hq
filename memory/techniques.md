@@ -249,3 +249,173 @@ Uppdateras av Librarian-agenten.
 **Relevans för Neuron HQ:** Direkt relevant för vår Manager → Researcher/Implementer-pipeline som kan kräva många iterationer. DeepMiners sliding window-strategi (utan extern sammanfattning) kunde tillämpas för att låta agenter arbeta i fler steg utan att tappa tidigare kontext. Speciellt användbart för Implementer som itererar med Tester/Reviewer i många rundor.
 
 ---
+
+## MIRA: Memory-Integrated Reinforcement Learning Agent with Limited LLM Guidance (2026)
+**Källa:** arxiv:2602.17930 | Narjes Nourzad et al.
+**Kärna:** MIRA bygger en strukturerad, evolverande minnesgraf som lagrar beslutsrelevant information — trajektorsegment och delmålstrukturer — från både agentens högavkastande erfarenheter och LLM-utdata. Istället för kontinuerlig LLM-supervision amortiseras LLM-frågor till ett persistent minne. Minnesgrafen genererar en utility-signal som mjukt justerar advantage estimation i RL-policyn utan att modifiera belöningsfunktionen. Utility-termen avtar gradvis när agentens policy överträffar LLM-priorerna.
+**Nyckelresultat:** Presterar jämförbart med metoder som kräver frekvent LLM-supervision, men med väsentligt färre online LLM-frågor. Publicerad på ICLR 2026.
+**Relevans för Neuron HQ:** Principen att amortisera LLM-vägledning till persistent minne är direkt tillämpbar — istället för att varje agent ständigt frågar Manager kan framgångsrika mönster lagras i patterns.md och gradvis ersätta behovet av direkt koordinering. Decay-mekanismen är intressant: äldre mönster bör förlora inflytande efterhand, liknande Live-Evo-konceptet.
+**Keywords:** memory, reinforcement-learning, LLM-guidance, utility-shaping, agent
+**Relaterat:** techniques.md#Live-Evo, techniques.md#TAME
+
+---
+
+## SWE-AGI: Benchmarking Specification-Driven Software Construction with MoonBit (2026)
+**Källa:** arxiv:2602.09447 | Zhirui Zhang et al.
+**Kärna:** SWE-AGI är ett open source-benchmark som testar LLM-agenters förmåga att bygga produktionsskala-mjukvara (1 000–10 000 rader kärnlogik) från explicita specifikationer och RFC:er under ett fast API-skelett. Genom att använda det nya MoonBit-ekosystemet minimeras dataläckage, vilket tvingar agenter att förlita sig på långsiktig arkitektonisk planering istället för kodåterkallelse. Uppgifterna inkluderar parsers, interpreters, binäravkodare och SAT-lösare.
+**Nyckelresultat:** Bästa modellen (gpt-5.3-codex) löser 86.4% av uppgifterna, men prestandan sjunker kraftigt med ökande svårighetsgrad. Viktig insikt: kodläsning, inte skrivning, blir den dominerande flaskhalsen när kodbasen växer.
+**Relevans för Neuron HQ:** Insikten att kodläsning dominerar över kodskrivning vid större kodbaser bekräftar att vår Researcher-agent (som utforskar och förstår kodbaser) är minst lika kritisk som Implementer-agenten. Motiverar investering i bättre kodnavigering och förståelseverktyg för Researcher.
+**Keywords:** benchmark, specification-driven, autonomous-coding, code-reading, agent
+**Relaterat:** techniques.md#LongCodeBench, techniques.md#Excalibur
+
+---
+
+## Agyn: A Multi-Agent System for Team-Based Autonomous Software Engineering (2026)
+**Källa:** arxiv:2602.01465 | Nikita Benkovich et al.
+**Kärna:** Agyn modellerar explicit mjukvaruutveckling som en organisatorisk process genom att replikera strukturen hos ett ingenjörsteam. Specialiserade agenter tilldelas roller (koordinering, research, implementation, review), ges isolerade sandboxar för experiment, och kommunicerar genom strukturerade protokoll. Systemet följer en definierad utvecklingsmetodik — analys, uppgiftsspecifikation, pull request-skapande, och iterativ review — helt utan mänsklig intervention.
+**Nyckelresultat:** 72.2% på SWE-bench 500, överträffar single-agent-baslinjer med jämförbara språkmodeller. Designat för verklig produktionsanvändning, inte specifikt tunat för SWE-bench.
+**Relevans för Neuron HQ:** Extremt relevant — Agyn validerar exakt vår arkitekturfilosofi med Manager → Researcher/Implementer/Reviewer/Tester-pipeline. Deras isolerade sandboxar per agent och strukturerade kommunikationsprotokoll är features vi bör överväga att implementera. Att de uppnår 72.2% utan SWE-bench-tuning bekräftar att organisatorisk design kan vara lika viktig som modellförbättringar.
+**Keywords:** multi-agent, team-structure, autonomous-coding, sandboxes, SWE-bench, agent
+**Relaterat:** techniques.md#Wink, techniques.md#AgentSys, patterns.md
+
+---
+
+## Multi-Agent LLM Committees for Autonomous Software Beta Testing (2025)
+**Källa:** arxiv:2512.21352 | Sumanth Bharadwaj Hachalli Karanam et al.
+**Kärna:** Ett multi-agent kommittéramverk där diverse visions-aktiverade LLMs samarbetar genom ett tre-rundors röstningsprotokoll för att nå konsensus om testningsåtgärder. Ramverket kombinerar modellmångfald, persona-driven beteendevariation och visuell UI-förståelse för att systematiskt utforska webbapplikationer. Agenter med olika personas röstar om nästa åtgärd, och majoritetsbeslutet exekveras.
+**Nyckelresultat:** 89.5% total framgångsrate för testningsuppgifter. Konfigurationer med 2–4 agenter uppnår 91.7–100% framgång vs 78% för single-agent. F1-score 0.91 för buggdetektering (vs 0.78 single-agent). Medianlatens 0.71 sekunder per åtgärd möjliggör CI/CD-integration.
+**Relevans för Neuron HQ:** Röstningsprotokollet kan stärka vår Reviewer/Tester-pipeline — istället för en enda Reviewer kunde multipla Reviewer-agenter med olika "personas" (säkerhet, prestanda, kodkvalitet) rösta om godkännande. Modellmångfald (olika LLMs) ger robustare bedömningar. Open source-implementationen gör det direkt testbart.
+**Keywords:** multi-agent, testing, voting-protocol, persona, consensus, CI/CD, agent
+**Relaterat:** techniques.md#Wink, techniques.md#AgenticSCR, techniques.md#Agyn
+
+---
+
+## Gradual Forgetting: Logarithmic Compression for Extending Transformer Context Windows (2025)
+**Källa:** arxiv:2510.22109 | Billy Dickson et al.
+**Kärna:** Introducerar en input-nivå logaritmisk kompression inspirerad av kognitiva modeller av mänskligt minne. Istället för att modifiera transformerarkitekturen (med rekurrens eller hjälpminnesmoduler) komprimeras input-tokens med en skalinvariant logaritmisk funktion — äldre tokens komprimeras mer aggressivt medan nyliga tokens behåller full upplösning. Den resulterande komprimerade representationen bearbetas av en standard, omodifierad transformer.
+**Nyckelresultat:** Reducerar perplexitet jämfört med okomprimerade baslinjer på WikiText-103 och PG-19. Prestandan förbättras konsekvent med längre komprimerade temporala kontexter, vilket visar att kompressionen effektivt utökar transformerns långsiktsminne utan arkitekturändringar.
+**Relevans för Neuron HQ:** Direkt tillämpbar princip för hur Historian-agenten lagrar och komprimerar minnesinnehåll — äldre runs och patterns kunde komprimeras logaritmiskt (mer sammanfattade) medan nyliga händelser behåller full detalj. Detta matchar mänsklig intuition om att nyliga erfarenheter bör vara mer detaljerade än gamla. Komplementerar DeepMiners sliding window-approach med en mer gradvis kompression.
+**Keywords:** context-window, compression, logarithmic, memory, transformer, input-level
+**Relaterat:** techniques.md#DeepMiner, techniques.md#SWAA, techniques.md#MECW
+
+---
+
+## Glyph: Scaling Context Windows via Visual-Text Compression (2025)
+**Källa:** arxiv:2510.17800 | Jiale Cheng et al.
+**Kärna:** Glyph angriper kontextfönsterproblemet från ett visuellt perspektiv — istället för att förlänga token-baserade sekvenser renderas lång text till bilder som bearbetas av vision-language-modeller (VLMs). Textinput komprimeras substantiellt medan semantisk information bevaras. En LLM-driven genetisk sökning identifierar optimala visuella renderingskonfigurationer som balanserar noggrannhet och kompression.
+**Nyckelresultat:** Uppnår 3–4x tokenkompression med bibehållen noggrannhet jämförbar med ledande LLMs som Qwen3-8B på long-context-benchmarks. Ger ~4x snabbare prefilling och decoding, ~2x snabbare SFT-träning. Under extrem kompression kan en 128K-kontext VLM hantera 1M-token-uppgifter.
+**Relevans för Neuron HQ:** Okonventionell men intressant approach — om våra minnesfiler växer avsevärt kunde kritisk kontext (kodstrukturer, arkitekturdiagram) potentiellt representeras visuellt för att komprimera token-användning. Mer praktiskt som en framtida övervägning om multimodala modeller integreras. Huvudinsikten är att alternativa representationsformat kan vara radikalt mer tokeneffektiva.
+**Keywords:** context-window, visual-compression, VLM, token-efficiency, rendering
+**Relaterat:** techniques.md#MECW, techniques.md#LongCodeBench, techniques.md#SWAA
+
+---
+
+## Positional Biases Shift as Inputs Approach Context Window Limits (2025)
+**Källa:** arxiv:2508.07479 | Blerta Veseli et al.
+**Kärna:** Systematisk analys av positionella bias i LLMs relativt kontextfönstrets storlek. Visar att "Lost in the Middle" (LiM)-effekten — där modeller presterar sämst på information i mitten av inputen — är starkast när input upptar ≤50% av kontextfönstret. Bortom 50% försvagas primacy bias medan recency bias förblir stabil, vilket eliminerar LiM-effekten och ersätter den med en avståndsbaserad bias där information nära slutet av input gynnas. Framgångsrik retrieval är en förutsättning för resonemang, och resoneringsbiaser ärvs från retrieval-biaser.
+**Nyckelresultat:** LiM-effekten försvinner vid >50% kontextfyllnad. Recency bias dominerar vid hög kontextfyllnad. Positionella biaser skiftar baserat på relativ (inte absolut) kontextlängd — implikationen är att resultaten beror på hur mycket av kontextfönstret som faktiskt används.
+**Relevans för Neuron HQ:** Kritisk operativ insikt för alla våra agenter. När Researcher eller Implementer får stora kontexter bör den viktigaste informationen (uppgiftsbeskrivning, relevanta mönster) placeras i slutet av prompten, inte i mitten. Manager-agenten bör strukturera kontext så att kritisk information inte hamnar i "döda zonen". Dessutom bör agenter helst inte fylla mer än ~50% av sitt kontextfönster för att minimera positionella bias-effekter.
+**Keywords:** context-window, positional-bias, lost-in-middle, recency-bias, prompt-engineering, retrieval
+**Relaterat:** techniques.md#MECW, techniques.md#LongCodeBench, techniques.md#DeepMiner
+
+---
+
+## Fault-Tolerant Sandboxing for AI Coding Agents: A Transactional Approach to Safe Autonomous Execution (2025)
+**Källa:** arxiv:2512.12806 | Boyang Yan
+**Kärna:** Presenterar ett Fault-Tolerant Sandboxing-ramverk som wrapprar agentåtgärder i atomära transaktioner med en policy-baserad intercepteringslager och ett transaktionellt filsystem-snapshot-mekanism. Istället för containerisering (tung initiering) eller interaktiva CLI-sandboxar (kräver autentisering som bryter headless-loopar) intercepterar systemet högriskkommandon via policy-regler och möjliggör rollback av misslyckade tillståndsändringar. Validerat med Minimind-MoE LLM servad via nano-vllm på en Proxmox-baserad testmiljö med EVPN/VXLAN-isolering.
+**Nyckelresultat:** 100% intercepteringsgrad för högriskkommandon och 100% framgångsgrad för rollback av misslyckade tillstånd, med bara 14.5% prestandaöverhead (~1.8s) per transaktion. Kommersiella sandboxar (t.ex. Gemini CLI) kräver interaktiv autentisering som gör dem oanvändbara för headless autonoma agentworkflows.
+**Relevans för Neuron HQ:** Direkt applicerbart på vår Implementer-agent som exekverar kommandon. Transaktionella filsystem-snapshots ger oss möjlighet att tryggt låta agenten köra kommandon med automatisk rollback om något går fel — eliminerar behovet av manuell intervention vid destruktiva misstag. Policy-baserad interceptering kompletterar AgentSys-liknande säkerhetsisolering och Wink-liknande övervakning.
+**Keywords:** sandbox, fault-tolerance, transactional, rollback, safety, autonomous-coding, agent
+**Relaterat:** techniques.md#AgentSys, techniques.md#Wink, techniques.md#Agyn
+
+---
+
+## PARC: An Autonomous Self-Reflective Coding Agent for Robust Execution of Long-Horizon Tasks (2025)
+**Källa:** arxiv:2512.03549 | Yuki Orimo et al.
+**Kärna:** PARC bygger på en hierarkisk multi-agent-arkitektur med tre kärnkomponenter: task planning, execution, och self-assessment/self-feedback. Det unika är att self-assessment sker från en oberoende kontext — inte samma kontext som utförde arbetet — vilket ger agenten förmåga att upptäcka och korrigera högnivå-strategiska fel. Systemet koordinerar dussintals parallella simuleringsuppgifter (var och en ~43 timmar beräkning) med end-to-end-orkestrering, övervakning och felkorrigering utan mänsklig intervention.
+**Nyckelresultat:** Autonomt reproducerar nyckelresultat från materialvetenskapliga studier (litium-jonledning, legeringssegregation) och producerar konkurrenskraftiga lösningar på Kaggle-uppgifter utgående från minimala naturligt-språk-instruktioner. Hanterar långhorisontsuppgifter med dussintals parallella beräkningar.
+**Relevans för Neuron HQ:** Self-assessment från oberoende kontext är en princip vi direkt kan tillämpa — vår Reviewer-agent bör granska kod utan att ärva Implementer-agentens kontext och bias. PARCs förmåga att koordinera parallella uppgifter med automatisk felkorrigering är relevant för framtida skalning av vår swarm till flera samtidiga implementeringsuppgifter. Kompletterar Excaliburs svårighetsmedvetna planering med robust långhorisont-exekvering.
+**Keywords:** self-reflection, hierarchical, multi-agent, long-horizon, autonomous-coding, parallel-execution, agent
+**Relaterat:** techniques.md#Excalibur, techniques.md#Agyn, techniques.md#Wink, techniques.md#NEMO
+
+---
+
+## Skill-Inject: Measuring Agent Vulnerability to Skill File Attacks (2026)
+**Källa:** arxiv:2602.20156 | David Schmotz et al.
+**Kärna:** Skill-Inject är ett benchmark med 202 injection-task-par som utvärderar LLM-agenters mottaglighet för prompt injection genom skill-filer — den växande abstraktionen som låter tredjepartskod utöka agentfunktionalitet. Attackerna spänner från uppenbart skadliga injektioner till subtila, kontextberoende attacker gömda i annars legitima instruktioner. Till skillnad från SkillJect (som fokuserar på att syntetisera attacker) fokuserar Skill-Inject på systematisk mätning och benchmarking av sårbarheten.
+**Nyckelresultat:** Upp till 80% attack success rate med frontier-modeller, inklusive dataexfiltrering, destruktiva åtgärder och ransomware-liknande beteenden. Problemet löses inte av modellskalning eller enkel input-filtrering — kräver kontextmedvetna auktoriseringsramverk.
+**Relevans för Neuron HQ:** Kompletterar vår befintliga SkillJect-post med kvantitativa sårbarhetsdata. 80% attack success rate understryker att alla externa verktyg, beroenden och instruktioner som våra agenter (speciellt Implementer/Researcher) använder utgör aktiva attackytor. Benchmarket kan användas för att testa säkerhetsförbättringar i vår swarm, t.ex. AgentSys-liknande minnesisolering.
+**Keywords:** security, prompt-injection, skill-files, benchmark, agent-vulnerability
+**Relaterat:** techniques.md#SkillJect, techniques.md#AgentSys, techniques.md#Fault-Tolerant-Sandboxing
+
+---
+
+## AMEM4Rec: Cross-User Memory Evolution for Agentic LLM Recommenders (2026)
+**Källa:** arxiv:2602.08837 | Minh-Duc Nguyen et al.
+**Kärna:** AMEM4Rec lagrar abstrakta användarbeteendemönster i en global minnespool där minnen länkas till liknande befintliga minnen och iterativt evolveras för att förstärka delade mönster över användare. Detta gör systemet medvetet om collaborative filtering-signaler utan en förtränad CF-modell — minnen korsbefruktrar varandra genom länkning och evolution istället för att isoleras per användare.
+**Nyckelresultat:** Konsekvent överträffar state-of-the-art LLM-baserade rekommendationssystem på Amazon och MIND datasets, med bättre precision genom minnesevolution som fångar implicita preferenser.
+**Relevans för Neuron HQ:** Principen att länka och evolvera minnen *mellan* sessioner/projekt är applicerbar på vårt system. Istället för att varje körning har isolerade minnesanteckningar i runs.md kunde patterns.md fungera som en "global minnespool" där mönster från olika projekt automatiskt länkas och förstärks — en konceptuell vidareutveckling av A-MEM:s Zettelkasten-princip. Minnesevolution genom korsbefruktning mellan projekt kan avslöja generaliserbara mönster.
+**Keywords:** memory-evolution, cross-session, collaborative-filtering, pattern-linking, agent
+**Relaterat:** techniques.md#A-MEM, techniques.md#Live-Evo, techniques.md#xMemory
+
+---
+
+## Agentic AI for Autonomous Defense in Software Supply Chain Security (2025)
+**Källa:** arxiv:2512.23480 | Toqeer Ali Syed et al.
+**Kärna:** Ramverk som kombinerar LLM-baserat resonemang, reinforcement learning och multi-agent-koordinering för proaktiv säkerhet i mjukvaruförsörjningskedjan. Specialiserade säkerhetsagenter koordinerade via LangChain/LangGraph kommunicerar med CI/CD-miljöer genom Model Context Protocol (MCP), och alla observationer och åtgärder dokumenteras i en blockchain-baserad säkerhetslogg. RL-agenter balanserar säkerhetseffektivitet mot operationell overhead, medan LLMs ger semantisk sårbarhetsanalys och förklarbara beslut.
+**Nyckelresultat:** Bättre detektionsnoggrannhet, kortare åtgärdslatens och rimlig build-time-overhead jämfört med regelbaserade, provenance-only och RL-only baslinjer. Testad på GitHub Actions och Jenkins mot injection-attacker, osäker deserialisering, åtkomstkontrollbrott och konfigurationsfel.
+**Relevans för Neuron HQ:** Relevant som en blueprint för att integrera säkerhetsövervakning direkt i vår CI/CD-pipeline. MCP-integrationen med CI/CD är en mönsterarkitektur vi kan återanvända. Den blockchain-baserade auditloggen är överkill för oss, men principen att logga alla agentåtgärder med integritetsskydd (t.ex. signerade runs.md-poster) stärker spårbarheten i vår swarm. Kompletterar AgentSys (isolering) och AgenticSCR (kodgranskning) med pipeline-nivå-försvar.
+**Keywords:** supply-chain-security, CI/CD, multi-agent, MCP, reinforcement-learning, agent
+**Relaterat:** techniques.md#AgentSys, techniques.md#AgenticSCR, techniques.md#SkillJect, techniques.md#Skill-Inject
+
+---
+
+## TraceCoder: Trace-Driven Multi-Agent Framework for Automated Debugging (2026)
+**Källa:** arxiv:2602.06875 | Jiangping Huang et al.
+**Kärna:** TraceCoder emulerar experters observe-analyze-repair-process genom tre samarbetande agenter. Först instrumenteras koden med diagnostiska sonder som fångar finmaskiga runtime-traces, sedan utförs kausal analys för att identifiera grundorsaken till felet. En Historical Lesson Learning Mechanism (HLLM) destillerar insikter från tidigare misslyckade reparationsförsök för att informera efterföljande korrigeringsstrategier och förhindra upprepning av liknande misstag. En Rollback-mekanism säkerställer att varje reparationsiteration utgör en strikt förbättring.
+**Nyckelresultat:** Upp till 34.43% relativ förbättring i Pass@1-noggrannhet jämfört med avancerade baslinjer. Den iterativa reparationsprocessen ensam bidrar med 65.61% relativ förbättring. Signifikant bättre i både noggrannhet och kostnadseffektivitet.
+**Relevans för Neuron HQ:** Direkt applicerbart på vår Tester → Implementer-loop. HLLM-mekanismen (lärande från tidigare misslyckanden) matchar exakt syftet med errors.md — men TraceCoder automatiserar kopplingen mellan felhistorik och reparationsstrategi. Rollback-mekanismen kompletterar Fault-Tolerant Sandboxing. Kausal analys via runtime-traces ger mer precis felidentifiering än vad vår Tester-agent gör idag med enbart pass/fail-signaler.
+**Keywords:** debugging, multi-agent, trace-analysis, historical-learning, rollback, automated-repair, agent
+**Relaterat:** techniques.md#Fault-Tolerant-Sandboxing, techniques.md#Wink, techniques.md#PARC, techniques.md#Live-Evo
+
+---
+
+## Environment-in-the-Loop: Rethinking Code Migration with LLM-based Agents (2026)
+**Källa:** arxiv:2602.09944 | Xiang Li et al.
+**Kärna:** Hävdar att kodmigration utan automatiserad miljöinteraktion bara är halvt komplett. Presenterar ett ramverksparadigm som tätt integrerar automatiserad miljöuppställning med kodmigrationsworkflow. Istället för enbart statisk analys av målmiljön integreras dynamisk miljöinteraktion — att bygga, testa och validera i den faktiska målmiljön som en del av migrationsprocessen. Identifierar att brist på automatiserad miljöinteraktion leder till långa feedback-cykler, omarbete och projektförseningar.
+**Nyckelresultat:** Översiktspaper som systematiserar fältet snarare än att rapportera enskilda metriker. Identifierar att miljöuppställning (dependency-hantering, konfiguration, kompatibilitet) är den dolda flaskhalsen i automatiserad kodmigration.
+**Relevans för Neuron HQ:** Viktigt koncept för vår Implementer-agent — att generera kod utan att validera den i den faktiska miljön (beroenden, konfigurationer, OS-specifika förhållanden) ger falsk framgång. Motiverar att integrera miljöuppställning och miljövalidering som explicita steg i vår Implementer → Tester-pipeline, inte bara kodkompilering och enhetstestning. Kompletterar ParaCodex-principen om korrekthetsgating med miljömedvetenhet.
+**Keywords:** code-migration, environment-setup, CI/CD, feedback-loop, autonomous-coding, agent
+**Relaterat:** techniques.md#ParaCodex, techniques.md#Fault-Tolerant-Sandboxing, techniques.md#Agyn
+
+---
+
+## Darwinian Memory System: Training-Free Self-Regulating Memory for GUI Agent Evolution (2026)
+**Källa:** arxiv:2601.22528 | Hongze Mi et al.
+**Kärna:** DMS behandlar agentminne som ett dynamiskt ekosystem styrt av "survival of the fittest". Komplexa trajektorier dekomponeras till oberoende, återanvändbara enheter för kompositionell flexibilitet. En Utility-driven Natural Selection-mekanism spårar varje minnesenhets "överlevnadsvärde" och prunar aktivt suboptimala vägar och hämmar högriskplaner. Evolutionärt tryck tvingar agenten att härleda överlägsna strategier utan träningskostnader eller arkitekturell overhead.
+**Nyckelresultat:** 18.0% högre framgångsrate och 33.9% bättre exekveringsstabilitet i genomsnitt på multi-app benchmarks. Minskar även uppgiftslatens. Kräver ingen träning — fungerar som plug-and-play minnessystem.
+**Relevans för Neuron HQ:** Utility-driven Natural Selection är direkt tillämpbar på hur Historian hanterar patterns.md och errors.md. Varje mönster/fel-post kunde tilldelas ett "överlevnadsvärde" baserat på hur ofta det faktiskt hjälper i framtida uppgifter. Inaktuella eller vilseledande mönster prunas automatiskt. Komplementerar Live-Evo (viktning) med en mer aggressiv strategi (borttagning). Dekomponeringen till återanvändbara enheter matchar vår ambition att göra minnesutdrag mer modulära.
+**Keywords:** memory, evolution, pruning, utility-driven, survival-of-fittest, training-free, agent
+**Relaterat:** techniques.md#Live-Evo, techniques.md#TAME, techniques.md#AMEM4Rec
+
+---
+
+## MAGNET: Memory-Driven Knowledge Evolution for Adaptive GUI Agents (2026)
+**Källa:** arxiv:2601.19199 | Libo Sun et al.
+**Kärna:** MAGNET introducerar dual-level minne för agenter som måste anpassa sig till förändrade miljöer: (1) stationary memory som kopplar varierande visuella features till stabila funktionella semantiker för robust action grounding, och (2) procedural memory som fångar stabila uppgiftsintentioner över varierande workflows. En dynamisk minnesevolutionsmekanism förfinar kontinuerligt båda minneslagren genom att prioritera frekvent åtkomstkunskap, baserat på insikten att funktionell semantik och uppgiftsintentioner förblir stabila trots ytliga UI-förändringar.
+**Nyckelresultat:** Substantiella förbättringar över baslinjer på online-benchmarket AndroidWorld och konsistenta vinster under distributionsförskjutningar på offline-benchmarks. Visar att stabila strukturer kan utnyttjas för generalisering i föränderliga miljöer.
+**Relevans för Neuron HQ:** Dual-level-principen (stabil semantik vs föränderlig yta) är applicerbar på vår kodbas. Patterns.md kunde separeras i "stabila arkitekturmönster" (stationary) och "aktuella workflow-procedurer" (procedural). När kodbasen förändras (refaktorering, nya verktyg) förblir de stabila mönstren relevanta medan procedurella minnen uppdateras. Minnesevolutionens prioritering av frekvent åtkomst kan informera vilka mönster som ska visas först vid sökning.
+**Keywords:** memory, dual-level, knowledge-evolution, distribution-shift, adaptive, agent
+**Relaterat:** techniques.md#Live-Evo, techniques.md#Darwinian-Memory-System, techniques.md#FluxMem
+
+---
+
+## How Retrieved Context Shapes Internal Representations in RAG (2026)
+**Källa:** arxiv:2602.20091 | Samuel Yeh et al.
+**Kärna:** Systematisk studie av hur hämtad kontext i RAG-system påverkar LLMs interna representationer (hidden states), inte bara output-beteende. Analyserar hur olika typer av hämtade dokument (relevanta, irrelevanta, distraktorer) skiftar hidden states lagvis genom modellen, och hur dessa interna representationsförändringar korrelerar med nedströms genereringskvalitet. Visar att kontextrelevans och lagervis bearbetning har distinkta, mätbara effekter på hur modellen integrerar extern information.
+**Nyckelresultat:** Kontextrelevans påverkar interna representationer signifikant och predikterbart över alla testade modeller och dataset. Irrelevanta dokument förskjuter representationer bort från korrekta svar, medan relevanta dokument förstärker dem. Effekten varierar kraftigt mellan modellens lager — tidiga lager är mer känsliga för kontextförändringar.
+**Relevans för Neuron HQ:** Operativ insikt för minnesdesign — när Researcher eller Implementer hämtar kontext från patterns.md/errors.md är det inte bara en fråga om "rätt information" utan att irrelevant information aktivt försämrar modellens interna resonemang. Motiverar mer precis filtrering vid minnesläsning (hellre för lite men relevant kontext än mycket men blandad), och stärker argumentet för xMemory-liknande hierarkisk hämtning. Tidiga lagers känslighet antyder att kontextordning (relevant information tidigt) spelar roll.
+**Keywords:** RAG, internal-representations, hidden-states, retrieval, context-quality, memory
+**Relaterat:** techniques.md#xMemory, techniques.md#Positional-Biases, techniques.md#MECW, techniques.md#LoCoMo-Plus
+
+---

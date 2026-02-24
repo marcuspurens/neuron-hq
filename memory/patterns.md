@@ -232,3 +232,31 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Senast bekräftad:** okänd
 
 ---
+
+**[UPPDATERING]** Mönstret "Manager-only verifiering vid redan mergade resume-körningar" bekräftades i körning 20260224-0905-neuron-hq-resume — Manager verifierade alla 7 kriterier solo utan delegering, identiskt beteende som i det dokumenterade mönstret.
+
+**Senast bekräftad:** 20260224-0905-neuron-hq-resume
+
+**[UPPDATERING]** Mönstret "Meta-test (coverage.test.ts) som vaktar prompt-lint-täckning" bekräftades i körning 20260224-0948-neuron-hq — Implementer uppdaterade coverage.test.ts-trösklar (7→8 promptfiler, 7→8 lint-testfiler) proaktivt för att den nya `brief-agent.md` + `brief-agent-lint.test.ts` inte skulle bryta meta-testet. Visar att coverage-guardrail fungerar som avsett vid ny agent-tillägg.
+
+**Senast bekräftad:** 20260224-0948-neuron-hq
+
+**[UPPDATERING]** Mönstret "Manager-only verifiering vid redan mergade resume-körningar" bekräftades i körning 20260224-1211-neuron-hq-resume — tredje bekräftelsen. Manager verifierade alla 8 kriterier solo (läste filer, körde npm test 313 passed, tsc 0 errors, kontrollerade git log) utan att delegera till Reviewer/Merger. Identiskt beteende som i de två tidigare bekräftelserna.
+
+**Senast bekräftad:** 20260224-1211-neuron-hq-resume
+
+**[UPPDATERING]** Mönstret "Exakt feloutput + fixförslag i brief ger kirurgiska leveranser" bekräftades i körning 20260224-1225-neuron-hq — briefen innehöll exakta TypeScript-funktionssignaturer (`countCompletedRuns`, `maybeInjectMetaTrigger`) med komplett kodsnutt som Implementer kunde integrera direkt. 6/6 kriterier uppfyllda utan iteration.
+
+**Senast bekräftad:** 20260224-1225-neuron-hq
+
+**[UPPDATERING]** Mönstret "Merger NO-OP-detektion vid redan mergade ändringar" bekräftades i körning 20260224-1253-neuron-hq-resume — Merger jämförde workspace och target med `diff`, detekterade byte-identiska filer i `src/core/run.ts` och `tests/core/run.test.ts`, och rapporterade NO-OP utan ny commit. Identiskt beteende som i det dokumenterade mönstret.
+
+**Senast bekräftad:** 20260224-1253-neuron-hq-resume
+
+**[UPPDATERING]** Mönstret "Tvåfas-Merger (PLAN/EXECUTE via answers.md)" bekräftades i körning 20260224-2155-aurora-swarm-lab — Merger skrev merge_plan.md, Manager skrev answers.md med APPROVED, sedan genomförde Merger merge med 5 filer till commit 32c2670. Standardflödet fungerade utan problem.
+
+**Senast bekräftad:** 20260224-2155-aurora-swarm-lab
+
+**[UPPDATERING]** Mönstret "Reviewer git-stash baseline-jämförelse" bekräftades i körning 20260224-2155-aurora-swarm-lab — Reviewer körde baseline verify (91 mypy errors, 190 tests pass) → after-change verify (92 mypy errors, 197 tests pass) och konstaterade att mypy-regressionen var trivial (+1 test fixture type hint). Stoplight-formatet gav tydlig överblick.
+
+**Senast bekräftad:** 20260224-2155-aurora-swarm-lab

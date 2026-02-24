@@ -160,3 +160,58 @@ Appendas av Historian-agenten när problem identifieras.
 **Relaterat:** errors.md#Brief med inaktuella ruff-fel
 
 ---
+
+## Implementer committade bara testfil, inte implementeringsfiler
+**Session:** 20260223-0927-neuron-hq
+**Symptom:** Efter att Implementer körde `git add tests/agents/historian.test.ts && git commit`, låg `src/core/agents/historian.ts` och `prompts/historian.md` kvar som unstaged ändringar — bara testfilen committades
+**Orsak:** Implementer körde `git add` på enbart testfilen (den senast redigerade) utan att inkludera de andra ändrade filerna. Troligen en följd av att Implementer delegerades i två omgångar — första omgången modifierade historian.ts och historian.md, andra omgången modifierade testerna och committade bara sitt eget arbete.
+**Lösning:** Implementer bör alltid köra `git status` före commit för att verifiera att ALLA ändrade filer inkluderas. Alternativt: `git add -A` eller explicit `git add` med alla tre filnamn. Reviewer fångade problemet och Merger inkluderade alla filer i den slutliga commiten.
+**Status:** ✅ Löst — Merger inkluderade alla 3 filer i commit 167e598
+**Keywords:** implementer, git-commit, partiell-commit, unstaged
+**Relaterat:** errors.md#Implementer glömde git commit efter lyckade fixar
+
+---
+
+## Librarian auto-trigger ignorerades av Manager
+**Session:** 20260223-1117-neuron-hq
+**Symptom:** Briefen specificerade `⚡ Auto-trigger: Librarian (körning #15 — var 5:e körning)` men Manager delegerade aldrig till Librarian. Audit.jsonl visar delegationer till Implementer, Tester, Reviewer, Merger och Historian — men ingen `delegate_to_librarian`.
+**Orsak:** Manager-prompten har troligen inget stöd för att tolka auto-trigger-instruktioner i briefen. Manager fokuserar på den linjära pipeline-kedjan (Researcher → Implementer → Tester → Reviewer → Merger → Historian) och plockar inte upp extra delegationer som anges i briefens noteringar.
+**Lösning:** Antingen (1) lägg till explicit stöd i Manager-prompten för `⚡ Auto-trigger`-sektioner i briefen, eller (2) gör Librarian-triggern till en egen numrerad uppgift i briefen (t.ex. "Uppgift 6 — Librarian: Sök arxiv") istället för en notering i slutet, eller (3) bygg in auto-trigger-logik i orchestratorn baserat på körningsnummer.
+**Status:** ✅ Löst — I körning #16 visade det sig att Librarian faktiskt körde i #15 (audit.jsonl bekräftar), men Historian sökte i audit.jsonl för tidigt (innan Librarian hade delegerats). Grundorsaken var att manager.md instruerade Historian att köra FÖRE Librarian. Fixat genom att ändra delegationsordning i manager.md (Librarian före Historian) och lägga till guardrail i historian.md (använd read_memory_file istället för grep_audit). Commit 2c80e49.
+**Keywords:** librarian, auto-trigger, manager, delegation, brief
+**Relaterat:** errors.md#Librarian smoke test producerade inga artefakter, errors.md#Manager söker Librarian-output i workspace istället för delat minne
+
+---
+
+## Merger-agentens verifieringskommandon blockeras av policy
+**Session:** 20260223-1620-neuron-hq
+**Symptom:** Merger försökte köra `diff`, `md5` och `git hash-object` på target-repot via `bash_exec` och `bash_exec_in_target` — alla 6 anrop blockerades med "BLOCKED: not in allowlist"
+**Orsak:** Merger vill verifiera att workspace-filer matchar target innan kopiering, men dessa kommandon finns inte i target-allowlisten. `diff` med absoluta sökvägar blockeras av `bash_exec`, och `md5`/`git hash-object` blockeras av `bash_exec_in_target`.
+**Lösning:** Merger bör hoppa över pre-merge-verifiering och istället verifiera post-merge via `git diff HEAD~1..HEAD` i target (som redan fungerar). Alternativt: lägg till `diff`, `md5`, `git hash-object` i target-allowlisten.
+**Status:** ✅ Löst — `diff` tillagd i `policy/bash_allowlist.txt` (commit 4dc2c33, körning #21). Workaround i `prompts/merger.md` med `wc -l`/`grep` (commit 9f68e1e, körning #20) kvarstår som fallback.
+**Keywords:** merger, BLOCKED, allowlist, policy, diff, bash_exec_in_target
+**Relaterat:**
+
+---
+
+## Upprepade NO-OP resume-körningar slösar resurser
+**Session:** 20260224-0833-neuron-hq-resume (samt 20260223-2218, 20260223-2300, 20260224-0746)
+**Symptom:** Resume-körningar startas trots att föregående körning redan har mergat allt till target. Hela körningen blir en NO-OP — ingen ny kod, inga nya filer, bara verifiering av redan existerande merge.
+**Orsak:** Orchestratorn kontrollerar inte om original-körningens merge redan lyckades innan den startar en resume. Det saknas en tidig "already merged?"-guard.
+**Lösning:** Lägg till en pre-flight check i orchestratorn: innan resume-körning startas, kör `git log --oneline -10` i target-repot och matcha mot briefens förväntade commit-meddelande. Om committen redan finns → avbryt körningen direkt med ett meddelande "Already merged in <commit>".
+**Status:** ⚠️ Identifierat
+**Keywords:** resume, NO-OP, orchestrator, merge-check, redundant, token-waste
+**Relaterat:** runs.md#Körning 20260223-2218-neuron-hq-resume, runs.md#Körning 20260223-2300-aurora-swarm-lab-resume
+
+---
+
+## Reviewer använder export PATH i bash-kommandon
+**Session:** 20260224-0948-neuron-hq
+**Symptom:** Reviewer fick 2 bash_exec-anrop blockerade med "BLOCKED: matches forbidden pattern: ^export\s+PATH=" när den försökte köra `export PATH="/opt/homebrew/opt/node@20/bin:$PATH" && npx tsc --noEmit` och liknande.
+**Orsak:** Säkerhetspolicyn förbjuder `export PATH=...` i bash-kommandon — troligen för att förhindra PATH-manipulation. Reviewer kopierade mönstret från briefens manuella testscenario som innehöll `export PATH=...`.
+**Lösning:** Reviewer (och alla agenter) bör köra kommandon direkt utan `export PATH=...`-prefix. Node-binärer finns redan i systemets PATH. Om node/npm-versioner behöver specifieras, använd absoluta sökvägar (`/opt/homebrew/opt/node@20/bin/npx ...`) istället.
+**Status:** ⚠️ Identifierat
+**Keywords:** reviewer, export-PATH, policy, BLOCKED, bash_exec, forbidden-pattern
+**Relaterat:** errors.md#Merger git commit blockerat av backtick i commit-meddelande
+
+---

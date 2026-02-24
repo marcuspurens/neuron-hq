@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-02-23T0930-session25-run12-retry-vitest-historian.md](docs/HANDOFF-2026-02-23T0930-session25-run12-retry-vitest-historian.md)
+Senaste handoff: [HANDOFF-2026-02-24T0910-session36-run25-28-klara.md](docs/HANDOFF-2026-02-24T0910-session36-run25-28-klara.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -34,5 +34,11 @@ Senaste handoff: [HANDOFF-2026-02-23T0930-session25-run12-retry-vitest-historian
 | 2026-02-23 | 09:00 | 22 | Körning #9: runDir verifierad, Librarian-sökväg, baseline-rutin | [länk](docs/HANDOFF-2026-02-23T0900-session22-run9-rundir-verified.md) |
 | 2026-02-23 | 08:30 | 23 | Körning #10: stäng falska larm + Librarian integration-test | [länk](docs/HANDOFF-2026-02-23T0830-session23-run10-false-alarms-closed.md) |
 | 2026-02-23 | 09:30 | 24+25 | Körning #11+#12: errors-hygien, API-retry, Vitest-fix, Historian update-in-place | [länk](docs/HANDOFF-2026-02-23T0930-session25-run12-retry-vitest-historian.md) |
+| 2026-02-23 | 11:15 | 26 | Körning #13: grep_audit i Historian, nästa steg neuron-hq | [länk](docs/HANDOFF-2026-02-23T1115-session26-run13-neuronhq-focus.md) |
+| 2026-02-23 | 12:35 | 27 | Körning #14: implementer-guardrails, brief #15 redo | [länk](docs/HANDOFF-2026-02-23T1235-session27-run14-prompt-stability.md) |
+| 2026-02-23 | 15:20 | 30 | Körning #18 klar + plan för invariants.md (#19) | [länk](docs/HANDOFF-2026-02-23T1520-session30-run18-invariants-plan.md) |
+| 2026-02-24 | 09:00 | 35 | GitHub-migrering + körning #24 + Aurora #10 + 4 briefs | [länk](docs/HANDOFF-2026-02-24T0900-session35-fyra-briefs-klara.md) |
+| 2026-02-24 | 09:10 | 36 | Körning #25–#28 klara — tester 292→300 | [länk](docs/HANDOFF-2026-02-24T0910-session36-run25-28-klara.md) |
+| 2026-02-24 | 13:00 | 36 | Brief Agent + META_ANALYSIS auto-trigger — tester 300→318 | [länk](docs/HANDOFF-2026-02-24T1300-session36-brief-agent-meta-trigger.md) |
 
 > **Not:** Session 1 och 6 saknas — handoffs skapades inte vid dessa tillfällen.
