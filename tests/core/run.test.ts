@@ -2,7 +2,11 @@ import { describe, it, expect, afterEach } from 'vitest';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
-import { countMemoryRuns, RunOrchestrator, type RunContext } from '../../src/core/run.js';
+import { countMemoryRuns, RunOrchestrator, COPY_SKIP_DIRS, type RunContext } from '../../src/core/run.js';
+import { GitOperations } from '../../src/core/git.js';
+import { PolicyEnforcer } from '../../src/core/policy.js';
+
+const mockPolicy = { getLimits: () => ({ verification_timeout_seconds: 30 }) } as unknown as PolicyEnforcer;
 
 describe('countMemoryRuns', () => {
   const tmpDirs: string[] = [];
@@ -111,5 +115,104 @@ describe('RunOrchestrator.getTimeRemainingMs', () => {
     const orchestrator = new RunOrchestrator();
     const ctx = { endTime: new Date(Date.now() - 1) } as RunContext;
     expect(orchestrator.getTimeRemainingMs(ctx)).toBe(0);
+  });
+});
+
+describe('RunOrchestrator.generateRunId', () => {
+  const tmpDirs: string[] = [];
+
+  afterEach(async () => {
+    for (const dir of tmpDirs) {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+    tmpDirs.length = 0;
+  });
+
+  it('returns id matching YYYYMMDD-HHMM-slug format', async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'neuron-run-test-'));
+    tmpDirs.push(tmpDir);
+    const orch = new RunOrchestrator(tmpDir, mockPolicy);
+    const id = orch.generateRunId('my-slug');
+    expect(id).toMatch(/^\d{8}-\d{4}-my-slug$/);
+  });
+
+  it('includes provided slug in run ID', async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'neuron-run-test-'));
+    tmpDirs.push(tmpDir);
+    const orch = new RunOrchestrator(tmpDir, mockPolicy);
+    const id = orch.generateRunId('custom-slug');
+    expect(id).toContain('custom-slug');
+  });
+});
+
+describe('RunOrchestrator.resumeRun', () => {
+  const tmpDirs: string[] = [];
+
+  afterEach(async () => {
+    for (const dir of tmpDirs) {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+    tmpDirs.length = 0;
+  });
+
+  it('throws descriptive error when old workspace does not exist', async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'neuron-run-test-'));
+    tmpDirs.push(tmpDir);
+    const orch = new RunOrchestrator(tmpDir, mockPolicy);
+    const oldRunId = '20260101-0000-old-run';
+    const newRunId = '20260101-0001-new-run';
+    const target = { name: 'test-target', path: '/tmp/fake', default_branch: 'main' };
+    await expect(orch.resumeRun(oldRunId, newRunId, target, 60))
+      .rejects.toThrow(/not found/);
+    await expect(orch.resumeRun(oldRunId, newRunId, target, 60))
+      .rejects.toThrow(oldRunId);
+  });
+
+  it('uses oldRunId-based workspace directory path', async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'neuron-run-test-'));
+    tmpDirs.push(tmpDir);
+    const orch = new RunOrchestrator(tmpDir, mockPolicy);
+    const oldRunId = '20260101-0000-old-run';
+    const newRunId = '20260101-0001-new-run';
+    const targetName = 'test-target';
+    const target = { name: targetName, path: '/tmp/fake', default_branch: 'main' };
+    const workspaceDir = path.join(tmpDir, 'workspaces', oldRunId, targetName);
+    await fs.mkdir(workspaceDir, { recursive: true });
+    await fs.writeFile(path.join(workspaceDir, 'README.md'), '# test');
+    await GitOperations.initWorkspace(workspaceDir, targetName);
+    await fs.mkdir(path.join(tmpDir, 'runs'), { recursive: true });
+
+    const ctx = await orch.resumeRun(oldRunId, newRunId, target, 60);
+    expect(ctx.workspaceDir).toBe(workspaceDir);
+  });
+
+  it('falls back to placeholder brief when old brief.md is missing', async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'neuron-run-test-'));
+    tmpDirs.push(tmpDir);
+    const orch = new RunOrchestrator(tmpDir, mockPolicy);
+    const oldRunId = '20260101-0000-old-run';
+    const newRunId = '20260101-0001-new-run';
+    const targetName = 'test-target';
+    const target = { name: targetName, path: '/tmp/fake', default_branch: 'main' };
+    const workspaceDir = path.join(tmpDir, 'workspaces', oldRunId, targetName);
+    await fs.mkdir(workspaceDir, { recursive: true });
+    await fs.writeFile(path.join(workspaceDir, 'README.md'), '# test');
+    await GitOperations.initWorkspace(workspaceDir, targetName);
+    await fs.mkdir(path.join(tmpDir, 'runs'), { recursive: true });
+
+    const ctx = await orch.resumeRun(oldRunId, newRunId, target, 60);
+    const briefPath = path.join(tmpDir, 'runs', ctx.runid, 'brief.md');
+    const briefContent = await fs.readFile(briefPath, 'utf-8');
+    expect(briefContent).toContain('Resumed from');
+  });
+});
+
+describe('COPY_SKIP_DIRS', () => {
+  it('contains expected skip directories', () => {
+    expect(COPY_SKIP_DIRS.has('.git')).toBe(true);
+    expect(COPY_SKIP_DIRS.has('node_modules')).toBe(true);
+    expect(COPY_SKIP_DIRS.has('workspaces')).toBe(true);
+    expect(COPY_SKIP_DIRS.has('runs')).toBe(true);
+    expect(COPY_SKIP_DIRS.has('.venv')).toBe(true);
   });
 });

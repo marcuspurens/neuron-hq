@@ -29,7 +29,7 @@ export interface RunContext {
 }
 
 /** Directories to skip when copying a target repo to workspace. */
-const COPY_SKIP_DIRS: ReadonlySet<string> = new Set(['.git', 'node_modules', '.venv', 'workspaces', 'runs']);
+export const COPY_SKIP_DIRS: ReadonlySet<string> = new Set(['.git', 'node_modules', '.venv', 'workspaces', 'runs']);
 
 /**
  * Count completed runs by reading memory/runs.md.
