@@ -739,3 +739,39 @@ Inga signifikanta problem. Diff-storleken (308 insertions) var marginellt över 
 - När diff-storleken är nära tröskeln men all kod tillhör en enda sammanhängande feature, är Reviewers bedömning "acceptable despite threshold" rätt approach.
 
 ---
+
+## Körning 20260225-0404-aurora-swarm-lab — aurora-swarm-lab
+**Datum:** 2026-02-25
+**Uppgift:** Installera saknade Python-paket (python-dotenv, yt-dlp, python-docx) och lägga till `load_dotenv()` i `load_settings()` i config.py
+**Resultat:** ✅ 8 av 8 uppgifter klara — alla acceptanskriterier uppfyllda, 201 tester gröna, merge till main (commit 28cf316)
+
+**Vad som fungerade:**
+Hela pipeline-kedjan (Manager → Implementer → Tester → Reviewer → Merger) körde felfritt utan blockers eller policy-blockeringar. Implementer levererade alla ändringar i 4 filer (config.py med `load_dotenv()`, pyproject.toml med 3 nya dependencies + snowflake som optional extra, ny testfil `test_dotenv_and_packages.py` med 4 tester, och en smart `_suppress_dotenv` autouse-fixture i conftest.py som förhindrar `.env`-sidoeffekter i testmiljön). Reviewer körde en extremt grundlig stoplight-verifiering: baseline (197 tester) → after-change (201 tester), ruff ("All checks passed!"), mypy på ändrade filer (0 errors), och konstaterade att alla 87 pre-existing mypy-fel var oförändrade. Merger kopierade 4 filer och committade rent — total diff bara 48 rader.
+
+**Vad som inte fungerade:**
+Inga kända problem. Noll BLOCKED-kommandon, inga extra delegationsrundor, inga iterationer. Merge gick igenom smidigt via tvåfas-mönstret (merge_plan.md → APPROVED → execute). Körningen var helt friktionsfri.
+
+**Lärdomar:**
+- Briefen med exakta kodsnuttar för `load_dotenv()`-placering och pyproject.toml-dependencies gav en mekanisk implementation utan tolkningsbehov — bekräftar mönstret "exakt feloutput + fixförslag i brief"
+- Implementers proaktiva tillägg av `_suppress_dotenv` autouse-fixture i conftest.py visar god ingenjörspraxis — förhindrar att `.env`-laddning påverkar testresultat, vilket inte explicit begärdes i briefen men var nödvändigt
+- Minimal diff (48 rader, 4 filer) för dependency-management-uppgifter bekräftar att avgränsade paket-/config-ändringar är idealiska swarm-uppgifter: låg risk, tydliga kriterier, snabb verifiering
+
+---
+
+## Körning 20260225-0437-aurora-swarm-lab — aurora-swarm-lab
+**Datum:** 2026-02-25
+**Uppgift:** Lägg till `on_deleted`-handler i Dropbox-watchern som rensar embeddings, jobb, manifest och disk-artefakter via `delete_source()` när en bevakad fil raderas
+**Resultat:** ✅ 7 av 7 uppgifter klara — on_deleted implementerad, 3 nya tester, 204/204 tester gröna, merge till main (commit 47fc89e)
+
+**Vad som fungerade:**
+Hela pipeline-kedjan (Implementer → Reviewer → Merger) körde felfritt. Implementer läste befintlig kod (intake_dropbox.py, delete_source.py, test_intake_dropbox.py), implementerade `on_deleted` exakt som briefen specificerade (skippar `_should_skip` och `ensure_ingest_path_allowed`, beräknar `source_id` enbart från sökväg, tyst felhantering), och la till 3 tester. Reviewer var extremt grundlig — verifierade alla 14 acceptanskriterier individuellt med grep, sed, git diff, pytest (204 passed), ruff ("All checks passed!"), och mypy (0 nya errors). Stoplight: alla gröna. Merger kopierade 2 filer och committade rent (52 insertions, 2 deletions).
+
+**Vad som inte fungerade:**
+Inga kända problem. Noll BLOCKED-kommandon, inga extra delegationsrundor, inga iterationer. Briefens exakta kodsnuttar och tydliga avgränsningar ("ändra INTE befintlig logik") gjorde implementeringen mekanisk och förutsägbar. Körningen var helt friktionsfri — tredje i rad utan blockers efter 20260225-0404 och 20260224-2155.
+
+**Lärdomar:**
+- Briefens explicita "OBS: Använd INTE _should_skip(path) här"-varning förebyggde ett subtilt fel (path.exists() returnerar False för raderade filer) — negativa instruktioner i briefs är lika viktiga som positiva
+- Återanvändning av befintlig `delete_source()`-utility visar att väl designade moduler ger snabba leveranser — Implementer behövde bara anropa en färdig funktion, inte skriva ny raderingslogik
+- Tre körningar i rad mot aurora-swarm-lab utan problem (dotenv, library-CLI, on_deleted) bekräftar att svärmen är mogen för dagligt underhåll av Python-projekt
+
+---

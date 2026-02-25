@@ -260,3 +260,11 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **[UPPDATERING]** Mönstret "Reviewer git-stash baseline-jämförelse" bekräftades i körning 20260224-2155-aurora-swarm-lab — Reviewer körde baseline verify (91 mypy errors, 190 tests pass) → after-change verify (92 mypy errors, 197 tests pass) och konstaterade att mypy-regressionen var trivial (+1 test fixture type hint). Stoplight-formatet gav tydlig överblick.
 
 **Senast bekräftad:** 20260224-2155-aurora-swarm-lab
+
+**[UPPDATERING]** Mönstret "Exakt feloutput + fixförslag i brief ger kirurgiska leveranser" bekräftades i körning 20260225-0404-aurora-swarm-lab — briefen innehöll exakta kodsnuttar för `load_dotenv()`-placering, pyproject.toml-dependencies och teststruktur. 8/8 kriterier uppfyllda utan iteration, 48 raders diff.
+
+**Senast bekräftad:** 20260225-0404-aurora-swarm-lab
+
+**[UPPDATERING]** Mönstret "Reviewer git-stash baseline-jämförelse" bekräftades i körning 20260225-0404-aurora-swarm-lab — Reviewer körde baseline verify (197 tests, 87 mypy errors) → after-change verify (201 tests, 87 mypy errors) och konstaterade noll regressioner. Stoplight-formatet gav tydlig överblick.
+
+**Senast bekräftad:** 20260225-0404-aurora-swarm-lab
