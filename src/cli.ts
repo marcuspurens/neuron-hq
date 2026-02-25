@@ -19,6 +19,7 @@ import {
   replayCommand,
   logsCommand,
   reportCommand,
+  monitorCommand,
 } from './commands/index.js';
 import { runBriefAgent } from './core/agents/brief-agent.js';
 
@@ -88,6 +89,12 @@ program
   .action(async (target: string) => {
     await runBriefAgent(target);
   });
+
+// Monitor command
+program
+  .command('monitor <target>')
+  .description('Run health check on a target and display status')
+  .action(monitorCommand);
 
 // Parse arguments
 program.parse();

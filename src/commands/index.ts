@@ -5,3 +5,4 @@ export { statusCommand } from './status.js';
 export { replayCommand } from './replay.js';
 export { logsCommand } from './logs.js';
 export { reportCommand } from './report.js';
+export { monitorCommand } from './monitor.js';
