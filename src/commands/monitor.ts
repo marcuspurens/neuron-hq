@@ -9,8 +9,8 @@ import { BASE_DIR } from '../cli.js';
 export interface HealthData {
   status: string;
   tests: { passed: number; total: number };
-  components: Array<{ name: string; status: string; detail?: string }>;
-  data: { manifests: number; embeddings: number };
+  components: Record<string, { ok: boolean; reason?: string; model?: string }>;
+  data_dir: { manifests_count: number; embeddings_count: number };
 }
 
 /**
@@ -34,15 +34,15 @@ export function formatHealthReport(health: HealthData): string {
     'Components:',
   ];
 
-  for (const comp of health.components) {
-    const icon = comp.status === 'ok' ? '✅' : '❌';
-    const detail = comp.detail ? ` — ${comp.detail}` : '';
-    lines.push(`  ${icon} ${comp.name}${detail}`);
+  for (const [name, comp] of Object.entries(health.components)) {
+    const icon = comp.ok ? '✅' : '❌';
+    const detail = comp.reason ? ` — ${comp.reason}` : comp.model ? ` (${comp.model})` : '';
+    lines.push(`  ${icon} ${name}${detail}`);
   }
 
   lines.push('');
   lines.push(
-    `Data:    ${health.data.manifests} manifests · ${health.data.embeddings} embeddings`
+    `Data:    ${health.data_dir.manifests_count} manifests · ${health.data_dir.embeddings_count} embeddings`
   );
 
   return lines.join('\n');

@@ -775,3 +775,85 @@ Inga kända problem. Noll BLOCKED-kommandon, inga extra delegationsrundor, inga 
 - Tre körningar i rad mot aurora-swarm-lab utan problem (dotenv, library-CLI, on_deleted) bekräftar att svärmen är mogen för dagligt underhåll av Python-projekt
 
 ---
+
+## Körning 20260225-0500-neuron-hq — neuron-hq
+**Datum:** 2026-02-25
+**Uppgift:** Ersätt den gemensamma `max_iterations_per_run: 50` med separata per-agent iterationsgränser i policy/limits.yaml, types.ts och alla 8 agentfiler
+**Resultat:** ✅ 4 av 4 uppgifter klara — 324/324 tester gröna (318 befintliga + 6 nya), merge till main (commit d3c5a0e)
+
+**Vad som fungerade:**
+Hela pipelinen körde felfritt: Manager → Implementer → Tester → Reviewer → Implementer (cleanup) → Merger → Historian. Implementer använde ett Python-hjälpskript (`scripts/update-agent-limits.py`) för att mekaniskt uppdatera alla 8 agentfiler — en smart approach för repetitiva ändringar. Manager upptäckte att skriptet låg kvar och delegerade en andra Implementer-pass för att ta bort det med `git rm` innan merge. Reviewer verifierade alla ändringar systematiskt genom att grepa varje agentfil och köra tester. Merger jämförde workspace mot target med baseline-diffar och mergade 11 filer (+144/-8 rader) rent.
+
+**Vad som inte fungerade:**
+Inga kända problem. Implementer skapade ett temporärt hjälpskript som inte borde ha committats, men svärmen fångade och städade upp det själv innan merge — snarare ett tecken på god självkorrigering än ett problem.
+
+**Lärdomar:**
+- Implementer kan använda Python-hjälpskript för mekaniska bulk-ändringar över många filer — effektivare än att manuellt redigera 8 filer med identiska mönster, men skriptet måste tas bort efteråt
+- Manager agerar som kvalitetsbarriär genom att inspektera workspace efter Implementer och delegera cleanup vid behov — visar att tvåpass-mönstret (implement → cleanup) fungerar
+- Prescriptiva briefs med exakt kod-snippets för alla ändringar (Zod-schema, YAML-struktur, constructor-mönster) ger kirurgisk leverans utan iteration — 11 filer ändrade utan en enda retry
+
+---
+
+[INV-004] Varje agent använder per-agent iterationsgräns med fallback till max_iterations_per_run
+**Beskrivning:** Varje agents constructor måste sätta `this.maxIterations = limits.max_iterations_<role> ?? limits.max_iterations_per_run` — inte direkt till det globala värdet
+**Vaktas av:** `tests/core/per-agent-limits.test.ts` (6 tester: reella värden, schema-parsing, fallback)
+**Tillagd:** Körning 20260225-0500-neuron-hq
+
+## Körning 20260225-0844-neuron-hq-resume — neuron-hq
+**Datum:** 2026-02-25
+**Uppgift:** Resume-körning — logga iteration-tracking per agent i usage.json (recordIterations i types.ts, usage.ts, alla 8 agenter, plus tester)
+**Resultat:** ✅ 4 av 4 uppgifter klara — NO-OP merge, alla ändringar redan i target (commit a9b4cfc)
+
+**Vad som fungerade:**
+Reviewer var extremt grundlig: verifierade alla 18 acceptanskriterier individuellt med grep-kommandon, körde `pnpm typecheck` (0 fel) och `pnpm test` (329 tester gröna), kontrollerade att varje agentfil hade exakt +1 rad (git diff numstat), bekräftade att optional-fälten inte bryter bakåtkompatibiliteten, och genomförde säkerhetsgranskning av diffen. Merger identifierade korrekt att alla 11 filer redan fanns identiska i target-repot och rapporterade NO-OP utan att skapa en tom commit.
+
+**Vad som inte fungerade:**
+Ännu en redundant resume-körning — commit `a9b4cfc` från den ursprungliga körningen (20260225-0715) hade redan mergat allt till main. Hela resume-körningen producerade ingen ny leverans. Merger fick ett `for`-loop-kommando blockerat av policy ("not in allowlist") men kringgick det genom att köra enskilda diff-kommandon istället. Reviewer fick ett grep-kommando blockerat pga att söktermen `rm -rf` i en säkerhetsskanning matchade det förbjudna mönstret.
+
+**Lärdomar:**
+- NO-OP resume-mönstret upprepas igen (minst 5:e gången) — den planerade pre-flight merge-checken i orchestratorn är fortfarande inte implementerad
+- Reviewer-säkerhetsskanning med `grep -iE '(eval|exec|rm -rf|...)'` i git diff triggar alltid policyblockering — bör använda en annan metod (t.ex. söka efter mönstren i enskilda kommandon eller använda `grep -c` istället)
+- Merger hanterar policy-blockeringar bra genom att falla tillbaka till enklare kommandon
+
+---
+
+[INV-005] Varje agent anropar ctx.usage.recordIterations() innan run() returnerar
+**Beskrivning:** Varje agents `run()`-metod måste anropa `ctx.usage.recordIterations('<agentnamn>', iteration, this.maxIterations)` precis innan den returnerar, för att logga faktisk iterationsanvändning i usage.json
+**Vaktas av:** `tests/core/iteration-tracking.test.ts` (5 tester) + grep i varje agentfil
+**Tillagd:** Körning 20260225-0844-neuron-hq-resume (implementerat i 20260225-0715)
+
+## Körning 20260225-0954-aurora-swarm-lab-resume — aurora-swarm-lab
+**Datum:** 2026-02-25
+**Uppgift:** Resume-körning — skapa `scripts/health_check.py` som skriver `data/health.json` med systemstatus, inklusive `data/.gitkeep`, `.gitignore`-uppdatering och tester
+**Resultat:** ✅ 4 av 4 uppgifter klara — alla acceptanskriterier uppfyllda, 209 tester gröna (204 befintliga + 5 nya), merge till main (commit 80a5baa)
+
+**Vad som fungerade:**
+Resume-körningen hanterade att workspace redan hade det mesta klart från föregående körning (20260225-0859). Manager identifierade att en liten fix behövdes — `--timeout=120` argumentet till pytest orsakade fel (pytest-timeout inte installerat) och behövde ersättas med `--ignore=tests/test_health_check.py`. Manager delegerade till Implementer för just denna fix, sedan Tester (209 passed), Reviewer (alla 14 kriterier verifierade, stoplight ALL GREEN, LOW risk), och Merger som genomförde merge till target med 4 filer (230 insertions, 1 deletion). Merger exkluderade korrekt `.coverage`-binären. Reviewer körde fullständig stoplight-verifiering med baseline (204 tests) → after-change (209 tests), ruff PASS, mypy PASS, och bekräftade att inga befintliga moduler ändrades.
+
+**Vad som inte fungerade:**
+Inga signifikanta problem. `.coverage`-binären smög med i workspace-committen men filtrerades bort av Merger vid merge. Merger delegerades två gånger (standard tvåfas-mönstret: merge_plan → APPROVED → execute). Inga BLOCKED-kommandon, inga iterationer, inga extra delegationsrundor.
+
+**Lärdomar:**
+- Resume-körningar som bara behöver en liten fix + review + merge hanteras effektivt — Manager delegerade rätt: en fokuserad Implementer-pass för fixet, sedan rakt igenom till merge
+- Merger som .coverage-filter: Mergers aktiva beslut att exkludera binära artefakter visar att den inte är en passiv kopiator utan en kvalitetsbarriär
+- pytest-timeout är inte installerat i aurora-swarm-lab — briefen antog det (specificerade `--timeout=120`), men Implementer anpassade sig korrekt till faktiskt tillstånd genom att byta till `--ignore`-strategin
+
+---
+
+## Körning 20260225-1247-neuron-hq — neuron-hq
+**Datum:** 2026-02-25
+**Uppgift:** Lägg till ett `monitor`-kommando i CLI:t som kör Auroras health check och visar resultatet i terminalen
+**Resultat:** ✅ 4 av 4 uppgifter klara — monitor-kommandot implementerat, registrerat, testat och mergat (commit 1a0aaf1)
+
+**Vad som fungerade:**
+Hela pipeline-kedjan (Manager → Implementer → Tester → Reviewer → Merger) körde komplett utan blockeringar eller policy-problem. Implementer läste befintliga mönster (run.ts, index.ts, cli.ts, targets.ts) och skapade `src/commands/monitor.ts` (98 rader) med `formatHealthReport`-funktion, registrerade i index.ts och cli.ts, samt skrev `tests/commands/monitor.test.ts` (89 rader, 9 tester). Reviewer verifierade alla 17 individuella acceptanskriterier med grep-kommandon, körde pnpm typecheck (0 errors) och pnpm test (338/338 gröna). Merger kopierade 4 filer (195 insertions, 0 deletions) och committade rent.
+
+**Vad som inte fungerade:**
+Inga kända problem. Reviewers enda observation var att `monitorCommand` själv (exit codes, saknad fil) inte enhetstestas direkt — `process.exit()` gör det opraktiskt. Den rena formateringslogiken `formatHealthReport` testas grundligt (9 tester). ESLint-felet i testfilen är samma pre-existing tsconfig-parsingproblem som alla 34 andra testfiler. Inga BLOCKED-kommandon i hela körningen.
+
+**Lärdomar:**
+- Prescriptiv brief med önskat beteende (terminalexempel), filstruktur och verifieringskommandon ger friktionsfri leverans — noll iterationer, noll blockerings
+- Implementer studerade befintliga mönster (run-kommandots structure, TargetsManager, vitest-setup) och återanvände dem — ren arkitekturneutralt tillägg
+- `process.exit()` i CLI-kommandon gör enhetstest av hela kommandofunktionen opraktiskt — att separera logik (formatHealthReport) från I/O (monitorCommand) och testa logiken isolerat är en pragmatisk tradeoff
+
+---

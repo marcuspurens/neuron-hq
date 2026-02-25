@@ -268,3 +268,34 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **[UPPDATERING]** Mönstret "Reviewer git-stash baseline-jämförelse" bekräftades i körning 20260225-0404-aurora-swarm-lab — Reviewer körde baseline verify (197 tests, 87 mypy errors) → after-change verify (201 tests, 87 mypy errors) och konstaterade noll regressioner. Stoplight-formatet gav tydlig överblick.
 
 **Senast bekräftad:** 20260225-0404-aurora-swarm-lab
+
+## Manager delegerar cleanup-pass efter Implementer
+**Kontext:** Körning 20260225-0500-neuron-hq — Implementer skapade ett temporärt Python-hjälpskript (`scripts/update-agent-limits.py`) för att mekaniskt uppdatera 8 agentfiler. Skriptet committades till workspace men hörde inte hemma i slutleveransen.
+**Lösning:** Manager inspekterade workspace efter Implementer, upptäckte det kvarvarande skriptet, och delegerade en andra Implementer-pass med instruktionen "Remove the file `scripts/update-agent-limits.py`". Implementer körde `git rm` och committade. Cleanup skedde före merge.
+**Effekt:** Slutleveransen innehöll bara avsedda filer — inga temporära artefakter läckte till target-repot. Visar att Manager + Implementer kan fungera i ett tvåpass-mönster (implement → inspect → cleanup → merge) utan mänsklig intervention. Reviewer hade också flaggat skriptet, men Manager agerade proaktivt.
+**Keywords:** manager, implementer, cleanup, tvåpass, hjälpskript, självkorrigering, quality-gate
+**Relaterat:** patterns.md#Merger som commit-message-korrigent vid avvikelse, patterns.md#Implementer: direktskrivning slår transform-skript
+**Körningar:** #20260225-0500-neuron-hq
+**Senast bekräftad:** 20260225-0500-neuron-hq
+
+---
+
+**[UPPDATERING]** Mönstret "Exakt feloutput + fixförslag i brief ger kirurgiska leveranser" bekräftades i körning 20260225-0500-neuron-hq — briefen innehöll exakta YAML-strukturer, Zod-schemafält och constructor-mönster (`limits.max_iterations_<role> ?? limits.max_iterations_per_run`) för alla 8 agenter. 11 filer ändrade utan iteration, 324/324 tester gröna.
+
+**Senast bekräftad:** 20260225-0500-neuron-hq
+
+**[UPPDATERING]** Mönstret "Resume-körning hoppar direkt till Review+Merge" bekräftades i körning 20260225-0954-aurora-swarm-lab-resume — en variant: Manager delegerade en snabb Implementer-fix (byta `--timeout=120` till `--ignore`), sedan direkt till Tester → Reviewer → Merger. Ingen Researcher behövdes.
+
+**Senast bekräftad:** 20260225-0954-aurora-swarm-lab-resume
+
+**[UPPDATERING]** Mönstret "Tvåfas-Merger (PLAN/EXECUTE via answers.md)" bekräftades i körning 20260225-0954-aurora-swarm-lab-resume — Merger skrev merge_plan.md, Manager skrev APPROVED i answers.md, Merger exekverade merge med 4 filer (commit 80a5baa). Merger filtrerade dessutom bort `.coverage`-binären proaktivt.
+
+**Senast bekräftad:** 20260225-0954-aurora-swarm-lab-resume
+
+**[UPPDATERING]** Mönstret "Reviewer git-stash baseline-jämförelse" bekräftades i körning 20260225-0954-aurora-swarm-lab-resume — Reviewer körde baseline verify (204 tests, ruff PASS, mypy PASS) → after-change verify (209 tests, ruff PASS, mypy PASS) med full stoplight-tabell.
+
+**Senast bekräftad:** 20260225-0954-aurora-swarm-lab-resume
+
+**[UPPDATERING]** Mönstret "Implementer anpassar sig till faktiskt repo-tillstånd vid inaktuell brief" bekräftades i körning 20260225-0954-aurora-swarm-lab-resume — briefen specificerade `--timeout=120` men pytest-timeout var inte installerat. Implementer ersatte med `--ignore=tests/test_health_check.py` som fungerade med faktisk testmiljö.
+
+**Senast bekräftad:** 20260225-0954-aurora-swarm-lab-resume

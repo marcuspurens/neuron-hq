@@ -199,7 +199,7 @@ Appendas av Historian-agenten när problem identifieras.
 **Symptom:** Resume-körningar startas trots att föregående körning redan har mergat allt till target. Hela körningen blir en NO-OP — ingen ny kod, inga nya filer, bara verifiering av redan existerande merge.
 **Orsak:** Orchestratorn kontrollerar inte om original-körningens merge redan lyckades innan den startar en resume. Det saknas en tidig "already merged?"-guard.
 **Lösning:** Lägg till en pre-flight check i orchestratorn: innan resume-körning startas, kör `git log --oneline -10` i target-repot och matcha mot briefens förväntade commit-meddelande. Om committen redan finns → avbryt körningen direkt med ett meddelande "Already merged in <commit>".
-**Status:** ⚠️ Identifierat
+**Status:** ⚠️ Identifierat — ytterligare bekräftat i körning 20260225-0844-neuron-hq-resume (5:e NO-OP resume-körningen). Pre-flight merge-check saknas fortfarande i orchestratorn.
 **Keywords:** resume, NO-OP, orchestrator, merge-check, redundant, token-waste
 **Relaterat:** runs.md#Körning 20260223-2218-neuron-hq-resume, runs.md#Körning 20260223-2300-aurora-swarm-lab-resume
 
@@ -213,5 +213,16 @@ Appendas av Historian-agenten när problem identifieras.
 **Status:** ⚠️ Identifierat
 **Keywords:** reviewer, export-PATH, policy, BLOCKED, bash_exec, forbidden-pattern
 **Relaterat:** errors.md#Merger git commit blockerat av backtick i commit-meddelande
+
+---
+
+## Reviewer-säkerhetsskanning blockeras av policy
+**Session:** 20260225-0844-neuron-hq-resume
+**Symptom:** Reviewer kör `git diff main | grep -iE '(eval|exec|rm -rf|...)'` som en säkerhetsskanning av diffen. Kommandot blockeras av policy eftersom strängen `rm -rf` matchar det förbjudna mönstret `\brm\s+.*-rf\b`, trots att kommandot bara söker efter mönstret — inte utför det.
+**Orsak:** Policy-filtret matchar mot hela kommandosträngen inklusive grep-argument, inte bara den faktiska operationen.
+**Lösning:** Reviewer bör undvika att inkludera `rm -rf` som en literal sträng i grep-kommandon. Alternativ: (1) dela upp i separata grep-anrop utan `rm -rf`, (2) använda `grep -c 'rm.*-rf'` med escape, eller (3) söka efter farliga mönster via `read_file` + manuell inspektion istället för bash grep.
+**Status:** ⚠️ Identifierat
+**Keywords:** reviewer, security-scan, policy-block, grep, rm-rf, forbidden-pattern
+**Relaterat:** —
 
 ---
