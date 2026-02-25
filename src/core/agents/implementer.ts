@@ -169,6 +169,7 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
     if (iteration >= this.maxIterations) {
       console.log('Implementer: max iterations reached.');
     }
+    this.ctx.usage.recordIterations('implementer', iteration, this.maxIterations);
   }
 
   private defineTools(): Anthropic.Tool[] {

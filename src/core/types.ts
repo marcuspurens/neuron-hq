@@ -96,6 +96,8 @@ export const UsageSchema = z.object({
   by_agent: z.record(z.object({
     input_tokens: z.number().nonnegative(),
     output_tokens: z.number().nonnegative(),
+    iterations_used: z.number().nonnegative().optional(),
+    iterations_limit: z.number().positive().optional(),
   })),
   tool_counts: z.record(z.number().nonnegative()),
 });

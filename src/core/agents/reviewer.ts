@@ -206,6 +206,7 @@ IMPORTANT: Never claim something is done without running a command to verify it.
     if (iteration >= this.maxIterations) {
       console.log('Reviewer: max iterations reached.');
     }
+    this.ctx.usage.recordIterations('reviewer', iteration, this.maxIterations);
   }
 
   private defineTools(): Anthropic.Tool[] {

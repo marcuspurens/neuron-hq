@@ -168,6 +168,7 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
     if (iteration >= this.maxIterations) {
       console.log('Librarian: max iterations reached.');
     }
+    this.ctx.usage.recordIterations('librarian', iteration, this.maxIterations);
   }
 
   private defineTools(): Anthropic.Tool[] {

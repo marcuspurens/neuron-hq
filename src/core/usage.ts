@@ -46,6 +46,17 @@ export class UsageTracker {
   }
 
   /**
+   * Record iteration counts for an agent.
+   */
+  recordIterations(agent: string, used: number, limit: number): void {
+    if (!this.usage.by_agent[agent]) {
+      this.usage.by_agent[agent] = { input_tokens: 0, output_tokens: 0 };
+    }
+    this.usage.by_agent[agent].iterations_used = used;
+    this.usage.by_agent[agent].iterations_limit = limit;
+  }
+
+  /**
    * Get current usage data.
    */
   getUsage(): Usage {

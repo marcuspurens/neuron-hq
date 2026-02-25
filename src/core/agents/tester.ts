@@ -178,6 +178,7 @@ and write test_report.md to the run artifacts directory.
       console.log('Tester: max iterations reached.');
     }
 
+    this.ctx.usage.recordIterations('tester', iteration, this.maxIterations);
     return lastVerdict;
   }
 

@@ -219,6 +219,7 @@ ${
       console.log('Merger: max iterations reached.');
     }
 
+    this.ctx.usage.recordIterations('merger', iteration, this.maxIterations);
     return phase === 'plan'
       ? 'MERGER_PLAN_READY: Merge plan written to merge_plan.md. User approval required before executing.'
       : 'MERGER_COMPLETE: Changes copied and committed to target repo.';

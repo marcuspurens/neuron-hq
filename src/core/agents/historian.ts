@@ -190,6 +190,7 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
     if (iteration >= this.maxIterations) {
       console.log('Historian: max iterations reached.');
     }
+    this.ctx.usage.recordIterations('historian', iteration, this.maxIterations);
   }
 
   private defineTools(): Anthropic.Tool[] {

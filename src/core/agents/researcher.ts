@@ -189,6 +189,7 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
     if (iteration >= this.maxIterations) {
       console.log('Researcher: max iterations reached.');
     }
+    this.ctx.usage.recordIterations('researcher', iteration, this.maxIterations);
   }
 
   private defineTools(): Anthropic.Tool[] {

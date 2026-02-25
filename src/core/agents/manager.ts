@@ -249,6 +249,7 @@ Stop when time limit approaches or when blockers are encountered.
     if (iteration >= this.maxIterations) {
       console.log('Max iterations reached.');
     }
+    this.ctx.usage.recordIterations('manager', iteration, this.maxIterations);
   }
 
   /**
