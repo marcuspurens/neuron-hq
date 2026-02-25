@@ -99,6 +99,11 @@ export const MAX_RETRY_ATTEMPTS = 3;
 export const RETRY_BASE_DELAY_MS = 5_000;
 
 /**
+ * Base delay in ms for connection error retries: 10s, 20s, 40s.
+ */
+export const CONNECTION_RETRY_BASE_DELAY_MS = 10_000;
+
+/**
  * Returns true if an error is an Anthropic overloaded_error.
  */
 export function isOverloadedError(error: unknown): boolean {
@@ -106,6 +111,34 @@ export function isOverloadedError(error: unknown): boolean {
     return error.message.includes('overloaded_error');
   }
   return false;
+}
+
+/**
+ * Returns true if an error is a transient network/connection error worth retrying.
+ */
+export function isConnectionError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const msg = error.message;
+    const cause = (error as NodeJS.ErrnoException).cause as NodeJS.ErrnoException | undefined;
+    const code = (error as NodeJS.ErrnoException).code ?? cause?.code ?? '';
+    return (
+      code === 'ETIMEDOUT' ||
+      code === 'ENOTFOUND' ||
+      code === 'ECONNRESET' ||
+      code === 'ECONNREFUSED' ||
+      msg.includes('Connection error') ||
+      msg.includes('read ETIMEDOUT') ||
+      msg.includes('connect ETIMEDOUT')
+    );
+  }
+  return false;
+}
+
+/**
+ * Returns true if the error is retryable (overloaded or transient connection error).
+ */
+export function isRetryableError(error: unknown): boolean {
+  return isOverloadedError(error) || isConnectionError(error);
 }
 
 /**
@@ -121,12 +154,14 @@ export async function withRetry<T>(
     try {
       return await fn();
     } catch (error: unknown) {
-      if (!isOverloadedError(error) || attempt === maxAttempts) {
+      if (!isRetryableError(error) || attempt === maxAttempts) {
         throw error;
       }
-      const delayMs = baseDelayMs * Math.pow(2, attempt - 1);
+      const delay = isConnectionError(error) ? CONNECTION_RETRY_BASE_DELAY_MS : baseDelayMs;
+      const delayMs = delay * Math.pow(2, attempt - 1);
+      const reason = isOverloadedError(error) ? 'API overloaded' : 'Connection error';
       console.log(
-        `  API overloaded — retrying in ${delayMs / 1000}s (attempt ${attempt}/${maxAttempts})...`
+        `  ${reason} — retrying in ${delayMs / 1000}s (attempt ${attempt}/${maxAttempts})...`
       );
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }

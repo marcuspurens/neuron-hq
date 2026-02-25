@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
 import Anthropic from '@anthropic-ai/sdk';
-import { searchMemoryFiles, truncateToolResult, trimMessages, MAX_TOOL_RESULT_CHARS, withRetry, isOverloadedError } from '../../src/core/agents/agent-utils.js';
+import { searchMemoryFiles, truncateToolResult, trimMessages, MAX_TOOL_RESULT_CHARS, withRetry, isOverloadedError, isConnectionError, isRetryableError, CONNECTION_RETRY_BASE_DELAY_MS } from '../../src/core/agents/agent-utils.js';
 
 describe('searchMemoryFiles', () => {
   const tmpDirs: string[] = [];
@@ -189,6 +189,40 @@ describe('withRetry', () => {
     ).rejects.toThrow('Some other API error');
     expect(calls).toBe(1);
   });
+
+  it('retries on connection error (ETIMEDOUT) and succeeds on second attempt', async () => {
+    let calls = 0;
+    const result = await withRetry(
+      async () => {
+        calls++;
+        if (calls < 2) {
+          const err = new Error('connect ETIMEDOUT');
+          (err as NodeJS.ErrnoException).code = 'ETIMEDOUT';
+          throw err;
+        }
+        return 'recovered';
+      },
+      3,
+      0
+    );
+    expect(result).toBe('recovered');
+    expect(calls).toBe(2);
+  }, 15_000);
+
+  it('throws immediately on non-retryable error without retry', async () => {
+    let calls = 0;
+    await expect(
+      withRetry(
+        async () => {
+          calls++;
+          throw new Error('invalid_request_error');
+        },
+        3,
+        0
+      )
+    ).rejects.toThrow('invalid_request_error');
+    expect(calls).toBe(1);
+  });
 });
 
 describe('isOverloadedError', () => {
@@ -203,6 +237,69 @@ describe('isOverloadedError', () => {
   it('returns false for non-Error values', () => {
     expect(isOverloadedError('string error')).toBe(false);
     expect(isOverloadedError(null)).toBe(false);
+  });
+});
+
+describe('isConnectionError', () => {
+  it('returns true for ETIMEDOUT code', () => {
+    const err = new Error('connect ETIMEDOUT');
+    (err as NodeJS.ErrnoException).code = 'ETIMEDOUT';
+    expect(isConnectionError(err)).toBe(true);
+  });
+
+  it('returns true for ENOTFOUND code', () => {
+    const err = new Error('getaddrinfo ENOTFOUND api.anthropic.com');
+    (err as NodeJS.ErrnoException).code = 'ENOTFOUND';
+    expect(isConnectionError(err)).toBe(true);
+  });
+
+  it('returns true for ECONNRESET code', () => {
+    const err = new Error('read ECONNRESET');
+    (err as NodeJS.ErrnoException).code = 'ECONNRESET';
+    expect(isConnectionError(err)).toBe(true);
+  });
+
+  it('returns true for ECONNREFUSED code', () => {
+    const err = new Error('connect ECONNREFUSED');
+    (err as NodeJS.ErrnoException).code = 'ECONNREFUSED';
+    expect(isConnectionError(err)).toBe(true);
+  });
+
+  it('returns true for "Connection error" in message', () => {
+    expect(isConnectionError(new Error('Connection error'))).toBe(true);
+  });
+
+  it('returns true for "read ETIMEDOUT" in message without code', () => {
+    expect(isConnectionError(new Error('read ETIMEDOUT'))).toBe(true);
+  });
+
+  it('returns false for overloaded_error', () => {
+    expect(isConnectionError(new Error('overloaded_error'))).toBe(false);
+  });
+
+  it('returns false for generic errors', () => {
+    expect(isConnectionError(new Error('Something went wrong'))).toBe(false);
+  });
+
+  it('returns false for non-Error values', () => {
+    expect(isConnectionError('ETIMEDOUT')).toBe(false);
+    expect(isConnectionError(null)).toBe(false);
+  });
+});
+
+describe('isRetryableError', () => {
+  it('returns true for overloaded errors', () => {
+    expect(isRetryableError(new Error('overloaded_error'))).toBe(true);
+  });
+
+  it('returns true for connection errors', () => {
+    const err = new Error('connect ETIMEDOUT');
+    (err as NodeJS.ErrnoException).code = 'ETIMEDOUT';
+    expect(isRetryableError(err)).toBe(true);
+  });
+
+  it('returns false for other errors', () => {
+    expect(isRetryableError(new Error('invalid_request_error'))).toBe(false);
   });
 });
 
