@@ -41,7 +41,8 @@ export class ManagerAgent {
     this.anthropic = new Anthropic({ apiKey });
 
     // Get max iterations from policy limits
-    this.maxIterations = ctx.policy.getLimits().max_iterations_per_run;
+    const limits = ctx.policy.getLimits();
+    this.maxIterations = limits.max_iterations_manager ?? limits.max_iterations_per_run;
   }
 
   /**

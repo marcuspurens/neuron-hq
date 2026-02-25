@@ -37,7 +37,8 @@ export class HistorianAgent {
     }
     this.anthropic = new Anthropic({ apiKey });
 
-    this.maxIterations = ctx.policy.getLimits().max_iterations_per_run;
+    const limits = ctx.policy.getLimits();
+    this.maxIterations = limits.max_iterations_historian ?? limits.max_iterations_per_run;
   }
 
   async loadPrompt(): Promise<string> {
