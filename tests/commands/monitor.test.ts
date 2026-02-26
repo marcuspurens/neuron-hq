@@ -11,10 +11,10 @@ function makeHealth(overrides: Partial<HealthData> = {}): HealthData {
   return {
     status: 'ok',
     tests: { passed: 204, total: 204 },
-    components: [
-      { name: 'sqlite3', status: 'ok' },
-    ],
-    data: { manifests: 1, embeddings: 65 },
+    components: {
+      sqlite3: { ok: true },
+    },
+    data_dir: { manifests_count: 1, embeddings_count: 65 },
     ...overrides,
   };
 }
@@ -38,10 +38,10 @@ describe('formatHealthReport', () => {
 
   it('shows component details when present', () => {
     const health = makeHealth({
-      components: [
-        { name: 'sqlite3', status: 'ok' },
-        { name: 'paddleocr', status: 'error', detail: 'not installed' },
-      ],
+      components: {
+        sqlite3: { ok: true },
+        paddleocr: { ok: false, reason: 'not installed' },
+      },
     });
     const report = formatHealthReport(health);
     expect(report).toContain('✅ sqlite3');
@@ -50,11 +50,11 @@ describe('formatHealthReport', () => {
 
   it('shows all components as ok when all pass', () => {
     const health = makeHealth({
-      components: [
-        { name: 'sqlite3', status: 'ok' },
-        { name: 'paddleocr', status: 'ok' },
-        { name: 'redis', status: 'ok' },
-      ],
+      components: {
+        sqlite3: { ok: true },
+        paddleocr: { ok: true },
+        redis: { ok: true },
+      },
     });
     const report = formatHealthReport(health);
     expect(report).toContain('✅ sqlite3');
@@ -64,7 +64,9 @@ describe('formatHealthReport', () => {
   });
 
   it('includes data summary', () => {
-    const report = formatHealthReport(makeHealth({ data: { manifests: 3, embeddings: 120 } }));
+    const report = formatHealthReport(
+      makeHealth({ data_dir: { manifests_count: 3, embeddings_count: 120 } })
+    );
     expect(report).toContain('3 manifests · 120 embeddings');
   });
 
@@ -80,7 +82,7 @@ describe('formatHealthReport', () => {
 
   it('component without detail has no dash suffix', () => {
     const health = makeHealth({
-      components: [{ name: 'sqlite3', status: 'ok' }],
+      components: { sqlite3: { ok: true } },
     });
     const report = formatHealthReport(health);
     const line = report.split('\n').find((l) => l.includes('sqlite3'))!;
