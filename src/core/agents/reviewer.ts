@@ -67,6 +67,7 @@ export class ReviewerAgent {
 
     const limits = this.ctx.policy.getLimits();
     const briefContent = await this.loadBrief();
+    const handoffContent = await this.loadImplementerHandoff();
     const contextInfo = `
 # Run Context
 
@@ -92,7 +93,7 @@ export class ReviewerAgent {
 # Brief (Acceptance Criteria to Verify)
 
 ${briefContent}
-
+${handoffContent ? `\n# Implementer Handoff\n\n${handoffContent}\n` : ''}
 # Your Mission
 
 Review the current state of the workspace. For every acceptance criterion in the brief above,
@@ -110,6 +111,18 @@ Block if policy is violated or verification fails.
       return await fs.readFile(briefPath, 'utf-8');
     } catch {
       return '(brief.md not found — cannot verify acceptance criteria)';
+    }
+  }
+
+  /**
+   * Load implementer handoff file if it exists.
+   */
+  private async loadImplementerHandoff(): Promise<string | null> {
+    const handoffPath = path.join(this.ctx.runDir, 'implementer_handoff.md');
+    try {
+      return await fs.readFile(handoffPath, 'utf-8');
+    } catch {
+      return null;
     }
   }
 

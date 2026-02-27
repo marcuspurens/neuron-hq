@@ -189,4 +189,40 @@ describe('ManagerAgent', () => {
       }
     });
   });
+
+  describe('delegateToImplementer handoff', () => {
+    it('includes handoff content when implementer_handoff.md exists', async () => {
+      const handoffContent = '### Vad gjordes\n- Changed foo.ts\n\n### Risker\n- Edge case X';
+      await fs.writeFile(path.join(runDir, 'implementer_handoff.md'), handoffContent);
+
+      // Mock implementer.run to be a no-op
+      const origImplementer = (await import('../../src/core/agents/implementer.js')).ImplementerAgent;
+      const mockRun = async () => {};
+      const origProto = origImplementer.prototype.run;
+      origImplementer.prototype.run = mockRun;
+
+      try {
+        const result = await (agent as any).delegateToImplementer({ task: 'test task' });
+        expect(result).toContain('IMPLEMENTER HANDOFF');
+        expect(result).toContain('Vad gjordes');
+        expect(result).toContain('Edge case X');
+      } finally {
+        origImplementer.prototype.run = origProto;
+      }
+    });
+
+    it('returns graceful fallback when implementer_handoff.md is missing', async () => {
+      const origImplementer = (await import('../../src/core/agents/implementer.js')).ImplementerAgent;
+      const mockRun = async () => {};
+      const origProto = origImplementer.prototype.run;
+      origImplementer.prototype.run = mockRun;
+
+      try {
+        const result = await (agent as any).delegateToImplementer({ task: 'test task' });
+        expect(result).toContain('No handoff written');
+      } finally {
+        origImplementer.prototype.run = origProto;
+      }
+    });
+  });
 });

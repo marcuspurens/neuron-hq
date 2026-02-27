@@ -29,4 +29,8 @@ describe('implementer.md — reliability guardrails', () => {
     const modified = prompt.replaceAll('git status', 'REMOVED');
     expect(modified).not.toMatch(/git status/i);
   });
+
+  it('requires implementer_handoff.md to be written', () => {
+    expect(prompt).toMatch(/implementer_handoff\.md/);
+  });
 });

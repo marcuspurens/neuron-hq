@@ -30,4 +30,8 @@ describe('reviewer.md — critical instructions', () => {
     const modified = prompt.replaceAll('STOPLIGHT', 'REMOVED');
     expect(modified).not.toMatch(/STOPLIGHT/);
   });
+
+  it('instructs reviewer to read implementer_handoff.md', () => {
+    expect(prompt).toMatch(/implementer_handoff\.md/);
+  });
 });

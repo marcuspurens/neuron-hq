@@ -716,7 +716,15 @@ Stop when time limit approaches or when blockers are encountered.
     });
     const implementer = new ImplementerAgent(this.ctx, this.baseDir);
     await implementer.run(input.task);
-    return 'Implementer agent completed successfully.';
+
+    // Read handoff file if it exists
+    const handoffPath = path.join(this.ctx.runDir, 'implementer_handoff.md');
+    try {
+      const handoff = await fs.readFile(handoffPath, 'utf-8');
+      return `Implementer agent completed.\n\n--- IMPLEMENTER HANDOFF ---\n${handoff}`;
+    } catch {
+      return 'Implementer agent completed successfully. (No handoff written)';
+    }
   }
 
   /**

@@ -35,4 +35,8 @@ describe('manager.md — critical instructions', () => {
     expect(prompt).toMatch(/Meta-trigger/);
     expect(prompt).toMatch(/META_ANALYSIS/);
   });
+
+  it('instructs manager to use implementer handoff', () => {
+    expect(prompt).toMatch(/IMPLEMENTER HANDOFF/i);
+  });
 });
