@@ -1,4 +1,4 @@
-import { type RunContext } from '../run.js';
+import { type RunContext, checkEstop } from '../run.js';
 import { ImplementerAgent } from './implementer.js';
 import { ReviewerAgent } from './reviewer.js';
 import { ResearcherAgent } from './researcher.js';
@@ -171,6 +171,10 @@ Stop when time limit approaches or when blockers are encountered.
         console.log('Time limit reached. Stopping agent loop.');
         break;
       }
+
+
+      // Check e-stop (STOP file in repo root)
+      await checkEstop(this.baseDir, this.ctx.audit);
 
       console.log(`\n=== Manager iteration ${iteration}/${this.maxIterations} ===`);
 

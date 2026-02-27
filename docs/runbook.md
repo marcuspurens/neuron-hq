@@ -290,3 +290,34 @@ pnpm test        # Should pass
 ```
 
 If all three pass, system is healthy.
+
+## E-stop — Emergency Stop
+
+To gracefully stop a running Neuron session:
+
+1. **Create the STOP file** in the Neuron HQ root:
+   ```bash
+   touch /path/to/neuron-hq/STOP
+   ```
+
+2. The running session will detect the file at the next iteration boundary and:
+   - Log an ESTOP event to `audit.jsonl`
+   - Write `STOPPED BY USER` to the run's `report.md`
+   - Exit with code 1
+   - Display: `⛔ Run stopped by user (STOP file detected). Run ID: <id>`
+
+3. **Remove the STOP file** when you're ready to run again:
+   ```bash
+   rm /path/to/neuron-hq/STOP
+   ```
+
+> **Important**: The STOP file is NOT deleted automatically. This prevents accidental starts of new runs. You must remove it manually before starting the next run.
+
+### How it differs from Ctrl+C
+
+| | E-stop (STOP file) | Ctrl+C (SIGINT) |
+|---|---|---|
+| Timing | Between iterations | Immediate |
+| Audit log | Clean ESTOP entry | May truncate |
+| Workspace | Clean state | May be inconsistent |
+| Report | Written | May be missing |

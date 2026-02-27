@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import chalk from 'chalk';
 import ora from 'ora';
 import { TargetsManager } from '../core/targets.js';
-import { RunOrchestrator, countMemoryRuns } from '../core/run.js';
+import { RunOrchestrator, countMemoryRuns, EstopError } from '../core/run.js';
 import { createPolicyEnforcer } from '../core/policy.js';
 import { ManagerAgent } from '../core/agents/manager.js';
 import { BASE_DIR } from '../cli.js';
@@ -91,7 +91,24 @@ export async function runCommand(
     // Run manager agent
     console.log(chalk.cyan('\n→ Starting manager agent...'));
     const manager = new ManagerAgent(ctx, BASE_DIR, librarianAutoTrigger);
-    await manager.run();
+    try {
+      await manager.run();
+    } catch (runError) {
+      if (runError instanceof EstopError) {
+        console.log(chalk.red('\n⛔ Run stopped by user (STOP file detected). Run ID: ' + runid));
+
+        // Write STOPPED BY USER report if not already present
+        const reportPath = path.join(ctx.runDir, 'report.md');
+        try {
+          await fs.access(reportPath);
+        } catch {
+          await fs.writeFile(reportPath, '# STOPPED BY USER\n\nRun was stopped via STOP file (e-stop).\n');
+        }
+
+        process.exit(1);
+      }
+      throw runError; // Re-throw non-estop errors
+    }
 
     // Display token usage
     const usage = ctx.usage.getUsage();

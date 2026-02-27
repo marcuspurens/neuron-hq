@@ -69,6 +69,39 @@ export function maybeInjectMetaTrigger(briefContent: string, runCount: number): 
   return briefContent;
 }
 
+/**
+ * Error thrown when the e-stop mechanism (STOP file) is triggered.
+ */
+export class EstopError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'EstopError';
+  }
+}
+
+/**
+ * Check if a STOP file exists in the given directory (e-stop mechanism).
+ * Throws EstopError if the file is found. The STOP file is NOT deleted.
+ */
+export async function checkEstop(baseDir: string, audit: AuditLogger): Promise<void> {
+  const stopPath = path.join(baseDir, 'STOP');
+  try {
+    await fs.access(stopPath);
+  } catch {
+    return; // No STOP file, continue
+  }
+  // STOP file exists — log and throw
+  await audit.log({
+    ts: new Date().toISOString(),
+    role: 'manager',
+    tool: 'checkEstop',
+    allowed: false,
+    policy_event: 'ESTOP: STOP file detected',
+    note: 'Run stopped by user via STOP file',
+  });
+  throw new EstopError('Run stopped by user (STOP file detected)');
+}
+
 export class RunOrchestrator {
   constructor(
     private baseDir: string,

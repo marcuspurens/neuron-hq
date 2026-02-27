@@ -2,9 +2,10 @@ import { describe, it, expect, afterEach } from 'vitest';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
-import { countMemoryRuns, countCompletedRuns, maybeInjectMetaTrigger, RunOrchestrator, COPY_SKIP_DIRS, type RunContext } from '../../src/core/run.js';
+import { countMemoryRuns, countCompletedRuns, maybeInjectMetaTrigger, RunOrchestrator, COPY_SKIP_DIRS, type RunContext, EstopError, checkEstop } from '../../src/core/run.js';
 import { GitOperations } from '../../src/core/git.js';
 import { PolicyEnforcer } from '../../src/core/policy.js';
+import { AuditLogger } from '../../src/core/audit.js';
 import { type RunConfig, type RunId, type StoplightStatus } from '../../src/core/types.js';
 
 const mockPolicy = { getLimits: () => ({ verification_timeout_seconds: 30 }), validateBrief: () => {} } as unknown as PolicyEnforcer;
@@ -379,5 +380,74 @@ describe('RunOrchestrator.finalizeRun', () => {
     const { orch, ctx } = await setup();
     await orch.finalizeRun(ctx, stoplight, '');
     await fs.access(path.join(ctx.runDir, 'redaction_report.md'));
+  });
+});
+
+describe('EstopError', () => {
+  it('is an instance of Error', () => {
+    const err = new EstopError('test');
+    expect(err).toBeInstanceOf(Error);
+    expect(err.name).toBe('EstopError');
+    expect(err.message).toBe('test');
+  });
+});
+
+describe('checkEstop', () => {
+  const tmpDirs: string[] = [];
+
+  afterEach(async () => {
+    for (const dir of tmpDirs) {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+    tmpDirs.length = 0;
+  });
+
+  async function makeTmpDir(): Promise<string> {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'neuron-estop-test-'));
+    tmpDirs.push(dir);
+    return dir;
+  }
+
+  it('does nothing when STOP file does not exist', async () => {
+    const dir = await makeTmpDir();
+    const auditPath = path.join(dir, 'audit.jsonl');
+    const audit = new AuditLogger(auditPath);
+    await expect(checkEstop(dir, audit)).resolves.toBeUndefined();
+  });
+
+  it('throws EstopError when STOP file exists', async () => {
+    const dir = await makeTmpDir();
+    const auditPath = path.join(dir, 'audit.jsonl');
+    await fs.writeFile(path.join(dir, 'STOP'), '');
+    const audit = new AuditLogger(auditPath);
+    await expect(checkEstop(dir, audit)).rejects.toThrow(EstopError);
+    await expect(checkEstop(dir, audit)).rejects.toThrow('STOP file detected');
+  });
+
+  it('logs ESTOP event to audit when STOP file exists', async () => {
+    const dir = await makeTmpDir();
+    const auditPath = path.join(dir, 'audit.jsonl');
+    await fs.writeFile(path.join(dir, 'STOP'), '');
+    const audit = new AuditLogger(auditPath);
+    try {
+      await checkEstop(dir, audit);
+    } catch { /* expected */ }
+    const entries = await audit.readAll();
+    expect(entries).toHaveLength(1);
+    expect(entries[0].policy_event).toBe('ESTOP: STOP file detected');
+    expect(entries[0].tool).toBe('checkEstop');
+  });
+
+  it('does not delete the STOP file', async () => {
+    const dir = await makeTmpDir();
+    const stopPath = path.join(dir, 'STOP');
+    const auditPath = path.join(dir, 'audit.jsonl');
+    await fs.writeFile(stopPath, '');
+    const audit = new AuditLogger(auditPath);
+    try {
+      await checkEstop(dir, audit);
+    } catch { /* expected */ }
+    // Verify STOP file still exists
+    await expect(fs.access(stopPath)).resolves.toBeUndefined();
   });
 });
