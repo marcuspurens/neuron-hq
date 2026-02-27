@@ -1,0 +1,1623 @@
+{
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "pattern-001",
+      "type": "pattern",
+      "title": "Kompakt testutdata förhindrar context overflow",
+      "properties": {
+        "kontext": "Session 11 — Tester-agenten kraschade pga context overflow",
+        "lösning": "Kör tester med `-q --cov-report=term` och begränsa output till max 30 rader",
+        "effekt": "Tester-agenten klarar nu hela testsviten utan overflow"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-002",
+      "type": "pattern",
+      "title": "initWorkspace() isolerar workspace-git från neuron-hq",
+      "properties": {
+        "kontext": "Session 11 — git-commits hamnade i neuron-hq repo istället för workspace",
+        "lösning": "`initWorkspace()` i `src/core/git.ts` sätter upp separat git-repo i workspace-mappen",
+        "effekt": "Alla commits från Implementer hamnar i rätt repo"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-003",
+      "type": "pattern",
+      "title": "Brief-innehåll injiceras i Reviewer för korrekt kriteriecheck",
+      "properties": {
+        "kontext": "Session 9 — Reviewer godkände körningar utan att kontrollera mot acceptanskriterier",
+        "lösning": "`src/core/agents/reviewer.ts` skickar brief-innehåll till Reviewer i system prompt",
+        "effekt": "Reviewer kontrollerar nu faktiskt levererat vs planerat per kriterium"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-004",
+      "type": "pattern",
+      "title": "Datumstämplade briefs förhindrar förvirring",
+      "properties": {
+        "kontext": "Session 9 — `today.md` överskrevs av misstag",
+        "lösning": "Briefs namnges `briefs/<YYYY-MM-DD>-<slug>.md`",
+        "effekt": "Historik bevaras, rätt brief pekas ut med `--brief`-flaggan"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-005",
+      "type": "pattern",
+      "title": "Librarian dubbelkontrollerar med read-after-write",
+      "properties": {
+        "kontext": "Körning 20260222-1651 — Librarian smoke test",
+        "lösning": "Librarian läser tillbaka `techniques.md` efter att ha skrivit alla entries, vilket verifierar att skrivningarna faktiskt sparades korrekt",
+        "effekt": "Ger tillförlitlig bekräftelse att entries skrevs — Manager kan lita på Librarian-resultatet utan att själv behöva verifiera filen"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-006",
+      "type": "pattern",
+      "title": "Researcher: multi-signal kodbasanalys ger rika förbättringsförslag",
+      "properties": {
+        "kontext": "Körning 20260222-1757 — Researcher analyserade aurora-swarm-lab utan kodändringar",
+        "lösning": "Researcher kombinerade tre signaltyper: (1) filläsning av nyckelfiler (config, core, moduler), (2) kvantitativa bash-grep-analyser (radräkning, mönsterfrekvens som `load_settings()` 46 gånger, `except Exception` 89 gånger), (3) arkitekturella observationer (2590-raders god-modul, saknad conftest.py). Resulterade i ideas.md med 10 prioriterade förslag med impact/effort/risk-bedömning och konkreta tradeoffs.",
+        "effekt": "Hög kvalitet på leverabeln — varje förslag backas av kvantitativa data snarare än subjektiva omdömen. Gör det möjligt att direkt prioritera och agera."
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.7
+    },
+    {
+      "id": "pattern-007",
+      "type": "pattern",
+      "title": "Reviewer git-stash baseline-jämförelse",
+      "properties": {
+        "kontext": "Körning 20260222-1901 — Reviewer verifierade conftest.py-refaktorering mot 187 tester",
+        "lösning": "Reviewer körde `git stash` → `pytest tests/ -x -q` (baseline: 187 passed) → `git stash pop` → `pytest tests/ -x -q` (after: 187 passed) för att verifiera att ändringarna inte bröt något. Kombinerades med AST-analys för docstrings och ruff/mypy på enbart ändrade filer.",
+        "effekt": "Ger objektivt bevis att refaktoreringen är neutral — samma testantal före och efter. Mycket starkare verifiering än att bara köra testerna en gång.",
+        "keywords": [
+          "reviewer",
+          "baseline",
+          "git-stash",
+          "pytest",
+          "verifiering"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.85
+    },
+    {
+      "id": "pattern-008",
+      "type": "pattern",
+      "title": "Implementer: direktskrivning slår transform-skript",
+      "properties": {
+        "kontext": "Körning 20260222-2113 — Implementer försökte först skapa ett Python-transform-skript för att mekaniskt refaktorera test_mcp_server.py, men write_file till /tmp blockerades och bash med inline-skript blev för komplext",
+        "lösning": "Implementer gjorde git checkout, läste hela originalfilen, applicerade ändringarna mentalt, och skrev hela den refaktorerade filen med en enda write_file-anrop direkt till target-filen",
+        "effekt": "Snabbare och pålitligare — inga policy-blockeringar, inga mellansteg som kan misslyckas. write_file till workspace-filer är alltid tillåtet.",
+        "keywords": [
+          "implementer",
+          "write_file",
+          "transform-skript",
+          "policy",
+          "refaktorering"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-009",
+      "type": "pattern",
+      "title": "Implementer anpassar sig till faktiskt repo-tillstånd vid inaktuell brief",
+      "properties": {
+        "kontext": "Körning 20260222-2253 — Briefen specificerade 3 ruff-fel att fixa, men 2 av dem var redan lösta i repot sedan en tidigare körning",
+        "lösning": "Implementer körde `ruff check .` för att se faktiska fel (8 st, inte 3), använde `ruff --fix` för auto-fixbara F401-fel och fixade kvarvarande F841 manuellt. Dokumenterade avvikelsen från briefen i knowledge.md.",
+        "effekt": "Alla faktiska ruff-fel fixades istället för att fastna på att specificerade fel inte fanns. Leveransen överträffade briefen (8 fixade istället för 3). Reviewer verifierade mot faktiskt resultat, inte briefens obsoleta lista.",
+        "keywords": [
+          "implementer",
+          "brief",
+          "baseline",
+          "ruff",
+          "anpassning",
+          "stale-brief"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.7
+    },
+    {
+      "id": "pattern-010",
+      "type": "pattern",
+      "title": "Resume-körning hoppar direkt till Review+Merge",
+      "properties": {
+        "kontext": "Körning 20260222-2314-resume — Implementation var redan klar i workspace från föregående körning 20260222-2253 som avbröts innan merge",
+        "lösning": "Manager kontrollerade workspace-tillståndet (git status, ruff check, pytest), konstaterade att allt var klart, och delegerade direkt till Reviewer utan att köra Researcher eller Implementer. Efter godkänd review delegerades till Merger som slutförde merge till target.",
+        "effekt": "Snabb och effektiv körning — ingen onödig duplicering av arbete. Hela resume-cykeln (verify → review → merge plan → approve → merge → post-verify) tog ~6 minuter. Bevisar att svärmen kan hantera avbrutna körningar genom att återuppta vid rätt steg.",
+        "keywords": [
+          "resume",
+          "manager",
+          "reviewer",
+          "merger",
+          "pipeline",
+          "avbruten-körning"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.7
+    },
+    {
+      "id": "pattern-011",
+      "type": "pattern",
+      "title": "Self-hosting: svärmen fixar sina egna dokumenterade fel",
+      "properties": {
+        "kontext": "Körning 20260223-0619-neuron-hq — Första gången svärmen riktades mot sin egen kodbas (neuron-hq) istället för ett externt target",
+        "lösning": "Brief byggdes direkt på errors.md-entries från 7 tidigare körningar. Varje uppgift mappade 1:1 till ett dokumenterat fel: (1) Researcher saknar knowledge.md → lägg till i prompten, (2) Manager duplicerar arbete → lägg till \"After Researcher Completes\"-avsnitt, (3) Implementer glömmer commit → lägg till explicit git commit-steg. Plus tester för otestade verktyg. Manager hoppade över Researcher eftersom briefen redan innehöll all kontext.",
+        "effekt": "Stänger feedback-loopen — errors.md → brief → prompt-fix → commit. Alla tre dokumenterade problem åtgärdades i en enda körning. Bevisar att memory-systemet (runs.md + errors.md + patterns.md) fungerar som kunskapskälla för förbättring av svärmen själv.",
+        "keywords": [
+          "self-hosting",
+          "errors.md",
+          "feedback-loop",
+          "prompt-fix",
+          "meta-förbättring"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-012",
+      "type": "pattern",
+      "title": "Audit.jsonl som sanningskälla innan ⚠️-poster skapas",
+      "properties": {
+        "kontext": "Körning 20260223-0728 — Två ⚠️-poster i errors.md visade sig vara falska larm. Researcher verifierade audit.jsonl och bekräftade att Librarian faktiskt körde och skrev 8 entries, men Historian hade aldrig kontrollerat loggen.",
+        "lösning": "Innan en ⚠️-post skrivs till errors.md ska Historian/Researcher alltid läsa audit.jsonl för den aktuella körningen och verifiera vad som faktiskt hände — inte bara förlita sig på report.md eller avsaknad av synliga artefakter.",
+        "effekt": "Förhindrar falska larm som sedan kräver en hel körning att stänga. I detta fall hade två felaktiga ⚠️-poster överlevt i 4 körningar innan de korrigerades.",
+        "keywords": [
+          "audit.jsonl",
+          "errors.md",
+          "historian",
+          "falska-larm",
+          "verifiering"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-013",
+      "type": "pattern",
+      "title": "Prompt-lint-tester: regex-validering av prompt-filer",
+      "properties": {
+        "kontext": "Körning 20260223-1016-neuron-hq — efter att Implementer i körning #13 glömde `git status` före commit, lades en explicit instruktion till i `prompts/implementer.md`. För att säkerställa att instruktionen inte tas bort av misstag skapades `tests/prompts/implementer-lint.test.ts`.",
+        "lösning": "Vitest-testfil som läser prompt-markdown med `readFileSync` och kör regex-assertions mot innehållet (t.ex. `expect(prompt).toMatch(/git status/i)`). Fem tester verifierar att kritiska guardrails (`git status`, `git add -A`, iteration-budget, partial commit, staging-verifiering) finns kvar i prompten.",
+        "effekt": "Garanterar att säkerhetskritiska instruktioner i agentpromptar inte försvinner vid framtida redigeringar. Billigt att skriva (27 rader), snabbt att köra, och fångar regressioner som annars bara syns som beteendefel i produktion. Kan appliceras på alla prompt-filer med kritiska instruktioner.",
+        "keywords": [
+          "prompt-lint",
+          "tester",
+          "vitest",
+          "regex",
+          "guardrails",
+          "implementer",
+          "regression"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-014",
+      "type": "pattern",
+      "title": "Explicit agentordning vid beroenden",
+      "properties": {
+        "kontext": "Körning #15 avslöjade att Historian inte kunde verifiera Librarian-arbete eftersom Manager delegerade Historian före Librarian. Fixades i körning #16.",
+        "lösning": "Dokumentera explicita ordningskrav i manager.md: \"Correct order: Tester → Reviewer → Merger → Librarian → Historian\". Komplettera med guardrail i den beroende agentens prompt (historian.md) som använder `read_memory_file` istället för `grep_audit` för att verifiera föregående agents arbete.",
+        "effekt": "Eliminerar race conditions där en agent söker efter en annan agents output innan den har körts. Guardrail-instruktionen ger en fallback även om ordningen bryts i framtiden.",
+        "keywords": [
+          "agent-ordning",
+          "timing",
+          "delegation",
+          "librarian",
+          "historian",
+          "guardrail",
+          "race-condition"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-015",
+      "type": "pattern",
+      "title": "Meta-test (coverage.test.ts) som vaktar prompt-lint-täckning",
+      "properties": {
+        "kontext": "Körning 20260223-1348-neuron-hq — 7 prompt-lint-testfiler fanns men ingen mekanism garanterade att nya promptfiler (t.ex. librarian.md) automatiskt fick lint-tester",
+        "lösning": "Skapade `tests/prompts/coverage.test.ts` som läser `prompts/*.md` och verifierar att varje fil har en motsvarande `*-lint.test.ts`. Tre tester: (1) varje prompt har lint-test, (2) minst 7 promptfiler finns, (3) minst 7 lint-testfiler finns. Vid körning avslöjades omedelbart att `librarian.md` saknade lint-test — Implementer skapade den för att coverage-testet skulle bli grönt.",
+        "effekt": "Framtida tillägg av prompt-filer utan lint-test fångas automatiskt av CI. Förhindrar att lint-täckningen eroderar över tid — varje ny agent-prompt måste ha en lint-testfil annars blir testerna röda.",
+        "keywords": [
+          "meta-test",
+          "coverage",
+          "prompt-lint",
+          "guardrails",
+          "ci",
+          "regression"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.7
+    },
+    {
+      "id": "pattern-016",
+      "type": "pattern",
+      "title": "Explicita strukturinvarianter i memory/invariants.md",
+      "properties": {
+        "kontext": "Körning 20260223-1509-neuron-hq — coverage.test.ts fångade en implicit invariant (varje prompt behöver lint-test) men det saknades ett explicit ställe att förvara strukturkrav som alltid måste gälla",
+        "lösning": "Skapade `memory/invariants.md` med format `[INV-NNN]` + beskrivning + `Vaktas av:` (vilken test/mekanism garanterar invarianten) + `Tillagd:` (körningsnummer). Historian-prompten uppdaterades med steg 5 som instruerar att läsa invariants.md och lägga till nya invarianter vid behov. Lint-test (`invariants-lint.test.ts`) vaktar formatet.",
+        "effekt": "Implicita constraints som tidigare bara levde i testlogik görs explicita och sökbara — alla agenter kan läsa invariants.md för att förstå systemets strukturregler. Forskning (StructMemEval 2026, LoCoMo-Plus 2026) bekräftar att explicita constraints förbättrar retrieval-kvalitet jämfört med implicita.",
+        "keywords": [
+          "invariants",
+          "memory",
+          "strukturkrav",
+          "guardrails",
+          "historian",
+          "explicita-constraints"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-017",
+      "type": "pattern",
+      "title": "Merger NO-OP-detektion vid redan mergade ändringar",
+      "properties": {
+        "kontext": "Körning 20260223-2218-resume — en resume-körning startade trots att originalköningens merge redan var klar. Merger kopierade filer men `diff` visade identiskt innehåll.",
+        "lösning": "Merger jämförde workspace- och target-filer med `diff`, detekterade att de var byte-identiska, och rapporterade \"NO-OP MERGE\" utan att skapa en tom commit. merge_summary.md dokumenterade tydligt att ändringarna redan fanns.",
+        "effekt": "Undviker tomma commits i git-historiken och ger tydlig feedback till Historian om vad som hände. Resume-körningar som är redundanta avslutas rent.",
+        "keywords": [
+          "merger",
+          "no-op",
+          "resume",
+          "diff",
+          "identical",
+          "idempotent"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.7
+    },
+    {
+      "id": "pattern-018",
+      "type": "pattern",
+      "title": "Exakt feloutput + fixförslag i brief ger kirurgiska leveranser",
+      "properties": {
+        "kontext": "Körning 20260223-2248 — Briefen innehöll faktisk mypy-output med radnummer, förklarade rot-orsaken per felgrupp (typ-annotation vs tilldelning, borttagen API), och gav kodsnuttar med rätt fix",
+        "lösning": "Inkludera i briefen: (1) baseline tool-output (mypy/ruff/etc) med exakta rad- och felnummer, (2) kort analys av varför felet uppstår, (3) föreslagen fix som kodsnutt. Svärmen kan då implementera direkt utan att själv behöva diagnosticera.",
+        "effekt": "6/6 acceptanskriterier godkända i första körningen. Diffen var 5 insertions, 4 deletions — minimalt scope. Ingen iteration behövdes. Jämfört med körning #7 (103 mypy-fel utan analys → ofullständig leverans) visar detta att förarbete i briefen betalar sig kraftigt.",
+        "keywords": [
+          "brief",
+          "mypy",
+          "diagnostik",
+          "fix-förslag",
+          "kirurgisk",
+          "scope",
+          "effektivitet"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.95
+    },
+    {
+      "id": "pattern-019",
+      "type": "pattern",
+      "title": "Manager-only verifiering vid redan mergade resume-körningar",
+      "properties": {
+        "kontext": "Körning 20260224-0647-resume — alla ändringar redan mergade, Manager delegerade inte till någon sub-agent (varken Reviewer eller Merger)",
+        "lösning": "Manager verifierade workspace-tillståndet solo: läste filer, körde tester (vitest + npm test), tsc --noEmit, git log i target-repot, och konstaterade att commit redan fanns på main. Skrev report.md och questions.md direkt utan delegering. Enda delegering var till Historian som sista steg.",
+        "effekt": "Snabbaste möjliga resume-flöde — ~10 tool-anrop istället för 30+ vid Review+Merge-pipeline. Visar att Manager kan kortslutas till ren verifieringsagent när all implementation och merge redan är klar. Eliminerar onödig Reviewer- och Merger-overhead.",
+        "keywords": [
+          "manager",
+          "resume",
+          "no-op",
+          "verifiering",
+          "delegering",
+          "effektivitet",
+          "solo"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.85
+    },
+    {
+      "id": "pattern-020",
+      "type": "pattern",
+      "title": "Merger som commit-message-korrigent vid avvikelse",
+      "properties": {
+        "kontext": "Körning 20260224-0812-neuron-hq — Implementer skrev eget commit-meddelande som avvek från briefens specifikation",
+        "lösning": "Merger läste briefens exakta commit-meddelande (`feat: improve tester failure reporting with stack traces and file locations`) och använde det vid `git commit` till target-repot, istället för Implementers workspace-commit-meddelande (`feat: improve Tester agent failure reporting with structured trace details`). Tvåfas-mergen (workspace-commit → target-commit) ger Merger möjlighet att korrigera metadata utan att ändra koden.",
+        "effekt": "Slutresultatet i target-repot matchar briefens specifikation trots att Implementer avvek. Visar att Merger inte bara är en kopiator utan en aktiv kvalitetsbarriär som kan rätta till avvikelser i metadata (commit-meddelande, filval, etc.) innan merge.",
+        "keywords": [
+          "merger",
+          "commit-message",
+          "kvalitetsbarriär",
+          "tvåfas-merge",
+          "brief-compliance"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-021",
+      "type": "pattern",
+      "title": "Memory-producer → memory-consumer-koppling via prompt-instruktioner",
+      "properties": {
+        "kontext": "Körning #26 — techniques.md hade 30+ entries men ingen agent läste dem. Researcher genererade idéer utan att ta del av den samlade forskningen. Briefen beskrev det som \"ett bibliotek ingen lånar ur\".",
+        "lösning": "Lade till steg 1b i `prompts/researcher.md` som instruerar Researcher att läsa `memory/techniques.md` via `read_memory_file(file=\"techniques\")` innan webbaserad sökning, och citera relevanta paper i ideas.md via ett nytt `Research support`-fält. Prompt-lint-test vaktar att instruktionen kvarstår.",
+        "effekt": "Stänger den sista länken i kedjan Librarian → techniques.md → Researcher → ideas.md. Forskning som Librarian samlar in kan nu direkt påverka Researchers förslag istället för att ligga oanvänd. Principen generaliserar: varje minnesfil behöver minst en explicit konsument i en agents prompt, annars ackumuleras data utan nytta.",
+        "keywords": [
+          "memory",
+          "techniques.md",
+          "researcher",
+          "librarian",
+          "feedback-loop",
+          "prompt-koppling",
+          "consumer-producer"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-022",
+      "type": "pattern",
+      "title": "Manager delegerar cleanup-pass efter Implementer",
+      "properties": {
+        "kontext": "Körning 20260225-0500-neuron-hq — Implementer skapade ett temporärt Python-hjälpskript (`scripts/update-agent-limits.py`) för att mekaniskt uppdatera 8 agentfiler. Skriptet committades till workspace men hörde inte hemma i slutleveransen.",
+        "lösning": "Manager inspekterade workspace efter Implementer, upptäckte det kvarvarande skriptet, och delegerade en andra Implementer-pass med instruktionen \"Remove the file `scripts/update-agent-limits.py`\". Implementer körde `git rm` och committade. Cleanup skedde före merge.",
+        "effekt": "Slutleveransen innehöll bara avsedda filer — inga temporära artefakter läckte till target-repot. Visar att Manager + Implementer kan fungera i ett tvåpass-mönster (implement → inspect → cleanup → merge) utan mänsklig intervention. Reviewer hade också flaggat skriptet, men Manager agerade proaktivt.",
+        "keywords": [
+          "manager",
+          "implementer",
+          "cleanup",
+          "tvåpass",
+          "hjälpskript",
+          "självkorrigering",
+          "quality-gate"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-023",
+      "type": "pattern",
+      "title": "Reviewer-BLOCKED → Manager → Implementer fix-loop",
+      "properties": {
+        "kontext": "Körning 20260226-1553 — Reviewer hittade 3 ruff F401-fel (oanvända imports) i testfilen och rapporterade BLOCKED. Manager delegerade en andra Implementer-pass med enbart lint-fixen som uppgift.",
+        "lösning": "När Reviewer rapporterar BLOCKED med specifika fel, delegerar Manager en fokuserad Implementer-pass med enbart de identifierade felen som uppgift (i detta fall: \"Fix 3 unused imports in test file\"). Implementer fixar, committar, och körningen fortsätter till Merger.",
+        "effekt": "Hela korrigeringsloopen (Reviewer BLOCKED → Manager delegerar → Implementer fixar → Merger mergerar) tog ~2 minuter. Svärmen self-correctar utan mänsklig intervention. Skiljer sig från cleanup-mönstret (som handlar om temporära filer) genom att detta triggas av Reviewer-feedback på kodkvalitet.",
+        "keywords": [
+          "reviewer",
+          "manager",
+          "implementer",
+          "self-correction",
+          "ruff",
+          "lint",
+          "BLOCKED",
+          "fix-loop"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-024",
+      "type": "pattern",
+      "title": "Merger patch-strategi för divergerade filer",
+      "properties": {
+        "kontext": "Körning 20260227-0604-neuron-hq — `prompts/implementer.md` hade ändrats i target (iteration budget 40→55, 45→65) sedan workspace skapades, men svärmens ändringar (ny Avslutningssteg-sektion) var i en helt annan del av filen",
+        "lösning": "Merger genererade en unified diff från workspace (`git diff -- prompts/implementer.md > /tmp/handoff_implementer.patch`), körde `patch -p1 --dry-run` mot target för att verifiera, och applicerade sedan `patch -p1` skarpt. Non-overlapping regioner (rad 43/45 vs rad 103+) mergades korrekt utan konflikt.",
+        "effekt": "Hanterar det vanliga scenariot där target-repot rör sig framåt under en körning — istället för att skriva över targets ändringar appliceras bara svärmens diff. Bevarar båda sidors arbete. Tidigare körningar med divergerade filer hade ingen etablerad strategi.",
+        "keywords": [
+          "merger",
+          "patch",
+          "divergerad-fil",
+          "non-overlapping",
+          "git-diff",
+          "baseline"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-025",
+      "type": "pattern",
+      "title": "Konceptbaserade regex i prompt-lint-tester (inte specifika siffror/värden)",
+      "properties": {
+        "kontext": "Körning 20260227-0634-neuron-hq-resume — `implementer-lint.test.ts` använde `/40.*iteration|iteration.*40/i` som bröt när per-agent iteration limits ändrade prompten från \"40\" till \"55/65\"",
+        "lösning": "Byt ut sifferspecifika regex mot konceptbaserade: `/iteration budget/i` istället för `/40.*iteration/i`. Konceptet (\"iteration budget\") är stabilt, de exakta siffrorna är det inte.",
+        "effekt": "Lint-testet blev robust mot framtida numeriska ändringar utan att förlora sitt syfte. Samma princip gäller alla prompt-lint-tester: testa att konceptet finns i prompten, inte specifika parametervärden som kan ändras.",
+        "keywords": [
+          "prompt-lint",
+          "regex",
+          "robusthet",
+          "tester",
+          "koncept-vs-värde",
+          "regression"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-026",
+      "type": "pattern",
+      "title": "AGENTS.md som delad systemkonstitution separerar rollprompts från systemprotokoll",
+      "properties": {
+        "kontext": "Session 44 — 9 promptfiler hade isolerade regler utan gemensamt protokoll. Risk-tiers, handoff-format och anti-patterns existerade bara i enskilda agenters prompts.",
+        "lösning": "Skapa `AGENTS.md` i repots rot som \"konstitution\" — systemövergripande regler som alla agenter refererar till. Rollprompts behåller rollanpassad precision (t.ex. Reviewers verifieringskommandon), AGENTS.md äger systemgemensamma protokoll (risk-tiers, handoff-mall, minnesprioritetsordning, anti-patterns). Varje prompt-fil får en referensrad i toppen: \"System-wide principles are in AGENTS.md.\"",
+        "effekt": "Eliminerar duplicering och inkonsekvens mellan prompts. Risk-tiers (Low/Medium/High) är nu ett delat språk — Manager kan instruera Implementer \"detta är High-risk\" och Implementer vet exakt vad det kräver. Handoff-mallen standardiserar kommunikationen Implementer→Manager och sparar 5–15 iterationer per körning.",
+        "keywords": [
+          "AGENTS.md",
+          "konstitution",
+          "rollprompt",
+          "systemprotokoll",
+          "risk-tiers",
+          "handoff",
+          "anti-patterns"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-027",
+      "type": "pattern",
+      "title": "Single-phase Merger: auto-commit on Reviewer GREEN",
+      "properties": {
+        "kontext": "Körning 20260227-0656-neuron-hq — tvåfas-Merger-logiken (plan → answers.md APPROVED → execute) togs bort och ersattes med single-phase auto-commit",
+        "lösning": "Merger läser `report.md`, kontrollerar att Reviewer gav GREEN (case-insensitive substring), och kör execute-flödet (copy, git add, git commit) direkt. Returnerar `MERGER_BLOCKED` om Reviewer inte gav GREEN, `MERGER_COMPLETE` vid lyckad merge. Skriver `merge_summary.md` med commit-hash och rollback-instruktion. Ingen `answers.md` eller `merge_plan.md` behövs längre.",
+        "effekt": "Eliminerar behovet av dubbla Merger-delegationer (plan + execute), `answers.md`-godkännande, och Manager-mellansteget. Hela merge-kedjan går från Reviewer GREEN → en enda Merger-delegation → commit. Enklare flöde, färre felkällor (tidigare körningar hade problem med answers.md-sökvägar, saknade APPROVED-svar, etc.). **Ersätter mönstret \"Tvåfas-Merger (PLAN/EXECUTE via answers.md)\"** som nu är obsolet.",
+        "keywords": [
+          "merger",
+          "single-phase",
+          "auto-commit",
+          "reviewer-green",
+          "förenkling"
+        ]
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "pattern-028",
+      "type": "pattern",
+      "title": "Arkiv — Obsoleta mönster",
+      "properties": {
+        "kontext": "Session 10 — Merger behövde mänskligt godkännande innan kopiering",
+        "lösning": "Merger skriver merge_plan.md, väntar på att `answers.md` innehåller \"APPROVED\"",
+        "effekt": "Säker merge-process — inget kopieras utan explicit godkännande"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.85
+    },
+    {
+      "id": "error-001",
+      "type": "error",
+      "title": "Context overflow i Tester-agenten",
+      "properties": {
+        "lösning": "Lade till `-q --cov-report=term` i tester-prompten + max 30 rader output",
+        "session": "11",
+        "symptom": "Tester-agenten kraschade mitt i körningen",
+        "orsak": "Full pytest-output med coverage-rapport överskred context-fönstret",
+        "status": "✅ Löst"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-002",
+      "type": "error",
+      "title": "Git-commits hamnade i neuron-hq istället för workspace",
+      "properties": {
+        "lösning": "Ny `initWorkspace()` i `src/core/git.ts` som init:ar separat repo i workspace",
+        "session": "11",
+        "symptom": "Alla commits från Implementer dök upp i neuron-hq git-historik",
+        "orsak": "`git commit` kördes utan att workspace hade eget git-repo",
+        "status": "✅ Löst"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-003",
+      "type": "error",
+      "title": "Implementer glömde git commit efter lyckade fixar",
+      "properties": {
+        "lösning": "Lägg till \"git commit\"-steg i Quality Checklist i `prompts/implementer.md`",
+        "session": "13-prep (körning 20260222-1457)",
+        "symptom": "ruff-fixar låg kvar som unstaged trots att testerna var gröna",
+        "orsak": "Ingen explicit checklista-steg för commit i Implementer-prompten",
+        "status": "✅ Löst (körning #8: explicit git commit-steg tillagt i implementer.md Quality Checklist)"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-004",
+      "type": "error",
+      "title": "Researcher skapade inte knowledge.md",
+      "properties": {
+        "lösning": "Förtydliga att knowledge.md är obligatorisk i Researcher-prompten",
+        "session": "13-prep (körning 20260222-1457)",
+        "symptom": "knowledge.md saknades som körningsartefakt",
+        "orsak": "Researcher-prompten betonade ideas.md mer än knowledge.md",
+        "status": "✅ Löst (körning #8: Required Outputs-sektion tillagd i researcher.md med knowledge.md som mandatory)"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-005",
+      "type": "error",
+      "title": "mcp-tools plugin stöder inte externa MCP-servrar",
+      "properties": {
+        "lösning": "Obsidian-koppling sker via vault-watcher (frontmatter-kommandon) istället",
+        "session": "9",
+        "symptom": "aurora-swarm-lab MCP-server syntes inte i mcp-tools plugin",
+        "orsak": "mcp-tools v0.2.27 stöder bara inbyggda verktyg, inte externa servrar",
+        "status": "✅ Dokumenterat, alternativ lösning implementerad"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-006",
+      "type": "error",
+      "title": "Librarian smoke test producerade inga artefakter",
+      "properties": {
+        "lösning": "Verifiera att Librarian-agenten är registrerad och tillgänglig i swarm-konfigurationen. Kontrollera audit.jsonl för eventuella felmeddelanden. Säkerställ att orchestratorn korrekt delegerar efter att brief skapats.",
+        "session": "20260222-1639-aurora-swarm-lab",
+        "symptom": "Endast brief.md skapades. Ingen report.md, questions.md eller merge_summary.md finns. Librarian-agenten verkar aldrig ha exekverats.",
+        "orsak": "Okänt — troligen delegerade orchestratorn aldrig till Librarian, eller så saknas Librarian-agenten i swarm-konfigurationen. Ingen audit.jsonl kontrollerad.",
+        "status": "✅ Löst — audit.jsonl bekräftar att Librarian körde och skrev 8 poster till techniques.md. Felet berodde på felaktig diagnos (ingen audit.jsonl-kontroll)."
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-007",
+      "type": "error",
+      "title": "Manager söker Librarian-output i workspace istället för delat minne",
+      "properties": {
+        "lösning": "Manager-prompten eller verifieringslogiken behöver uppdateras för att veta att Librarian-output hamnar i den delade memory-katalogen, inte i workspace. Alternativt bör Librarian-agenten returnera en sammanfattning av vad som skrevs så Manager inte behöver leta själv.",
+        "session": "20260222-1651-aurora-swarm-lab",
+        "symptom": "Manager hittade inte techniques.md i workspace efter lyckad Librarian-delegation, trots att Librarian korrekt skrev 9 entries till den delade memory/techniques.md",
+        "orsak": "Librarian skriver till den delade `memory/techniques.md` (via write_to_techniques), men Manager letade i workspace-katalogen `workspaces/.../aurora-swarm-lab/memory/techniques.md`",
+        "status": "✅ Löst — körning #9 lade till explicit vägledning i prompts/manager.md om att Librarian-output hamnar i delat memory/, inte workspace. Se \"Librarian-sökvägsproblem löst i manager.md\" i samma fil."
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-008",
+      "type": "error",
+      "title": "Run-artefakter skrivs till workspace men inte till runs-katalogen",
+      "properties": {
+        "lösning": "Orchestratorn eller Manager behöver kopiera run-artefakter (report.md, questions.md) till runs-katalogen efter körning, eller skriva direkt dit. Alternativt bör Historian kunna läsa från workspace-katalogen som fallback.",
+        "session": "20260222-1651-aurora-swarm-lab",
+        "symptom": "report.md och questions.md saknas i runs-katalogen, trots att Manager skrev dem till workspace",
+        "orsak": "Manager skrev artefakter (report.md, questions.md, ideas.md, knowledge.md) till workspace-katalogen men de kopierades aldrig till runs-katalogen. Historian kunde därför inte läsa dem.",
+        "status": "✅ Löst — session 21 exponerade runDir i manager.ts, uppdaterade manager.md med absolut sökväg, och lade till workspace-fallback i merger.ts. Se \"Manager skriver answers.md till workspace istället för runs-katalogen\" i samma fil."
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-009",
+      "type": "error",
+      "title": "Manager duplicerar Researchers arbete",
+      "properties": {
+        "lösning": "Manager-prompten bör instruera att (1) läsa Researchers ideas.md, (2) verifiera att den uppfyller briefens krav, (3) delegera vidare utan att upprepa analysen. Manager ska vara koordinator, inte utförare.",
+        "session": "20260222-1757-aurora-swarm-lab",
+        "symptom": "Manager läste ~15 filer och körde ~10 bash-kommandon efter att Researcher redan slutfört identisk analys och levererat ideas.md med 10 förslag",
+        "orsak": "Manager verifierar inte bara att Researcher levererade korrekt — den upprepar hela analysen själv och skriver egna ideas.md/knowledge.md till workspace",
+        "status": "✅ Löst (körning #8: \"After Researcher Completes\"-sektion tillagd i manager.md med explicit \"do NOT repeat analysis\")"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-010",
+      "type": "error",
+      "title": "Bash-kommentarer i Manager-kommandon triggar policyblockering",
+      "properties": {
+        "lösning": "Agenter bör köra rena kommandon utan inbäddade kommentarer. Alternativt bör allowlisten uppdateras för att tillåta kommentarer i bash-kommandon.",
+        "session": "20260222-1757-aurora-swarm-lab",
+        "symptom": "Tre bash_exec-anrop från Manager blockerades med \"BLOCKED: not in allowlist\"",
+        "orsak": "Kommandon innehöll inledande `#`-kommentarer (t.ex. `# Check for type hints coverage\\ngrep -rn ...`), vilket troligen inte matchade den tillåtna kommandomönsterlistan",
+        "status": "✅ Löst (session 21: explicit \"Never # comments\" instruktion tillagd i prompts/manager.md)"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-011",
+      "type": "error",
+      "title": "Implementer transform-skript blockeras av policy",
+      "properties": {
+        "lösning": "Implementer bör alltid skriva direkt till target-filen med write_file istället för att skapa hjälpskript. Om filen är stor, läs originalet först, gör ändringarna mentalt, och skriv hela filen i ett anrop.",
+        "keywords": [
+          "implementer",
+          "policy",
+          "write_file",
+          "transform-skript",
+          "bash-block",
+          "tmp"
+        ],
+        "session": "20260222-2113-aurora-swarm-lab",
+        "symptom": "Implementer försökte skriva ett Python-transformskript till /tmp/transform.py — blockerades med \"file write outside allowed scope\". Försökte sedan köra inline Python via bash med heredoc (cat > /tmp/transform.py << 'PYEOF') — blockerades med \"matches forbidden pattern\". Även `rm` av hjälpfil blockerades.",
+        "orsak": "Säkerhetspolicyn tillåter bara write_file till workspace-katalogen och specifika runs-katalogen. /tmp och bash-kommandon med `.*`-liknande mönster (heredocs, backticks) blockeras.",
+        "status": "✅ Löst (Implementer lyckades efter att byta strategi till direkt write_file)"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-012",
+      "type": "error",
+      "title": "Brief med inaktuella ruff-fel",
+      "properties": {
+        "lösning": "Kör alltid en baseline-verifiering (`ruff check .`, `pytest tests/ -x -q`) som del av brief-skapandet, inte bara vid körningens start. Briefen bör innehålla faktisk `ruff check`-output, inte cachade resultat från äldre körningar.",
+        "keywords": [
+          "brief",
+          "baseline",
+          "ruff",
+          "stale-data",
+          "inaktuell"
+        ],
+        "session": "20260222-2253-aurora-swarm-lab",
+        "symptom": "Briefen specificerade 3 ruff-fel (E741 whisper_client:183, F841 main.py:308, F841 test_intake_youtube:33) men vid körning visade sig 2 av 3 (E741, F841 i main.py) redan vara fixade i repot. Istället fanns 8 andra fel (7× F401, 1× F841).",
+        "orsak": "Briefen baserades på analys från körning #4 (20260222-1316) utan att verifiera aktuellt tillstånd. Mellan körning #4 och #7 hade repot ändrats (troligen genom körning #4:s egna auto-fixar eller manuella ändringar).",
+        "status": "✅ Dokumenterat och löst — runbook-avsnitt tillagt i körning #9 (docs/runbook.md)."
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-013",
+      "type": "error",
+      "title": "Merger git commit blockerat av backtick i commit-meddelande",
+      "properties": {
+        "lösning": "Merger anpassade sig direkt — skrev om commit-meddelandet med enkla citattecken (`'from pathlib import Path'`) istället för backticks. Fungerade vid andra försöket.",
+        "keywords": [
+          "merger",
+          "git-commit",
+          "policy",
+          "backtick",
+          "forbidden-pattern"
+        ],
+        "session": "20260222-2314-aurora-swarm-lab-resume",
+        "symptom": "Merger försökte köra `git commit -m \"...\"` med backtick-tecken i meddelandet (t.ex. `\\`from pathlib import Path\\``). Kommandot blockerades av säkerhetspolicyn med \"BLOCKED: matches forbidden pattern: \\`.*\\`\".",
+        "orsak": "Policyn tolkar backtick-tecken som potentiellt farliga (command substitution i bash). Merger använde backticks för att markera kodnamn i commit-meddelandet.",
+        "status": "✅ Löst"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-014",
+      "type": "error",
+      "title": "Manager skriver answers.md till workspace istället för runs-katalogen",
+      "properties": {
+        "lösning": "Manager-prompten bör instruera att answers.md ska skrivas direkt till runs-katalogen, alternativt bör Merger även kontrollera workspace-katalogen som fallback. Detta är ett återkommande mönster — samma typ av sökvägsproblem dokumenterades i session 20260222-1651 (run-artefakter i workspace).",
+        "keywords": [
+          "manager",
+          "merger",
+          "answers.md",
+          "runs-katalog",
+          "workspace",
+          "sökväg"
+        ],
+        "session": "20260223-0619-neuron-hq",
+        "symptom": "Merger delegerades tre gånger. Vid andra delegationen hittade Merger fortfarande inte answers.md i runs-katalogen trots att Manager hade skrivit \"APPROVED\" — filen låg i workspace-katalogen. Manager fick manuellt `cp` filen till runs-katalogen innan tredje delegationen lyckades.",
+        "orsak": "Manager använde `write_file` till workspace-sökvägen (`workspaces/.../neuron-hq/answers.md`) istället för runs-katalogen (`runs/20260223-.../answers.md`). Merger letar specifikt i runs-katalogen.",
+        "status": "✅ Löst (session 21: manager.ts exponerar nu runDir, manager.md instruerar absolut sökväg, merger.ts fallback till workspace)"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-015",
+      "type": "error",
+      "title": "Librarian-sökvägsproblem löst i manager.md",
+      "properties": {
+        "lösning": "Körning #9 lade till explicit vägledning i `prompts/manager.md` (+4 rader) som förklarar att Librarian-output hamnar i delat minne och inte ska sökas i workspace",
+        "keywords": [
+          "librarian",
+          "manager",
+          "sökväg",
+          "techniques.md",
+          "delat-minne"
+        ],
+        "session": "20260223-0700-neuron-hq",
+        "symptom": "Ursprungligt problem (session 20260222-1651): Manager sökte Librarian-output i workspace istället för delat minne",
+        "orsak": "Manager-prompten saknade information om att Librarian skriver till delat `memory/techniques.md`, inte workspace",
+        "status": "✅ Löst"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-016",
+      "type": "error",
+      "title": "Brief-baseline-rutin dokumenterad i runbook",
+      "properties": {
+        "lösning": "Körning #9 lade till `## Baseline-verifiering vid brief-skapande` i `docs/runbook.md` (+23 rader) med steg: (1) kör alltid baseline, (2) kopiera faktisk output, (3) datumstämpla",
+        "keywords": [
+          "brief",
+          "baseline",
+          "runbook",
+          "stale-data",
+          "verifiering"
+        ],
+        "session": "20260223-0700-neuron-hq",
+        "symptom": "Ursprungligt problem (session 20260222-2253): Brief baserades på inaktuella data — ruff-fel som redan var fixade specificerades",
+        "orsak": "Ingen rutin för att köra baseline-verifiering vid brief-skapande, bara vid körningens start",
+        "status": "✅ Löst"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-017",
+      "type": "error",
+      "title": "Implementer committade bara testfil, inte implementeringsfiler",
+      "properties": {
+        "lösning": "Implementer bör alltid köra `git status` före commit för att verifiera att ALLA ändrade filer inkluderas. Alternativt: `git add -A` eller explicit `git add` med alla tre filnamn. Reviewer fångade problemet och Merger inkluderade alla filer i den slutliga commiten.",
+        "keywords": [
+          "implementer",
+          "git-commit",
+          "partiell-commit",
+          "unstaged"
+        ],
+        "session": "20260223-0927-neuron-hq",
+        "symptom": "Efter att Implementer körde `git add tests/agents/historian.test.ts && git commit`, låg `src/core/agents/historian.ts` och `prompts/historian.md` kvar som unstaged ändringar — bara testfilen committades",
+        "orsak": "Implementer körde `git add` på enbart testfilen (den senast redigerade) utan att inkludera de andra ändrade filerna. Troligen en följd av att Implementer delegerades i två omgångar — första omgången modifierade historian.ts och historian.md, andra omgången modifierade testerna och committade bara sitt eget arbete.",
+        "status": "✅ Löst — Merger inkluderade alla 3 filer i commit 167e598"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-018",
+      "type": "error",
+      "title": "Librarian auto-trigger ignorerades av Manager",
+      "properties": {
+        "lösning": "Antingen (1) lägg till explicit stöd i Manager-prompten för `⚡ Auto-trigger`-sektioner i briefen, eller (2) gör Librarian-triggern till en egen numrerad uppgift i briefen (t.ex. \"Uppgift 6 — Librarian: Sök arxiv\") istället för en notering i slutet, eller (3) bygg in auto-trigger-logik i orchestratorn baserat på körningsnummer.",
+        "keywords": [
+          "librarian",
+          "auto-trigger",
+          "manager",
+          "delegation",
+          "brief"
+        ],
+        "session": "20260223-1117-neuron-hq",
+        "symptom": "Briefen specificerade `⚡ Auto-trigger: Librarian (körning #15 — var 5:e körning)` men Manager delegerade aldrig till Librarian. Audit.jsonl visar delegationer till Implementer, Tester, Reviewer, Merger och Historian — men ingen `delegate_to_librarian`.",
+        "orsak": "Manager-prompten har troligen inget stöd för att tolka auto-trigger-instruktioner i briefen. Manager fokuserar på den linjära pipeline-kedjan (Researcher → Implementer → Tester → Reviewer → Merger → Historian) och plockar inte upp extra delegationer som anges i briefens noteringar.",
+        "status": "✅ Löst — I körning #16 visade det sig att Librarian faktiskt körde i #15 (audit.jsonl bekräftar), men Historian sökte i audit.jsonl för tidigt (innan Librarian hade delegerats). Grundorsaken var att manager.md instruerade Historian att köra FÖRE Librarian. Fixat genom att ändra delegationsordning i manager.md (Librarian före Historian) och lägga till guardrail i historian.md (använd read_memory_file istället för grep_audit). Commit 2c80e49."
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-019",
+      "type": "error",
+      "title": "Merger-agentens verifieringskommandon blockeras av policy",
+      "properties": {
+        "lösning": "Merger bör hoppa över pre-merge-verifiering och istället verifiera post-merge via `git diff HEAD~1..HEAD` i target (som redan fungerar). Alternativt: lägg till `diff`, `md5`, `git hash-object` i target-allowlisten.",
+        "keywords": [
+          "merger",
+          "BLOCKED",
+          "allowlist",
+          "policy",
+          "diff",
+          "bash_exec_in_target"
+        ],
+        "session": "20260223-1620-neuron-hq",
+        "symptom": "Merger försökte köra `diff`, `md5` och `git hash-object` på target-repot via `bash_exec` och `bash_exec_in_target` — alla 6 anrop blockerades med \"BLOCKED: not in allowlist\"",
+        "orsak": "Merger vill verifiera att workspace-filer matchar target innan kopiering, men dessa kommandon finns inte i target-allowlisten. `diff` med absoluta sökvägar blockeras av `bash_exec`, och `md5`/`git hash-object` blockeras av `bash_exec_in_target`.",
+        "status": "✅ Löst — `diff` tillagd i `policy/bash_allowlist.txt` (commit 4dc2c33, körning #21). Workaround i `prompts/merger.md` med `wc -l`/`grep` (commit 9f68e1e, körning #20) kvarstår som fallback."
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-020",
+      "type": "error",
+      "title": "Upprepade NO-OP resume-körningar slösar resurser",
+      "properties": {
+        "lösning": "Lägg till en pre-flight check i orchestratorn: innan resume-körning startas, kör `git log --oneline -10` i target-repot och matcha mot briefens förväntade commit-meddelande. Om committen redan finns → avbryt körningen direkt med ett meddelande \"Already merged in <commit>\".",
+        "keywords": [
+          "resume",
+          "NO-OP",
+          "orchestrator",
+          "merge-check",
+          "redundant",
+          "token-waste"
+        ],
+        "session": "20260224-0833-neuron-hq-resume (samt 20260223-2218, 20260223-2300, 20260224-0746)",
+        "symptom": "Resume-körningar startas trots att föregående körning redan har mergat allt till target. Hela körningen blir en NO-OP — ingen ny kod, inga nya filer, bara verifiering av redan existerande merge.",
+        "orsak": "Orchestratorn kontrollerar inte om original-körningens merge redan lyckades innan den startar en resume. Det saknas en tidig \"already merged?\"-guard.",
+        "status": "⚠️ Identifierat — ytterligare bekräftat i körning 20260226-1810-aurora-swarm-lab-resume (minst 6:e NO-OP resume-körningen). Pre-flight merge-check saknas fortfarande i orchestratorn."
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-021",
+      "type": "error",
+      "title": "Reviewer använder export PATH i bash-kommandon",
+      "properties": {
+        "lösning": "Reviewer (och alla agenter) bör köra kommandon direkt utan `export PATH=...`-prefix. Node-binärer finns redan i systemets PATH. Om node/npm-versioner behöver specifieras, använd absoluta sökvägar (`/opt/homebrew/opt/node@20/bin/npx ...`) istället.",
+        "keywords": [
+          "reviewer",
+          "export-PATH",
+          "policy",
+          "BLOCKED",
+          "bash_exec",
+          "forbidden-pattern"
+        ],
+        "session": "20260224-0948-neuron-hq",
+        "symptom": "Reviewer fick 2 bash_exec-anrop blockerade med \"BLOCKED: matches forbidden pattern: ^export\\s+PATH=\" när den försökte köra `export PATH=\"/opt/homebrew/opt/node@20/bin:$PATH\" && npx tsc --noEmit` och liknande.",
+        "orsak": "Säkerhetspolicyn förbjuder `export PATH=...` i bash-kommandon — troligen för att förhindra PATH-manipulation. Reviewer kopierade mönstret från briefens manuella testscenario som innehöll `export PATH=...`.",
+        "status": "⚠️ Identifierat"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-022",
+      "type": "error",
+      "title": "Reviewer-säkerhetsskanning blockeras av policy",
+      "properties": {
+        "lösning": "Reviewer bör undvika att inkludera `rm -rf` som en literal sträng i grep-kommandon. Alternativ: (1) dela upp i separata grep-anrop utan `rm -rf`, (2) använda `grep -c 'rm.*-rf'` med escape, eller (3) söka efter farliga mönster via `read_file` + manuell inspektion istället för bash grep.",
+        "keywords": [
+          "reviewer",
+          "security-scan",
+          "policy-block",
+          "grep",
+          "rm-rf",
+          "forbidden-pattern"
+        ],
+        "session": "20260225-0844-neuron-hq-resume",
+        "symptom": "Reviewer kör `git diff main | grep -iE '(eval|exec|rm -rf|...)'` som en säkerhetsskanning av diffen. Kommandot blockeras av policy eftersom strängen `rm -rf` matchar det förbjudna mönstret `\\brm\\s+.*-rf\\b`, trots att kommandot bara söker efter mönstret — inte utför det.",
+        "orsak": "Policy-filtret matchar mot hela kommandosträngen inklusive grep-argument, inte bara den faktiska operationen.",
+        "status": "⚠️ Identifierat"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-023",
+      "type": "error",
+      "title": "Manager hoppade över Merger trots Reviewer APPROVED",
+      "properties": {
+        "lösning": "Manager-prompten behöver förstärkas med en explicit regel: \"After Reviewer APPROVED, ALWAYS delegate to Merger before any meta-triggers (META_ANALYSIS, Librarian).\" Meta-triggers bör aldrig avbryta den normala merge-kedjan. Alternativt: lägg till en invariant-check i Historian som flaggar körningar där Reviewer godkände men ingen merge skedde.",
+        "keywords": [
+          "manager",
+          "merger",
+          "meta-analysis",
+          "delegation-ordning",
+          "missad-merge",
+          "approved-utan-merge"
+        ],
+        "session": "20260226-0605-aurora-swarm-lab-resume",
+        "symptom": "Reviewer godkände alla 22 acceptanskriterier med ✅ APPROVED, men Manager delegerade aldrig till Merger. Chunk-summaries-koden finns kvar i workspace utan att mergeas till target-repot.",
+        "orsak": "Manager delegerade till Tester → Reviewer → Researcher (META_ANALYSIS) → Historian. META_ANALYSIS-triggern fick Manager att gå vidare till Researcher direkt efter Reviewer, utan att passera Merger-steget. Delegationskedjan bröts — Manager behandlade meta-analys som nästa steg istället för att följa den normala ordningen (Tester → Reviewer → Merger → Librarian/Researcher → Historian).",
+        "status": "⚠️ Identifierat"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-024",
+      "type": "error",
+      "title": "Resume-körningar: write_file blockeras för delad workspace",
+      "properties": {
+        "lösning": "Agenter i resume-körningar bör (1) använda `sed`/`bash_exec` istället för `write_file` för att redigera filer i ärvd workspace, eller (2) skriva direkt till target-repot vid small fixes. Långsiktigt: policyn bör medge att resume-körningar har write-access till den workspace de ärver.",
+        "keywords": [
+          "resume",
+          "write_file",
+          "BLOCKED",
+          "workspace",
+          "policy",
+          "cross-run"
+        ],
+        "beskrivning": "När Reviewer godkänner med APPROVED måste Manager delegera till Merger innan eventuella meta-triggers (META_ANALYSIS, Librarian) hanteras. Meta-triggers får aldrig avbryta den normala merge-kedjan (Tester → Reviewer → Merger → meta-triggers → Historian).",
+        "session": "20260227-0634-neuron-hq-resume",
+        "symptom": "Implementer fick 3 `write_file`-anrop blockerade med \"BLOCKED: cannot write to other run's workspace/runs\" när den försökte skriva till workspace från den ursprungliga körningen (20260227-0604). Manager fick 1 liknande blockering.",
+        "orsak": "Resume-körningar ärver workspace från den ursprungliga körningen men policy-filtret betraktar det som \"other run's workspace\" — write_file tillåts bara till den aktuella körningens egna kataloger.",
+        "status": "⚠️ Identifierat"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "error-025",
+      "type": "error",
+      "title": "per-agent-limits.test.ts förväntar föråldrat värde",
+      "properties": {
+        "lösning": "Uppdatera testets assertions att matcha nuvarande `limits.yaml`-värden, eller omskriv testet att läsa limits.yaml dynamiskt istället för hårdkodade förväntningar.",
+        "keywords": [
+          "per-agent-limits",
+          "test",
+          "limits.yaml",
+          "config-drift",
+          "hårdkodade-värden"
+        ],
+        "session": "20260227-1005-neuron-hq",
+        "symptom": "`per-agent-limits.test.ts` misslyckas — förväntar `50` men får `75`. Testet är rött i alla körningar sedan limits.yaml ändrades.",
+        "orsak": "Policy-config-drift: `limits.yaml` uppdaterades med nya per-agent-gränser (t.ex. 55, 65, 75) men testet i `per-agent-limits.test.ts` förväntar fortfarande det gamla globala värdet `50`.",
+        "status": "⚠️ Identifierat"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5
+    },
+    {
+      "id": "run-011",
+      "type": "run",
+      "title": "run-011",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 1
+    },
+    {
+      "id": "run-009",
+      "type": "run",
+      "title": "run-009",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 1
+    },
+    {
+      "id": "run-008",
+      "type": "run",
+      "title": "run-008",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 1
+    },
+    {
+      "id": "run-010",
+      "type": "run",
+      "title": "run-010",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 1
+    },
+    {
+      "id": "run-014",
+      "type": "run",
+      "title": "run-014",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 1
+    },
+    {
+      "id": "run-016",
+      "type": "run",
+      "title": "run-016",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 1
+    },
+    {
+      "id": "run-018",
+      "type": "run",
+      "title": "run-018",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 1
+    },
+    {
+      "id": "run-019",
+      "type": "run",
+      "title": "run-019",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 1
+    },
+    {
+      "id": "run-20260225-0500-neuron-hq",
+      "type": "run",
+      "title": "run-20260225-0500-neuron-hq",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 1
+    },
+    {
+      "id": "run-20260226-1553-aurora-swarm-lab",
+      "type": "run",
+      "title": "run-20260226-1553-aurora-swarm-lab",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 1
+    },
+    {
+      "id": "run-20260227-0604-neuron-hq",
+      "type": "run",
+      "title": "run-20260227-0604-neuron-hq",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 1
+    },
+    {
+      "id": "run-20260227-0634-neuron-hq-resume",
+      "type": "run",
+      "title": "run-20260227-0634-neuron-hq-resume",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 1
+    },
+    {
+      "id": "run-Session 44",
+      "type": "run",
+      "title": "run-Session 44",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 1
+    },
+    {
+      "id": "run-20260227-0656-neuron-hq",
+      "type": "run",
+      "title": "run-20260227-0656-neuron-hq",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 1
+    },
+    {
+      "id": "run-Körning 20260223-2218-neuron-hq-resume",
+      "type": "run",
+      "title": "run-Körning 20260223-2218-neuron-hq-resume",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.923Z",
+      "updated": "2026-02-27T12:13:00.923Z",
+      "confidence": 1
+    },
+    {
+      "id": "run-Körning 20260223-2300-aurora-swarm-lab-resume",
+      "type": "run",
+      "title": "run-Körning 20260223-2300-aurora-swarm-lab-resume",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.923Z",
+      "updated": "2026-02-27T12:13:00.923Z",
+      "confidence": 1
+    }
+  ],
+  "edges": [
+    {
+      "from": "pattern-001",
+      "to": "run-011",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-002",
+      "to": "run-011",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-003",
+      "to": "run-009",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-004",
+      "to": "run-009",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-011",
+      "to": "run-008",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-012",
+      "to": "run-010",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-013",
+      "to": "run-014",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-014",
+      "to": "run-016",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-015",
+      "to": "run-018",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-016",
+      "to": "run-019",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-022",
+      "to": "run-20260225-0500-neuron-hq",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-023",
+      "to": "run-20260226-1553-aurora-swarm-lab",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-024",
+      "to": "run-20260227-0604-neuron-hq",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-025",
+      "to": "run-20260227-0634-neuron-hq-resume",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-026",
+      "to": "run-Session 44",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-027",
+      "to": "run-20260227-0656-neuron-hq",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-028",
+      "to": "run-010",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-007",
+      "to": "pattern-003",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-008",
+      "to": "error-011",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-009",
+      "to": "error-012",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-011",
+      "to": "error-003",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-011",
+      "to": "error-004",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-011",
+      "to": "error-009",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-012",
+      "to": "error-006",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-014",
+      "to": "error-018",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-015",
+      "to": "pattern-013",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-016",
+      "to": "pattern-015",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-016",
+      "to": "pattern-013",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-017",
+      "to": "pattern-010",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-018",
+      "to": "pattern-009",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-019",
+      "to": "pattern-010",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-019",
+      "to": "pattern-017",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-021",
+      "to": "pattern-011",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-021",
+      "to": "pattern-016",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-022",
+      "to": "pattern-020",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-022",
+      "to": "pattern-008",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-023",
+      "to": "pattern-022",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-023",
+      "to": "pattern-018",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-024",
+      "to": "pattern-020",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-025",
+      "to": "pattern-013",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "pattern-026",
+      "to": "pattern-013",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "error-011",
+      "to": "pattern-008",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "error-012",
+      "to": "pattern-009",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "error-013",
+      "to": "error-011",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "error-014",
+      "to": "error-008",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "error-015",
+      "to": "error-007",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "error-016",
+      "to": "error-012",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "error-017",
+      "to": "error-003",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "error-018",
+      "to": "error-006",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "error-018",
+      "to": "error-007",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "error-020",
+      "to": "run-Körning 20260223-2218-neuron-hq-resume",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "error-020",
+      "to": "run-Körning 20260223-2300-aurora-swarm-lab-resume",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "error-021",
+      "to": "error-013",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "error-023",
+      "to": "pattern-014",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "error-024",
+      "to": "error-020",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    },
+    {
+      "from": "error-025",
+      "to": "pattern-025",
+      "type": "related_to",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.923Z"
+      }
+    }
+  ],
+  "lastUpdated": "2026-02-27T12:13:00.923Z"
+}
