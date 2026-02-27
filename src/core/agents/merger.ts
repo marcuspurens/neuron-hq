@@ -11,9 +11,7 @@ const execAsync = promisify(exec);
 /**
  * Merger Agent - copies verified workspace changes to the target repo and commits.
  *
- * Operates in two phases:
- * - PLAN: reads report.md, diffs workspace vs target, writes merge_plan.md, stops.
- * - EXECUTE: (after user writes APPROVED in answers.md) copies files, commits, writes summary.
+ * Single-phase agent that executes immediately when Reviewer gives GREEN.
  */
 export class MergerAgent {
   private promptPath: string;
@@ -50,11 +48,24 @@ export class MergerAgent {
     });
 
     try {
-      const phase = await this.detectPhase();
-      console.log(`Merger running in ${phase.toUpperCase()} phase.`);
+      // Step 1: Read report.md and check for GREEN verdict
+      const reportPath = path.join(this.ctx.runDir, 'report.md');
+      let reportContent: string;
+      try {
+        reportContent = await fs.readFile(reportPath, 'utf-8');
+      } catch {
+        return 'MERGER_BLOCKED: report.md not found. Reviewer must run first.';
+      }
 
-      const systemPrompt = await this.buildSystemPrompt(phase);
-      const result = await this.runAgentLoop(systemPrompt, phase);
+      if (!reportContent.toUpperCase().includes('GREEN')) {
+        return 'MERGER_BLOCKED: Reviewer did not give GREEN. See report.md.';
+      }
+
+      console.log('Merger running — Reviewer gave GREEN.');
+
+      // Step 2: Run execute flow directly
+      const systemPrompt = await this.buildSystemPrompt();
+      const result = await this.runAgentLoop(systemPrompt);
 
       console.log('Merger agent completed.');
       return result;
@@ -70,29 +81,7 @@ export class MergerAgent {
     }
   }
 
-  /**
-   * Detect which phase to run based on answers.md.
-   */
-  async detectPhase(): Promise<'plan' | 'execute'> {
-    // Check runDir first, then workspace as fallback (in case Manager wrote there)
-    const candidatePaths = [
-      path.join(this.ctx.runDir, 'answers.md'),
-      path.join(this.ctx.workspaceDir, 'answers.md'),
-    ];
-    for (const answersPath of candidatePaths) {
-      try {
-        const content = await fs.readFile(answersPath, 'utf-8');
-        if (content.toUpperCase().includes('APPROVED')) {
-          return 'execute';
-        }
-      } catch {
-        // file doesn't exist at this path — try next
-      }
-    }
-    return 'plan';
-  }
-
-  private async buildSystemPrompt(phase: 'plan' | 'execute'): Promise<string> {
+  private async buildSystemPrompt(): Promise<string> {
     const mergerPrompt = await this.loadPrompt();
 
     const contextInfo = `
@@ -103,7 +92,7 @@ export class MergerAgent {
 - **Target path**: ${this.ctx.target.path}
 - **Workspace**: ${this.ctx.workspaceDir}
 - **Run artifacts**: ${this.ctx.runDir}
-- **Current phase**: ${phase.toUpperCase()}
+- **Current phase**: EXECUTE
 
 # Available Tools
 
@@ -115,34 +104,20 @@ export class MergerAgent {
 
 # Phase Instructions
 
-${
-  phase === 'plan'
-    ? `PLAN: Read report.md, diff workspace vs target, write merge_plan.md and update questions.md. Do NOT copy files or commit. Stop when done.`
-    : `EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, commit with bash_exec_in_target, write merge_summary.md.`
-}
+EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, commit with bash_exec_in_target, write merge_summary.md.
 `;
 
     return `${mergerPrompt}\n\n${contextInfo}`;
   }
 
-  private async runAgentLoop(
-    systemPrompt: string,
-    phase: 'plan' | 'execute'
-  ): Promise<string> {
+  private async runAgentLoop(systemPrompt: string): Promise<string> {
     const initialMessage =
-      phase === 'plan'
-        ? `Generate the merge plan.\n\n` +
-          `1. Read ${path.join(this.ctx.runDir, 'report.md')} to find ✅ VERIFIED items.\n` +
-          `2. For each verified file, diff workspace vs target (use bash_exec + cat/grep).\n` +
-          `3. Write merge_plan.md to ${this.ctx.runDir}.\n` +
-          `4. Append approval request to ${path.join(this.ctx.runDir, 'questions.md')}.\n` +
-          `5. Stop.`
-        : `Execute the merge.\n\n` +
-          `1. Read ${path.join(this.ctx.runDir, 'merge_plan.md')} for the list of files and commit message.\n` +
-          `2. Copy each file using copy_to_target.\n` +
-          `3. Run git add + git commit in target using bash_exec_in_target.\n` +
-          `4. Write merge_summary.md to ${this.ctx.runDir}.\n` +
-          `5. Stop.`;
+      `Execute the merge.\n\n` +
+      `1. Read ${path.join(this.ctx.runDir, 'merge_plan.md')} for the list of files and commit message.\n` +
+      `2. Copy each file using copy_to_target.\n` +
+      `3. Run git add + git commit in target using bash_exec_in_target.\n` +
+      `4. Write merge_summary.md to ${this.ctx.runDir}.\n` +
+      `5. Stop.`;
 
     const messages: Anthropic.MessageParam[] = [
       { role: 'user', content: initialMessage },
@@ -158,7 +133,7 @@ ${
         break;
       }
 
-      console.log(`\n=== Merger iteration ${iteration}/${this.maxIterations} (${phase}) ===`);
+      console.log(`\n=== Merger iteration ${iteration}/${this.maxIterations} ===`);
 
       try {
         const response = await withRetry(async () => {
@@ -220,9 +195,7 @@ ${
     }
 
     this.ctx.usage.recordIterations('merger', iteration, this.maxIterations);
-    return phase === 'plan'
-      ? 'MERGER_PLAN_READY: Merge plan written to merge_plan.md. User approval required before executing.'
-      : 'MERGER_COMPLETE: Changes copied and committed to target repo.';
+    return 'MERGER_COMPLETE';
   }
 
   private defineTools(): Anthropic.Tool[] {

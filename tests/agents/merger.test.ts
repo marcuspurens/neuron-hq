@@ -83,41 +83,22 @@ describe('MergerAgent', () => {
     expect(names).toContain('copy_to_target');
   });
 
-  describe('phase detection', () => {
-    it('returns plan phase when answers.md does not exist', async () => {
-      const phase = await agent.detectPhase();
-      expect(phase).toBe('plan');
+  describe('run() — reviewer gate', () => {
+    it('returns MERGER_BLOCKED when report.md does not exist', async () => {
+      const result = await agent.run();
+      expect(result).toMatch(/MERGER_BLOCKED/);
     });
 
-    it('returns plan phase when answers.md exists without APPROVED', async () => {
-      await fs.writeFile(path.join(runDir, 'answers.md'), 'No, cancel this.');
-      const phase = await agent.detectPhase();
-      expect(phase).toBe('plan');
+    it('returns MERGER_BLOCKED when report.md does not contain GREEN', async () => {
+      await fs.writeFile(path.join(runDir, 'report.md'), '## STOPLIGHT\n\n**🟡 YELLOW — NEEDS FIXES**');
+      const result = await agent.run();
+      expect(result).toMatch(/MERGER_BLOCKED/);
     });
 
-    it('returns execute phase when answers.md contains APPROVED', async () => {
-      await fs.writeFile(path.join(runDir, 'answers.md'), 'APPROVED');
-      const phase = await agent.detectPhase();
-      expect(phase).toBe('execute');
-    });
-
-    it('returns execute phase when APPROVED is lowercase', async () => {
-      await fs.writeFile(path.join(runDir, 'answers.md'), 'approved — go ahead');
-      const phase = await agent.detectPhase();
-      expect(phase).toBe('execute');
-    });
-
-    it('returns execute phase when answers.md is in workspace (fallback)', async () => {
-      await fs.writeFile(path.join(workspaceDir, 'answers.md'), 'APPROVED');
-      const phase = await agent.detectPhase();
-      expect(phase).toBe('execute');
-    });
-
-    it('returns plan when neither runDir nor workspace answers.md contains APPROVED', async () => {
-      await fs.writeFile(path.join(runDir, 'answers.md'), 'No, reject this.');
-      await fs.writeFile(path.join(workspaceDir, 'answers.md'), 'Pending review.');
-      const phase = await agent.detectPhase();
-      expect(phase).toBe('plan');
+    it('returns MERGER_BLOCKED message referencing report.md', async () => {
+      await fs.writeFile(path.join(runDir, 'report.md'), '## STOPLIGHT\n\n**🔴 RED**');
+      const result = await agent.run();
+      expect(result).toContain('report.md');
     });
   });
 
