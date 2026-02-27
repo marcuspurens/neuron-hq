@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-02-24T0910-session36-run25-28-klara.md](docs/HANDOFF-2026-02-24T0910-session36-run25-28-klara.md)
+Senaste handoff: [HANDOFF-2026-02-27T0900-session45-memory-briefs.md](docs/HANDOFF-2026-02-27T0900-session45-memory-briefs.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -40,5 +40,8 @@ Senaste handoff: [HANDOFF-2026-02-24T0910-session36-run25-28-klara.md](docs/HAND
 | 2026-02-24 | 09:00 | 35 | GitHub-migrering + körning #24 + Aurora #10 + 4 briefs | [länk](docs/HANDOFF-2026-02-24T0900-session35-fyra-briefs-klara.md) |
 | 2026-02-24 | 09:10 | 36 | Körning #25–#28 klara — tester 292→300 | [länk](docs/HANDOFF-2026-02-24T0910-session36-run25-28-klara.md) |
 | 2026-02-24 | 13:00 | 36 | Brief Agent + META_ANALYSIS auto-trigger — tester 300→318 | [länk](docs/HANDOFF-2026-02-24T1300-session36-brief-agent-meta-trigger.md) |
+| 2026-02-26 | 20:10 | 43 | ZeroClaw-analys + Aurora A2+A3 + djupsamtal arkitektur | [länk](docs/HANDOFF-2026-02-26T2010-session43-zeroclaw-analys.md) |
+| 2026-02-27 | 07:30 | 44 | AGENTS.md + alla prompt-filer + Merger auto-commit | [länk](docs/HANDOFF-2026-02-27T0730-session44-agents-md-merger.md) |
+| 2026-02-27 | 09:00 | 45 | Minneskörning: techniques.md + patterns.md + 3 briefs (e-stop, injection-guard, memory-compression) | [länk](docs/HANDOFF-2026-02-27T0900-session45-memory-briefs.md) |
 
 > **Not:** Session 1 och 6 saknas — handoffs skapades inte vid dessa tillfällen.
