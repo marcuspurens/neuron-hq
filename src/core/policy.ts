@@ -3,12 +3,30 @@ import path from 'path';
 import yaml from 'yaml';
 import { PolicyLimitsSchema, type PolicyLimits, type RunId } from './types.js';
 
+export class PolicyViolationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PolicyViolationError';
+  }
+}
+
 export class PolicyEnforcer {
   private allowlist: RegExp[] = [];
   private forbidden: RegExp[] = [];
   private limits: PolicyLimits;
   private workspaceRoot: string;
   private runsRoot: string;
+
+  private readonly INJECTION_PATTERNS: RegExp[] = [
+    /ignore\s+previous\s+instructions/i,
+    /ignore\s+all\s+instructions/i,
+    /disregard\s+your/i,
+    /you\s+are\s+now\s+/i,
+    /act\s+as\s+if\s+you/i,
+    /forget\s+everything/i,
+    /new\s+persona/i,
+    /\[SYSTEM\]/,
+  ];
 
   constructor(
     private policyDir: string,
@@ -169,6 +187,20 @@ export class PolicyEnforcer {
       };
     }
     return { valid: true };
+  }
+
+  /**
+   * Validate brief content for prompt injection patterns.
+   * Throws PolicyViolationError if injection patterns are detected.
+   */
+  validateBrief(content: string): void {
+    for (const pattern of this.INJECTION_PATTERNS) {
+      if (pattern.test(content)) {
+        throw new PolicyViolationError(
+          `Brief contains potential prompt injection: ${pattern.toString()}`
+        );
+      }
+    }
   }
 }
 

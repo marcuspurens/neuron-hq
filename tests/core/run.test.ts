@@ -7,7 +7,7 @@ import { GitOperations } from '../../src/core/git.js';
 import { PolicyEnforcer } from '../../src/core/policy.js';
 import { type RunConfig, type RunId, type StoplightStatus } from '../../src/core/types.js';
 
-const mockPolicy = { getLimits: () => ({ verification_timeout_seconds: 30 }) } as unknown as PolicyEnforcer;
+const mockPolicy = { getLimits: () => ({ verification_timeout_seconds: 30 }), validateBrief: () => {} } as unknown as PolicyEnforcer;
 
 describe('countMemoryRuns', () => {
   const tmpDirs: string[] = [];

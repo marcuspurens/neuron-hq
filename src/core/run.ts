@@ -155,6 +155,18 @@ export class RunOrchestrator {
 
     // Copy brief to run directory, with possible meta-trigger injection
     const briefContent = await fs.readFile(config.brief_path, 'utf-8');
+    try {
+      this.policy.validateBrief(briefContent);
+    } catch (err) {
+      await audit.log({
+        ts: new Date().toISOString(),
+        role: 'manager',
+        tool: 'validateBrief',
+        allowed: false,
+        policy_event: `POLICY_BLOCK: ${(err as Error).message}`,
+      });
+      throw err;
+    }
     const processedBrief = maybeInjectMetaTrigger(briefContent, runCount);
     await artifacts.writeBrief(processedBrief);
 
