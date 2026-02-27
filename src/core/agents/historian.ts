@@ -3,6 +3,7 @@ import { searchMemoryFiles, withRetry } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
+import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 
 type MemoryFile = 'runs' | 'patterns' | 'errors';
 
@@ -308,6 +309,7 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
           required: ['query'],
         },
       },
+      ...graphToolDefinitions(),
     ];
   }
 
@@ -347,6 +349,19 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
             case 'grep_audit':
               result = await this.executeGrepAudit(block.input as { query: string });
               break;
+            case 'graph_query':
+            case 'graph_traverse':
+            case 'graph_assert':
+            case 'graph_update': {
+              const graphCtx: GraphToolContext = {
+                graphPath: path.join(this.memoryDir, 'graph.json'),
+                runId: this.ctx.runid,
+                agent: 'historian',
+                audit: this.ctx.audit,
+              };
+              result = await executeGraphTool(block.name, block.input as Record<string, unknown>, graphCtx);
+              break;
+            }
             default:
               result = `Error: Unknown tool ${block.name}`;
           }

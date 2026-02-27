@@ -3,6 +3,7 @@ import { withRetry } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
+import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 
 const FETCH_MAX_BYTES = 50_000;
 const FETCH_TIMEOUT_MS = 15_000;
@@ -220,6 +221,7 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
           required: ['entry'],
         },
       },
+      ...graphToolDefinitions(),
     ];
   }
 
@@ -246,6 +248,19 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
             case 'write_to_techniques':
               result = await this.executeWriteToTechniques(block.input as { entry: string });
               break;
+            case 'graph_query':
+            case 'graph_traverse':
+            case 'graph_assert':
+            case 'graph_update': {
+              const graphCtx: GraphToolContext = {
+                graphPath: path.join(this.memoryDir, 'graph.json'),
+                runId: this.ctx.runid,
+                agent: 'librarian',
+                audit: this.ctx.audit,
+              };
+              result = await executeGraphTool(block.name, block.input as Record<string, unknown>, graphCtx);
+              break;
+            }
             default:
               result = `Error: Unknown tool ${block.name}`;
           }
