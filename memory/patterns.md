@@ -299,3 +299,142 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **[UPPDATERING]** Mönstret "Implementer anpassar sig till faktiskt repo-tillstånd vid inaktuell brief" bekräftades i körning 20260225-0954-aurora-swarm-lab-resume — briefen specificerade `--timeout=120` men pytest-timeout var inte installerat. Implementer ersatte med `--ignore=tests/test_health_check.py` som fungerade med faktisk testmiljö.
 
 **Senast bekräftad:** 20260225-0954-aurora-swarm-lab-resume
+
+**[UPPDATERING]** Mönstret "Exakt feloutput + fixförslag i brief ger kirurgiska leveranser" bekräftades i körning 20260225-2005-neuron-hq — briefen innehöll komplett TypeScript-kod för `isConnectionError`, `isRetryableError`, `withRetry`-uppdatering och `CONNECTION_RETRY_BASE_DELAY_MS`. 8/8 kriterier uppfyllda utan iteration, 136 raders diff (2 filer).
+
+**Senast bekräftad:** 20260225-2005-neuron-hq
+
+**[UPPDATERING]** Mönstret "Tvåfas-Merger (PLAN/EXECUTE via answers.md)" bekräftades i körning 20260225-2005-neuron-hq — Merger delegerades två gånger (20:14:39 och 20:16:00), standardflödet med merge_plan.md → APPROVED → execute. Merge av 2 filer (136 insertions, 4 deletions) till commit 1dc7159 utan problem.
+
+**Senast bekräftad:** 20260225-2005-neuron-hq
+
+**[UPPDATERING]** Mönstret "Reviewer git-stash baseline-jämförelse" bekräftades i körning 20260226-0605-aurora-swarm-lab-resume — Reviewer körde baseline verify (ruff PASS, pytest 217 pass, mypy pre-existing) → after-change verify (ruff PASS, pytest 217 pass, no new mypy errors) med fullständig stoplight-tabell och security review.
+
+**Senast bekräftad:** 20260226-0605-aurora-swarm-lab-resume
+
+**[UPPDATERING]** Mönstret "Exakt feloutput + fixförslag i brief ger kirurgiska leveranser" bekräftades i körning 20260226-0636-aurora-swarm-lab — briefen innehöll exakta Python-kodsnuttar för User-Agent-header, `_is_valid_url()`-funktion, pyproject.toml optional-dep och 5 namngivna testfall. 7/7 kriterier uppfyllda utan iteration, 156 raders diff (4 filer).
+
+**Senast bekräftad:** 20260226-0636-aurora-swarm-lab
+
+**[UPPDATERING]** Mönstret "Tvåfas-Merger (PLAN/EXECUTE via answers.md)" bekräftades i körning 20260226-0636-aurora-swarm-lab — Merger delegerades två gånger (06:48:06 och 06:49:38), standardflödet med merge_plan.md → APPROVED → execute. Merge av 4 filer (156 insertions, 2 deletions) till commit 0caaf72 utan problem.
+
+**Senast bekräftad:** 20260226-0636-aurora-swarm-lab
+
+**[UPPDATERING]** Mönstret "Reviewer git-stash baseline-jämförelse" bekräftades i körning 20260226-0636-aurora-swarm-lab — Reviewer körde baseline verify (217 tests, 91 mypy errors pre-existing) → after-change verify (222 tests, 91 mypy errors, ruff PASS) med fullständig stoplight-tabell. 5 nya tester adderade utan regression.
+
+**Senast bekräftad:** 20260226-0636-aurora-swarm-lab
+
+## Reviewer-BLOCKED → Manager → Implementer fix-loop
+**Kontext:** Körning 20260226-1553 — Reviewer hittade 3 ruff F401-fel (oanvända imports) i testfilen och rapporterade BLOCKED. Manager delegerade en andra Implementer-pass med enbart lint-fixen som uppgift.
+**Lösning:** När Reviewer rapporterar BLOCKED med specifika fel, delegerar Manager en fokuserad Implementer-pass med enbart de identifierade felen som uppgift (i detta fall: "Fix 3 unused imports in test file"). Implementer fixar, committar, och körningen fortsätter till Merger.
+**Effekt:** Hela korrigeringsloopen (Reviewer BLOCKED → Manager delegerar → Implementer fixar → Merger mergerar) tog ~2 minuter. Svärmen self-correctar utan mänsklig intervention. Skiljer sig från cleanup-mönstret (som handlar om temporära filer) genom att detta triggas av Reviewer-feedback på kodkvalitet.
+**Keywords:** reviewer, manager, implementer, self-correction, ruff, lint, BLOCKED, fix-loop
+**Relaterat:** patterns.md#Manager delegerar cleanup-pass efter Implementer, patterns.md#Exakt feloutput + fixförslag i brief ger kirurgiska leveranser
+**Körningar:** #20260226-1553-aurora-swarm-lab
+**Senast bekräftad:** 20260226-1553-aurora-swarm-lab
+
+---
+
+**[UPPDATERING]** Mönstret "Exakt feloutput + fixförslag i brief ger kirurgiska leveranser" bekräftades i körning 20260226-1553-aurora-swarm-lab — briefen innehöll exakta Python-kodsnuttar för `_is_youtube_url()`, dedup-kontroll, `compute_source_version()` med metadata, pyproject.toml optional dep och 8 namngivna testfall. 5/5 funktionella uppgifter utan iteration, 291 raders diff (3 filer).
+
+**Senast bekräftad:** 20260226-1553-aurora-swarm-lab
+
+**[UPPDATERING]** Mönstret "Tvåfas-Merger (PLAN/EXECUTE via answers.md)" bekräftades i körning 20260226-1553-aurora-swarm-lab — Merger delegerades två gånger (16:08:14 och 16:09:48), standardflödet med merge_plan.md → APPROVED → execute. Merge av 3 filer (225 insertions, 6 deletions) till commit 9a7b844 utan problem.
+
+**Senast bekräftad:** 20260226-1553-aurora-swarm-lab
+
+**[UPPDATERING]** Mönstret "Exakt feloutput + fixförslag i brief ger kirurgiska leveranser" bekräftades i körning 20260226-1658-aurora-swarm-lab — briefen innehöll exakta Python-kodsnuttar för `ChunkEnrichOutput.dates`, write-back-logik med `source_refs`-uppdatering, enrich-promptmall och 3 namngivna testfall. 4/4 uppgifter utan iteration, 134 raders diff (4 filer).
+
+**Senast bekräftad:** 20260226-1658-aurora-swarm-lab
+
+**[UPPDATERING]** Mönstret "Tvåfas-Merger (PLAN/EXECUTE via answers.md)" bekräftades i körning 20260226-1658-aurora-swarm-lab — Merger delegerades, skrev merge_plan.md, Manager skrev APPROVED i answers.md, Merger exekverade merge med 4 filer (134 insertions, 2 deletions) till commit 5c05583 utan problem.
+
+**Senast bekräftad:** 20260226-1658-aurora-swarm-lab
+
+**[UPPDATERING]** Mönstret "Reviewer git-stash baseline-jämförelse" bekräftades i körning 20260226-1658-aurora-swarm-lab — Reviewer körde baseline verify (233 tests, ruff PASS, mypy 1 pre-existing) → after-change verify (233 tests, ruff PASS, mypy PASS, 0 new errors) med fullständig stoplight-tabell. Diff 134 rader, risk LOW.
+
+**Senast bekräftad:** 20260226-1658-aurora-swarm-lab
+
+**[UPPDATERING]** Mönstret "Manager-only verifiering vid redan mergade resume-körningar" bekräftades i körning 20260226-1810-aurora-swarm-lab-resume — fjärde bekräftelsen. Manager verifierade alla 7 kriterier solo (läste filer, körde pytest 233 passed, kontrollerade git log) utan att delegera till Reviewer/Merger. Identiskt beteende som i de tre tidigare bekräftelserna.
+
+**Senast bekräftad:** 20260226-1810-aurora-swarm-lab-resume
+
+**[UPPDATERING]** Mönstret "Resume-körning hoppar direkt till Review+Merge" bekräftades i körning 20260226-1844-aurora-swarm-lab-resume — Manager hoppade över Researcher och Implementer, delegerade direkt till Tester → Reviewer → Merger. 236 tester gröna, merge till commit b22ee1c.
+
+**Senast bekräftad:** 20260226-1844-aurora-swarm-lab-resume
+
+**[UPPDATERING]** Mönstret "Tvåfas-Merger (PLAN/EXECUTE via answers.md)" bekräftades i körning 20260226-1844-aurora-swarm-lab-resume — Merger delegerades två gånger (18:51:38 och 18:53:06), standardflödet med merge_plan.md → APPROVED → execute. Merge av 8 filer (127 insertions, 8 deletions) till commit b22ee1c utan problem.
+
+**Senast bekräftad:** 20260226-1844-aurora-swarm-lab-resume
+
+**[UPPDATERING]** Mönstret "Reviewer git-stash baseline-jämförelse" bekräftades i körning 20260226-1844-aurora-swarm-lab-resume — Reviewer körde baseline verify (236 tests, ruff PASS, mypy 90 pre-existing) → after-change verify (236 tests, ruff PASS, mypy 90 errors — identiskt med baseline, 0 nya). Stoplight: alla gröna, risk LOW.
+
+**Senast bekräftad:** 20260226-1844-aurora-swarm-lab-resume
+
+**[UPPDATERING]** Mönstret "Exakt feloutput + fixförslag i brief ger kirurgiska leveranser" bekräftades i körning 20260226-1844-aurora-swarm-lab-resume — briefen innehöll exakta Python-kodsnuttar för config.py default-ändring, CREATE TABLE-schema, migration ALTER TABLE, upsert INSERT-uppdatering, embed_chunks/voice_gallery model-fält och CLI check-embeddings-kommando. 7/7 acceptanskriterier uppfyllda, 135 raders diff (8 filer).
+
+**Senast bekräftad:** 20260226-1844-aurora-swarm-lab-resume
+
+**[UPPDATERING]** Mönstret "Researcher: multi-signal kodbasanalys ger rika förbättringsförslag" bekräftades i körning 20260226-1917-zeroclaw — Researcher analyserade ett helt nytt externt repo (ZeroClaw, Rust-baserat) genom att läsa ~30 filer (README, AGENTS.md, src/agent/, src/providers/, src/tools/, src/memory/, src/channels/, src/security/, docs/) och producerade en 405-raders analysrapport med 5 fokusområden plus 10 idéer. Första gången svärmen analyserar ett externt repo utanför aurora-swarm-lab/neuron-hq — samma teknik fungerade utan anpassning.
+
+**Senast bekräftad:** 20260226-1917-zeroclaw
+
+## Merger patch-strategi för divergerade filer
+**Kontext:** Körning 20260227-0604-neuron-hq — `prompts/implementer.md` hade ändrats i target (iteration budget 40→55, 45→65) sedan workspace skapades, men svärmens ändringar (ny Avslutningssteg-sektion) var i en helt annan del av filen
+**Lösning:** Merger genererade en unified diff från workspace (`git diff -- prompts/implementer.md > /tmp/handoff_implementer.patch`), körde `patch -p1 --dry-run` mot target för att verifiera, och applicerade sedan `patch -p1` skarpt. Non-overlapping regioner (rad 43/45 vs rad 103+) mergades korrekt utan konflikt.
+**Effekt:** Hanterar det vanliga scenariot där target-repot rör sig framåt under en körning — istället för att skriva över targets ändringar appliceras bara svärmens diff. Bevarar båda sidors arbete. Tidigare körningar med divergerade filer hade ingen etablerad strategi.
+**Keywords:** merger, patch, divergerad-fil, non-overlapping, git-diff, baseline
+**Relaterat:** patterns.md#Tvåfas-Merger (PLAN/EXECUTE via answers.md), patterns.md#Merger som commit-message-korrigent vid avvikelse
+**Körningar:** #20260227-0604-neuron-hq
+**Senast bekräftad:** 20260227-0604-neuron-hq
+
+---
+
+**[UPPDATERING]** Mönstret "Tvåfas-Merger (PLAN/EXECUTE via answers.md)" bekräftades i körning 20260227-0604-neuron-hq — Merger skrev merge_plan.md med detaljerad divergensanalys och patch-strategi, Manager skrev APPROVED, Merger exekverade merge med 9 filer (8 direct copy + 1 patch) till commit med conventional-commit-meddelande.
+
+**Senast bekräftad:** 20260227-0604-neuron-hq
+
+**[UPPDATERING]** Mönstret "Reviewer git-stash baseline-jämförelse" bekräftades i körning 20260227-0604-neuron-hq — Reviewer körde baseline verify (git stash → 352 tests, 5 pre-existing failures) → after-change verify (git stash pop → 357 tests, 5 same pre-existing failures) med fullständig stoplight-tabell. tsc --noEmit rent.
+
+**Senast bekräftad:** 20260227-0604-neuron-hq
+
+**[UPPDATERING]** Mönstret "Exakt feloutput + fixförslag i brief ger kirurgiska leveranser" bekräftades i körning 20260227-0604-neuron-hq — briefen innehöll exakta TypeScript-kodsnuttar för `delegateToImplementer()` (före/efter), prompt-texter för alla tre filer (implementer.md, manager.md, reviewer.md), och testnamn. 8/8 kriterier uppfyllda utan iteration.
+
+**Senast bekräftad:** 20260227-0604-neuron-hq
+
+## Konceptbaserade regex i prompt-lint-tester (inte specifika siffror/värden)
+**Kontext:** Körning 20260227-0634-neuron-hq-resume — `implementer-lint.test.ts` använde `/40.*iteration|iteration.*40/i` som bröt när per-agent iteration limits ändrade prompten från "40" till "55/65"
+**Lösning:** Byt ut sifferspecifika regex mot konceptbaserade: `/iteration budget/i` istället för `/40.*iteration/i`. Konceptet ("iteration budget") är stabilt, de exakta siffrorna är det inte.
+**Effekt:** Lint-testet blev robust mot framtida numeriska ändringar utan att förlora sitt syfte. Samma princip gäller alla prompt-lint-tester: testa att konceptet finns i prompten, inte specifika parametervärden som kan ändras.
+**Keywords:** prompt-lint, regex, robusthet, tester, koncept-vs-värde, regression
+**Relaterat:** patterns.md#Prompt-lint-tester: regex-validering av prompt-filer
+**Körningar:** #20260227-0634-neuron-hq-resume
+**Senast bekräftad:** 20260227-0634-neuron-hq-resume
+
+---
+
+**[UPPDATERING]** Mönstret "Merger NO-OP-detektion vid redan mergade ändringar" bekräftades i körning 20260227-0634-neuron-hq-resume — Merger jämförde alla 9 workspace-filer mot target, detekterade att handoff-feature redan var mergad (commit fce0d66), och rapporterade NO-OP utan ny commit. Identiskt beteende som i det dokumenterade mönstret.
+
+**Senast bekräftad:** 20260227-0634-neuron-hq-resume
+
+## AGENTS.md som delad systemkonstitution separerar rollprompts från systemprotokoll
+**Kontext:** Session 44 — 9 promptfiler hade isolerade regler utan gemensamt protokoll. Risk-tiers, handoff-format och anti-patterns existerade bara i enskilda agenters prompts.
+**Lösning:** Skapa `AGENTS.md` i repots rot som "konstitution" — systemövergripande regler som alla agenter refererar till. Rollprompts behåller rollanpassad precision (t.ex. Reviewers verifieringskommandon), AGENTS.md äger systemgemensamma protokoll (risk-tiers, handoff-mall, minnesprioritetsordning, anti-patterns). Varje prompt-fil får en referensrad i toppen: "System-wide principles are in AGENTS.md."
+**Effekt:** Eliminerar duplicering och inkonsekvens mellan prompts. Risk-tiers (Low/Medium/High) är nu ett delat språk — Manager kan instruera Implementer "detta är High-risk" och Implementer vet exakt vad det kräver. Handoff-mallen standardiserar kommunikationen Implementer→Manager och sparar 5–15 iterationer per körning.
+**Keywords:** AGENTS.md, konstitution, rollprompt, systemprotokoll, risk-tiers, handoff, anti-patterns
+**Relaterat:** patterns.md#Prompt-lint-tester: regex-validering av prompt-filer
+**Körningar:** #Session 44
+**Senast bekräftad:** 2026-02-26
+
+---
+
+## Single-phase Merger: auto-commit on Reviewer GREEN
+**Kontext:** Körning 20260227-0656-neuron-hq — tvåfas-Merger-logiken (plan → answers.md APPROVED → execute) togs bort och ersattes med single-phase auto-commit
+**Lösning:** Merger läser `report.md`, kontrollerar att Reviewer gav GREEN (case-insensitive substring), och kör execute-flödet (copy, git add, git commit) direkt. Returnerar `MERGER_BLOCKED` om Reviewer inte gav GREEN, `MERGER_COMPLETE` vid lyckad merge. Skriver `merge_summary.md` med commit-hash och rollback-instruktion. Ingen `answers.md` eller `merge_plan.md` behövs längre.
+**Effekt:** Eliminerar behovet av dubbla Merger-delegationer (plan + execute), `answers.md`-godkännande, och Manager-mellansteget. Hela merge-kedjan går från Reviewer GREEN → en enda Merger-delegation → commit. Enklare flöde, färre felkällor (tidigare körningar hade problem med answers.md-sökvägar, saknade APPROVED-svar, etc.). **Ersätter mönstret "Tvåfas-Merger (PLAN/EXECUTE via answers.md)"** som nu är obsolet.
+**Keywords:** merger, single-phase, auto-commit, reviewer-green, förenkling
+**Relaterat:** patterns.md#Tvåfas-Merger (PLAN/EXECUTE via answers.md)
+**Körningar:** #20260227-0656-neuron-hq
+**Senast bekräftad:** 20260227-0656-neuron-hq
+
+---

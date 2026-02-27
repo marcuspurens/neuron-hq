@@ -419,3 +419,53 @@ Uppdateras av Librarian-agenten.
 **Relaterat:** techniques.md#xMemory, techniques.md#Positional-Biases, techniques.md#MECW, techniques.md#LoCoMo-Plus
 
 ---
+
+## Pancake: Hierarchical Memory System for Multi-Agent LLM Serving (2026)
+**Källa:** arxiv:2602.21477 | Zhengding Hu et al.
+**Kärna:** Pancake adresserar de tre kärnproblemen med agentminneshantering i LLM-serving: storskalig lagring, frekventa uppdateringar och multipla samexisterande agenter som alla kräver approximate nearest neighbor (ANN)-sökning. Systemet unifierar tre tekniker: (i) multi-level index caching för enskilda agenter, (ii) koordinerad indexhantering över multipla agenter, och (iii) kollaborativ GPU-CPU-acceleration. Exponerar ett enkelt gränssnitt kompatibelt med MemGPT, LangChain och LlamaIndex.
+**Nyckelresultat:** Mer än 4.29x end-to-end throughput-förbättring jämfört med existerande ramverk på realistiska agent-workloads.
+**Relevans för Neuron HQ:** Direkt relevant för skalning av vår swarm. När multipla agenter (Researcher, Implementer, Reviewer, Historian) simultant behöver söka i samma minnesfiler uppstår exakt de flaskhalsar Pancake adresserar. Multi-level index caching kunde accelerera minnesläsning avsevärt, och koordinerad indexhantering mellan agenter förhindrar konflikter vid samtidig skrivning till runs.md/patterns.md.
+**Keywords:** memory, multi-agent, serving, ANN-search, caching, GPU-CPU, scalability
+**Relaterat:** techniques.md#MemGPT, techniques.md#xMemory, techniques.md#BudgetMem
+
+---
+
+## SWE-Protégé: Learning to Selectively Collaborate With an Expert for Small Language Model Agents (2026)
+**Källa:** arxiv:2602.22124 | Patrick Tser Jern Kon et al.
+**Kärna:** SWE-Protégé omformulerar mjukvarureparation som ett expert-protégé-samarbete. En liten språkmodell (SLM) förblir den enda beslutsfattaren men lär sig att selektivt be om vägledning från en starkare expertmodell, känna igen stagnerade tillstånd, och agera på expertfeedback. Metoden kombinerar supervised fine-tuning på expert-augmenterade trajektorier med agentic reinforcement learning som explicit motverkar degenerativ looping och oproduktivt expertberoende.
+**Nyckelresultat:** Qwen2.5-Coder-7B uppnår 42.4% Pass@1 på SWE-bench Verified — en +25.4% förbättring jämfört med tidigare SLM state-of-the-art. Experthjälp används sparsamt (~4 anrop per uppgift, 11% av totala tokens).
+**Relevans för Neuron HQ:** Direkt applicerbar arkitekturprincip för kostnadsoptimering. Enklare agentroller (t.ex. Historian, enklare Researcher-uppgifter) kunde drivas av billigare, mindre modeller som selektivt eskalerar till en starkare modell vid svåra beslut — analogt med hur en junior utvecklare frågar en senior. Minskar tokenkostnad utan att offra kvalitet. RL-strategin mot degenerativ looping är relevant för alla våra agenter.
+**Keywords:** small-language-model, expert-collaboration, reinforcement-learning, SWE-bench, cost-optimization, agent
+**Relaterat:** techniques.md#Excalibur, techniques.md#Wink, techniques.md#BudgetMem
+
+---
+
+## DySCO: Dynamic Attention-Scaling Decoding for Long-Context LMs (2026)
+**Källa:** arxiv:2602.22175 | Xi Ye et al.
+**Kärna:** DySCO förbättrar long-context-resonemang genom att utnyttja "retrieval heads" — en delmängd av attention heads specialiserade för long-context-hämtning — för att vid varje decoding-steg identifiera uppgiftsrelevanta tokens och explicit uppvikta dem. Metoden justerar dynamiskt attention under generering för att bättre utnyttja relevant kontext. Training-free och kan appliceras direkt på vilken off-the-shelf LLM som helst.
+**Nyckelresultat:** Relativa förbättringar på upp till 25% på MRCR och LongBenchV2 vid 128K kontextlängd med modest extra beräkningskostnad. Konsistenta förbättringar över både instruction-tuned och reasoning-modeller.
+**Relevans för Neuron HQ:** Komplementerar vår insikt om positional biases och MECW. DySCO löser problemet från modellinferens-sidan — om våra agenter använder modeller med DySCO-liknande attention-skalning behöver vi oroa oss mindre för kontextfönstereffektivitet. Speciellt relevant när Researcher bearbetar stora kodbaser eller Implementer arbetar med extensiva fildumpar. Att metoden är training-free innebär att den kan integreras utan anpassning.
+**Keywords:** context-window, attention-scaling, retrieval-heads, long-context, training-free, decoding
+**Relaterat:** techniques.md#MECW, techniques.md#Positional-Biases, techniques.md#SWAA, techniques.md#DeepMiner
+
+---
+
+## ZeroClaw: Hybrid RAG med SQLite FTS5 + vector cosine + BM25
+**Källa:** ZeroClaw v0.1.7 — `src/rag/` (github.com/zeroclaw-labs/zeroclaw)
+**Kärna:** ZeroClaw implementerar ett trelagers RAG-system i en enda SQLite-databas: (1) vektor-cosine similarity för semantisk sökning, (2) FTS5 keyword-indexering med BM25-scoring för exakt termmatchning, (3) hybrid rank-fusion som kombinerar båda signalerna. Dessutom en LRU embedding-cache för att slippa re-embeda identiska queries.
+**Nyckelresultat:** Hela systemet är <5MB RAM och kör på $10-hårdvara (Raspberry Pi). Hybrid search ger bättre precision för egentiteter (namn, nyckeltermer) jämfört med rena embeddings, utan att offra semantisk bredd.
+**Relevans för Neuron HQ / Aurora:** Direkt applicerbar för Aurora B2 (hybrid search-spåret). Rena embeddings missar exakta namn och termer — BM25 kompenserar för detta. LRU-cache minskar embeddingkostnad vid upprepade queries. SQLite-implementationen är enkel att lägga till i Auroras befintliga SQLite-databas utan ny infrastruktur.
+**Keywords:** RAG, hybrid-search, BM25, FTS5, vector, cosine-similarity, LRU-cache, SQLite, Aurora
+**Relaterat:** techniques.md#A-MEM, techniques.md#Mem0
+
+---
+
+## ZeroClaw: SOP-system (Standard Operating Procedures) för deklarativa agentbeteenden
+**Källa:** ZeroClaw v0.1.7 — `src/sop/` (github.com/zeroclaw-labs/zeroclaw)
+**Kärna:** ZeroClaw introducerar ett SOP-system (Standard Operating Procedures) — regelstyrda, deklarativt definierade beteendemallar för agenten. En SOP är en fil som beskriver "om X sker, gör Y i denna ordning". Liknar Neuron HQ:s policy-system men är mer flexibelt: SOPs kan läggas till/tas bort utan kodändring, och de är prioriterade (hög-prio SOP kan åsidosätta lägre).
+**Nyckelresultat:** Används i ZeroClaw för återkommande uppgifter (t.ex. "om en ny GitHub-issue skapas, analysera och kommentera automatiskt"). Kombineras med `skills/`-systemet (pluggbara förmågor) för att ge agenten uitdragbara kapabiliteter utan kärnkodsändringar.
+**Relevans för Neuron HQ:** SOPs är ett naturligt nästa steg för Neuron efter AGENTS.md. AGENTS.md definierar principer; SOPs skulle kunna definiera körningsprotokoll per brief-typ (t.ex. en "security-audit"-SOP som alltid kör Reviewer extra grundligt). Mer flexibelt än att hårdkoda beteenden i manager.md.
+**Keywords:** SOP, procedurer, deklarativ, regelstyrning, agentbeteende, flexibilitet, policy
+**Relaterat:** techniques.md#Anthropics råd om agentarkitektur
+
+---
