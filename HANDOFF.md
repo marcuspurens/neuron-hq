@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-02-27T0900-session45-memory-briefs.md](docs/HANDOFF-2026-02-27T0900-session45-memory-briefs.md)
+Senaste handoff: [HANDOFF-2026-02-27T1000-session46-green-fix-roadmap.md](docs/HANDOFF-2026-02-27T1000-session46-green-fix-roadmap.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -43,5 +43,6 @@ Senaste handoff: [HANDOFF-2026-02-27T0900-session45-memory-briefs.md](docs/HANDO
 | 2026-02-26 | 20:10 | 43 | ZeroClaw-analys + Aurora A2+A3 + djupsamtal arkitektur | [länk](docs/HANDOFF-2026-02-26T2010-session43-zeroclaw-analys.md) |
 | 2026-02-27 | 07:30 | 44 | AGENTS.md + alla prompt-filer + Merger auto-commit | [länk](docs/HANDOFF-2026-02-27T0730-session44-agents-md-merger.md) |
 | 2026-02-27 | 09:00 | 45 | Minneskörning: techniques.md + patterns.md + 3 briefs (e-stop, injection-guard, memory-compression) | [länk](docs/HANDOFF-2026-02-27T0900-session45-memory-briefs.md) |
+| 2026-02-27 | 10:00 | 46 | GREEN-fix (regex ordgräns) + ROADMAP.md skapad | [länk](docs/HANDOFF-2026-02-27T1000-session46-green-fix-roadmap.md) |
 
 > **Not:** Session 1 och 6 saknas — handoffs skapades inte vid dessa tillfällen.

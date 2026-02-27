@@ -177,6 +177,27 @@ against what was actually found in the workspace. Base this ONLY on verified com
 ✅ Artifacts: COMPLETE
 ```
 
+### report.md — Verdict (REQUIRED, last section)
+
+The final section of report.md MUST be a Verdict with one of these exact phrases:
+
+**When approving:**
+```
+## Verdict
+
+🟢 GREEN — <one sentence reason>
+```
+
+**When blocking:**
+```
+## Verdict
+
+🔴 RED — <one sentence reason>
+```
+
+The word GREEN or RED must appear as a standalone word on the Verdict line.
+The Merger agent reads report.md and looks for `\bGREEN\b` to decide whether to commit.
+
 ### Risk Documentation
 Every report.md must include:
 - Risk level with justification

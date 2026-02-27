@@ -100,6 +100,18 @@ describe('MergerAgent', () => {
       const result = await agent.run();
       expect(result).toContain('report.md');
     });
+
+    it('does not false-positive on GREENFIELD in report', async () => {
+      await fs.writeFile(path.join(runDir, 'report.md'), '## Notes\n\nThis is a GREENFIELD project.');
+      const result = await agent.run();
+      expect(result).toMatch(/MERGER_BLOCKED/);
+    });
+
+    it('does not false-positive on lowercase "green" in report', async () => {
+      await fs.writeFile(path.join(runDir, 'report.md'), '## STOPLIGHT\n\n✅ All tests green');
+      const result = await agent.run();
+      expect(result).toMatch(/MERGER_BLOCKED/);
+    });
   });
 
   describe('bash policy', () => {

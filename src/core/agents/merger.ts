@@ -57,7 +57,7 @@ export class MergerAgent {
         return 'MERGER_BLOCKED: report.md not found. Reviewer must run first.';
       }
 
-      if (!reportContent.toUpperCase().includes('GREEN')) {
+      if (!/\bGREEN\b/.test(reportContent)) {
         return 'MERGER_BLOCKED: Reviewer did not give GREEN. See report.md.';
       }
 
