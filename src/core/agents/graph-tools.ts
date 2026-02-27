@@ -153,6 +153,13 @@ export function isGraphTool(name: string): boolean {
   return ['graph_query', 'graph_traverse', 'graph_assert', 'graph_update'].includes(name);
 }
 
+/** Return only the two read-only graph tools (query + traverse). */
+export function graphReadToolDefinitions(): Anthropic.Messages.Tool[] {
+  return graphToolDefinitions().filter((t) =>
+    ['graph_query', 'graph_traverse'].includes(t.name)
+  );
+}
+
 // ── ID generation ─────────────────────────────────────────────────────
 
 /** Generate the next available id for a given node type. */

@@ -7,6 +7,7 @@ import { HistorianAgent } from './historian.js';
 import { TesterAgent } from './tester.js';
 import { LibrarianAgent } from './librarian.js';
 import { truncateToolResult, trimMessages, searchMemoryFiles, withRetry } from './agent-utils.js';
+import { graphReadToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
@@ -432,6 +433,7 @@ Stop when time limit approaches or when blockers are encountered.
           properties: {},
         },
       },
+      ...graphReadToolDefinitions(),
     ];
   }
 
@@ -497,6 +499,17 @@ Stop when time limit approaches or when blockers are encountered.
             case 'delegate_to_librarian':
               result = await this.delegateToLibrarian();
               break;
+            case 'graph_query':
+            case 'graph_traverse': {
+              const graphCtx: GraphToolContext = {
+                graphPath: path.join(this.memoryDir, 'graph.json'),
+                runId: this.ctx.runid,
+                agent: 'manager',
+                audit: this.ctx.audit,
+              };
+              result = await executeGraphTool(block.name, block.input as Record<string, unknown>, graphCtx);
+              break;
+            }
             default:
               result = `Error: Unknown tool ${block.name}`;
           }

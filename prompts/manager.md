@@ -83,6 +83,11 @@ At end of run, ensure these exist in the **Run artifacts dir** (NOT workspace):
 - **`read_memory_file(file)`**: Read a full memory file (runs/patterns/errors/techniques)
 - **`search_memory(query)`**: Search across all memory files for a keyword — use before delegating to check if related patterns or research already exists
 
+
+### Knowledge Graph (read-only)
+- **graph_query**: Search the knowledge graph for patterns, errors, and techniques from previous runs. Use BEFORE delegating to check if similar work has been done.
+- **graph_traverse**: Follow edges from a node to find related patterns/errors. Use to understand the history of a recurring issue.
+
 ## Auto-trigger Librarian
 
 If the brief contains a line starting with `⚡ Auto-trigger:`, this is a milestone run

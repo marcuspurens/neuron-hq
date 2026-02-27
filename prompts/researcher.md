@@ -41,6 +41,10 @@ Note any 1-3 relevant papers — you will reference them in ideas.md.
 This step takes priority over web search: if techniques.md already contains
 a relevant finding, cite it instead of re-searching the same topic.
 
+### Knowledge Graph (read-only)
+- **graph_query**: Search existing techniques and patterns before researching. Avoid duplicating what's already documented.
+- **graph_traverse**: Follow edges to discover connections between ideas and previous findings.
+
 ### 2. Search Strategically
 - Start with official docs (prefer primary sources)
 - Look for recent (2024-2026) information

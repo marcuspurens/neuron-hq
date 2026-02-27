@@ -1,5 +1,6 @@
 import { type RunContext } from '../run.js';
 import { truncateToolResult, trimMessages, withRetry } from './agent-utils.js';
+import { graphReadToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
@@ -15,8 +16,10 @@ export class ImplementerAgent {
   private promptPath: string;
   private anthropic: Anthropic;
   private maxIterations: number;
+  private baseDir: string;
 
   constructor(private ctx: RunContext, baseDir: string) {
+    this.baseDir = baseDir;
     this.promptPath = path.join(baseDir, 'prompts', 'implementer.md');
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -235,6 +238,7 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
           },
         },
       },
+      ...graphReadToolDefinitions(),
     ];
   }
 
@@ -266,6 +270,17 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
             case 'list_files':
               result = await this.executeListFiles(block.input as { path?: string });
               break;
+            case 'graph_query':
+            case 'graph_traverse': {
+              const graphCtx: GraphToolContext = {
+                graphPath: path.join(this.baseDir, 'memory', 'graph.json'),
+                runId: this.ctx.runid,
+                agent: 'implementer',
+                audit: this.ctx.audit,
+              };
+              result = await executeGraphTool(block.name, block.input as Record<string, unknown>, graphCtx);
+              break;
+            }
             default:
               result = `Error: Unknown tool ${block.name}`;
           }

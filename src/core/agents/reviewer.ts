@@ -1,5 +1,6 @@
 import { type RunContext } from '../run.js';
 import { withRetry } from './agent-utils.js';
+import { graphReadToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
@@ -15,8 +16,10 @@ export class ReviewerAgent {
   private promptPath: string;
   private anthropic: Anthropic;
   private maxIterations: number;
+  private baseDir: string;
 
   constructor(private ctx: RunContext, baseDir: string) {
+    this.baseDir = baseDir;
     this.promptPath = path.join(baseDir, 'prompts', 'reviewer.md');
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -285,6 +288,7 @@ IMPORTANT: Never claim something is done without running a command to verify it.
           },
         },
       },
+      ...graphReadToolDefinitions(),
     ];
   }
 
@@ -316,6 +320,17 @@ IMPORTANT: Never claim something is done without running a command to verify it.
             case 'list_files':
               result = await this.executeListFiles(block.input as { path?: string });
               break;
+            case 'graph_query':
+            case 'graph_traverse': {
+              const graphCtx: GraphToolContext = {
+                graphPath: path.join(this.baseDir, 'memory', 'graph.json'),
+                runId: this.ctx.runid,
+                agent: 'reviewer',
+                audit: this.ctx.audit,
+              };
+              result = await executeGraphTool(block.name, block.input as Record<string, unknown>, graphCtx);
+              break;
+            }
             default:
               result = `Error: Unknown tool ${block.name}`;
           }

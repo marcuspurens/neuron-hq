@@ -50,6 +50,10 @@ For each acceptance criterion in the brief:
 2. Run `grep -r "<expected-function-or-class>" .` to confirm code exists
 3. Run `python -m pytest <test-file> -v` or equivalent to confirm tests pass
 
+### Knowledge Graph (read-only)
+- **graph_query**: Search patterns and errors from previous runs. Cross-reference the current change against known issues.
+- **graph_traverse**: Follow edges to verify if a fix addresses the root cause pattern.
+
 ### 4. Static Analysis — MANDATORY AND BLOCKING
 
 **For Python projects**, run these in the workspace:
