@@ -60,6 +60,19 @@ export async function runCommand(
 
     spinner.succeed(chalk.green(`Run initialized: ${runid}`));
 
+    // Check for leftover STOP file from previous session
+    const stopFilePath = path.join(BASE_DIR, 'STOP');
+    try {
+      await fs.access(stopFilePath);
+      // STOP file exists — abort
+      console.log(chalk.red('\n⚠️  STOP file exists from a previous session.'));
+      console.log(chalk.yellow('    Remove it before starting a new run:'));
+      console.log(chalk.yellow(`    rm ${stopFilePath}`));
+      process.exit(1);
+    } catch {
+      // No STOP file — continue normally
+    }
+
     // Run baseline verification
     console.log(chalk.cyan('\n→ Running baseline verification...'));
     const verifyCommands = target.verify_commands || await ctx.verifier.discoverCommands();

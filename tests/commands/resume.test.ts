@@ -169,3 +169,23 @@ describe('RunOrchestrator.generateRunId (resume slug)', () => {
     expect(runId).toMatch(/^\d{8}-\d{4}-my-repo-resume$/);
   });
 });
+
+describe('resumeCommand EstopError handling', () => {
+  it('resume.ts imports EstopError from core/run', async () => {
+    const resumeSource = await fs.readFile(
+      path.join(BASE_DIR, 'src/commands/resume.ts'),
+      'utf-8'
+    );
+    expect(resumeSource).toContain('EstopError');
+    expect(resumeSource).toContain("import { RunOrchestrator, EstopError } from '../core/run.js'");
+  });
+
+  it('resume.ts has EstopError catch block', async () => {
+    const resumeSource = await fs.readFile(
+      path.join(BASE_DIR, 'src/commands/resume.ts'),
+      'utf-8'
+    );
+    expect(resumeSource).toContain('instanceof EstopError');
+    expect(resumeSource).toContain('STOPPED BY USER');
+  });
+});

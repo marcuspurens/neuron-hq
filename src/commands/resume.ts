@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import chalk from 'chalk';
 import ora from 'ora';
 import { TargetsManager } from '../core/targets.js';
-import { RunOrchestrator } from '../core/run.js';
+import { RunOrchestrator, EstopError } from '../core/run.js';
 import { createPolicyEnforcer } from '../core/policy.js';
 import { ManagerAgent } from '../core/agents/manager.js';
 import { BASE_DIR } from '../cli.js';
@@ -87,7 +87,19 @@ export async function resumeCommand(runid: string, options: { hours: string }): 
     // Run manager agent
     console.log(chalk.cyan('\n→ Starting manager agent (resumed)...'));
     const manager = new ManagerAgent(ctx, BASE_DIR);
-    await manager.run();
+    try {
+      await manager.run();
+    } catch (runError) {
+      if (runError instanceof EstopError) {
+        console.log(chalk.red('\n⛔ Run stopped by user (STOP file detected). Run ID: ' + newRunId));
+        const reportPath = path.join(ctx.runDir, 'report.md');
+        try { await fs.access(reportPath); } catch {
+          await fs.writeFile(reportPath, '# STOPPED BY USER\n\nRun was stopped via STOP file (e-stop).\n');
+        }
+        process.exit(1);
+      }
+      throw runError;
+    }
 
     // Finalize run
     console.log(chalk.cyan('\n→ Finalizing run...'));

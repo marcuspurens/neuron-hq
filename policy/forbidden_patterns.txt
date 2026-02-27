@@ -46,3 +46,6 @@ git\s+filter-branch
 ;\s*bash\b
 `.*`
 \$\(.*eval
+
+# STOP file (e-stop): orchestrator only READS this file — users create/remove it manually.
+# See docs/runbook.md for e-stop usage.
