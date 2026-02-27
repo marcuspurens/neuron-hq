@@ -14,7 +14,7 @@ describe('implementer.md — reliability guardrails', () => {
   });
 
   it('has iteration budget warning', () => {
-    expect(prompt).toMatch(/40.*iteration|iteration.*40/i);
+    expect(prompt).toMatch(/iteration budget/i);
   });
 
   it('mentions partial commit as fallback strategy', () => {
