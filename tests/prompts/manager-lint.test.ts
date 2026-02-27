@@ -13,8 +13,7 @@ describe('manager.md — critical instructions', () => {
     expect(prompt).toMatch(/coordinator/i);
   });
 
-  it('instructs to write answers.md to runs directory', () => {
-    expect(prompt).toMatch(/answers\.md/);
+  it('instructs to write artifacts to runs directory', () => {
     expect(prompt).toMatch(/runs.*dir|Run artifacts dir/i);
   });
 
