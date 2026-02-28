@@ -438,3 +438,11 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **Senast bekräftad:** 20260227-0656-neuron-hq
 
 ---
+
+**[UPPDATERING]** Mönstret "Single-phase Merger: auto-commit on Reviewer GREEN" bekräftades i körning 20260227-1613-neuron-hq — Merger delegerades en enda gång (16:28:39), läste report.md med GREEN-verdict, kopierade 10 filer (9 befintliga + 1 ny testfil) och committade direkt med `feat(graphrag): add read-only graph tools`. Ingen merge_plan.md eller answers.md.
+
+**Senast bekräftad:** 20260227-1613-neuron-hq
+
+**[UPPDATERING]** Mönstret "Exakt feloutput + fixförslag i brief ger kirurgiska leveranser" bekräftades i körning 20260227-1613-neuron-hq — briefen innehöll exakta TypeScript-kodsnuttar för `graphReadToolDefinitions()`, import-satser, switch-case-block och prompt-sektioner för alla 4 agenter. 13/13 kriterier uppfyllda utan iteration, 82+170 raders diff (10 filer).
+
+**Senast bekräftad:** 20260227-1613-neuron-hq

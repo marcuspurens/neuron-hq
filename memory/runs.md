@@ -857,3 +857,26 @@ Inga kända problem. Reviewers enda observation var att `monitorCommand` själv 
 - `process.exit()` i CLI-kommandon gör enhetstest av hela kommandofunktionen opraktiskt — att separera logik (formatHealthReport) från I/O (monitorCommand) och testa logiken isolerat är en pragmatisk tradeoff
 
 ---
+
+## Körning 20260227-1613-neuron-hq — neuron-hq
+**Datum:** 2026-02-27
+**Uppgift:** GraphRAG G3 — ge Manager, Implementer, Reviewer och Researcher läs-åtkomst till kunskapsgrafen via `graph_query` + `graph_traverse` (enbart read-only, inga skrivverktyg)
+**Resultat:** ✅ 13 av 13 acceptanskriterier klara — alla uppgifter levererade, 443 tester gröna (430 + 13 nya), merge till main
+
+**Vad som fungerade:**
+Hela pipeline-kedjan (Manager → Implementer → Reviewer → Merger → Historian) körde komplett. Manager analyserade kodbasen grundligt (läste historian.ts, librarian.ts, reviewer.ts, implementer.ts, researcher.ts, alla 4 promptfiler) innan delegering till Implementer med en detaljerad uppgift. Implementer levererade `graphReadToolDefinitions()` i graph-tools.ts, integrerade graph_query + graph_traverse i alla 4 agenter (Manager, Implementer, Reviewer, Researcher), uppdaterade alla 4 promptfiler med "Knowledge Graph (read-only)"-sektion, och skapade 13 tester i `tests/core/graph-read-tools.test.ts`. Reviewer verifierade alla 13 kriterier individuellt med grep-kommandon, pnpm typecheck (0 errors), pnpm test (443 passed), och bekräftade att inga skriv-verktyg (graph_assert/graph_update) läckt ut. Merger kopierade 9 befintliga + 1 ny fil och committade med `feat(graphrag): add read-only graph tools` — single-phase auto-commit (1 delegation).
+
+**Vad som inte fungerade:**
+Merger fick 6 bash_exec-kommandon blockerade av policy ("BLOCKED: not in allowlist") — kommentarer i kommandon (`# Check if...`), ls med `||`, cat med `|| echo`, och wc -l utan cd. Merger kringgick alla blockeringar genom att använda `bash_exec_in_target` istället. Manager fick 1 BLOCKED-kommando (`export PATH=...`-mönstret, känt sedan tidigare). Implementer använde Python-patch-skript (`scripts/patch-reviewer.py` etc.) för att infoga kod i agentfilerna — en omväg men fungerade korrekt.
+
+**Lärdomar:**
+- Rent additiv integration av verktyg i 4 agenter + 4 promptfiler skalade bra — 82 rader i befintliga filer + 170 rader ny testfil, LOW risk, inga regressioner
+- Single-phase Merger-mönstret (1 delegation istället för 2) bekräftades — commit genomfördes direkt efter Reviewer GREEN utan merge_plan/answers.md-steg
+- Merger `bash_exec`-blockeringar pga kommentarer i kommandon är ett återkommande mönster — `bash_exec_in_target` fungerar som workaround men agenter bör undvika `#`-kommentarer i bash-kommandon
+
+---
+
+[INV-006] Enbart Historian och Librarian har skriv-verktyg till kunskapsgrafen (graph_assert, graph_update)
+**Beskrivning:** Manager, Implementer, Reviewer och Researcher får enbart `graph_query` + `graph_traverse` (read-only). Skrivverktyg (`graph_assert`, `graph_update`) är exklusiva för Historian och Librarian.
+**Vaktas av:** `tests/core/graph-read-tools.test.ts` (testar att graphReadToolDefinitions() returnerar exakt 2 verktyg, inte 4)
+**Tillagd:** Körning 20260227-1613-neuron-hq

@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-02-27T1000-session46-green-fix-roadmap.md](docs/HANDOFF-2026-02-27T1000-session46-green-fix-roadmap.md)
+Senaste handoff: [HANDOFF-2026-02-28T1000-session50-graphrag-g3-djupsamtal.md](docs/HANDOFF-2026-02-28T1000-session50-graphrag-g3-djupsamtal.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -44,5 +44,9 @@ Senaste handoff: [HANDOFF-2026-02-27T1000-session46-green-fix-roadmap.md](docs/H
 | 2026-02-27 | 07:30 | 44 | AGENTS.md + alla prompt-filer + Merger auto-commit | [länk](docs/HANDOFF-2026-02-27T0730-session44-agents-md-merger.md) |
 | 2026-02-27 | 09:00 | 45 | Minneskörning: techniques.md + patterns.md + 3 briefs (e-stop, injection-guard, memory-compression) | [länk](docs/HANDOFF-2026-02-27T0900-session45-memory-briefs.md) |
 | 2026-02-27 | 10:00 | 46 | GREEN-fix (regex ordgräns) + ROADMAP.md skapad | [länk](docs/HANDOFF-2026-02-27T1000-session46-green-fix-roadmap.md) |
+| 2026-02-27 | 11:00 | 47 | E-stop + security + GraphRAG prep | [länk](docs/HANDOFF-2026-02-27T1100-session47-estop-security.md) |
+| 2026-02-27 | 13:30 | 48 | GraphRAG G1 — Core + Migration | [länk](docs/HANDOFF-2026-02-27T1330-session48-graphrag-g1.md) |
+| 2026-02-27 | 16:30 | 49 | GraphRAG G1 merge + G2 körning | [länk](docs/HANDOFF-2026-02-27T1630-session49-graphrag-g1-g2.md) |
+| 2026-02-28 | 10:00 | 50 | GraphRAG G3 + djupsamtal + 4 briefs | [länk](docs/HANDOFF-2026-02-28T1000-session50-graphrag-g3-djupsamtal.md) |
 
 > **Not:** Session 1 och 6 saknas — handoffs skapades inte vid dessa tillfällen.

@@ -3,7 +3,7 @@
 > Editera direkt i filen — kryssa av med `✅` eller `- [x]` när något är klart.
 > Uppdateras i slutet av varje session (eller när en brief körs klart).
 >
-> **Senast uppdaterad:** 2026-02-27 · Session 46
+> **Senast uppdaterad:** 2026-02-27 · Session 50
 
 ---
 
@@ -11,7 +11,7 @@
 
 | Projekt | Tester | Senaste commit | Session |
 |---------|--------|----------------|---------|
-| Neuron HQ | 356 ✅ | `session46` (GREEN-fix) | 46 |
+| Neuron HQ | 443 ✅ | `b897b26` (GraphRAG G3) | 50 |
 | Aurora | 236 ✅ | `b22ee1c` (A3 embedding-konsistens) | — |
 
 ---
@@ -25,28 +25,15 @@ export PATH="/opt/homebrew/opt/node@20/bin:$PATH"
 cd "/Users/mpmac/Documents/VS Code/neuron-hq"
 ```
 
-### 1. memory-compression (Low risk)
-- [ ] **Körning klar**
-- [ ] **Granskad**
-```bash
-npx tsx src/cli.ts run neuron-hq --brief briefs/2026-02-27-memory-compression.md --hours 1
-```
+### GraphRAG (3 steg — alla klara ✅)
 
-### 2. prompt-injection-guard (Medium risk)
-Lägger till `validateBrief()` i PolicyValidator — skyddar mot prompt injection i brief-filer.
-- [ ] **Körning klar**
-- [ ] **Granskad**
-```bash
-npx tsx src/cli.ts run neuron-hq --brief briefs/2026-02-27-prompt-injection-guard.md --hours 1
-```
+| Steg | Vad | Commit | Session |
+|------|-----|--------|---------|
+| G1 | Core + migration (`knowledge-graph.ts` + `graph.json`) | `0bfa706` | 48–49 |
+| G2 | Historian/Librarian skriver (4 verktyg, `graph-tools.ts`) | `a1a1cfb` | 49 |
+| G3 | Alla agenter läser (`graph_query` + `graph_traverse` read-only) | `b897b26` | 50 |
 
-### 3. estop (Medium risk)
-E-stop via `touch STOP` — avbryter körning rent vid nästa iterationsgräns.
-- [ ] **Körning klar**
-- [ ] **Granskad**
-```bash
-npx tsx src/cli.ts run neuron-hq --brief briefs/2026-02-27-estop.md --hours 1
-```
+**Resultat:** 69 noder, 56 kanter. 6 agenter anslutna (2 läs+skriv, 4 läs). 430 → 443 tester.
 
 ---
 
@@ -147,3 +134,11 @@ B2 (hybrid search) → C3+C4 (PDF+Word) → B1 → B4 → B3 → D1+D2 → E1
 | Aurora A3 embedding-konsistens | `b22ee1c` | 43 körning |
 | Aurora A2 entity-extraktion | `5c05583` | 43 körning |
 | Aurora A1 chunk-summaries | `1fe7f62` | 41 körning |
+| GraphRAG G1: Core + migration | `0bfa706` | 49 körning |
+| GraphRAG G2: Agent-verktyg + skribenter | `a1a1cfb` | 49 körning |
+| GraphRAG G3: Alla agenter läser | `b897b26` | 50 körning |
+| memory-compression | S47 körning | 47 |
+| prompt-injection-guard | S47 körning | 47 |
+| estop | `36af36c` | 47 |
+| estop-polish | `b914888` | 47 |
+| manager-lint fix | `c782e06` | 49 |

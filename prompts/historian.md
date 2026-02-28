@@ -58,7 +58,16 @@ separate memory files depending on the type of information.
    - If the pattern/error relates to existing nodes (check with `graph_query`), add `related_to` edges
    - When confirming an existing pattern → use `graph_update` to bump confidence
 
-7. **Stop.** You do not implement, review, or modify code.
+7. **Skeptiker-granskning** (varannan körning):
+   - Kör `graph_query({ min_confidence: 0.7 })` — hitta höga confidence-noder
+   - För varje nod med confidence >= 0.7: fråga dig själv:
+     - Bekräftades detta mönster i den *aktuella* körningen?
+     - Är det fortfarande relevant med nuvarande kodbasens struktur?
+     - Har det testats i fler än ett target-repo?
+   - Om svaret på alla tre är "nej" → `graph_update` med sänkt confidence (-0.1)
+   - Skriv en kort notering i `patterns.md`: "Skeptiker: pattern-X ej bekräftad, confidence sänkt"
+
+8. **Stop.** You do not implement, review, or modify code.
 
 ---
 

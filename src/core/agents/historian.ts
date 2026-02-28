@@ -1,3 +1,4 @@
+import { loadGraph, saveGraph, applyConfidenceDecay } from '../knowledge-graph.js';
 import { type RunContext } from '../run.js';
 import { searchMemoryFiles, withRetry } from './agent-utils.js';
 import fs from 'fs/promises';
@@ -61,6 +62,13 @@ export class HistorianAgent {
     try {
       const systemPrompt = await this.buildSystemPrompt();
       await this.runAgentLoop(systemPrompt);
+
+      // Apply confidence decay to stale nodes
+      const graphPath = path.join(this.memoryDir, 'graph.json');
+      const graph = await loadGraph(graphPath);
+      const decayedGraph = applyConfidenceDecay(graph);
+      await saveGraph(decayedGraph, graphPath);
+
       console.log('Historian agent completed.');
     } catch (error) {
       await this.ctx.audit.log({

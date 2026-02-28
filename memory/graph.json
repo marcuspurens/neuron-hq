@@ -1167,6 +1167,65 @@
       "created": "2026-02-27T12:13:00.923Z",
       "updated": "2026-02-27T12:13:00.923Z",
       "confidence": 1
+    },
+    {
+      "id": "run-020",
+      "type": "run",
+      "title": "Körning 20260227-1613-neuron-hq — GraphRAG G3 read-only tools",
+      "properties": {
+        "target": "neuron-hq",
+        "date": "2026-02-27",
+        "result": "✅ 13/13 acceptanskriterier",
+        "summary": "Gav Manager, Implementer, Reviewer och Researcher läs-åtkomst till kunskapsgrafen via graph_query + graph_traverse. 443 tester, merge genomförd.",
+        "tests_after": 443,
+        "files_changed": 10,
+        "provenance": {
+          "runId": "20260227-1613-neuron-hq",
+          "agent": "historian",
+          "timestamp": "2026-02-27T16:33:31.444Z"
+        }
+      },
+      "created": "2026-02-27T16:33:31.444Z",
+      "updated": "2026-02-27T16:33:31.444Z",
+      "confidence": 1
+    },
+    {
+      "id": "pattern-029",
+      "type": "pattern",
+      "title": "Additiv verktygsspridning till flera agenter i en körning",
+      "properties": {
+        "context": "GraphRAG G3 — 4 agenter fick 2 läs-verktyg var i en enda körning",
+        "solution": "Brief specificerade exakt samma mönster (import, defineTools, executeTools switch-case) för varje agent, så Implementer kunde applicera mekaniskt",
+        "effect": "82 rader i 9 befintliga filer + 170 rader ny testfil. LOW risk, inga regressioner.",
+        "keywords": "additiv, verktyg, agenter, graphrag, read-only, bulk-ändring",
+        "provenance": {
+          "runId": "20260227-1613-neuron-hq",
+          "agent": "historian",
+          "timestamp": "2026-02-27T16:33:46.100Z"
+        }
+      },
+      "created": "2026-02-27T16:33:46.100Z",
+      "updated": "2026-02-27T16:33:46.100Z",
+      "confidence": 0.8
+    },
+    {
+      "id": "pattern-030",
+      "type": "pattern",
+      "title": "Graph write tools restricted to Historian+Librarian only",
+      "properties": {
+        "context": "GraphRAG G3 design decision",
+        "solution": "graphReadToolDefinitions() filters to only graph_query + graph_traverse. Manager/Implementer/Reviewer/Researcher use this filtered set. graph_assert/graph_update remain exclusive to Historian and Librarian.",
+        "effect": "Prevents accidental graph corruption by non-memory agents. Read-only access lets all agents benefit from historical knowledge without write risk.",
+        "keywords": "graphrag, read-only, write-restriction, invariant, graph_query, graph_traverse",
+        "provenance": {
+          "runId": "20260227-1613-neuron-hq",
+          "agent": "historian",
+          "timestamp": "2026-02-27T16:34:23.016Z"
+        }
+      },
+      "created": "2026-02-27T16:34:23.016Z",
+      "updated": "2026-02-27T16:34:23.016Z",
+      "confidence": 0.95
     }
   ],
   "edges": [
@@ -1617,7 +1676,27 @@
       "metadata": {
         "timestamp": "2026-02-27T12:13:00.923Z"
       }
+    },
+    {
+      "from": "pattern-029",
+      "to": "run-020",
+      "type": "discovered_in",
+      "metadata": {
+        "runId": "20260227-1613-neuron-hq",
+        "agent": "historian",
+        "timestamp": "2026-02-27T16:33:46.100Z"
+      }
+    },
+    {
+      "from": "pattern-030",
+      "to": "run-020",
+      "type": "discovered_in",
+      "metadata": {
+        "runId": "20260227-1613-neuron-hq",
+        "agent": "historian",
+        "timestamp": "2026-02-27T16:34:23.016Z"
+      }
     }
   ],
-  "lastUpdated": "2026-02-27T12:13:00.923Z"
+  "lastUpdated": "2026-02-27T16:34:23.017Z"
 }
