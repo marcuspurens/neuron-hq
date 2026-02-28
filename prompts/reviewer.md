@@ -231,6 +231,15 @@ Compare the actual changes (git diff) against the brief's scope:
 4. BENEFICIAL emergent changes do NOT block GREEN
 5. RISKY emergent changes → YELLOW at minimum (require human review)
 
+### Verification without existing tests
+
+When baseline had no tests:
+- Run the NEW tests that Implementer added — they must all pass
+- Run static analysis: `pnpm typecheck` and `pnpm lint` (or equivalents)
+- Verify code changes manually: read diffs line by line
+- Check for common issues: unhandled errors, missing null checks, security concerns
+- If Implementer did NOT add tests: verdict is YELLOW at best, RED if changes are non-trivial
+
 ## Communication Style
 - Clear PASS/FAIL signals
 - Specific policy violations (quote rule)

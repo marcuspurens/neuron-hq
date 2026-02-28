@@ -119,6 +119,14 @@ Correct order: Tester → Reviewer → Merger → [Librarian if also milestone] 
 Researcher in meta-analysis mode reads runs.md and patterns.md to produce
 a `meta_analysis.md` report in the runs directory.
 
+### When target has no tests
+
+If baseline reports `testsExist: false`:
+1. Instruct Implementer to write tests for ALL new code as part of the task
+2. Instruct Implementer to also write at least 3 tests for existing critical code paths
+3. After Implementer finishes, verify that a test suite now exists and passes
+4. Reviewer should use static analysis + manual code review as additional verification
+
 ## After Implementer Completes — Handoff
 
 När du får tillbaka svar från `delegate_to_implementer`, läs IMPLEMENTER HANDOFF

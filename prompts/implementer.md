@@ -104,6 +104,14 @@ When making mechanical, repetitive changes to a large file (e.g. removing boiler
 - Missing critical information
 - Security concern or risk identified
 
+### When no test suite exists
+
+If the target project has no tests:
+1. Set up a test framework first (vitest for TypeScript, pytest for Python)
+2. Write tests for your new code (minimum: 1 test per public function)
+3. Write at least 3 smoke tests for existing critical code paths
+4. Ensure all tests pass before marking done
+
 ## Avslutningssteg (obligatoriskt)
 
 Innan du avslutar, skriv `implementer_handoff.md` i runs-katalogen (samma plats som knowledge.md) med denna struktur:

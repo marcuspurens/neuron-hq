@@ -13,6 +13,7 @@ import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { detectTestStatus } from '../baseline.js';
 
 const execAsync = promisify(exec);
 
@@ -27,6 +28,7 @@ export class ManagerAgent {
   private baseDir: string;
   private memoryDir: string;
   private librarianAutoTrigger: boolean;
+  private testStatus: { testsExist: boolean; testFramework: string | null } | null = null;
 
   constructor(private ctx: RunContext, baseDir: string, librarianAutoTrigger = false) {
     this.baseDir = baseDir;
@@ -110,6 +112,9 @@ export class ManagerAgent {
 
     await this.ctx.artifacts.writeBaseline(baselineMarkdown);
 
+    // Detect test status
+    this.testStatus = await detectTestStatus(this.ctx.workspaceDir);
+
     console.log('Baseline verification complete.');
   }
 
@@ -118,6 +123,12 @@ export class ManagerAgent {
    */
   private async buildSystemPrompt(): Promise<string> {
     const managerPrompt = await this.loadPrompt();
+
+    const testStatusLine = this.testStatus
+      ? (this.testStatus.testsExist
+          ? `Test status: Tests exist (framework: ${this.testStatus.testFramework ?? 'unknown'})`
+          : 'Test status: NO TESTS FOUND — Implementer must create test suite')
+      : 'Test status: Not yet determined';
 
     const contextInfo = `
 # Run Context
@@ -128,6 +139,7 @@ export class ManagerAgent {
 - **Workspace**: ${this.ctx.workspaceDir}
 - **Run artifacts dir**: ${this.ctx.runDir}
 - **Max iterations**: ${this.maxIterations}
+- **${testStatusLine}**
 
 # Available Tools
 
