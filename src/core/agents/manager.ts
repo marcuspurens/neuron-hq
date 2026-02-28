@@ -770,7 +770,15 @@ Stop when time limit approaches or when blockers are encountered.
     });
     const reviewer = new ReviewerAgent(this.ctx, this.baseDir);
     await reviewer.run();
-    return 'Reviewer agent completed successfully.';
+
+    // Read handoff file if it exists
+    const handoffPath = path.join(this.ctx.runDir, 'reviewer_handoff.md');
+    try {
+      const handoff = await fs.readFile(handoffPath, 'utf-8');
+      return `Reviewer agent completed.\n\n--- REVIEWER HANDOFF ---\n${handoff}`;
+    } catch {
+      return 'Reviewer agent completed successfully. (No handoff written)';
+    }
   }
 
   /**

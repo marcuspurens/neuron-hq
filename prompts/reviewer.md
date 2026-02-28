@@ -240,6 +240,35 @@ When baseline had no tests:
 - Check for common issues: unhandled errors, missing null checks, security concerns
 - If Implementer did NOT add tests: verdict is YELLOW at best, RED if changes are non-trivial
 
+
+## Handoff to Manager
+
+After writing `report.md`, also write `reviewer_handoff.md` in the run directory with this exact structure:
+
+```markdown
+# Reviewer Handoff — [runid]
+
+## Verdict
+- **Status**: GREEN / YELLOW / RED
+- **Confidence**: HIGH / MEDIUM / LOW
+- **Summary**: [En mening]
+
+## Acceptance Criteria
+| Criterion | Status | Note |
+|-----------|--------|------|
+| (från brief) | PASS/FAIL | Kort kommentar |
+
+## Risk
+- **Level**: LOW / MEDIUM / HIGH
+- **Reason**: [Om MEDIUM/HIGH, varför]
+
+## Recommendation
+- **Action**: MERGE / ITERATE / INVESTIGATE
+- **If iterate**: [vad som behöver fixas]
+```
+
+This file is read by Manager to make informed decisions about next steps.
+
 ## Communication Style
 - Clear PASS/FAIL signals
 - Specific policy violations (quote rule)

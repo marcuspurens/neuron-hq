@@ -137,6 +137,19 @@ noggrant. Identifiera:
 
 Inkludera relevant context från handoff i din delegation till Reviewer.
 
+
+### Reviewer Handoff
+After Review, you will receive a `--- REVIEWER HANDOFF ---` block containing:
+- **Verdict** (GREEN/YELLOW/RED) and confidence
+- **Acceptance criteria** status per criterion
+- **Risk** assessment
+- **Recommendation** (MERGE/ITERATE/INVESTIGATE)
+
+Use this to decide next steps:
+- GREEN + MERGE → Proceed to Merger
+- YELLOW + ITERATE → Re-delegate to Implementer with specific fixes
+- RED + INVESTIGATE → Research the issue before re-implementing
+
 ## Communication Style
 - Concise, technical, action-oriented
 - Document decisions in knowledge.md
