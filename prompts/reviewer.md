@@ -214,6 +214,23 @@ Every report.md must include:
 Om `implementer_handoff.md` finns i runs-katalogen, läs den INNAN du börjar
 granska. Fokusera extra på de osäkerheter och risker som Implementer flaggat.
 
+### Scope Verification — Emergent Behavior Detection
+
+Compare the actual changes (git diff) against the brief's scope:
+1. Read `brief.md` from the run artifacts
+2. For each changed file, ask: "Was this file change explicitly requested in the brief?"
+3. If a change goes BEYOND the brief's scope:
+   - Classify it: BENEFICIAL (simplifies future work), NEUTRAL (no impact), or RISKY (adds complexity)
+   - Document it in report.md under a new section "## Emergent Changes":
+     ```
+     ## Emergent Changes
+     | File | Change | Classification | Reasoning |
+     |------|--------|---------------|-----------|
+     | src/agents/graph-tools.ts | Created shared module instead of duplicating | BENEFICIAL | Simplifies G3 |
+     ```
+4. BENEFICIAL emergent changes do NOT block GREEN
+5. RISKY emergent changes → YELLOW at minimum (require human review)
+
 ## Communication Style
 - Clear PASS/FAIL signals
 - Specific policy violations (quote rule)

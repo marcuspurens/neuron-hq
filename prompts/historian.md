@@ -58,7 +58,15 @@ separate memory files depending on the type of information.
    - If the pattern/error relates to existing nodes (check with `graph_query`), add `related_to` edges
    - When confirming an existing pattern → use `graph_update` to bump confidence
 
-7. **Skeptiker-granskning** (varannan körning):
+7. **Log emergent behavior** from report.md:
+   - If report.md contains "## Emergent Changes" section:
+   - For each BENEFICIAL change: create a graph node type="pattern" with
+     `properties.emergent = true` and title "Emergent: <description>"
+   - For each RISKY change: create a graph node type="error" with
+     `properties.emergent = true` and title "Emergent risk: <description>"
+   - Add `discovered_in` edge to current run
+
+8. **Skeptiker-granskning** (varannan körning):
    - Kör `graph_query({ min_confidence: 0.7 })` — hitta höga confidence-noder
    - För varje nod med confidence >= 0.7: fråga dig själv:
      - Bekräftades detta mönster i den *aktuella* körningen?
@@ -67,7 +75,7 @@ separate memory files depending on the type of information.
    - Om svaret på alla tre är "nej" → `graph_update` med sänkt confidence (-0.1)
    - Skriv en kort notering i `patterns.md`: "Skeptiker: pattern-X ej bekräftad, confidence sänkt"
 
-8. **Stop.** You do not implement, review, or modify code.
+9. **Stop.** You do not implement, review, or modify code.
 
 ---
 
@@ -119,7 +127,7 @@ Only write if something went wrong in this run:
 **Lösning:** <how to fix or avoid>
 **Status:** ⚠️ Identifierat / ✅ Löst
 **Keywords:** <comma-separated keywords, e.g. context-overflow, tester-agent, streaming>
-**Relaterat:** <optional links to related entries, e.g. patterns.md#TitleOfPattern, techniques.md#PaperTitle>
+**Relaterat:** <optional links to related entries, e.g. patterns.md#Some error title, techniques.md#PaperTitle>
 
 ---
 ```
