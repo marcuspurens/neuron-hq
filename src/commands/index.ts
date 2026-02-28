@@ -6,3 +6,4 @@ export { replayCommand } from './replay.js';
 export { logsCommand } from './logs.js';
 export { reportCommand } from './report.js';
 export { monitorCommand } from './monitor.js';
+export { scaffoldCommand } from './scaffold.js';

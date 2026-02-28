@@ -21,6 +21,7 @@ import {
   reportCommand,
   monitorCommand,
 } from './commands/index.js';
+import { scaffoldCommand } from './commands/scaffold.js';
 import { runBriefAgent } from './core/agents/brief-agent.js';
 
 // Base directory for Neuron HQ
@@ -54,6 +55,7 @@ program
   .description('Run agents on a target repository')
   .option('--hours <hours>', 'Runtime limit in hours', '3')
   .option('--brief <path>', 'Path to brief file', 'briefs/today.md')
+  .option('--scaffold <spec>', 'Scaffold target if missing (format: language:template)')
   .action(runCommand);
 
 program
@@ -95,6 +97,15 @@ program
   .command('monitor <target>')
   .description('Run health check on a target and display status')
   .action(monitorCommand);
+
+// Scaffold command
+program
+  .command('scaffold <name>')
+  .description('Scaffold a new greenfield project')
+  .option('--language <lang>', 'Programming language (typescript or python)', 'typescript')
+  .option('--template <tpl>', 'Project template (library)', 'library')
+  .option('--dir <dir>', 'Parent directory for the project')
+  .action(scaffoldCommand);
 
 // Parse arguments
 program.parse();

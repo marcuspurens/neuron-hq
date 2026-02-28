@@ -7,11 +7,12 @@ import { RunOrchestrator, countMemoryRuns, EstopError } from '../core/run.js';
 import { createPolicyEnforcer } from '../core/policy.js';
 import { ManagerAgent } from '../core/agents/manager.js';
 import { BASE_DIR } from '../cli.js';
+import { scaffoldProject, type ScaffoldOptions } from '../core/scaffold.js';
 import type { RunConfig, StoplightStatus } from '../core/types.js';
 
 export async function runCommand(
   targetName: string,
-  options: { hours: string; brief: string }
+  options: { hours: string; brief: string; scaffold?: string }
 ): Promise<void> {
   const spinner = ora('Initializing neuron run...').start();
 
@@ -19,7 +20,41 @@ export async function runCommand(
     // Load target
     const targetsFile = path.join(BASE_DIR, 'targets', 'repos.yaml');
     const targetsManager = new TargetsManager(targetsFile);
-    const target = await targetsManager.getTarget(targetName);
+    let target = await targetsManager.getTarget(targetName);
+
+    // Auto-scaffold if --scaffold flag provided and target doesn't exist
+    if (!target && options.scaffold) {
+      const [language, template] = options.scaffold.split(':') as [
+        ScaffoldOptions['language'],
+        ScaffoldOptions['template'],
+      ];
+      const targetDir = path.join(BASE_DIR, '..');
+      const projectDir = path.join(targetDir, targetName);
+
+      // Check if directory already exists
+      try {
+        await fs.access(projectDir);
+        // Directory exists, don't scaffold
+      } catch {
+        // Directory doesn't exist, scaffold it
+        spinner.text = `Scaffolding ${targetName}...`;
+        await scaffoldProject({ name: targetName, language, template, targetDir });
+
+        // Register as target
+        await targetsManager.addTarget({
+          name: targetName,
+          path: projectDir,
+          default_branch: 'main',
+          verify_commands: language === 'typescript' ? ['pnpm test'] : ['pytest'],
+        });
+
+        spinner.succeed(chalk.green(`Scaffolded ${targetName}`));
+        spinner.start('Initializing neuron run...');
+
+        // Re-load target
+        target = await targetsManager.getTarget(targetName);
+      }
+    }
 
     if (!target) {
       spinner.fail(chalk.red(`Target '${targetName}' not found`));
