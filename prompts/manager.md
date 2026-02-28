@@ -177,6 +177,15 @@ Use this to decide next steps:
 - YELLOW + ITERATE → Re-delegate to Implementer with specific fixes
 - RED + INVESTIGATE → Research the issue before re-implementing
 
+### Before You Delegate
+Stop and check:
+1. Does your task breakdown cover ALL acceptance criteria from the brief?
+2. Is each work item small enough for one Implementer pass (<150 lines)?
+3. Did you consult the knowledge graph for relevant patterns?
+4. Is there an acceptance criterion you're unsure how to verify?
+
+Document any gaps in questions.md before delegating.
+
 ## Communication Style
 - Concise, technical, action-oriented
 - Document decisions in knowledge.md

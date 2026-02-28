@@ -14,6 +14,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { detectTestStatus } from '../baseline.js';
+import { validateHandoff, IMPLEMENTER_REQUIRED, REVIEWER_REQUIRED } from '../verification-gate.js';
 
 const execAsync = promisify(exec);
 
@@ -756,6 +757,10 @@ Stop when time limit approaches or when blockers are encountered.
     const handoffPath = path.join(this.ctx.runDir, 'implementer_handoff.md');
     try {
       const handoff = await fs.readFile(handoffPath, 'utf-8');
+      const missing = validateHandoff(handoff, IMPLEMENTER_REQUIRED);
+      if (missing.length > 0) {
+        return `Implementer completed but handoff missing sections: ${missing.join(', ')}. Consider re-delegating.\n\n--- IMPLEMENTER HANDOFF ---\n${handoff}`;
+      }
       return `Implementer agent completed.\n\n--- IMPLEMENTER HANDOFF ---\n${handoff}`;
     } catch {
       return 'Implementer agent completed successfully. (No handoff written)';
@@ -781,6 +786,10 @@ Stop when time limit approaches or when blockers are encountered.
     const handoffPath = path.join(this.ctx.runDir, 'reviewer_handoff.md');
     try {
       const handoff = await fs.readFile(handoffPath, 'utf-8');
+      const missing = validateHandoff(handoff, REVIEWER_REQUIRED);
+      if (missing.length > 0) {
+        return `Reviewer completed but handoff missing sections: ${missing.join(', ')}. Consider re-delegating.\n\n--- REVIEWER HANDOFF ---\n${handoff}`;
+      }
       return `Reviewer agent completed.\n\n--- REVIEWER HANDOFF ---\n${handoff}`;
     } catch {
       return 'Reviewer agent completed successfully. (No handoff written)';

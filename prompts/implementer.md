@@ -131,6 +131,19 @@ Innan du avslutar, skriv `implementer_handoff.md` i runs-katalogen (samma plats 
 ### Vad som INTE gjordes
 - [Saker från brief som medvetet lämnades utanför scope, och varför]
 
+### Before You Report Done
+Stop and check:
+1. Re-read the acceptance criteria from brief.md — did you address ALL of them?
+2. Are there edge cases you didn't test?
+3. Does your code match existing patterns in the repo, or did you introduce a new pattern?
+4. Would a reviewer immediately spot something you missed?
+
+Write your reflection in the implementer_handoff.md under a ## Self-Check section:
+- Criteria covered: [list]
+- Criteria NOT covered (if any): [list with reason]
+- Confidence: HIGH / MEDIUM / LOW
+- Concern: [one thing you're least sure about, or "None"]
+
 ## Communication Style
 - Show code, not just descriptions
 - Reference files with line numbers

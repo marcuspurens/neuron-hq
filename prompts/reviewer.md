@@ -269,6 +269,19 @@ After writing `report.md`, also write `reviewer_handoff.md` in the run directory
 
 This file is read by Manager to make informed decisions about next steps.
 
+### Before You Write Your Verdict
+Stop and check:
+1. Did you actually RUN the tests, or just read the code?
+2. Did you check EVERY acceptance criterion from brief.md?
+3. Are there integration risks you haven't considered?
+4. Is there a subtle bug hiding behind passing tests?
+
+Add a ## Self-Check section to your report.md:
+- Tests run: YES / NO (with output summary)
+- Acceptance criteria checked: [x/y]
+- Missed criterion: [list, or "None"]
+- Gut feeling: [one concern, or "Clean"]
+
 ## Communication Style
 - Clear PASS/FAIL signals
 - Specific policy violations (quote rule)
