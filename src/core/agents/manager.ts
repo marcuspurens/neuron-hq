@@ -15,6 +15,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { detectTestStatus } from '../baseline.js';
 import { validateHandoff, IMPLEMENTER_REQUIRED, REVIEWER_REQUIRED } from '../verification-gate.js';
+import { validateTaskPlan, type TaskPlan } from '../task-splitter.js';
 
 const execAsync = promisify(exec);
 
@@ -452,6 +453,30 @@ Stop when time limit approaches or when blockers are encountered.
           properties: {},
         },
       },
+      {
+        name: 'write_task_plan',
+        description: 'Write a structured task plan to task_plan.md in the run directory. Call this BEFORE delegating to Implementer.',
+        input_schema: {
+          type: 'object' as const,
+          properties: {
+            tasks: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  description: { type: 'string' },
+                  files: { type: 'array', items: { type: 'string' } },
+                  passCriterion: { type: 'string' },
+                  dependsOn: { type: 'array', items: { type: 'string' } },
+                },
+                required: ['id', 'description', 'files', 'passCriterion'],
+              },
+            },
+          },
+          required: ['tasks'],
+        },
+      },
       ...graphReadToolDefinitions(),
     ];
   }
@@ -529,6 +554,9 @@ Stop when time limit approaches or when blockers are encountered.
               result = await executeGraphTool(block.name, block.input as Record<string, unknown>, graphCtx);
               break;
             }
+            case 'write_task_plan':
+              result = await this.executeWriteTaskPlan(block.input as { tasks: Array<{ id: string; description: string; files: string[]; passCriterion: string; dependsOn?: string[] }> });
+              break;
             default:
               result = `Error: Unknown tool ${block.name}`;
           }
@@ -695,6 +723,45 @@ Stop when time limit approaches or when blockers are encountered.
     } catch (error: any) {
       return `Error listing files: ${error.message}`;
     }
+  }
+
+
+  /**
+   * Write a structured task plan to the run directory.
+   */
+  private async executeWriteTaskPlan(input: { tasks: Array<{ id: string; description: string; files: string[]; passCriterion: string; dependsOn?: string[] }> }): Promise<string> {
+    const plan: TaskPlan = { tasks: input.tasks };
+    const errors = validateTaskPlan(plan);
+
+    if (errors.length > 0) {
+      return `Task plan validation failed:\n${errors.map(e => `- ${e}`).join('\n')}`;
+    }
+
+    // Build markdown
+    const lines: string[] = ['# Task Plan\n'];
+    for (const task of plan.tasks) {
+      const deps = task.dependsOn?.length ? ` (depends on: ${task.dependsOn.join(', ')})` : '';
+      lines.push(`## ${task.id}: ${task.description}${deps}\n`);
+      lines.push(`- **Files**: ${task.files.join(', ')}`);
+      lines.push(`- **Pass criterion**: ${task.passCriterion}`);
+      lines.push('- **Status**: ⏳ pending\n');
+    }
+
+    const content = lines.join('\n');
+    const planPath = path.join(this.ctx.runDir, 'task_plan.md');
+
+    await fs.mkdir(path.dirname(planPath), { recursive: true });
+    await fs.writeFile(planPath, content, 'utf-8');
+
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'manager',
+      tool: 'write_task_plan',
+      allowed: true,
+      note: `Task plan written with ${plan.tasks.length} tasks`,
+    });
+
+    return `Task plan written to task_plan.md with ${plan.tasks.length} tasks:\n${plan.tasks.map(t => `- ${t.id}: ${t.description}`).join('\n')}`;
   }
 
   /**
