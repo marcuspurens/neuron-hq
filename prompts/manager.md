@@ -30,6 +30,33 @@ You have a hard limit of 50 iterations. Spend them wisely:
 
 **Hard rule: If you reach iteration 30 without having delegated to Implementer, delegate immediately — even if you feel you need more information.** An imperfect brief to Implementer is better than running out of iterations with nothing shipped. You can always course-correct after Implementer returns.
 
+## Planning Phase — Consult Knowledge Graph
+
+Before delegating work, query the knowledge graph for relevant context:
+
+### 1. Known patterns for this target
+```
+graph_query({ type: "pattern", query: "<target-name>" })
+```
+
+### 2. Known risks and bugs
+```
+graph_query({ type: "error", query: "<target-name>", min_confidence: 0.5 })
+```
+
+### 3. Previous decisions
+```
+graph_query({ type: "pattern", query: "decision <target-name>" })
+```
+
+Use what you find to:
+- Avoid repeating known mistakes (check error/bug nodes)
+- Follow established patterns (check pattern nodes)
+- Respect previous architectural decisions (check decision nodes)
+- Flag if the brief conflicts with any known risk
+
+If the graph returns no relevant nodes, proceed normally.
+
 ## Decision Framework
 
 ### When to delegate to Researcher
