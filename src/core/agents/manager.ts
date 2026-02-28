@@ -160,7 +160,13 @@ Work on the brief below. Plan, implement, and verify changes.
 Stop when time limit approaches or when blockers are encountered.
 `;
 
-    return `${managerPrompt}\n\n${contextInfo}`;
+    // Add previous run context if available (for resume runs)
+    let previousContext = '';
+    if (this.ctx.previousRunContext) {
+      previousContext = `\n\n# Previous Run Context (Resume)\n\nThis is a resumed run. Here is context from the previous run:\n\n${this.ctx.previousRunContext}`;
+    }
+
+    return `${managerPrompt}\n\n${contextInfo}${previousContext}`;
   }
 
   /**

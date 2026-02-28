@@ -143,6 +143,22 @@ export async function runCommand(
       await manager.run();
     } catch (runError) {
       if (runError instanceof EstopError) {
+        // Write e-stop handoff
+        const handoffPath = path.join(ctx.runDir, 'estop_handoff.md');
+        await fs.writeFile(handoffPath, [
+          '# E-Stop Handoff',
+          '',
+          `**Run ID:** ${runid}`,
+          `**Stopped at:** ${new Date().toISOString()}`,
+          `**Target:** ${target.name}`,
+          '',
+          '## State at stop',
+          '- Workspace changes are preserved (uncommitted)',
+          '- Check `git diff` in workspace for current state',
+          '- Check `audit.jsonl` for last completed action',
+          '',
+        ].join('\n'));
+
         console.log(chalk.red('\n⛔ Run stopped by user (STOP file detected). Run ID: ' + runid));
 
         // Write STOPPED BY USER report if not already present

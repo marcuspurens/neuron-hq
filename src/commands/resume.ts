@@ -9,6 +9,17 @@ import { ManagerAgent } from '../core/agents/manager.js';
 import { BASE_DIR } from '../cli.js';
 import { RunIdSchema, type RunId, type StoplightStatus } from '../core/types.js';
 
+/**
+ * Try to read a file, returning null if it doesn't exist.
+ */
+async function tryRead(filePath: string): Promise<string | null> {
+  try {
+    return await fs.readFile(filePath, 'utf-8');
+  } catch {
+    return null;
+  }
+}
+
 export async function resumeCommand(runid: string, options: { hours: string }): Promise<void> {
   const spinner = ora('Loading previous run...').start();
 
@@ -76,6 +87,33 @@ export async function resumeCommand(runid: string, options: { hours: string }): 
       hours
     );
 
+    // Auto-remove STOP file from previous e-stop
+    const stopPath = path.join(BASE_DIR, 'STOP');
+    try {
+      await fs.unlink(stopPath);
+      console.log(chalk.yellow('  Removed STOP file from previous e-stop.'));
+    } catch {
+      // STOP file doesn't exist — that's fine
+    }
+
+    // Load previous run context for Manager
+    const prevRunDir = path.join(BASE_DIR, 'runs', runid);  // runid is the OLD run id
+    const contextParts: string[] = ['# Previous Run Context\n'];
+
+    const estopHandoff = await tryRead(path.join(prevRunDir, 'estop_handoff.md'));
+    if (estopHandoff) contextParts.push('## E-Stop Handoff\n' + estopHandoff);
+
+    const implHandoff = await tryRead(path.join(prevRunDir, 'implementer_handoff.md'));
+    if (implHandoff) contextParts.push('## Implementer Progress\n' + implHandoff);
+
+    const revHandoff = await tryRead(path.join(prevRunDir, 'reviewer_handoff.md'));
+    if (revHandoff) contextParts.push('## Reviewer Feedback\n' + revHandoff);
+
+    // Only set if we found actual handoff content
+    if (contextParts.length > 1) {
+      ctx.previousRunContext = contextParts.join('\n---\n');
+    }
+
     spinner.succeed(chalk.green(`Resumed run initialized: ${newRunId}`));
     console.log(chalk.gray(`  Previous run: ${runid}`));
     if (manifest.completed_at) {
@@ -91,6 +129,22 @@ export async function resumeCommand(runid: string, options: { hours: string }): 
       await manager.run();
     } catch (runError) {
       if (runError instanceof EstopError) {
+        // Write e-stop handoff
+        const handoffPath = path.join(ctx.runDir, 'estop_handoff.md');
+        await fs.writeFile(handoffPath, [
+          '# E-Stop Handoff',
+          '',
+          `**Run ID:** ${newRunId}`,
+          `**Stopped at:** ${new Date().toISOString()}`,
+          `**Target:** ${target.name}`,
+          '',
+          '## State at stop',
+          '- Workspace changes are preserved (uncommitted)',
+          '- Check `git diff` in workspace for current state',
+          '- Check `audit.jsonl` for last completed action',
+          '',
+        ].join('\n'));
+
         console.log(chalk.red('\n⛔ Run stopped by user (STOP file detected). Run ID: ' + newRunId));
         const reportPath = path.join(ctx.runDir, 'report.md');
         try { await fs.access(reportPath); } catch {

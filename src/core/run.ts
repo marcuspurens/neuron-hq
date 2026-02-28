@@ -26,6 +26,7 @@ export interface RunContext {
   policy: PolicyEnforcer;
   startTime: Date;
   endTime: Date;
+  previousRunContext?: string;  // loaded from previous run's handoff files
 }
 
 /** Directories to skip when copying a target repo to workspace. */
