@@ -31,7 +31,7 @@ describe('applyConfidenceDecay', () => {
     graph = addNode(graph, makeNode({ id: 'old-1', confidence: 0.8, updated: makeOldDate(30) }));
 
     const result = applyConfidenceDecay(graph, { maxRunsSinceConfirm: 20 });
-    expect(result.nodes[0].confidence).toBeCloseTo(0.72, 2); // 0.8 * 0.9
+    expect(result.nodes[0].confidence).toBeCloseTo(0.72, 2);
     expect(result.nodes[0].properties.decay_applied).toBe(true);
   });
 
@@ -63,8 +63,7 @@ describe('applyConfidenceDecay', () => {
 
   it('respekterar anpassat maxRunsSinceConfirm', () => {
     let graph = createEmptyGraph();
-    // Node updated 10 days ago
-    graph = addNode(graph, makeNode({ id: 'old-1', confidence: 0.8, updated: makeOldDate(10) }));
+    graph = addNode(graph, makeNode({ id: 'mid-1', confidence: 0.8, updated: makeOldDate(10) }));
 
     // With maxRuns=5, 10 days ago should decay
     const result5 = applyConfidenceDecay(graph, { maxRunsSinceConfirm: 5 });
@@ -75,10 +74,11 @@ describe('applyConfidenceDecay', () => {
     expect(result15.nodes[0].confidence).toBe(0.8);
   });
 
-  it('noder uppdaterade exakt vid gränsen (20 dagar) degraderas INTE', () => {
-    // Test with 19 days (should not decay — within the 20-day window)
+  it('noder uppdaterade precis inom gränsen degraderas INTE', () => {
     let graph = createEmptyGraph();
-    graph = addNode(graph, makeNode({ id: 'just-inside', confidence: 0.8, updated: makeOldDate(19) }));
+    // 19 days ago is within the 20-day window
+    graph = addNode(graph, makeNode({ id: 'boundary-1', confidence: 0.8, updated: makeOldDate(19) }));
+
     const result = applyConfidenceDecay(graph, { maxRunsSinceConfirm: 20 });
     expect(result.nodes[0].confidence).toBe(0.8);
   });
@@ -93,15 +93,15 @@ describe('applyConfidenceDecay', () => {
     }));
 
     const result = applyConfidenceDecay(graph, { maxRunsSinceConfirm: 20 });
-    expect(result.nodes[0].confidence).toBe(0.72); // unchanged
+    expect(result.nodes[0].confidence).toBe(0.72);
   });
 
-  it('returnerar ny graf (immutable pattern)', () => {
+  it('returnerar ny graf utan att mutera originalet', () => {
     let graph = createEmptyGraph();
     graph = addNode(graph, makeNode({ id: 'old-1', confidence: 0.8, updated: makeOldDate(30) }));
 
     const result = applyConfidenceDecay(graph);
     expect(result).not.toBe(graph);
-    expect(graph.nodes[0].confidence).toBe(0.8); // original unchanged
+    expect(graph.nodes[0].confidence).toBe(0.8);
   });
 });

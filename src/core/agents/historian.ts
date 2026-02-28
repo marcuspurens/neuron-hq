@@ -1,10 +1,10 @@
-import { loadGraph, saveGraph, applyConfidenceDecay } from '../knowledge-graph.js';
 import { type RunContext } from '../run.js';
 import { searchMemoryFiles, withRetry } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
+import { loadGraph, saveGraph, applyConfidenceDecay } from '../knowledge-graph.js';
 
 type MemoryFile = 'runs' | 'patterns' | 'errors';
 
@@ -63,10 +63,19 @@ export class HistorianAgent {
       const systemPrompt = await this.buildSystemPrompt();
       await this.runAgentLoop(systemPrompt);
 
-      // Apply confidence decay to stale nodes
+      // Apply confidence decay to stale graph nodes
       const graphPath = path.join(this.memoryDir, 'graph.json');
-      const graph = await loadGraph(graphPath);
-      const decayedGraph = applyConfidenceDecay(graph);
+      let currentGraph = await loadGraph(graphPath);
+      // Clear decay_applied flags from previous runs so decay can be re-applied
+      currentGraph = {
+        ...currentGraph,
+        nodes: currentGraph.nodes.map(n => {
+          if (n.properties.decay_applied !== true) return n;
+          const { decay_applied, ...rest } = n.properties;
+          return { ...n, properties: rest };
+        }),
+      };
+      const decayedGraph = applyConfidenceDecay(currentGraph);
       await saveGraph(decayedGraph, graphPath);
 
       console.log('Historian agent completed.');

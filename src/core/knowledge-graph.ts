@@ -270,39 +270,29 @@ export function removeNode(
  */
 export function applyConfidenceDecay(
   graph: KnowledgeGraph,
-  options: { maxRunsSinceConfirm?: number; decayFactor?: number } = {},
+  options: { maxRunsSinceConfirm?: number; decayFactor?: number } = {}
 ): KnowledgeGraph {
   const maxAge = options.maxRunsSinceConfirm ?? 20;
   const factor = options.decayFactor ?? 0.9;
 
-  // Calculate threshold: maxAge runs ≈ maxAge days (rough approximation)
   const thresholdDate = new Date();
   thresholdDate.setDate(thresholdDate.getDate() - maxAge);
   const thresholdISO = thresholdDate.toISOString();
 
   const now = new Date().toISOString();
 
-  const newNodes = graph.nodes.map((node) => {
-    // Skip nodes already decayed in this pass
+  const newNodes = graph.nodes.map(node => {
     if (node.properties.decay_applied === true) {
       return node;
     }
 
-    // Skip recently updated nodes
     if (node.updated >= thresholdISO) {
       return node;
     }
 
-    // Apply decay
-    const newConfidence = Math.max(
-      0,
-      parseFloat((node.confidence * factor).toFixed(4)),
-    );
+    const newConfidence = Math.max(0, parseFloat((node.confidence * factor).toFixed(4)));
 
-    const newProperties: Record<string, unknown> = {
-      ...node.properties,
-      decay_applied: true,
-    };
+    const newProperties: Record<string, unknown> = { ...node.properties, decay_applied: true };
     if (newConfidence < 0.1) {
       newProperties.stale = true;
     }
