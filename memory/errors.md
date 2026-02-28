@@ -226,3 +226,16 @@ Appendas av Historian-agenten när problem identifieras.
 **Relaterat:** —
 
 ---
+
+## Implementer producerar handoff-dokument istället för kodfiler
+**Session:** 20260228-0707-neuron-hq
+**Symptom:** Första Implementer-delegationen skapade enbart en `implementer_handoff.md`-fil i workspace med en plan för vad som skulle göras — inga faktiska kodfiler skrevs (varken knowledge-graph.ts, historian.ts eller testerna).
+**Orsak:** Implementer tolkar ibland uppgiften som "planera och dokumentera" snarare än "skriv kod". Med komplex brief (4 deluppgifter, 7+ tester, flera filer) verkar Implementer föredra att sammanfatta planen i en handoff-fil innan den börjar skriva — men avslutar sedan utan att exekvera planen.
+**Lösning:** Manager re-delegerade med explicit instruktion: "CRITICAL: You must actually WRITE the files using write_file tool". Andra delegationen lyckades. Framtida förebyggande: (1) lägg till guardrail i implementer.md att handoff.md ALDRIG ersätter faktisk implementation, (2) Manager bör verifiera att write_file-anrop till kodfiler syns i Implementers output innan den fortsätter pipeline.
+**Status:** ⚠️ Identifierat — workaround (Manager re-delegation) fungerar men grundorsaken i Implementer-prompten ej åtgärdad
+**Keywords:** implementer, handoff, write_file, planering-vs-exekvering, re-delegation
+**Relaterat:** patterns.md#Reviewer-BLOCKED → Manager → Implementer fix-loop
+
+---
+
+

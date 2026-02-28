@@ -446,3 +446,24 @@ Appendas av Historian-agenten när ny lärdom identifieras.
 **[UPPDATERING]** Mönstret "Exakt feloutput + fixförslag i brief ger kirurgiska leveranser" bekräftades i körning 20260227-1613-neuron-hq — briefen innehöll exakta TypeScript-kodsnuttar för `graphReadToolDefinitions()`, import-satser, switch-case-block och prompt-sektioner för alla 4 agenter. 13/13 kriterier uppfyllda utan iteration, 82+170 raders diff (10 filer).
 
 **Senast bekräftad:** 20260227-1613-neuron-hq
+
+**[UPPDATERING]** Mönstret "Exakt feloutput + fixförslag i brief ger kirurgiska leveranser" bekräftades i körning 20260228-0707-neuron-hq — briefen innehöll komplett TypeScript-funktionssignatur för `applyConfidenceDecay()`, detaljerad logik (iterera noder, kolla updated-timestamp, multiplicera confidence, sätt stale-flag), prompt-text för skeptiker-granskning, och 7 namngivna testfall. 6/6 kriterier uppfyllda, 277 raders diff.
+
+**Senast bekräftad:** 20260228-0707-neuron-hq
+
+**[UPPDATERING]** Mönstret "Reviewer-BLOCKED → Manager → Implementer fix-loop" bekräftades i körning 20260228-0707-neuron-hq — Reviewer flaggade design-problem med `decay_applied`-semantiken (one-time vs progressive decay) och kvarvarande hjälpskript. Manager delegerade tredje Implementer-pass som fixade båda. Hela loopen: Implementer→Reviewer→Manager→Implementer→Tester→Merger.
+
+**Senast bekräftad:** 20260228-0707-neuron-hq
+
+**[UPPDATERING]** Mönstret "Single-phase Merger: auto-commit on Reviewer GREEN" bekräftades i körning 20260228-0707-neuron-hq — Merger delegerades en enda gång (07:24:51), läste report.md med GREEN-verdict, kopierade 3 filer (knowledge-graph.ts, historian.ts, confidence-decay.test.ts) och committade direkt till commit 1f44846. Historian.md skippades (redan identisk).
+
+**Senast bekräftad:** 20260228-0707-neuron-hq
+
+**[SKEPTIKER 20260228-0707-neuron-hq]** Granskade 7 mönster med confidence ≥ 0.7:
+- pattern-018 (0.95) "Exakt feloutput": ✅ Bekräftad i denna körning — behåll
+- pattern-030 (0.95) "Graph write restricted": Ej aktivt testad, men strukturellt relevant — behåll
+- pattern-007 (0.85) "Reviewer baseline": ✅ Bekräftad (443→451 tester) — behåll
+- pattern-019 (0.85) "Manager-only resume": Ej relevant denna körning — behåll
+- pattern-028 (0.85) "Tvåfas-Merger (ARKIVERAD)": Obsolet mönster, ersatt av Single-phase Merger — confidence sänkt 0.85→0.5
+- pattern-029 (0.8) "Additiv verktygsspridning": Ej bekräftad men fortfarande relevant — behåll
+- pattern-006 (0.7) "Researcher multi-signal": Ej bekräftad men testad i 2+ repos — behåll

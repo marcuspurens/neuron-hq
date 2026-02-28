@@ -880,3 +880,21 @@ Merger fick 6 bash_exec-kommandon blockerade av policy ("BLOCKED: not in allowli
 **Beskrivning:** Manager, Implementer, Reviewer och Researcher får enbart `graph_query` + `graph_traverse` (read-only). Skrivverktyg (`graph_assert`, `graph_update`) är exklusiva för Historian och Librarian.
 **Vaktas av:** `tests/core/graph-read-tools.test.ts` (testar att graphReadToolDefinitions() returnerar exakt 2 verktyg, inte 4)
 **Tillagd:** Körning 20260227-1613-neuron-hq
+
+## Körning 20260228-0707-neuron-hq — Skeptiker-agent: confidence decay + grafvalidering
+**Datum:** 2026-02-28
+**Uppgift:** Implementera automatisk confidence-decay för kunskapsgrafen (applyConfidenceDecay i knowledge-graph.ts), integrera decay i Historian-agentens körflöde, och lägga till en Skeptiker-granskning i Historian-prompten.
+**Resultat:** ✅ 6 av 6 uppgifter klara — alla acceptanskriterier uppfyllda, 451 tester (443 befintliga + 8 nya), ren TypeScript-kompilering
+
+**Vad som fungerade:**
+Briefens detaljerade kodsnuttar (funktionssignaturer, exakt logik, testkrav) möjliggjorde snabb implementation. Reviewer-BLOCKED → Manager → Implementer fix-loopen fungerade: Reviewer flaggade att `decay_applied`-semantiken behövde korrigeras och hjälpskript borde tas bort, varefter Manager delegerade en tredje Implementer-pass som fixade båda. Merger hanterade att target redan hade en äldre version av featuren genom att applicera den förfinade workspace-versionen.
+
+**Vad som inte fungerade:**
+Första Implementer-delegationen producerade enbart en handoff-dokumentation istället för att faktiskt skriva filer — Manager fick re-delegera med explicit instruktion "you must actually WRITE the files using write_file tool". Totalt krävdes tre Implementer-delegationer (initial → re-do → fix-pass), vilket visar att Implementer ibland planerar istället för att exekvera. Dessutom committades temporära hjälpskript (`scripts/patch-historian.py`, `scripts/patch-historian-prompt.py`) till workspace som Reviewer fångade.
+
+**Lärdomar:**
+- Implementer kan producera handoff-dokument istället för kod vid första delegationen — Manager behöver vara explicit med "WRITE files" vid omstart
+- Reviewer-BLOCKED + Manager-retry-loopen är nu ett beprövat korrigeringsmönster (bekräftat i body 20260226-1553 och nu igen)
+- `decay_applied`-flaggan fick korrigeras till att rensas mellan körningar — ett designbeslut som Reviewer identifierade och som förbättrade den slutliga implementationen
+
+---

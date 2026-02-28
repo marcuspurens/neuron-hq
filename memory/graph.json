@@ -93,10 +93,11 @@
           "git-stash",
           "pytest",
           "verifiering"
-        ]
+        ],
+        "senast_bekräftad": "20260228-0707-neuron-hq"
       },
       "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-28T07:29:18.354Z",
       "confidence": 0.85
     },
     {
@@ -324,10 +325,11 @@
           "kirurgisk",
           "scope",
           "effektivitet"
-        ]
+        ],
+        "senast_bekräftad": "20260228-0707-neuron-hq"
       },
       "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-28T07:29:01.597Z",
       "confidence": 0.95
     },
     {
@@ -530,11 +532,12 @@
       "properties": {
         "kontext": "Session 10 — Merger behövde mänskligt godkännande innan kopiering",
         "lösning": "Merger skriver merge_plan.md, väntar på att `answers.md` innehåller \"APPROVED\"",
-        "effekt": "Säker merge-process — inget kopieras utan explicit godkännande"
+        "effekt": "Säker merge-process — inget kopieras utan explicit godkännande",
+        "skeptiker_note": "Mönstret är explicit markerat som obsolet (ersatt av Single-phase Merger). Confidence sänkt från 0.85 till 0.5 i körning 20260228-0707-neuron-hq."
       },
       "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 0.85
+      "updated": "2026-02-28T07:29:18.325Z",
+      "confidence": 0.5
     },
     {
       "id": "error-001",
@@ -1226,6 +1229,66 @@
       "created": "2026-02-27T16:34:23.016Z",
       "updated": "2026-02-27T16:34:23.016Z",
       "confidence": 0.95
+    },
+    {
+      "id": "run-021",
+      "type": "run",
+      "title": "Körning 20260228-0707-neuron-hq — Confidence decay + Skeptiker",
+      "properties": {
+        "target": "neuron-hq",
+        "date": "2026-02-28",
+        "result": "✅ 6/6 acceptanskriterier",
+        "summary": "Implementerade applyConfidenceDecay() i knowledge-graph.ts, integrerade i Historian, lade till Skeptiker-prompt. 451 tester, merge commit 1f44846.",
+        "tests_after": 451,
+        "files_changed": 3,
+        "lines_changed": 277,
+        "provenance": {
+          "runId": "20260228-0707-neuron-hq",
+          "agent": "historian",
+          "timestamp": "2026-02-28T07:28:51.388Z"
+        }
+      },
+      "created": "2026-02-28T07:28:51.388Z",
+      "updated": "2026-02-28T07:28:51.388Z",
+      "confidence": 1
+    },
+    {
+      "id": "error-026",
+      "type": "error",
+      "title": "Implementer producerar handoff-dokument istället för kodfiler",
+      "properties": {
+        "symptom": "Implementer skapade implementer_handoff.md med plan istället för att skriva faktiska kodfiler",
+        "orsak": "Tolkar komplex uppgift som planering snarare än exekvering",
+        "lösning": "Manager re-delegerade med explicit WRITE-instruktion. Guardrail i implementer.md behövs.",
+        "keywords": "implementer, handoff, write_file, planering-vs-exekvering",
+        "provenance": {
+          "runId": "20260228-0707-neuron-hq",
+          "agent": "historian",
+          "timestamp": "2026-02-28T07:28:51.403Z"
+        }
+      },
+      "created": "2026-02-28T07:28:51.403Z",
+      "updated": "2026-02-28T07:28:51.403Z",
+      "confidence": 0.7
+    },
+    {
+      "id": "pattern-031",
+      "type": "pattern",
+      "title": "Confidence decay som automatisk grafhygien",
+      "properties": {
+        "context": "Körning 20260228-0707-neuron-hq — kunskapsgrafen hade 72 noder där confidence bara kunde öka",
+        "solution": "applyConfidenceDecay() körs automatiskt vid varje Historian-körning: multiplicerar confidence med 0.9 på noder ej uppdaterade på 20 körningar, flaggar <0.1 som stale",
+        "effect": "Förhindrar organisatoriskt grupptänkande i maskinformat — gamla övertygelser degraderas gradvis. Konservativ decay (0.9) + skeptiker-granskning varannan körning.",
+        "keywords": "confidence, decay, knowledge-graph, stale, skeptiker, grafvalidering",
+        "provenance": {
+          "runId": "20260228-0707-neuron-hq",
+          "agent": "historian",
+          "timestamp": "2026-02-28T07:29:01.581Z"
+        }
+      },
+      "created": "2026-02-28T07:29:01.581Z",
+      "updated": "2026-02-28T07:29:01.581Z",
+      "confidence": 0.8
     }
   ],
   "edges": [
@@ -1696,7 +1759,37 @@
         "agent": "historian",
         "timestamp": "2026-02-27T16:34:23.016Z"
       }
+    },
+    {
+      "from": "error-026",
+      "to": "run-020",
+      "type": "related_to",
+      "metadata": {
+        "runId": "20260228-0707-neuron-hq",
+        "agent": "historian",
+        "timestamp": "2026-02-28T07:28:51.403Z"
+      }
+    },
+    {
+      "from": "pattern-031",
+      "to": "run-021",
+      "type": "discovered_in",
+      "metadata": {
+        "runId": "20260228-0707-neuron-hq",
+        "agent": "historian",
+        "timestamp": "2026-02-28T07:29:01.581Z"
+      }
+    },
+    {
+      "from": "pattern-031",
+      "to": "pattern-030",
+      "type": "related_to",
+      "metadata": {
+        "runId": "20260228-0707-neuron-hq",
+        "agent": "historian",
+        "timestamp": "2026-02-28T07:29:01.581Z"
+      }
     }
   ],
-  "lastUpdated": "2026-02-27T16:34:23.017Z"
+  "lastUpdated": "2026-02-28T07:29:18.354Z"
 }
