@@ -9,6 +9,7 @@ import { Redactor } from './redaction.js';
 import { Verifier } from './verify.js';
 import { GitOperations } from './git.js';
 import { PolicyEnforcer } from './policy.js';
+import { computeRunMetrics } from './run-metrics.js';
 
 export interface RunContext {
   runid: RunId;
@@ -300,6 +301,18 @@ export class RunOrchestrator {
 
     // Complete manifest
     await ctx.manifest.complete();
+
+    // Compute run metrics
+    try {
+      const metrics = await computeRunMetrics(ctx.runDir);
+      await fs.writeFile(
+        path.join(ctx.runDir, 'metrics.json'),
+        JSON.stringify(metrics, null, 2),
+        'utf-8'
+      );
+    } catch {
+      // Non-fatal: metrics computation failure should not break finalization
+    }
 
     // Compute checksums for all artifacts
     const artifactPaths = ctx.artifacts.getArtifactPaths();
