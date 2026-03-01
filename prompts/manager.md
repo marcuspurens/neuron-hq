@@ -79,17 +79,26 @@ You have a hard limit of 50 iterations. Spend them wisely:
 
 Before delegating work, query the knowledge graph for relevant context:
 
-### 1. Known patterns for this target
+### 1. Universal patterns (from all projects)
+```
+graph_query({ type: "pattern", scope: "universal", min_confidence: 0.6 })
+```
+
+Use these proven patterns regardless of which target you're working on.
+
+### 2. Target-specific patterns
 ```
 graph_query({ type: "pattern", query: "<target-name>" })
 ```
 
-### 2. Known risks and bugs
+Patterns specific to this target's codebase and architecture.
+
+### 3. Target-specific risks
 ```
 graph_query({ type: "error", query: "<target-name>", min_confidence: 0.5 })
 ```
 
-### 3. Previous decisions
+### 4. Previous decisions
 ```
 graph_query({ type: "pattern", query: "decision <target-name>" })
 ```

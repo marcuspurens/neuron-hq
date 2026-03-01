@@ -10,6 +10,7 @@ import {
   type KnowledgeGraph,
   type KGNode,
   type NodeType,
+  type NodeScope,
   type EdgeType,
 } from '../knowledge-graph.js';
 import { type AuditEntry } from '../types.js';
@@ -49,6 +50,11 @@ export function graphToolDefinitions(): Anthropic.Tool[] {
           min_confidence: {
             type: 'number',
             description: 'Filter out nodes with lower confidence',
+          },
+          scope: {
+            type: 'string',
+            enum: ['universal', 'project-specific', 'unknown'],
+            description: 'Filter nodes by scope. Omit to return all scopes.',
           },
         },
       },
@@ -95,6 +101,11 @@ export function graphToolDefinitions(): Anthropic.Tool[] {
                 description: 'Context, solution, effect, keywords, etc.',
               },
               confidence: { type: 'number', description: '0.0–1.0' },
+              scope: {
+                type: 'string',
+                enum: ['universal', 'project-specific', 'unknown'],
+                description: 'Scope of the node. Default: "unknown".',
+              },
             },
             required: ['type', 'title', 'properties', 'confidence'],
           },
@@ -156,7 +167,7 @@ export function isGraphTool(name: string): boolean {
 /** Return only the two read-only graph tools (query + traverse). */
 export function graphReadToolDefinitions(): Anthropic.Messages.Tool[] {
   return graphToolDefinitions().filter((t) =>
-    ['graph_query', 'graph_traverse'].includes(t.name)
+    ['graph_query', 'graph_traverse'].includes(t.name),
   );
 }
 
@@ -206,8 +217,9 @@ async function executeGraphQuery(
   const type = input.type as NodeType | undefined;
   const query = input.query as string | undefined;
   const minConfidence = input.min_confidence as number | undefined;
+  const scope = input.scope as NodeScope | undefined;
 
-  let results = findNodes(graph, { type, query });
+  let results = findNodes(graph, { type, query, scope });
 
   if (minConfidence !== undefined) {
     results = results.filter((n) => n.confidence >= minConfidence);
@@ -259,6 +271,7 @@ async function executeGraphAssert(
     title: string;
     properties: Record<string, unknown>;
     confidence: number;
+    scope?: NodeScope;
   };
   const edgesInput = (input.edges as Array<{ target_id: string; type: EdgeType }>) || [];
 
@@ -280,6 +293,7 @@ async function executeGraphAssert(
     created: now,
     updated: now,
     confidence: nodeInput.confidence,
+    scope: nodeInput.scope || 'unknown',
   };
 
   graph = addNode(graph, newNode);

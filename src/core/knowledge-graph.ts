@@ -14,6 +14,10 @@ export const NodeTypeSchema = z.enum([
 ]);
 export type NodeType = z.infer<typeof NodeTypeSchema>;
 
+/** Scope of a knowledge graph node. */
+export const NodeScopeSchema = z.enum(['universal', 'project-specific', 'unknown']);
+export type NodeScope = z.infer<typeof NodeScopeSchema>;
+
 /** Edge types in the knowledge graph. */
 export const EdgeTypeSchema = z.enum([
   'solves',
@@ -39,6 +43,7 @@ export const KGNodeSchema = z.object({
     .datetime({ offset: true })
     .or(z.string().regex(/^\d{4}-\d{2}-\d{2}/)),
   confidence: z.number().min(0).max(1),
+  scope: NodeScopeSchema.default('unknown'),
 });
 export type KGNode = z.infer<typeof KGNodeSchema>;
 
@@ -84,6 +89,28 @@ export function createEmptyGraph(): KnowledgeGraph {
 }
 
 /**
+ * Migrate nodes that lack a scope field, setting them to 'unknown'.
+ * Returns the migrated graph and the count of migrated nodes.
+ */
+export function migrateAddScope(graph: KnowledgeGraph): {
+  graph: KnowledgeGraph;
+  migrated: number;
+} {
+  let migrated = 0;
+  const newNodes = graph.nodes.map((node) => {
+    if (!node.scope) {
+      migrated++;
+      return { ...node, scope: 'unknown' as const };
+    }
+    return node;
+  });
+  return {
+    graph: { ...graph, nodes: newNodes, lastUpdated: new Date().toISOString() },
+    migrated,
+  };
+}
+
+/**
  * Load a knowledge graph from a JSON file.
  * Returns an empty graph if the file does not exist.
  */
@@ -93,7 +120,11 @@ export async function loadGraph(
   try {
     const raw = await fs.readFile(filePath, 'utf-8');
     const data: unknown = JSON.parse(raw);
-    return KnowledgeGraphSchema.parse(data);
+    // Parse with scope defaulting to 'unknown' for existing nodes
+    const graph = KnowledgeGraphSchema.parse(data);
+    // Migrate nodes that might not have scope (from old files)
+    const { graph: migrated } = migrateAddScope(graph);
+    return migrated;
   } catch (err: unknown) {
     if (
       err instanceof Error &&
@@ -156,15 +187,16 @@ export function addEdge(graph: KnowledgeGraph, edge: KGEdge): KnowledgeGraph {
 }
 
 /**
- * Find nodes matching optional type and/or keyword query.
+ * Find nodes matching optional type, keyword query, and/or scope.
  * Query is case-insensitive and matches title + property values.
  */
 export function findNodes(
   graph: KnowledgeGraph,
-  filter: { type?: NodeType; query?: string },
+  filter: { type?: NodeType; query?: string; scope?: NodeScope },
 ): KGNode[] {
   return graph.nodes.filter((node) => {
     if (filter.type && node.type !== filter.type) return false;
+    if (filter.scope && node.scope !== filter.scope) return false;
     if (filter.query) {
       const q = filter.query.toLowerCase();
       const inTitle = node.title.toLowerCase().includes(q);
@@ -270,7 +302,7 @@ export function removeNode(
  */
 export function applyConfidenceDecay(
   graph: KnowledgeGraph,
-  options: { maxRunsSinceConfirm?: number; decayFactor?: number } = {}
+  options: { maxRunsSinceConfirm?: number; decayFactor?: number } = {},
 ): KnowledgeGraph {
   const maxAge = options.maxRunsSinceConfirm ?? 20;
   const factor = options.decayFactor ?? 0.9;
@@ -281,7 +313,7 @@ export function applyConfidenceDecay(
 
   const now = new Date().toISOString();
 
-  const newNodes = graph.nodes.map(node => {
+  const newNodes = graph.nodes.map((node) => {
     if (node.properties.decay_applied === true) {
       return node;
     }
@@ -290,9 +322,15 @@ export function applyConfidenceDecay(
       return node;
     }
 
-    const newConfidence = Math.max(0, parseFloat((node.confidence * factor).toFixed(4)));
+    const newConfidence = Math.max(
+      0,
+      parseFloat((node.confidence * factor).toFixed(4)),
+    );
 
-    const newProperties: Record<string, unknown> = { ...node.properties, decay_applied: true };
+    const newProperties: Record<string, unknown> = {
+      ...node.properties,
+      decay_applied: true,
+    };
     if (newConfidence < 0.1) {
       newProperties.stale = true;
     }

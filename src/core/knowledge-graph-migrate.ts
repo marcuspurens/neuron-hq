@@ -148,6 +148,7 @@ function migrateGeneric(
       created: now,
       updated: now,
       confidence,
+      scope: 'unknown',
     });
 
     // Parse Körningar for run nodes + edges
@@ -166,6 +167,7 @@ function migrateGeneric(
             created: now,
             updated: now,
             confidence: 1.0,
+            scope: 'unknown',
           });
         }
         edges.push({
@@ -235,6 +237,7 @@ function resolveRelateratEdges(
             created: now,
             updated: now,
             confidence: 1.0,
+            scope: 'unknown',
           });
         }
         edges.push({
@@ -318,6 +321,7 @@ export function migrateAll(
       created: now,
       updated: now,
       confidence,
+      scope: 'unknown',
     });
 
     const runField = extractField(section, 'Körningar');
@@ -334,6 +338,7 @@ export function migrateAll(
             created: now,
             updated: now,
             confidence: 1.0,
+            scope: 'unknown',
           });
         }
         allEdges.push({
@@ -366,6 +371,7 @@ export function migrateAll(
       created: now,
       updated: now,
       confidence,
+      scope: 'unknown',
     });
 
     const runField = extractField(section, 'Körningar');
@@ -382,6 +388,7 @@ export function migrateAll(
             created: now,
             updated: now,
             confidence: 1.0,
+            scope: 'unknown',
           });
         }
         allEdges.push({

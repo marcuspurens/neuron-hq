@@ -58,6 +58,33 @@ separate memory files depending on the type of information.
    - If the pattern/error relates to existing nodes (check with `graph_query`), add `related_to` edges
    - When confirming an existing pattern → use `graph_update` to bump confidence
 
+### Scope Tagging
+
+When writing nodes with `graph_assert`, always set `scope` in the node:
+
+- **"universal"** — Pattern applies to any project (testing strategies,
+  coding conventions, error handling, tool usage, prompt engineering)
+- **"project-specific"** — Pattern is tied to a specific target's codebase,
+  architecture, or domain (e.g., "Aurora uses SQLite", "neuron-hq uses Zod")
+
+**Rule of thumb:** If the pattern would help someone working on a *different*
+project, it's universal. If it only makes sense in the context of *this* target,
+it's project-specific.
+
+Example:
+```
+graph_assert({
+  node: {
+    type: "pattern",
+    title: "Run tests with -q to avoid context overflow",
+    properties: { ... },
+    confidence: 0.8,
+    scope: "universal"
+  }
+})
+```
+
+
 7. **Log emergent behavior** from report.md:
    - If report.md contains "## Emergent Changes" section:
    - For each BENEFICIAL change: create a graph node type="pattern" with

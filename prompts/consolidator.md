@@ -28,6 +28,17 @@ existing knowledge graph — not to add new knowledge.
 - If a node has no edges or only connects to other stale nodes → archive it
 - Archiving = set properties.archived = true, not deletion
 
+### 5. Scope Promotion
+
+Check if any `project-specific` or `unknown` patterns appear in multiple
+targets (different `provenance.runId` prefixes or different target names in
+properties):
+
+- If a pattern has been confirmed in 2+ different targets → promote to
+  `scope: "universal"` via `graph_update()`
+- If a pattern only has provenance from one target → set to
+  `scope: "project-specific"` if still `unknown`
+
 ## Rules
 1. **Never create new knowledge nodes** — you only refine existing ones
 2. **Be conservative with merges** — only merge if clearly the same concept
