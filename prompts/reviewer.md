@@ -289,6 +289,44 @@ Add a ## Self-Check section to your report.md:
 - Missed criterion: [list, or "None"]
 - Gut feeling: [one concern, or "Clean"]
 <!-- /ARCHIVE: self-check -->
+<!-- ARCHIVE: security-review -->
+## Security Review (HIGH Risk)
+
+When reviewing HIGH risk changes, perform these additional checks:
+
+### Mandatory Security Checklist
+
+1. **Secrets in code** — Search the diff for hardcoded API keys, tokens, passwords,
+   or private keys. Any match is a RED blocker.
+
+2. **Injection vulnerabilities** — Check for:
+   - Command injection: string interpolation in `exec()`, `spawn()`, or shell commands
+   - SQL injection: string interpolation in database queries
+   - Template injection: user input in template strings passed to eval/Function
+
+3. **Unsafe code patterns** — Flag usage of:
+   - `eval()`, `new Function()`, `vm.runInNewContext()`
+   - `child_process.exec()` with unsanitized input
+   - `fs.writeFile()` to paths outside workspace/runs directories
+
+4. **Logging & exposure** — Verify that:
+   - No sensitive data is logged via console.log/console.error
+   - Error messages don't expose internal paths or credentials
+   - Stack traces are not sent to external services
+
+5. **Dependencies** — If new packages are added:
+   - Check that they are well-known and maintained
+   - Flag any package with known vulnerabilities
+   - Note any package that requests broad permissions
+
+### Security Verdict
+
+Add a "### Security" section to your report with:
+- Number of findings per severity level
+- Whether the security scan passed (0 critical + 0 high = PASS)
+- Any manual observations not caught by automated scan
+- If ANY critical finding exists → verdict MUST be 🔴 RED
+<!-- /ARCHIVE: security-review -->
 
 ## Communication Style
 - Clear PASS/FAIL signals

@@ -7,8 +7,18 @@ import Anthropic from '@anthropic-ai/sdk';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { loadPromptHierarchy, buildHierarchicalPrompt } from '../prompt-hierarchy.js';
+import { scanDiff, formatScanReport } from '../security-scan.js';
 
 const execAsync = promisify(exec);
+
+/**
+ * Detect if the brief classifies this change as HIGH risk.
+ */
+export function isHighRisk(briefContent: string): boolean {
+  const riskSection = briefContent.match(/##\s*Risk[\s\S]*?(?=##|$)/i);
+  if (!riskSection) return false;
+  return /\*\*High\.?\*\*/i.test(riskSection[0]);
+}
 
 /**
  * Reviewer Agent - validates changes, assesses risk, writes STOPLIGHT report.
@@ -75,11 +85,35 @@ export class ReviewerAgent {
     // Include two-phase and no-tests sections (small, include by default for safety)
     archiveSections.push('two-phase', 'no-tests');
 
+    // Load security-review archive for HIGH risk briefs
+    const briefContent = await this.loadBrief();
+    if (isHighRisk(briefContent)) {
+      archiveSections.push('security-review');
+    }
+
     const reviewerPrompt = buildHierarchicalPrompt(hierarchy, archiveSections);
 
     const limits = this.ctx.policy.getLimits();
-    const briefContent = await this.loadBrief();
     const handoffContent = await this.loadImplementerHandoff();
+
+    // Run automated security scan for HIGH risk briefs
+    let securityContext = '';
+    if (isHighRisk(briefContent)) {
+      try {
+        const { stdout: diff } = await execAsync('git diff HEAD', {
+          cwd: this.ctx.workspaceDir,
+          maxBuffer: 10 * 1024 * 1024,
+        });
+        const scanResult = scanDiff(diff);
+        securityContext = `\n## Automated Security Scan\n\n${formatScanReport(scanResult)}`;
+        if (scanResult.has_critical) {
+          securityContext += '\n\n⚠️ CRITICAL security findings detected — this MUST be RED unless findings are false positives.';
+        }
+      } catch {
+        securityContext = '\n## Automated Security Scan\n\n⚠️ Could not read diff for security scan.';
+      }
+    }
+
     const contextInfo = `
 # Run Context
 
@@ -105,7 +139,7 @@ export class ReviewerAgent {
 # Brief (Acceptance Criteria to Verify)
 
 ${briefContent}
-${handoffContent ? `\n# Implementer Handoff\n\n${handoffContent}\n` : ''}
+${handoffContent ? `\n# Implementer Handoff\n\n${handoffContent}\n` : ''}${securityContext}
 # Your Mission
 
 Review the current state of the workspace. For every acceptance criterion in the brief above,
