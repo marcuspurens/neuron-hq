@@ -6,6 +6,7 @@ import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { loadPromptHierarchy, buildHierarchicalPrompt } from '../prompt-hierarchy.js';
 
 const execAsync = promisify(exec);
 
@@ -66,7 +67,15 @@ export class ReviewerAgent {
   }
 
   private async buildSystemPrompt(): Promise<string> {
-    const reviewerPrompt = await this.loadPrompt();
+    const hierarchy = await loadPromptHierarchy(this.promptPath);
+
+    // Always include self-check and handoff (high value, small size)
+    const archiveSections: string[] = ['self-check', 'handoff'];
+
+    // Include two-phase and no-tests sections (small, include by default for safety)
+    archiveSections.push('two-phase', 'no-tests');
+
+    const reviewerPrompt = buildHierarchicalPrompt(hierarchy, archiveSections);
 
     const limits = this.ctx.policy.getLimits();
     const briefContent = await this.loadBrief();

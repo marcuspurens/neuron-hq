@@ -17,6 +17,7 @@ import { promisify } from 'util';
 import { detectTestStatus } from '../baseline.js';
 import { validateHandoff, IMPLEMENTER_REQUIRED, REVIEWER_REQUIRED } from '../verification-gate.js';
 import { validateTaskPlan, type TaskPlan } from '../task-splitter.js';
+import { loadPromptHierarchy, buildHierarchicalPrompt } from '../prompt-hierarchy.js';
 
 const execAsync = promisify(exec);
 
@@ -127,7 +128,26 @@ export class ManagerAgent {
    * Build the system prompt for the manager agent.
    */
   private async buildSystemPrompt(): Promise<string> {
-    const managerPrompt = await this.loadPrompt();
+    const hierarchy = await loadPromptHierarchy(this.promptPath);
+
+    // Decide which archive sections to include based on context
+    const archiveSections: string[] = [];
+
+    // Always include task-planning and knowledge-graph in early iterations
+    archiveSections.push('task-planning', 'knowledge-graph');
+
+    // Include after-researcher (small, useful)
+    archiveSections.push('after-researcher');
+
+    // Include auto-trigger sections (small, conditional logic is in the prompt text itself)
+    archiveSections.push('auto-librarian', 'auto-meta');
+
+    // Include no-tests if baseline says so
+    if (this.testStatus && !this.testStatus.testsExist) {
+      archiveSections.push('no-tests');
+    }
+
+    const managerPrompt = buildHierarchicalPrompt(hierarchy, archiveSections);
 
     const testStatusLine = this.testStatus
       ? (this.testStatus.testsExist

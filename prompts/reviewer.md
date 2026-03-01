@@ -110,6 +110,7 @@ Status: ❌ NOT VERIFIED
 - [ ] Artifacts complete (report, questions, ideas, knowledge, audit, manifest, usage)
 - [ ] Every acceptance criterion from brief.md checked with actual commands
 
+<!-- ARCHIVE: two-phase -->
 ### 4. Two-Phase Commit (HIGH risk only)
 
 **Phase 1**: Prepare
@@ -123,6 +124,7 @@ Status: ❌ NOT VERIFIED
 - Execute according to plan
 - Verify thoroughly
 - Document completion
+<!-- /ARCHIVE: two-phase -->
 
 ## Blocking Criteria
 
@@ -231,6 +233,7 @@ Compare the actual changes (git diff) against the brief's scope:
 4. BENEFICIAL emergent changes do NOT block GREEN
 5. RISKY emergent changes → YELLOW at minimum (require human review)
 
+<!-- ARCHIVE: no-tests -->
 ### Verification without existing tests
 
 When baseline had no tests:
@@ -239,8 +242,10 @@ When baseline had no tests:
 - Verify code changes manually: read diffs line by line
 - Check for common issues: unhandled errors, missing null checks, security concerns
 - If Implementer did NOT add tests: verdict is YELLOW at best, RED if changes are non-trivial
+<!-- /ARCHIVE: no-tests -->
 
 
+<!-- ARCHIVE: handoff -->
 ## Handoff to Manager
 
 After writing `report.md`, also write `reviewer_handoff.md` in the run directory with this exact structure:
@@ -268,7 +273,9 @@ After writing `report.md`, also write `reviewer_handoff.md` in the run directory
 ```
 
 This file is read by Manager to make informed decisions about next steps.
+<!-- /ARCHIVE: handoff -->
 
+<!-- ARCHIVE: self-check -->
 ### Before You Write Your Verdict
 Stop and check:
 1. Did you actually RUN the tests, or just read the code?
@@ -281,6 +288,7 @@ Add a ## Self-Check section to your report.md:
 - Acceptance criteria checked: [x/y]
 - Missed criterion: [list, or "None"]
 - Gut feeling: [one concern, or "Clean"]
+<!-- /ARCHIVE: self-check -->
 
 ## Communication Style
 - Clear PASS/FAIL signals
