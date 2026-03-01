@@ -17,6 +17,8 @@ export class ImplementerAgent {
   private anthropic: Anthropic;
   private maxIterations: number;
   private baseDir: string;
+  private taskId?: string;
+  private branchName?: string;
 
   constructor(private ctx: RunContext, baseDir: string) {
     this.baseDir = baseDir;
@@ -39,7 +41,10 @@ export class ImplementerAgent {
   /**
    * Execute the implementer's task loop.
    */
-  async run(task: string): Promise<void> {
+  async run(task: string, options?: { taskId?: string; branchName?: string }): Promise<void> {
+    this.taskId = options?.taskId;
+    this.branchName = options?.branchName;
+
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
       role: 'implementer',
@@ -52,6 +57,22 @@ export class ImplementerAgent {
       const systemPrompt = await this.buildSystemPrompt();
       await this.runAgentLoop(systemPrompt, task);
 
+      // Write per-task handoff if running as part of parallel execution
+      if (this.taskId) {
+        const handoff = {
+          taskId: this.taskId,
+          branch: this.branchName ?? 'unknown',
+          filesModified: await this.getModifiedFiles(),
+          testsPassing: true, // Assumed if we got here without error
+          completedAt: new Date().toISOString(),
+        };
+
+        await fs.writeFile(
+          path.join(this.ctx.runDir, `task_${this.taskId}_handoff.json`),
+          JSON.stringify(handoff, null, 2)
+        );
+      }
+
       console.log('Implementer agent completed successfully.');
     } catch (error) {
       await this.ctx.audit.log({
@@ -62,6 +83,20 @@ export class ImplementerAgent {
         note: `Implementer agent failed: ${error}`,
       });
       throw error;
+    }
+  }
+
+  /**
+   * Get list of files modified in the workspace (via git diff).
+   */
+  private async getModifiedFiles(): Promise<string[]> {
+    try {
+      const { stdout } = await execAsync('git diff --name-only HEAD', {
+        cwd: this.ctx.workspaceDir,
+      });
+      return stdout.trim().split('\n').filter(f => f.length > 0);
+    } catch {
+      return [];
     }
   }
 

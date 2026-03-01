@@ -207,6 +207,27 @@ Researcher in meta-analysis mode reads runs.md and patterns.md to produce
 a `meta_analysis.md` report in the runs directory.
 <!-- /ARCHIVE: auto-meta -->
 
+<!-- ARCHIVE: parallel-tasks -->
+## Parallel Task Execution
+
+When your task plan has independent tasks (no shared dependsOn), they will
+run in parallel on separate git branches.
+
+### Rules for Parallel Tasks
+1. **File isolation** — Tasks running in parallel MUST NOT modify the same files.
+   If two tasks touch the same file, they will be sequenced automatically.
+2. **Branch per task** — Each parallel task gets branch `neuron/<runid>/task-<id>`.
+3. **Merge order** — After all parallel tasks complete, branches are merged
+   sequentially into the main workspace branch.
+4. **Conflict handling** — If a merge conflict occurs, the conflicting task
+   is marked as FAILED and you must re-delegate it in the next wave.
+
+### When NOT to Parallelize
+- Tasks that modify shared configuration files (package.json, tsconfig.json)
+- Tasks that both add imports to the same module
+- Tasks where the second task's approach depends on the first task's result
+<!-- /ARCHIVE: parallel-tasks -->
+
 <!-- ARCHIVE: no-tests -->
 ### When target has no tests
 

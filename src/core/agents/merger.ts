@@ -1,4 +1,5 @@
 import { type RunContext } from '../run.js';
+import { GitOperations } from '../git.js';
 import { withRetry } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -283,6 +284,24 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
           required: ['workspace_path', 'target_path'],
         },
       },
+      {
+        name: 'merge_task_branch',
+        description: 'Merge a completed task branch into the main workspace branch. Returns merge result including success/failure and any conflict details.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            task_id: {
+              type: 'string',
+              description: 'The task ID (e.g. T1, T2)',
+            },
+            source_branch: {
+              type: 'string',
+              description: 'The branch name to merge (e.g. neuron/run-123/task-T1)',
+            },
+          },
+          required: ['task_id', 'source_branch'],
+        },
+      },
     ];
   }
 
@@ -317,6 +336,11 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
             case 'copy_to_target':
               result = await this.executeCopyToTarget(
                 block.input as { workspace_path: string; target_path: string }
+              );
+              break;
+            case 'merge_task_branch':
+              result = await this.executeMergeTaskBranch(
+                block.input as { task_id: string; source_branch: string }
               );
               break;
             default:
@@ -502,6 +526,45 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
       return `Copied: ${workspace_path} → ${target_path}`;
     } catch (error: any) {
       return `Error copying file: ${error.message}`;
+    }
+  }
+
+  private async executeMergeTaskBranch(input: { task_id: string; source_branch: string }): Promise<string> {
+    const { task_id, source_branch } = input;
+    const git = new GitOperations(this.ctx.workspaceDir);
+
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'merger',
+      tool: 'merge_task_branch',
+      allowed: true,
+      note: `Merging task ${task_id} from branch ${source_branch}`,
+    });
+
+    try {
+      // Check for conflicts first
+      const conflicts = await git.detectMergeConflicts(source_branch);
+      if (conflicts.length > 0) {
+        const msg = `MERGE_CONFLICT: Task ${task_id} branch ${source_branch} conflicts with files: ${conflicts.join(', ')}. Merge aborted — no automatic conflict resolution.`;
+        await this.ctx.audit.log({
+          ts: new Date().toISOString(),
+          role: 'merger',
+          tool: 'merge_task_branch',
+          allowed: true,
+          note: msg,
+        });
+        return msg;
+      }
+
+      // Clean merge — proceed
+      const sha = await git.mergeBranch(source_branch, `Merge task ${task_id} from ${source_branch}`);
+
+      // Cleanup branch
+      await git.deleteBranch(source_branch);
+
+      return `MERGE_SUCCESS: Task ${task_id} merged successfully. Commit SHA: ${sha}. Branch ${source_branch} deleted.`;
+    } catch (error: any) {
+      return `MERGE_FAILED: Task ${task_id} merge failed: ${error.message}`;
     }
   }
 }

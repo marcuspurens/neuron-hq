@@ -17,6 +17,8 @@ import { promisify } from 'util';
 import { detectTestStatus } from '../baseline.js';
 import { validateHandoff, IMPLEMENTER_REQUIRED, REVIEWER_REQUIRED } from '../verification-gate.js';
 import { validateTaskPlan, type TaskPlan } from '../task-splitter.js';
+import { taskBranchName, type TaskBranchStatus } from '../parallel-coordinator.js';
+import { GitOperations } from '../git.js';
 import { loadPromptHierarchy, buildHierarchicalPrompt } from '../prompt-hierarchy.js';
 
 const execAsync = promisify(exec);
@@ -413,6 +415,33 @@ Stop when time limit approaches or when blockers are encountered.
         },
       },
       {
+        name: 'delegate_parallel_wave',
+        description: 'Delegate a wave of independent tasks to parallel Implementers. Each runs on its own git branch. Uses Promise.allSettled() so failures in one task do not affect others. Input: array of task objects with id, description, and files.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            tasks: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  description: { type: 'string' },
+                  files: { type: 'array', items: { type: 'string' } },
+                },
+                required: ['id', 'description'],
+              },
+              description: 'Array of independent tasks to run in parallel',
+            },
+            wave_index: {
+              type: 'number',
+              description: 'Wave number (for logging)',
+            },
+          },
+          required: ['tasks'],
+        },
+      },
+      {
         name: 'delegate_to_reviewer',
         description:
           'Delegate a review of current workspace changes to the Reviewer agent. Use before committing or when risk assessment is needed.',
@@ -559,6 +588,11 @@ Stop when time limit approaches or when blockers are encountered.
               break;
             case 'delegate_to_implementer':
               result = await this.delegateToImplementer(block.input as { task: string });
+              break;
+            case 'delegate_parallel_wave':
+              result = await this.delegateParallelWave(
+                block.input as { tasks: Array<{ id: string; description: string; files?: string[] }>; wave_index?: number }
+              );
               break;
             case 'delegate_to_reviewer':
               result = await this.delegateToReviewer();
@@ -870,6 +904,106 @@ Stop when time limit approaches or when blockers are encountered.
     } catch {
       return 'Implementer agent completed successfully. (No handoff written)';
     }
+  }
+
+  /**
+   * Delegates a wave of independent tasks to parallel Implementers.
+   * Each Implementer works on its own branch.
+   * Uses Promise.allSettled() — if one fails, others continue.
+   */
+  private async delegateParallelWave(
+    input: { tasks: Array<{ id: string; description: string; files?: string[] }>; wave_index?: number }
+  ): Promise<string> {
+    const { tasks, wave_index = 0 } = input;
+
+    console.log(`Delegating parallel wave ${wave_index} with ${tasks.length} tasks...`);
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'manager',
+      tool: 'delegate_parallel_wave',
+      allowed: true,
+      note: `Wave ${wave_index}: ${tasks.map(t => t.id).join(', ')}`,
+    });
+
+    const git = new GitOperations(this.ctx.workspaceDir);
+    const mainBranch = await git.getCurrentBranch();
+
+    // Create branches and run implementers in parallel
+    const promises = tasks.map(async (task) => {
+      const branchName = taskBranchName(this.ctx.runid, task.id);
+      const status: TaskBranchStatus = {
+        taskId: task.id,
+        branch: branchName,
+        status: 'pending',
+        filesModified: [],
+      };
+
+      try {
+        // Create branch for this task
+        await git.createBranch(branchName);
+        status.status = 'running';
+
+        // Run implementer on this branch
+        const implementer = new ImplementerAgent(this.ctx, this.baseDir);
+        await implementer.run(task.description, { taskId: task.id, branchName });
+
+        status.status = 'completed';
+        status.testsPassing = true;
+
+        // Read handoff if exists
+        try {
+          const handoffPath = path.join(this.ctx.runDir, `task_${task.id}_handoff.json`);
+          const handoffData = JSON.parse(await fs.readFile(handoffPath, 'utf-8'));
+          status.filesModified = handoffData.filesModified ?? [];
+        } catch {
+          // No handoff file
+        }
+      } catch (error: unknown) {
+        status.status = 'failed';
+        status.error = error instanceof Error ? error.message : String(error);
+      }
+
+      // Switch back to main branch for next task
+      try {
+        await execAsync(`git checkout ${mainBranch}`, { cwd: this.ctx.workspaceDir });
+      } catch {
+        // Best effort
+      }
+
+      return status;
+    });
+
+    // Wait for all tasks to complete (allSettled ensures all run)
+    const results = await Promise.allSettled(promises);
+
+    // Collect results
+    const statuses: TaskBranchStatus[] = results.map((r, i) => {
+      if (r.status === 'fulfilled') return r.value;
+      return {
+        taskId: tasks[i].id,
+        branch: taskBranchName(this.ctx.runid, tasks[i].id),
+        status: 'failed' as const,
+        filesModified: [],
+        error: r.reason instanceof Error ? r.reason.message : 'Unknown error',
+      };
+    });
+
+    // Build summary
+    const completed = statuses.filter(s => s.status === 'completed');
+    const failed = statuses.filter(s => s.status === 'failed');
+
+    let summary = `--- PARALLEL WAVE ${wave_index} RESULTS ---\n`;
+    summary += `Total: ${tasks.length} | Completed: ${completed.length} | Failed: ${failed.length}\n\n`;
+
+    for (const s of statuses) {
+      summary += `- ${s.taskId} [${s.status}]`;
+      if (s.branch) summary += ` branch: ${s.branch}`;
+      if (s.filesModified.length > 0) summary += ` files: ${s.filesModified.join(', ')}`;
+      if (s.error) summary += ` error: ${s.error}`;
+      summary += '\n';
+    }
+
+    return summary;
   }
 
   /**

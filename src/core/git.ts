@@ -129,4 +129,79 @@ export class GitOperations {
       env,
     });
   }
+
+  /**
+   * Detect if merging sourceBranch into the current branch would cause conflicts.
+   * Returns an empty array if clean, or a list of conflicting file paths.
+   * Always aborts the trial merge to leave the repo clean.
+   */
+  async detectMergeConflicts(sourceBranch: string): Promise<string[]> {
+    try {
+      await execAsync(`git merge --no-commit --no-ff ${sourceBranch}`, {
+        cwd: this.repoPath,
+      });
+      // Clean merge — abort to leave repo clean
+      await execAsync('git merge --abort', { cwd: this.repoPath });
+      return [];
+    } catch {
+      // Conflict detected — get list of conflicting files
+      try {
+        const { stdout } = await execAsync(
+          'git diff --name-only --diff-filter=U',
+          { cwd: this.repoPath },
+        );
+        const files = stdout
+          .trim()
+          .split('\n')
+          .filter((f) => f.length > 0);
+        return files;
+      } finally {
+        // Always abort to leave the repo clean
+        try {
+          await execAsync('git merge --abort', { cwd: this.repoPath });
+        } catch {
+          // Abort may fail if merge state already cleaned up
+        }
+      }
+    }
+  }
+
+  /**
+   * Merge sourceBranch into the current branch with --no-ff.
+   * Returns the merge commit SHA.
+   * Throws an Error if the merge fails (e.g. due to conflicts).
+   */
+  async mergeBranch(sourceBranch: string, commitMessage: string): Promise<string> {
+    const env = {
+      ...process.env,
+      GIT_AUTHOR_NAME: 'Neuron HQ',
+      GIT_AUTHOR_EMAIL: 'neuronhq@local',
+      GIT_COMMITTER_NAME: 'Neuron HQ',
+      GIT_COMMITTER_EMAIL: 'neuronhq@local',
+    };
+    // Escape single quotes in commit message
+    const escapedMessage = commitMessage.replace(/'/g, "'\\''");
+    try {
+      await execAsync(
+        `git merge --no-ff -m '${escapedMessage}' ${sourceBranch}`,
+        { cwd: this.repoPath, env },
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(message);
+    }
+    const { stdout } = await execAsync('git rev-parse HEAD', {
+      cwd: this.repoPath,
+    });
+    return stdout.trim();
+  }
+
+  /**
+   * Delete a local branch. Used for cleanup after merge.
+   */
+  async deleteBranch(branchName: string): Promise<void> {
+    await execAsync(`git branch -D ${branchName}`, {
+      cwd: this.repoPath,
+    });
+  }
 }

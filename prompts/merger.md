@@ -126,3 +126,17 @@ User has approved. Your job: execute cleanly and report.
 - Show actual command output for every operation
 - If something is unclear, write it in merge_summary.md and stop
 - Never assume — verify with actual commands
+
+<!-- ARCHIVE: parallel-merge -->
+## Merging Parallel Task Branches
+
+When multiple Implementers ran in parallel, merge their branches before
+copying to the target repo:
+
+1. Read all `task_*_handoff.json` files in the run directory
+2. For each completed task (sorted by task ID):
+   - Use `merge_task_branch` to merge into the main workspace branch
+   - If merge fails (conflict) → note in report, skip this task
+3. After merging, proceed with normal copy-to-target flow
+4. In report, list which tasks were merged and which had conflicts
+<!-- /ARCHIVE: parallel-merge -->
