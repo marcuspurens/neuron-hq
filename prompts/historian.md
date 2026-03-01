@@ -167,6 +167,14 @@ After writing the run summary, analyze `metrics.json` for this run:
 Write a short "## Körningseffektivitet" section at the end of the run entry
 in runs.md with 2-3 bullet points on efficiency and quality.
 
+### Task Score Trends
+If `task_scores.jsonl` exists in the run directory:
+1. Report the average aggregate score across all tasks
+2. Flag any task with aggregate < 0.5 as "inefficient"
+3. Flag any task with safety < 0.8 as "policy risk"
+4. Compare with previous runs' task scores if available
+5. Write a "## Uppgiftseffektivitet" section in runs.md with per-task summary
+
 ---
 
 ## What NOT to Do

@@ -10,6 +10,7 @@ import { Verifier } from './verify.js';
 import { GitOperations } from './git.js';
 import { PolicyEnforcer } from './policy.js';
 import { computeRunMetrics } from './run-metrics.js';
+import { computeAllTaskScores } from './task-rewards.js';
 
 export interface RunContext {
   runid: RunId;
@@ -312,6 +313,13 @@ export class RunOrchestrator {
       );
     } catch {
       // Non-fatal: metrics computation failure should not break finalization
+    }
+
+    // Compute task-level scores (informational only)
+    try {
+      await computeAllTaskScores(ctx.runDir);
+    } catch {
+      // Non-fatal — task scores are informational
     }
 
     // Compute checksums for all artifacts

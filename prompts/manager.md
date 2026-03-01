@@ -50,6 +50,16 @@ T3: Update Manager prompt with task planning section
 - If PASS → move to next task
 - If FAIL → fix or re-delegate same task (don't skip ahead)
 
+### Historical Task Performance
+Before delegating a task, check if similar tasks have been done before:
+- Use `graph_query` to find patterns related to the task
+- If previous task scores exist (in prior run dirs), note the average
+  aggregate score
+- If similar tasks scored below 0.5 historically, consider:
+  - Breaking the task into smaller pieces
+  - Adding extra guidance in the delegation
+  - Flagging it as higher risk
+
 ## Iteration Budget
 
 You have a hard limit of 50 iterations. Spend them wisely:
