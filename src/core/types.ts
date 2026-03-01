@@ -34,6 +34,8 @@ export const PolicyLimitsSchema = z.object({
   max_iterations_historian: z.number().positive().optional(),
   max_iterations_librarian: z.number().positive().optional(),
   max_iterations_researcher: z.number().positive().optional(),
+  max_iterations_consolidator: z.number().positive().optional(),
+  consolidation_frequency: z.number().positive().optional(),
   max_wip_features: z.number().positive(),
   diff_warn_lines: z.number().positive(),
   diff_block_lines: z.number().positive(),
@@ -53,7 +55,7 @@ export type PolicyLimits = z.infer<typeof PolicyLimitsSchema>;
 // Audit log entry
 export const AuditEntrySchema = z.object({
   ts: z.string(), // ISO timestamp
-  role: z.enum(['manager', 'implementer', 'reviewer', 'researcher', 'tester', 'merger', 'historian', 'librarian']),
+  role: z.enum(['manager', 'implementer', 'reviewer', 'researcher', 'tester', 'merger', 'historian', 'librarian', 'consolidator']),
   tool: z.string(),
   allowed: z.boolean(),
   input_hash: z.string().optional(),

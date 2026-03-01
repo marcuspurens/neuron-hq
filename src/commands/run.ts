@@ -136,9 +136,17 @@ export async function runCommand(
       console.log(chalk.magenta(`  ⚡ Auto-trigger: Librarian will run after Historian (run #${completedRuns + 1} in cycle)`));
     }
 
+    // Check if consolidation trigger was injected into the brief
+    const processedBrief = await ctx.artifacts.readBrief();
+    const consolidationAutoTrigger = processedBrief.includes('⚡ Consolidation-trigger:');
+
+    if (consolidationAutoTrigger) {
+      console.log(chalk.magenta('  ⚡ Consolidation-trigger: Consolidator will run after Historian'));
+    }
+
     // Run manager agent
     console.log(chalk.cyan('\n→ Starting manager agent...'));
-    const manager = new ManagerAgent(ctx, BASE_DIR, librarianAutoTrigger);
+    const manager = new ManagerAgent(ctx, BASE_DIR, librarianAutoTrigger, consolidationAutoTrigger);
     try {
       await manager.run();
     } catch (runError) {

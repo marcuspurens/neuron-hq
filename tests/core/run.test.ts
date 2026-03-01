@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
-import { countMemoryRuns, countCompletedRuns, maybeInjectMetaTrigger, RunOrchestrator, COPY_SKIP_DIRS, type RunContext, EstopError, checkEstop } from '../../src/core/run.js';
+import { countMemoryRuns, countCompletedRuns, maybeInjectMetaTrigger, maybeInjectConsolidationTrigger, RunOrchestrator, COPY_SKIP_DIRS, type RunContext, EstopError, checkEstop } from '../../src/core/run.js';
 import { GitOperations } from '../../src/core/git.js';
 import { PolicyEnforcer } from '../../src/core/policy.js';
 import { AuditLogger } from '../../src/core/audit.js';
@@ -104,6 +104,44 @@ describe('maybeInjectMetaTrigger', () => {
   it('does NOT inject trigger at run 0', () => {
     const result = maybeInjectMetaTrigger('Test brief', 0);
     expect(result).not.toContain('⚡ Meta-trigger: META_ANALYSIS');
+  });
+});
+
+describe('maybeInjectConsolidationTrigger', () => {
+  it('injects trigger when runCount is a multiple of consolidationFrequency', () => {
+    const brief = 'Test brief';
+    for (const count of [10, 20, 30]) {
+      const result = maybeInjectConsolidationTrigger(brief, count, 10);
+      expect(result).toContain('⚡ Consolidation-trigger:');
+    }
+  });
+
+  it('does NOT inject trigger when runCount is not a multiple', () => {
+    const brief = 'Test brief';
+    for (const count of [9, 11, 15]) {
+      const result = maybeInjectConsolidationTrigger(brief, count, 10);
+      expect(result).not.toContain('⚡ Consolidation-trigger:');
+    }
+  });
+
+  it('does NOT inject trigger at run 0', () => {
+    const result = maybeInjectConsolidationTrigger('Test brief', 0, 10);
+    expect(result).not.toContain('⚡ Consolidation-trigger:');
+  });
+
+  it('respects custom consolidation frequency', () => {
+    expect(maybeInjectConsolidationTrigger('brief', 5, 5)).toContain('⚡ Consolidation-trigger:');
+    expect(maybeInjectConsolidationTrigger('brief', 7, 5)).not.toContain('⚡ Consolidation-trigger:');
+  });
+
+  it('does NOT inject trigger when frequency is 0', () => {
+    const result = maybeInjectConsolidationTrigger('brief', 10, 0);
+    expect(result).not.toContain('⚡ Consolidation-trigger:');
+  });
+
+  it('uses default frequency of 10 when not specified', () => {
+    expect(maybeInjectConsolidationTrigger('brief', 10)).toContain('⚡ Consolidation-trigger:');
+    expect(maybeInjectConsolidationTrigger('brief', 5)).not.toContain('⚡ Consolidation-trigger:');
   });
 });
 

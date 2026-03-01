@@ -71,6 +71,21 @@ export function maybeInjectMetaTrigger(briefContent: string, runCount: number): 
 }
 
 /**
+ * Pure function: inject consolidation trigger into brief content
+ * if runCount is a multiple of consolidation_frequency.
+ */
+export function maybeInjectConsolidationTrigger(
+  briefContent: string,
+  runCount: number,
+  consolidationFrequency: number = 10
+): string {
+  if (consolidationFrequency > 0 && runCount > 0 && runCount % consolidationFrequency === 0) {
+    return briefContent + '\n\n⚡ Consolidation-trigger: After Historian completes, delegate to Consolidator for knowledge graph consolidation.';
+  }
+  return briefContent;
+}
+
+/**
  * Error thrown when the e-stop mechanism (STOP file) is triggered.
  */
 export class EstopError extends Error {
@@ -201,7 +216,9 @@ export class RunOrchestrator {
       });
       throw err;
     }
-    const processedBrief = maybeInjectMetaTrigger(briefContent, runCount);
+    let processedBrief = maybeInjectMetaTrigger(briefContent, runCount);
+    const consolidationFreq = this.policy.getLimits().consolidation_frequency ?? 10;
+    processedBrief = maybeInjectConsolidationTrigger(processedBrief, runCount, consolidationFreq);
     await artifacts.writeBrief(processedBrief);
 
     const endTime = new Date();
