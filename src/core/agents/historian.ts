@@ -2,7 +2,9 @@ import { type RunContext } from '../run.js';
 import { searchMemoryFiles, withRetry } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
-import Anthropic from '@anthropic-ai/sdk';
+import type Anthropic from '@anthropic-ai/sdk';
+import { createAgentClient } from '../agent-client.js';
+import { resolveModelConfig } from '../model-registry.js';
 import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import { loadGraph, saveGraph, applyConfidenceDecay } from '../knowledge-graph.js';
 
@@ -22,7 +24,9 @@ const MEMORY_FILE_HEADERS: Record<MemoryFile, string> = {
  */
 export class HistorianAgent {
   private promptPath: string;
-  private anthropic: Anthropic;
+  private client: Anthropic;
+  private model: string;
+  private modelMaxTokens: number;
   private maxIterations: number;
   private memoryDir: string;
 
@@ -33,11 +37,11 @@ export class HistorianAgent {
     this.promptPath = path.join(baseDir, 'prompts', 'historian.md');
     this.memoryDir = path.join(baseDir, 'memory');
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      throw new Error('ANTHROPIC_API_KEY environment variable not set');
-    }
-    this.anthropic = new Anthropic({ apiKey });
+    const config = resolveModelConfig('historian', this.ctx.agentModelMap, this.ctx.defaultModelOverride);
+    const { client, model, maxTokens } = createAgentClient(config);
+    this.client = client;
+    this.model = model;
+    this.modelMaxTokens = maxTokens;
 
     const limits = ctx.policy.getLimits();
     this.maxIterations = limits.max_iterations_historian ?? limits.max_iterations_per_run;
@@ -152,9 +156,9 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
 
       try {
         const response = await withRetry(async () => {
-          const stream = this.anthropic.messages.stream({
-            model: 'claude-opus-4-6',
-            max_tokens: 4096,
+          const stream = this.client.messages.stream({
+            model: this.model,
+            max_tokens: this.modelMaxTokens,
             system: systemPrompt,
             messages,
             tools: this.defineTools(),

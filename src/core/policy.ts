@@ -177,6 +177,14 @@ export class PolicyEnforcer {
   }
 
   /**
+   * Get agent model overrides from limits config.
+   * Returns undefined if no agent_models section is configured.
+   */
+  getAgentModels(): Record<string, unknown> | undefined {
+    return this.limits.agent_models;
+  }
+
+  /**
    * Validate run hours against limits.
    */
   validateRunHours(hours: number): { valid: boolean; reason?: string } {

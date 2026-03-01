@@ -44,3 +44,15 @@ manifest_checksum_algorithm: "sha256"
 # Retry/backoff
 max_command_retries: 2
 retry_backoff_seconds: 5
+
+# Multi-provider: per-agent model overrides
+agent_models:
+  researcher:
+    provider: anthropic
+    model: claude-haiku-4-5-20251001
+  historian:
+    provider: anthropic
+    model: claude-haiku-4-5-20251001
+  librarian:
+    provider: anthropic
+    model: claude-haiku-4-5-20251001

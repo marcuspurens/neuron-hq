@@ -1,4 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk';
+import type Anthropic from '@anthropic-ai/sdk';
+import { createAgentClient } from '../agent-client.js';
+import { resolveModelConfig } from '../model-registry.js';
 import * as readline from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
@@ -27,6 +29,9 @@ export function generateSlug(text: string): string {
  * via a streaming conversational chat loop.
  */
 export class BriefAgent {
+  private briefModel!: string;
+  private briefMaxTokens!: number;
+
   constructor(
     private targetName: string,
     private baseDir: string,
@@ -44,7 +49,10 @@ export class BriefAgent {
     }
 
     try {
-      const anthropic = new Anthropic();
+      const config = resolveModelConfig('brief-agent');
+      const { client: anthropic, model: briefModel, maxTokens: briefMaxTokens } = createAgentClient(config);
+      this.briefModel = briefModel;
+      this.briefMaxTokens = briefMaxTokens;
       const systemPrompt = this.loadSystemPrompt();
       const repoContext = this.getRepoContext();
       const exampleBriefs = this.loadExampleBriefs();
@@ -113,8 +121,8 @@ export class BriefAgent {
     const trimmedMessages = trimMessages(messages);
     const response = await withRetry(async () => {
       const stream = anthropic.messages.stream({
-        model: 'claude-opus-4-6',
-        max_tokens: 8192,
+        model: this.briefModel,
+        max_tokens: this.briefMaxTokens,
         system: systemPrompt,
         messages: trimmedMessages,
       });

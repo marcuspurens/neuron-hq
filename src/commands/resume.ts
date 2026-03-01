@@ -20,7 +20,7 @@ async function tryRead(filePath: string): Promise<string | null> {
   }
 }
 
-export async function resumeCommand(runid: string, options: { hours: string }): Promise<void> {
+export async function resumeCommand(runid: string, options: { hours: string; model?: string }): Promise<void> {
   const spinner = ora('Loading previous run...').start();
 
   try {
@@ -86,6 +86,22 @@ export async function resumeCommand(runid: string, options: { hours: string }): 
       target,
       hours
     );
+
+    // Load agent model map from policy limits
+    const agentModelsRaw = ctx.policy.getLimits().agent_models;
+    if (agentModelsRaw) {
+      const { AgentModelMapSchema } = await import('../core/model-registry.js');
+      try {
+        ctx.agentModelMap = AgentModelMapSchema.parse(agentModelsRaw);
+      } catch {
+        // Invalid config — skip, agents will use defaults
+      }
+    }
+
+    // CLI --model override
+    if (options.model) {
+      ctx.defaultModelOverride = options.model;
+    }
 
     // Auto-remove STOP file from previous e-stop
     const stopPath = path.join(BASE_DIR, 'STOP');

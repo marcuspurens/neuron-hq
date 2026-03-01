@@ -3,7 +3,9 @@ import { withRetry } from './agent-utils.js';
 import { graphReadToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import fs from 'fs/promises';
 import path from 'path';
-import Anthropic from '@anthropic-ai/sdk';
+import type Anthropic from '@anthropic-ai/sdk';
+import { createAgentClient } from '../agent-client.js';
+import { resolveModelConfig } from '../model-registry.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { loadPromptHierarchy, buildHierarchicalPrompt } from '../prompt-hierarchy.js';
@@ -25,7 +27,9 @@ export function isHighRisk(briefContent: string): boolean {
  */
 export class ReviewerAgent {
   private promptPath: string;
-  private anthropic: Anthropic;
+  private client: Anthropic;
+  private model: string;
+  private modelMaxTokens: number;
   private maxIterations: number;
   private baseDir: string;
 
@@ -33,11 +37,11 @@ export class ReviewerAgent {
     this.baseDir = baseDir;
     this.promptPath = path.join(baseDir, 'prompts', 'reviewer.md');
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      throw new Error('ANTHROPIC_API_KEY environment variable not set');
-    }
-    this.anthropic = new Anthropic({ apiKey });
+    const config = resolveModelConfig('reviewer', this.ctx.agentModelMap, this.ctx.defaultModelOverride);
+    const { client, model, maxTokens } = createAgentClient(config);
+    this.client = client;
+    this.model = model;
+    this.modelMaxTokens = maxTokens;
 
     const limits = ctx.policy.getLimits();
     this.maxIterations = limits.max_iterations_reviewer ?? limits.max_iterations_per_run;
@@ -208,9 +212,9 @@ IMPORTANT: Never claim something is done without running a command to verify it.
 
       try {
         const response = await withRetry(async () => {
-          const stream = this.anthropic.messages.stream({
-            model: 'claude-opus-4-6',
-            max_tokens: 8192,
+          const stream = this.client.messages.stream({
+            model: this.model,
+            max_tokens: this.modelMaxTokens,
             system: systemPrompt,
             messages,
             tools: this.defineTools(),

@@ -3,7 +3,9 @@ import { truncateToolResult, trimMessages, withRetry } from './agent-utils.js';
 import { graphReadToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import fs from 'fs/promises';
 import path from 'path';
-import Anthropic from '@anthropic-ai/sdk';
+import type Anthropic from '@anthropic-ai/sdk';
+import { createAgentClient } from '../agent-client.js';
+import { resolveModelConfig } from '../model-registry.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -14,7 +16,9 @@ const execAsync = promisify(exec);
  */
 export class ImplementerAgent {
   private promptPath: string;
-  private anthropic: Anthropic;
+  private client: Anthropic;
+  private model: string;
+  private modelMaxTokens: number;
   private maxIterations: number;
   private baseDir: string;
   private taskId?: string;
@@ -24,11 +28,11 @@ export class ImplementerAgent {
     this.baseDir = baseDir;
     this.promptPath = path.join(baseDir, 'prompts', 'implementer.md');
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      throw new Error('ANTHROPIC_API_KEY environment variable not set');
-    }
-    this.anthropic = new Anthropic({ apiKey });
+    const config = resolveModelConfig('implementer', this.ctx.agentModelMap, this.ctx.defaultModelOverride);
+    const { client, model, maxTokens } = createAgentClient(config);
+    this.client = client;
+    this.model = model;
+    this.modelMaxTokens = maxTokens;
 
     const limits = ctx.policy.getLimits();
     this.maxIterations = limits.max_iterations_implementer ?? limits.max_iterations_per_run;
@@ -150,9 +154,9 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
 
       try {
         const response = await withRetry(async () => {
-          const stream = this.anthropic.messages.stream({
-            model: 'claude-opus-4-6',
-            max_tokens: 8192,
+          const stream = this.client.messages.stream({
+            model: this.model,
+            max_tokens: this.modelMaxTokens,
             system: systemPrompt,
             messages: trimMessages(messages),
             tools: this.defineTools(),

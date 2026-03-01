@@ -2,7 +2,9 @@ import { type RunContext } from '../run.js';
 import { withRetry } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
-import Anthropic from '@anthropic-ai/sdk';
+import type Anthropic from '@anthropic-ai/sdk';
+import { createAgentClient } from '../agent-client.js';
+import { resolveModelConfig } from '../model-registry.js';
 import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import { loadGraph, saveGraph } from '../knowledge-graph.js';
 import { mergeNodes, findDuplicateCandidates, findStaleNodes, findMissingEdges } from '../graph-merge.js';
@@ -14,7 +16,9 @@ import { mergeNodes, findDuplicateCandidates, findStaleNodes, findMissingEdges }
  */
 export class ConsolidatorAgent {
   private promptPath: string;
-  private anthropic: Anthropic;
+  private client: Anthropic;
+  private model: string;
+  private modelMaxTokens: number;
   private maxIterations: number;
   private memoryDir: string;
 
@@ -25,11 +29,11 @@ export class ConsolidatorAgent {
     this.promptPath = path.join(baseDir, 'prompts', 'consolidator.md');
     this.memoryDir = path.join(baseDir, 'memory');
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      throw new Error('ANTHROPIC_API_KEY environment variable not set');
-    }
-    this.anthropic = new Anthropic({ apiKey });
+    const config = resolveModelConfig('consolidator', this.ctx.agentModelMap, this.ctx.defaultModelOverride);
+    const { client, model, maxTokens } = createAgentClient(config);
+    this.client = client;
+    this.model = model;
+    this.modelMaxTokens = maxTokens;
 
     const limits = ctx.policy.getLimits();
     this.maxIterations = limits.max_iterations_consolidator ?? limits.max_iterations_per_run;
@@ -113,9 +117,9 @@ Analyze the knowledge graph and perform consolidation:
 
       try {
         const response = await withRetry(async () => {
-          const stream = this.anthropic.messages.stream({
-            model: 'claude-opus-4-6',
-            max_tokens: 4096,
+          const stream = this.client.messages.stream({
+            model: this.model,
+            max_tokens: this.modelMaxTokens,
             system: systemPrompt,
             messages,
             tools: this.defineTools(),

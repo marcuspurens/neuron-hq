@@ -11,7 +11,9 @@ import { truncateToolResult, trimMessages, searchMemoryFiles, withRetry } from '
 import { graphReadToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import fs from 'fs/promises';
 import path from 'path';
-import Anthropic from '@anthropic-ai/sdk';
+import type Anthropic from '@anthropic-ai/sdk';
+import { createAgentClient } from '../agent-client.js';
+import { resolveModelConfig } from '../model-registry.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { detectTestStatus } from '../baseline.js';
@@ -28,7 +30,9 @@ const execAsync = promisify(exec);
  */
 export class ManagerAgent {
   private promptPath: string;
-  private anthropic: Anthropic;
+  private client: Anthropic;
+  private model: string;
+  private modelMaxTokens: number;
   private maxIterations: number;
 
   private baseDir: string;
@@ -45,11 +49,11 @@ export class ManagerAgent {
     this.memoryDir = path.join(baseDir, 'memory');
 
     // Initialize Anthropic client
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      throw new Error('ANTHROPIC_API_KEY environment variable not set');
-    }
-    this.anthropic = new Anthropic({ apiKey });
+    const config = resolveModelConfig('manager', this.ctx.agentModelMap, this.ctx.defaultModelOverride);
+    const { client, model, maxTokens } = createAgentClient(config);
+    this.client = client;
+    this.model = model;
+    this.modelMaxTokens = maxTokens;
 
     // Get max iterations from policy limits
     const limits = ctx.policy.getLimits();
@@ -144,6 +148,9 @@ export class ManagerAgent {
     // Include auto-trigger sections (small, conditional logic is in the prompt text itself)
     archiveSections.push('auto-librarian', 'auto-meta');
 
+    // Include parallel execution instructions
+    archiveSections.push('parallel-tasks');
+
     // Include no-tests if baseline says so
     if (this.testStatus && !this.testStatus.testsExist) {
       archiveSections.push('no-tests');
@@ -227,9 +234,9 @@ Stop when time limit approaches or when blockers are encountered.
       try {
         const trimmedMessages = trimMessages(messages);
         const response = await withRetry(async () => {
-          const stream = this.anthropic.messages.stream({
-            model: 'claude-opus-4-6',
-            max_tokens: 8192,
+          const stream = this.client.messages.stream({
+            model: this.model,
+            max_tokens: this.modelMaxTokens,
             system: systemPrompt,
             messages: trimmedMessages,
             tools: this.defineTools(),
@@ -926,11 +933,20 @@ Stop when time limit approaches or when blockers are encountered.
     });
 
     const git = new GitOperations(this.ctx.workspaceDir);
-    const mainBranch = await git.getCurrentBranch();
 
-    // Create branches and run implementers in parallel
-    const promises = tasks.map(async (task) => {
+    // Enforce max_parallel_implementers limit
+    const maxParallel = this.ctx.policy.getLimits().max_parallel_implementers ?? 3;
+
+    // Process tasks in chunks respecting the limit
+    const allStatuses: TaskBranchStatus[] = [];
+
+    for (let chunkStart = 0; chunkStart < tasks.length; chunkStart += maxParallel) {
+      const chunk = tasks.slice(chunkStart, chunkStart + maxParallel);
+
+    // Create worktrees and run implementers in true parallel
+    const promises = chunk.map(async (task) => {
       const branchName = taskBranchName(this.ctx.runid, task.id);
+      const worktreePath = `${this.ctx.workspaceDir}-task-${task.id}`;
       const status: TaskBranchStatus = {
         taskId: task.id,
         branch: branchName,
@@ -939,12 +955,15 @@ Stop when time limit approaches or when blockers are encountered.
       };
 
       try {
-        // Create branch for this task
-        await git.createBranch(branchName);
+        // Create isolated worktree with its own branch
+        await git.addWorktree(worktreePath, branchName);
         status.status = 'running';
 
-        // Run implementer on this branch
-        const implementer = new ImplementerAgent(this.ctx, this.baseDir);
+        // Create per-task context with isolated workspace
+        const taskCtx: RunContext = { ...this.ctx, workspaceDir: worktreePath };
+
+        // Run implementer in isolated worktree
+        const implementer = new ImplementerAgent(taskCtx, this.baseDir);
         await implementer.run(task.description, { taskId: task.id, branchName });
 
         status.status = 'completed';
@@ -963,32 +982,36 @@ Stop when time limit approaches or when blockers are encountered.
         status.error = error instanceof Error ? error.message : String(error);
       }
 
-      // Switch back to main branch for next task
+      // Clean up worktree
       try {
-        await execAsync(`git checkout ${mainBranch}`, { cwd: this.ctx.workspaceDir });
+        await git.removeWorktree(worktreePath);
       } catch {
-        // Best effort
+        // Best effort — worktree may not exist if addWorktree failed
       }
 
       return status;
     });
 
-    // Wait for all tasks to complete (allSettled ensures all run)
+    // Wait for all tasks in this chunk to complete (allSettled ensures all run)
     const results = await Promise.allSettled(promises);
 
-    // Collect results
-    const statuses: TaskBranchStatus[] = results.map((r, i) => {
+    // Collect results for this chunk
+    const chunkStatuses: TaskBranchStatus[] = results.map((r, i) => {
       if (r.status === 'fulfilled') return r.value;
       return {
-        taskId: tasks[i].id,
-        branch: taskBranchName(this.ctx.runid, tasks[i].id),
+        taskId: chunk[i].id,
+        branch: taskBranchName(this.ctx.runid, chunk[i].id),
         status: 'failed' as const,
         filesModified: [],
         error: r.reason instanceof Error ? r.reason.message : 'Unknown error',
       };
     });
 
+    allStatuses.push(...chunkStatuses);
+    } // end chunk loop
+
     // Build summary
+    const statuses = allStatuses;
     const completed = statuses.filter(s => s.status === 'completed');
     const failed = statuses.filter(s => s.status === 'failed');
 

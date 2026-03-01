@@ -36,6 +36,7 @@ export const PolicyLimitsSchema = z.object({
   max_iterations_researcher: z.number().positive().optional(),
   max_iterations_consolidator: z.number().positive().optional(),
   consolidation_frequency: z.number().positive().optional(),
+  max_parallel_implementers: z.number().positive().optional(),
   max_wip_features: z.number().positive(),
   diff_warn_lines: z.number().positive(),
   diff_block_lines: z.number().positive(),
@@ -49,6 +50,13 @@ export const PolicyLimitsSchema = z.object({
   manifest_checksum_algorithm: z.string(),
   max_command_retries: z.number().nonnegative(),
   retry_backoff_seconds: z.number().nonnegative(),
+  agent_models: z.record(z.string(), z.object({
+    provider: z.enum(['anthropic', 'openai-compatible']),
+    model: z.string(),
+    baseUrl: z.string().optional(),
+    apiKeyEnv: z.string().optional(),
+    maxTokens: z.number().positive().optional(),
+  })).optional(),
 });
 export type PolicyLimits = z.infer<typeof PolicyLimitsSchema>;
 

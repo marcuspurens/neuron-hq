@@ -11,6 +11,8 @@ import { GitOperations } from './git.js';
 import { PolicyEnforcer } from './policy.js';
 import { computeRunMetrics } from './run-metrics.js';
 import { computeAllTaskScores } from './task-rewards.js';
+import { updateCostTracking } from '../commands/costs.js';
+import type { AgentModelMap } from './model-registry.js';
 
 export interface RunContext {
   runid: RunId;
@@ -29,6 +31,8 @@ export interface RunContext {
   startTime: Date;
   endTime: Date;
   previousRunContext?: string;  // loaded from previous run's handoff files
+  agentModelMap?: AgentModelMap;
+  defaultModelOverride?: string;  // CLI --model override
 }
 
 /** Directories to skip when copying a target repo to workspace. */
@@ -336,6 +340,14 @@ export class RunOrchestrator {
     }
 
     await ctx.manifest.addChecksums(checksums);
+
+    // Update cost tracking report
+    try {
+      const baseDir = path.resolve(ctx.runDir, '..', '..');
+      await updateCostTracking(baseDir);
+    } catch {
+      // Non-fatal — cost tracking is informational
+    }
   }
 
   /**

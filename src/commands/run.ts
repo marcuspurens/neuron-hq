@@ -12,7 +12,7 @@ import type { RunConfig, StoplightStatus } from '../core/types.js';
 
 export async function runCommand(
   targetName: string,
-  options: { hours: string; brief: string; scaffold?: string }
+  options: { hours: string; brief: string; scaffold?: string; model?: string }
 ): Promise<void> {
   const spinner = ora('Initializing neuron run...').start();
 
@@ -92,6 +92,22 @@ export async function runCommand(
 
     // Initialize run context
     const ctx = await orchestrator.initRun(config);
+
+    // Load agent model map from policy limits
+    const agentModelsRaw = ctx.policy.getLimits().agent_models;
+    if (agentModelsRaw) {
+      const { AgentModelMapSchema } = await import('../core/model-registry.js');
+      try {
+        ctx.agentModelMap = AgentModelMapSchema.parse(agentModelsRaw);
+      } catch {
+        // Invalid config — skip, agents will use defaults
+      }
+    }
+
+    // CLI --model override
+    if (options.model) {
+      ctx.defaultModelOverride = options.model;
+    }
 
     spinner.succeed(chalk.green(`Run initialized: ${runid}`));
 

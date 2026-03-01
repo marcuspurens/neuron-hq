@@ -20,6 +20,7 @@ import {
   logsCommand,
   reportCommand,
   monitorCommand,
+  costsCommand,
 } from './commands/index.js';
 import { scaffoldCommand } from './commands/scaffold.js';
 import { runBriefAgent } from './core/agents/brief-agent.js';
@@ -56,12 +57,14 @@ program
   .option('--hours <hours>', 'Runtime limit in hours', '3')
   .option('--brief <path>', 'Path to brief file', 'briefs/today.md')
   .option('--scaffold <spec>', 'Scaffold target if missing (format: language:template)')
+  .option('--model <model>', 'Override default model for all agents (e.g. claude-sonnet-4-6)')
   .action(runCommand);
 
 program
   .command('resume <runid>')
   .description('Resume a previous run')
   .option('--hours <hours>', 'Additional runtime in hours', '2')
+  .option('--model <model>', 'Override default model for all agents')
   .action(resumeCommand);
 
 program
@@ -107,5 +110,21 @@ program
   .option('--dir <dir>', 'Parent directory for the project')
   .action(scaffoldCommand);
 
-// Parse arguments
-program.parse();
+// Costs command
+program
+  .command('costs')
+  .description('Show token usage and cost breakdown for all runs')
+  .option('--last <n>', 'Show only last N runs')
+  .option('--save', 'Save report to docs/cost-tracking.md')
+  .action(costsCommand);
+
+// Only parse when run directly (not when imported by tests)
+const isDirectRun =
+  process.argv[1] &&
+  (process.argv[1].includes('cli') || process.argv[1].includes('tsx'));
+
+if (isDirectRun) {
+  program.parse();
+}
+
+export { program };
