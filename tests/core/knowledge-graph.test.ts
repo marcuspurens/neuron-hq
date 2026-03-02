@@ -514,3 +514,22 @@ describe('Knowledge Graph — migrateAll (cross-file)', () => {
     expect(errorNodes).toHaveLength(0);
   });
 });
+
+describe('KGNode model field', () => {
+  it('validates node with model field', () => {
+    const node = makeNode({ model: 'claude-opus-4-6' });
+    expect(KGNodeSchema.parse(node).model).toBe('claude-opus-4-6');
+  });
+
+  it('validates node without model field (optional)', () => {
+    const node = makeNode();
+    const parsed = KGNodeSchema.parse(node);
+    expect(parsed.model).toBeUndefined();
+  });
+
+  it('validates node with empty string model', () => {
+    const node = makeNode({ model: '' });
+    const parsed = KGNodeSchema.parse(node);
+    expect(parsed.model).toBe('');
+  });
+});

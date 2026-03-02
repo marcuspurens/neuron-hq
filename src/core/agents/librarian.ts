@@ -5,6 +5,7 @@ import path from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
+import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 
 const FETCH_MAX_BYTES = 50_000;
@@ -17,6 +18,7 @@ const FETCH_TIMEOUT_MS = 15_000;
  */
 export class LibrarianAgent {
   private promptPath: string;
+  private baseDir: string;
   private client: Anthropic;
   private model: string;
   private modelMaxTokens: number;
@@ -27,6 +29,7 @@ export class LibrarianAgent {
     private ctx: RunContext,
     baseDir: string
   ) {
+    this.baseDir = baseDir;
     this.promptPath = path.join(baseDir, 'prompts', 'librarian.md');
     this.memoryDir = path.join(baseDir, 'memory');
 
@@ -74,6 +77,11 @@ export class LibrarianAgent {
 
   private async buildSystemPrompt(): Promise<string> {
     const librarianPrompt = await this.loadPrompt();
+    const overlay = await loadOverlay(this.baseDir, {
+      model: this.model,
+      role: 'librarian',
+    });
+    const overlayedPrompt = mergePromptWithOverlay(librarianPrompt, overlay);
 
     const today = new Date().toISOString().slice(0, 10);
     const contextInfo = `
@@ -89,7 +97,7 @@ Search arxiv for recent papers on AI agent memory and autonomous software develo
 Write new findings to memory/techniques.md. Check the existing file first to avoid duplicates.
 `;
 
-    return `${librarianPrompt}\n\n${contextInfo}`;
+    return `${overlayedPrompt}\n\n${contextInfo}`;
   }
 
   private async runAgentLoop(systemPrompt: string): Promise<void> {

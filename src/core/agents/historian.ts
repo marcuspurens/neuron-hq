@@ -5,6 +5,7 @@ import path from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
+import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import { loadGraph, saveGraph, applyConfidenceDecay } from '../knowledge-graph.js';
 
@@ -24,6 +25,7 @@ const MEMORY_FILE_HEADERS: Record<MemoryFile, string> = {
  */
 export class HistorianAgent {
   private promptPath: string;
+  private baseDir: string;
   private client: Anthropic;
   private model: string;
   private modelMaxTokens: number;
@@ -34,6 +36,7 @@ export class HistorianAgent {
     private ctx: RunContext,
     baseDir: string
   ) {
+    this.baseDir = baseDir;
     this.promptPath = path.join(baseDir, 'prompts', 'historian.md');
     this.memoryDir = path.join(baseDir, 'memory');
 
@@ -97,6 +100,11 @@ export class HistorianAgent {
 
   private async buildSystemPrompt(): Promise<string> {
     const historianPrompt = await this.loadPrompt();
+    const overlay = await loadOverlay(this.baseDir, {
+      model: this.model,
+      role: 'historian',
+    });
+    const overlayedPrompt = mergePromptWithOverlay(historianPrompt, overlay);
 
     const today = new Date().toISOString().slice(0, 10);
     const contextInfo = `
@@ -127,7 +135,7 @@ Artifacts to read:
 If the brief involved Librarian, call read_memory_file(file="techniques") to count how many entries exist and verify what was written.
 `;
 
-    return `${historianPrompt}\n\n${contextInfo}`;
+    return `${overlayedPrompt}\n\n${contextInfo}`;
   }
 
   private async runAgentLoop(systemPrompt: string): Promise<void> {

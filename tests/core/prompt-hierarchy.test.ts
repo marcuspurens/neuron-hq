@@ -168,6 +168,32 @@ describe('buildHierarchicalPrompt', () => {
     const result = buildHierarchicalPrompt(hierarchy, ['section-a', 'nonexistent']);
     expect(result).toBe('Core prompt text.\n\n## Section A\n\nA content.');
   });
+
+  it('inserts overlay after core when provided', () => {
+    const result = buildHierarchicalPrompt(hierarchy, undefined, 'Model-specific instructions.');
+    expect(result).toBe('Core prompt text.\n\nModel-specific instructions.');
+  });
+
+  it('inserts overlay between core and archive sections', () => {
+    const result = buildHierarchicalPrompt(
+      hierarchy,
+      ['section-a'],
+      'Overlay text here.',
+    );
+    expect(result).toBe(
+      'Core prompt text.\n\nOverlay text here.\n\n## Section A\n\nA content.',
+    );
+  });
+
+  it('does not insert overlay when it is undefined', () => {
+    const result = buildHierarchicalPrompt(hierarchy, ['section-a'], undefined);
+    expect(result).toBe('Core prompt text.\n\n## Section A\n\nA content.');
+  });
+
+  it('does not insert overlay when it is an empty string', () => {
+    const result = buildHierarchicalPrompt(hierarchy, ['section-a'], '');
+    expect(result).toBe('Core prompt text.\n\n## Section A\n\nA content.');
+  });
 });
 
 describe('loadPromptHierarchy', () => {
@@ -220,5 +246,37 @@ describe('Integration: reviewer.md', () => {
     const hierarchy = await loadPromptHierarchy(path.join(__dirname, '../../prompts/reviewer.md'));
     expect(hierarchy.core).toContain('Your Role');
     expect(hierarchy.core).toContain('Blocking Criteria');
+  });
+});
+
+describe('buildHierarchicalPrompt with overlay', () => {
+  const hierarchy = {
+    core: 'Core prompt text.',
+    archive: new Map([
+      ['section-a', '## Section A\n\nA content.'],
+      ['section-b', '## Section B\n\nB content.'],
+    ]),
+  };
+
+  it('inserts overlay between core and archive sections', () => {
+    const result = buildHierarchicalPrompt(hierarchy, ['section-a'], '## Overlay\n\nOverlay content.');
+    expect(result).toBe(
+      'Core prompt text.\n\n## Overlay\n\nOverlay content.\n\n## Section A\n\nA content.',
+    );
+  });
+
+  it('works with overlay and no archive sections', () => {
+    const result = buildHierarchicalPrompt(hierarchy, [], '## Overlay\n\nOverlay content.');
+    expect(result).toBe('Core prompt text.\n\n## Overlay\n\nOverlay content.');
+  });
+
+  it('works with overlay and undefined archive sections', () => {
+    const result = buildHierarchicalPrompt(hierarchy, undefined, '## Overlay\n\nOverlay content.');
+    expect(result).toBe('Core prompt text.\n\n## Overlay\n\nOverlay content.');
+  });
+
+  it('behaves unchanged when overlay is undefined', () => {
+    const result = buildHierarchicalPrompt(hierarchy, ['section-a'], undefined);
+    expect(result).toBe('Core prompt text.\n\n## Section A\n\nA content.');
   });
 });

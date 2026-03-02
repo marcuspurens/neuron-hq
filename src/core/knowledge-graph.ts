@@ -44,6 +44,7 @@ export const KGNodeSchema = z.object({
     .or(z.string().regex(/^\d{4}-\d{2}-\d{2}/)),
   confidence: z.number().min(0).max(1),
   scope: NodeScopeSchema.default('unknown'),
+  model: z.string().optional(),
 });
 export type KGNode = z.infer<typeof KGNodeSchema>;
 

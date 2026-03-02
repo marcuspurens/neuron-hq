@@ -22,6 +22,7 @@ import { validateTaskPlan, type TaskPlan } from '../task-splitter.js';
 import { taskBranchName, type TaskBranchStatus } from '../parallel-coordinator.js';
 import { GitOperations } from '../git.js';
 import { loadPromptHierarchy, buildHierarchicalPrompt } from '../prompt-hierarchy.js';
+import { loadOverlay } from '../prompt-overlays.js';
 
 const execAsync = promisify(exec);
 
@@ -156,7 +157,12 @@ export class ManagerAgent {
       archiveSections.push('no-tests');
     }
 
-    const managerPrompt = buildHierarchicalPrompt(hierarchy, archiveSections);
+    const overlay = await loadOverlay(this.baseDir, {
+      model: this.model,
+      role: 'manager',
+    });
+
+    const managerPrompt = buildHierarchicalPrompt(hierarchy, archiveSections, overlay);
 
     const testStatusLine = this.testStatus
       ? (this.testStatus.testsExist

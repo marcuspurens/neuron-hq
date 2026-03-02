@@ -1,6 +1,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
+import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import * as readline from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
@@ -54,12 +55,17 @@ export class BriefAgent {
       this.briefModel = briefModel;
       this.briefMaxTokens = briefMaxTokens;
       const systemPrompt = this.loadSystemPrompt();
+      const overlay = await loadOverlay(this.baseDir, {
+        model: this.briefModel,
+        role: 'brief-agent',
+      });
+      const overlayedSystemPrompt = mergePromptWithOverlay(systemPrompt, overlay);
       const repoContext = this.getRepoContext();
       const exampleBriefs = this.loadExampleBriefs();
       const today = new Date().toISOString().slice(0, 10);
 
       const fullSystemPrompt = [
-        systemPrompt,
+        overlayedSystemPrompt,
         '\n\n## Repository Context\n\n',
         `Target: ${this.targetName}\nDate: ${today}\n\n`,
         repoContext,

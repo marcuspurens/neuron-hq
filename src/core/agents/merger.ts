@@ -6,6 +6,7 @@ import path from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
+import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -18,12 +19,14 @@ const execAsync = promisify(exec);
  */
 export class MergerAgent {
   private promptPath: string;
+  private baseDir: string;
   private client: Anthropic;
   private model: string;
   private modelMaxTokens: number;
   private maxIterations: number;
 
   constructor(private ctx: RunContext, baseDir: string) {
+    this.baseDir = baseDir;
     this.promptPath = path.join(baseDir, 'prompts', 'merger.md');
 
     const config = resolveModelConfig('merger', this.ctx.agentModelMap, this.ctx.defaultModelOverride);
@@ -88,6 +91,11 @@ export class MergerAgent {
 
   private async buildSystemPrompt(): Promise<string> {
     const mergerPrompt = await this.loadPrompt();
+    const overlay = await loadOverlay(this.baseDir, {
+      model: this.model,
+      role: 'merger',
+    });
+    const overlayedPrompt = mergePromptWithOverlay(mergerPrompt, overlay);
 
     const contextInfo = `
 # Run Context
@@ -112,7 +120,7 @@ export class MergerAgent {
 EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, commit with bash_exec_in_target, write merge_summary.md.
 `;
 
-    return `${mergerPrompt}\n\n${contextInfo}`;
+    return `${overlayedPrompt}\n\n${contextInfo}`;
   }
 
   private async runAgentLoop(systemPrompt: string): Promise<string> {

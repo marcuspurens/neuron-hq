@@ -9,6 +9,7 @@ import { resolveModelConfig } from '../model-registry.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { loadPromptHierarchy, buildHierarchicalPrompt } from '../prompt-hierarchy.js';
+import { loadOverlay } from '../prompt-overlays.js';
 import { scanDiff, formatScanReport } from '../security-scan.js';
 
 const execAsync = promisify(exec);
@@ -95,7 +96,12 @@ export class ReviewerAgent {
       archiveSections.push('security-review');
     }
 
-    const reviewerPrompt = buildHierarchicalPrompt(hierarchy, archiveSections);
+    const overlay = await loadOverlay(this.baseDir, {
+      model: this.model,
+      role: 'reviewer',
+    });
+
+    const reviewerPrompt = buildHierarchicalPrompt(hierarchy, archiveSections, overlay);
 
     const limits = this.ctx.policy.getLimits();
     const handoffContent = await this.loadImplementerHandoff();

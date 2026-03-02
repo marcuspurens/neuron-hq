@@ -60,15 +60,22 @@ export async function loadPromptHierarchy(promptPath: string): Promise<PromptHie
 }
 
 /**
- * Builds a system prompt from core + selected archive sections.
- * Archive sections are appended in order after core, each separated by \n\n.
+ * Builds a system prompt from core + optional overlay + selected archive sections.
+ * The overlay is injected after core but before archive sections.
+ * Archive sections are appended in order, each separated by \n\n.
  * Unknown section names are silently ignored.
  */
 export function buildHierarchicalPrompt(
   hierarchy: PromptHierarchy,
   archiveSections?: string[],
+  overlay?: string,
 ): string {
   const parts = [hierarchy.core];
+
+  // Model overlay injected after core, before archive
+  if (overlay) {
+    parts.push(overlay);
+  }
 
   if (archiveSections) {
     for (const name of archiveSections) {

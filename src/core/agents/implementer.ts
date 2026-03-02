@@ -6,6 +6,7 @@ import path from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
+import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -106,6 +107,11 @@ export class ImplementerAgent {
 
   private async buildSystemPrompt(): Promise<string> {
     const implementerPrompt = await this.loadPrompt();
+    const overlay = await loadOverlay(this.baseDir, {
+      model: this.model,
+      role: 'implementer',
+    });
+    const overlayedPrompt = mergePromptWithOverlay(implementerPrompt, overlay);
 
     const contextInfo = `
 # Run Context
@@ -129,7 +135,7 @@ All bash commands and file writes are subject to policy enforcement.
 Keep diffs under 150 lines per iteration. Run fast checks after each change.
 `;
 
-    return `${implementerPrompt}\n\n${contextInfo}`;
+    return `${overlayedPrompt}\n\n${contextInfo}`;
   }
 
   private async runAgentLoop(systemPrompt: string, task: string): Promise<void> {

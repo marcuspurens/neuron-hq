@@ -5,6 +5,7 @@ import path from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
+import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import { loadGraph, saveGraph } from '../knowledge-graph.js';
 import { mergeNodes, findDuplicateCandidates, findStaleNodes, findMissingEdges } from '../graph-merge.js';
@@ -16,6 +17,7 @@ import { mergeNodes, findDuplicateCandidates, findStaleNodes, findMissingEdges }
  */
 export class ConsolidatorAgent {
   private promptPath: string;
+  private baseDir: string;
   private client: Anthropic;
   private model: string;
   private modelMaxTokens: number;
@@ -26,6 +28,7 @@ export class ConsolidatorAgent {
     private ctx: RunContext,
     baseDir: string
   ) {
+    this.baseDir = baseDir;
     this.promptPath = path.join(baseDir, 'prompts', 'consolidator.md');
     this.memoryDir = path.join(baseDir, 'memory');
 
@@ -73,6 +76,11 @@ export class ConsolidatorAgent {
 
   private async buildSystemPrompt(): Promise<string> {
     const consolidatorPrompt = await this.loadPrompt();
+    const overlay = await loadOverlay(this.baseDir, {
+      model: this.model,
+      role: 'consolidator',
+    });
+    const overlayedPrompt = mergePromptWithOverlay(consolidatorPrompt, overlay);
 
     const today = new Date().toISOString().slice(0, 10);
     const contextInfo = `
@@ -90,7 +98,7 @@ Analyze the knowledge graph and perform consolidation:
 5. Write a consolidation_report.md summarizing all changes
 `;
 
-    return `${consolidatorPrompt}\n\n${contextInfo}`;
+    return `${overlayedPrompt}\n\n${contextInfo}`;
   }
 
   private async runAgentLoop(systemPrompt: string): Promise<void> {

@@ -5,6 +5,7 @@ import path from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
+import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -16,12 +17,14 @@ const execAsync = promisify(exec);
  */
 export class TesterAgent {
   private promptPath: string;
+  private baseDir: string;
   private client: Anthropic;
   private model: string;
   private modelMaxTokens: number;
   private maxIterations: number;
 
   constructor(private ctx: RunContext, baseDir: string) {
+    this.baseDir = baseDir;
     this.promptPath = path.join(baseDir, 'prompts', 'tester.md');
 
     const config = resolveModelConfig('tester', this.ctx.agentModelMap, this.ctx.defaultModelOverride);
@@ -70,6 +73,11 @@ export class TesterAgent {
 
   private async buildSystemPrompt(): Promise<string> {
     const testerPrompt = await this.loadPrompt();
+    const overlay = await loadOverlay(this.baseDir, {
+      model: this.model,
+      role: 'tester',
+    });
+    const overlayedPrompt = mergePromptWithOverlay(testerPrompt, overlay);
 
     const contextInfo = `
 # Run Context
@@ -86,7 +94,7 @@ Discover the test framework in the workspace, run the full test suite,
 and write test_report.md to the run artifacts directory.
 `;
 
-    return `${testerPrompt}\n\n${contextInfo}`;
+    return `${overlayedPrompt}\n\n${contextInfo}`;
   }
 
   private async runAgentLoop(systemPrompt: string): Promise<string> {

@@ -6,6 +6,7 @@ import path from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
+import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -72,6 +73,11 @@ export class ResearcherAgent {
 
   private async buildSystemPrompt(): Promise<string> {
     const researcherPrompt = await this.loadPrompt();
+    const overlay = await loadOverlay(this.baseDir, {
+      model: this.model,
+      role: 'researcher',
+    });
+    const overlayedPrompt = mergePromptWithOverlay(researcherPrompt, overlay);
 
     const limits = this.ctx.policy.getLimits();
     const contextInfo = `
@@ -104,7 +110,7 @@ Generate ideas.md (impact/effort/risk analysis) and sources.md (code references 
 Focus on high-impact, low-effort opportunities.
 `;
 
-    return `${researcherPrompt}\n\n${contextInfo}`;
+    return `${overlayedPrompt}\n\n${contextInfo}`;
   }
 
   private async runAgentLoop(systemPrompt: string, brief: string): Promise<void> {
