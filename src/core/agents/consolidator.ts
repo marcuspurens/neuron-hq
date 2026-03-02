@@ -309,6 +309,7 @@ Analyze the knowledge graph and perform consolidation:
                 graphPath: path.join(this.memoryDir, 'graph.json'),
                 runId: this.ctx.runid,
                 agent: 'consolidator',
+                model: this.model,
                 audit: this.ctx.audit,
               };
               result = await executeGraphTool(block.name, block.input as Record<string, unknown>, graphCtx);

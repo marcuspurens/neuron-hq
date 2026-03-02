@@ -386,6 +386,7 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
                 graphPath: path.join(this.memoryDir, 'graph.json'),
                 runId: this.ctx.runid,
                 agent: 'historian',
+                model: this.model,
                 audit: this.ctx.audit,
               };
               result = await executeGraphTool(block.name, block.input as Record<string, unknown>, graphCtx);

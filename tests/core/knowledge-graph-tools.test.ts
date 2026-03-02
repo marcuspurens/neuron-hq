@@ -292,6 +292,56 @@ describe('Knowledge Graph Tools', () => {
     expect(result).toContain('pattern-001');
   });
 
+
+  it('graph_assert sets model when provided in context', async () => {
+    await saveGraph(createEmptyGraph(), graphPath);
+
+    const ctxWithModel: GraphToolContext = {
+      ...ctx,
+      model: 'claude-sonnet-4-20250514',
+    };
+
+    await executeGraphTool(
+      'graph_assert',
+      {
+        node: {
+          type: 'pattern',
+          title: 'Model Test Pattern',
+          properties: { keywords: 'model' },
+          confidence: 0.7,
+        },
+      },
+      ctxWithModel,
+    );
+
+    const graph = await loadGraph(graphPath);
+    const node = graph.nodes.find((n) => n.id === 'pattern-001');
+    expect(node).toBeDefined();
+    expect(node!.model).toBe('claude-sonnet-4-20250514');
+  });
+
+  it('graph_assert leaves model undefined when not in context', async () => {
+    await saveGraph(createEmptyGraph(), graphPath);
+
+    await executeGraphTool(
+      'graph_assert',
+      {
+        node: {
+          type: 'pattern',
+          title: 'No Model Pattern',
+          properties: {},
+          confidence: 0.5,
+        },
+      },
+      ctx,
+    );
+
+    const graph = await loadGraph(graphPath);
+    const node = graph.nodes.find((n) => n.id === 'pattern-001');
+    expect(node).toBeDefined();
+    expect(node!.model).toBeUndefined();
+  });
+
   // --- graph_update tests ---
 
   it('graph_update updates confidence', async () => {

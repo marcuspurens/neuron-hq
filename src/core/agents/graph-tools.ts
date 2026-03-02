@@ -22,6 +22,7 @@ export interface GraphToolContext {
   graphPath: string;
   runId: string;
   agent: string;
+  model?: string;
   audit: { log: (entry: AuditEntry) => Promise<void> };
 }
 
@@ -294,6 +295,7 @@ async function executeGraphAssert(
     updated: now,
     confidence: nodeInput.confidence,
     scope: nodeInput.scope || 'unknown',
+    model: ctx.model,
   };
 
   graph = addNode(graph, newNode);
