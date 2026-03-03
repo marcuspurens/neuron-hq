@@ -7,3 +7,6 @@ export { logsCommand } from './logs.js';
 export { reportCommand } from './report.js';
 export { monitorCommand } from './monitor.js';
 export { scaffoldCommand } from './scaffold.js';
+export { costsCommand } from './costs.js';
+export { dbImportCommand } from './db-import.js';
+export { dbMigrateCommand } from './db-migrate.js';

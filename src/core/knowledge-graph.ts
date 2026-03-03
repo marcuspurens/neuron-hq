@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import fs from 'fs/promises';
 import path from 'path';
+import { getPool, isDbAvailable } from './db.js';
 
 // --- Schemas ---
 
@@ -111,19 +112,164 @@ export function migrateAddScope(graph: KnowledgeGraph): {
   };
 }
 
+// --- DB helpers ---
+
 /**
- * Load a knowledge graph from a JSON file.
- * Returns an empty graph if the file does not exist.
+ * Load knowledge graph from Postgres.
+ * Returns null if loading fails.
+ */
+export async function loadGraphFromDb(): Promise<KnowledgeGraph | null> {
+  try {
+    const pool = getPool();
+
+    const { rows: nodeRows } = await pool.query(
+      'SELECT id, type, title, properties, confidence, scope, model, created, updated FROM kg_nodes',
+    );
+
+    const { rows: edgeRows } = await pool.query(
+      'SELECT from_id, to_id, type, metadata FROM kg_edges',
+    );
+
+    const nodes: KGNode[] = nodeRows.map((r: Record<string, unknown>) => ({
+      id: r.id as string,
+      type: r.type as NodeType,
+      title: r.title as string,
+      properties: (r.properties ?? {}) as Record<string, unknown>,
+      confidence: r.confidence as number,
+      scope: (r.scope ?? 'unknown') as NodeScope,
+      model: r.model as string | undefined,
+      created: (r.created as Date).toISOString(),
+      updated: (r.updated as Date).toISOString(),
+    }));
+
+    const edges: KGEdge[] = edgeRows.map((r: Record<string, unknown>) => ({
+      from: r.from_id as string,
+      to: r.to_id as string,
+      type: r.type as EdgeType,
+      metadata: (r.metadata ?? {}) as { runId?: string; agent?: string; timestamp?: string },
+    }));
+
+    return {
+      version: '1.0.0',
+      nodes,
+      edges,
+      lastUpdated: new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save knowledge graph to Postgres (upsert all nodes and edges).
+ * Used as part of dual-write alongside file save.
+ */
+export async function saveGraphToDb(graph: KnowledgeGraph): Promise<void> {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Upsert nodes
+    for (const node of graph.nodes) {
+      await client.query(
+        `INSERT INTO kg_nodes (id, type, title, properties, confidence, scope, model, created, updated)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         ON CONFLICT (id) DO UPDATE SET
+           type = EXCLUDED.type,
+           title = EXCLUDED.title,
+           properties = EXCLUDED.properties,
+           confidence = EXCLUDED.confidence,
+           scope = EXCLUDED.scope,
+           model = EXCLUDED.model,
+           updated = EXCLUDED.updated`,
+        [
+          node.id,
+          node.type,
+          node.title,
+          JSON.stringify(node.properties),
+          node.confidence,
+          node.scope ?? 'unknown',
+          node.model ?? null,
+          node.created,
+          node.updated,
+        ],
+      );
+    }
+
+    // Sync edges: delete edges not in graph, upsert edges in graph
+    const graphEdgeKeys = new Set(
+      graph.edges.map((e) => `${e.from}|${e.to}|${e.type}`),
+    );
+
+    // Get existing edges from DB
+    const { rows: existingEdges } = await client.query(
+      'SELECT from_id, to_id, type FROM kg_edges',
+    );
+
+    // Delete edges not in graph
+    for (const row of existingEdges) {
+      const key = `${row.from_id}|${row.to_id}|${row.type}`;
+      if (!graphEdgeKeys.has(key)) {
+        await client.query(
+          'DELETE FROM kg_edges WHERE from_id = $1 AND to_id = $2 AND type = $3',
+          [row.from_id, row.to_id, row.type],
+        );
+      }
+    }
+
+    // Upsert edges
+    for (const edge of graph.edges) {
+      await client.query(
+        `INSERT INTO kg_edges (from_id, to_id, type, metadata)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (from_id, to_id, type) DO UPDATE SET
+           metadata = EXCLUDED.metadata`,
+        [edge.from, edge.to, edge.type, JSON.stringify(edge.metadata)],
+      );
+    }
+
+    // Delete nodes not in graph
+    const graphNodeIds = new Set(graph.nodes.map((n) => n.id));
+    const { rows: existingNodes } = await client.query('SELECT id FROM kg_nodes');
+    for (const row of existingNodes) {
+      if (!graphNodeIds.has(row.id as string)) {
+        await client.query('DELETE FROM kg_nodes WHERE id = $1', [row.id]);
+      }
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+// --- Load / Save ---
+
+/**
+ * Load a knowledge graph from DB (preferred) or JSON file (fallback).
+ * Returns an empty graph if both sources are unavailable.
  */
 export async function loadGraph(
   filePath: string = DEFAULT_GRAPH_PATH,
 ): Promise<KnowledgeGraph> {
+  // Try loading from DB first
+  if (await isDbAvailable()) {
+    const dbGraph = await loadGraphFromDb();
+    if (dbGraph && dbGraph.nodes.length > 0) {
+      return dbGraph;
+    }
+  }
+
+  // Fallback to file
   try {
     const raw = await fs.readFile(filePath, 'utf-8');
     const data: unknown = JSON.parse(raw);
-    // Parse with scope defaulting to 'unknown' for existing nodes
     const graph = KnowledgeGraphSchema.parse(data);
-    // Migrate nodes that might not have scope (from old files)
     const { graph: migrated } = migrateAddScope(graph);
     return migrated;
   } catch (err: unknown) {
@@ -139,18 +285,30 @@ export async function loadGraph(
 }
 
 /**
- * Save a knowledge graph to a JSON file.
- * Validates with Zod before writing.
+ * Save a knowledge graph to file (always) and DB (if available).
+ * Validates with Zod before writing. DB failure is non-fatal.
  */
 export async function saveGraph(
   graph: KnowledgeGraph,
   filePath: string = DEFAULT_GRAPH_PATH,
 ): Promise<void> {
+  // Always save to file (primary/backup)
   const validated = KnowledgeGraphSchema.parse(graph);
   const dir = path.dirname(filePath);
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(filePath, JSON.stringify(validated, null, 2), 'utf-8');
+
+  // Also save to DB if available (dual write)
+  try {
+    if (await isDbAvailable()) {
+      await saveGraphToDb(validated);
+    }
+  } catch {
+    // DB write failure is non-fatal — file is the backup
+  }
 }
+
+// --- Pure graph operations ---
 
 /**
  * Add a node to the graph. Returns a new graph.

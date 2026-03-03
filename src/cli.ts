@@ -21,6 +21,8 @@ import {
   reportCommand,
   monitorCommand,
   costsCommand,
+  dbImportCommand,
+  dbMigrateCommand,
 } from './commands/index.js';
 import { scaffoldCommand } from './commands/scaffold.js';
 import { runBriefAgent } from './core/agents/brief-agent.js';
@@ -117,6 +119,17 @@ program
   .option('--last <n>', 'Show only last N runs')
   .option('--save', 'Save report to docs/cost-tracking.md')
   .action(costsCommand);
+
+// Database commands
+program
+  .command('db-migrate')
+  .description('Run database migrations')
+  .action(dbMigrateCommand);
+
+program
+  .command('db-import')
+  .description('Import existing file data into Postgres')
+  .action(dbImportCommand);
 
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =
