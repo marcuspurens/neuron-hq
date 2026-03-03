@@ -31,16 +31,17 @@ function makeNode(overrides: Partial<KGNode> = {}): KGNode {
 }
 
 describe('graphReadToolDefinitions', () => {
-  it('returns exactly 2 tools', () => {
+  it('returns exactly 3 tools', () => {
     const tools = graphReadToolDefinitions();
-    expect(tools).toHaveLength(2);
+    expect(tools).toHaveLength(3);
   });
 
-  it('returns graph_query and graph_traverse', () => {
+  it('returns graph_query, graph_traverse, and graph_semantic_search', () => {
     const tools = graphReadToolDefinitions();
     const names = tools.map((t) => t.name);
     expect(names).toContain('graph_query');
     expect(names).toContain('graph_traverse');
+    expect(names).toContain('graph_semantic_search');
   });
 
   it('does NOT include graph_assert', () => {

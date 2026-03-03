@@ -13,6 +13,8 @@ import {
   type NodeScope,
   type EdgeType,
 } from '../knowledge-graph.js';
+import { semanticSearch } from '../semantic-search.js';
+import { isEmbeddingAvailable } from '../embeddings.js';
 import { type AuditEntry } from '../types.js';
 
 // ── Context & helpers ─────────────────────────────────────────────────
@@ -28,7 +30,7 @@ export interface GraphToolContext {
 
 // ── Tool definitions (Anthropic tool schema) ──────────────────────────
 
-/** Anthropic tool definitions for the 4 graph tools. */
+/** Anthropic tool definitions for the 5 graph tools. */
 export function graphToolDefinitions(): Anthropic.Tool[] {
   return [
     {
@@ -157,18 +159,52 @@ export function graphToolDefinitions(): Anthropic.Tool[] {
         required: ['node_id'],
       },
     },
+    {
+      name: 'graph_semantic_search',
+      description:
+        'Search the knowledge graph using semantic similarity. Finds related nodes even without exact keyword matches. ' +
+        'Requires pgvector + Ollama. Falls back gracefully if not available.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          query: {
+            type: 'string',
+            description: 'Free-text query to find semantically similar nodes',
+          },
+          type: {
+            type: 'string',
+            enum: ['pattern', 'error', 'technique', 'run', 'agent'],
+            description: 'Filter on node type',
+          },
+          limit: {
+            type: 'number',
+            description: 'Maximum number of results (default 10)',
+          },
+          min_similarity: {
+            type: 'number',
+            description: 'Minimum similarity threshold 0-1 (default 0.7)',
+          },
+          scope: {
+            type: 'string',
+            enum: ['universal', 'project-specific', 'unknown'],
+            description: 'Filter nodes by scope',
+          },
+        },
+        required: ['query'],
+      },
+    },
   ];
 }
 
 /** Check if a tool name is one of the graph tools. */
 export function isGraphTool(name: string): boolean {
-  return ['graph_query', 'graph_traverse', 'graph_assert', 'graph_update'].includes(name);
+  return ['graph_query', 'graph_traverse', 'graph_assert', 'graph_update', 'graph_semantic_search'].includes(name);
 }
 
-/** Return only the two read-only graph tools (query + traverse). */
+/** Return only the read-only graph tools (query + traverse + semantic search). */
 export function graphReadToolDefinitions(): Anthropic.Messages.Tool[] {
   return graphToolDefinitions().filter((t) =>
-    ['graph_query', 'graph_traverse'].includes(t.name),
+    ['graph_query', 'graph_traverse', 'graph_semantic_search'].includes(t.name),
   );
 }
 
@@ -203,6 +239,8 @@ export async function executeGraphTool(
       return executeGraphAssert(input, ctx);
     case 'graph_update':
       return executeGraphUpdate(input, ctx);
+    case 'graph_semantic_search':
+      return executeGraphSemanticSearch(input, ctx);
     default:
       throw new Error(`Unknown graph tool: ${toolName}`);
   }
@@ -365,4 +403,63 @@ async function executeGraphUpdate(
   });
 
   return `Node ${nodeId} updated`;
+}
+
+async function executeGraphSemanticSearch(
+  input: Record<string, unknown>,
+  ctx: GraphToolContext,
+): Promise<string> {
+  // Check if semantic search is available
+  const available = await isEmbeddingAvailable();
+  if (!available) {
+    await ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: ctx.agent as AuditEntry['role'],
+      tool: 'graph_semantic_search',
+      allowed: true,
+      note: 'Semantic search not available (pgvector/Ollama not configured). Use graph_query instead.',
+    });
+    return JSON.stringify({
+      results: [],
+      message: 'Semantic search not available. pgvector extension or Ollama embedding model not configured. Use graph_query for keyword search.',
+    });
+  }
+
+  const query = input.query as string;
+  const type = input.type as string | undefined;
+  const limit = input.limit as number | undefined;
+  const minSimilarity = input.min_similarity as number | undefined;
+  const scope = input.scope as string | undefined;
+
+  try {
+    const results = await semanticSearch(query, {
+      type,
+      limit,
+      minSimilarity,
+      scope,
+    });
+
+    await ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: ctx.agent as AuditEntry['role'],
+      tool: 'graph_semantic_search',
+      allowed: true,
+      note: `Semantic search for "${query}" returned ${results.length} results`,
+    });
+
+    return JSON.stringify(results, null, 2);
+  } catch (error) {
+    await ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: ctx.agent as AuditEntry['role'],
+      tool: 'graph_semantic_search',
+      allowed: true,
+      note: `Semantic search failed: ${error}`,
+    });
+
+    return JSON.stringify({
+      results: [],
+      message: `Semantic search failed: ${error}. Use graph_query for keyword search.`,
+    });
+  }
 }

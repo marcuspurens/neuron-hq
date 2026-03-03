@@ -2,6 +2,7 @@ import { z } from 'zod';
 import fs from 'fs/promises';
 import path from 'path';
 import { getPool, isDbAvailable } from './db.js';
+import { isEmbeddingAvailable, getEmbeddingProvider } from './embeddings.js';
 
 // --- Schemas ---
 
@@ -248,6 +249,43 @@ export async function saveGraphToDb(graph: KnowledgeGraph): Promise<void> {
   }
 }
 
+
+/**
+ * Generate embeddings for nodes that were just saved to DB but don't have embeddings yet.
+ * Called as part of saveGraph. Non-fatal: logs warning on failure.
+ */
+export async function autoEmbedNodes(nodeIds: string[]): Promise<void> {
+  if (nodeIds.length === 0) return;
+  try {
+    if (!(await isEmbeddingAvailable())) return;
+    
+    const pool = getPool();
+    const provider = getEmbeddingProvider();
+    
+    // Get nodes that need embedding
+    const placeholders = nodeIds.map((_, i) => `$${i + 1}`).join(',');
+    const { rows } = await pool.query(
+      `SELECT id, type, title, properties FROM kg_nodes WHERE id IN (${placeholders}) AND embedding IS NULL`,
+      nodeIds,
+    );
+    
+    for (const node of rows) {
+      try {
+        const text = `${node.type}: ${node.title}. ${JSON.stringify(node.properties)}`;
+        const embedding = await provider.embed(text);
+        await pool.query(
+          'UPDATE kg_nodes SET embedding = $1 WHERE id = $2',
+          [`[${embedding.join(',')}]`, node.id],
+        );
+      } catch (err) {
+        console.warn(`Warning: Failed to embed node ${node.id}:`, err);
+      }
+    }
+  } catch (err) {
+    console.warn('Warning: Auto-embed failed:', err);
+  }
+}
+
 // --- Load / Save ---
 
 /**
@@ -302,6 +340,9 @@ export async function saveGraph(
   try {
     if (await isDbAvailable()) {
       await saveGraphToDb(validated);
+      // Auto-embed new/updated nodes
+      const nodeIds = validated.nodes.map(n => n.id);
+      await autoEmbedNodes(nodeIds);
     }
   } catch {
     // DB write failure is non-fatal — file is the backup

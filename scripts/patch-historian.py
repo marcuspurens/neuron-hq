@@ -1,41 +1,60 @@
-"""Insert Scope Tagging section into historian.md after step 6."""
+"""Patch historian.ts to separate graph_assert and add graph_semantic_search."""
+import re
 
-with open('prompts/historian.md', 'r') as f:
+with open('src/core/agents/historian.ts', 'r') as f:
     content = f.read()
 
-insertion = """
-### Scope Tagging
+old_block = """            case 'graph_query':
+            case 'graph_traverse':
+            case 'graph_assert':
+            case 'graph_update': {
+              const graphCtx: GraphToolContext = {
+                graphPath: path.join(this.memoryDir, 'graph.json'),
+                runId: this.ctx.runid,
+                agent: 'historian',
+                model: this.model,
+                audit: this.ctx.audit,
+              };
+              result = await executeGraphTool(block.name, block.input as Record<string, unknown>, graphCtx);
+              break;
+            }"""
 
-When writing nodes with `graph_assert`, always set `scope` in the node:
+new_block = """            case 'graph_query':
+            case 'graph_traverse':
+            case 'graph_update':
+            case 'graph_semantic_search': {
+              const graphCtx: GraphToolContext = {
+                graphPath: path.join(this.memoryDir, 'graph.json'),
+                runId: this.ctx.runid,
+                agent: 'historian',
+                model: this.model,
+                audit: this.ctx.audit,
+              };
+              result = await executeGraphTool(block.name, block.input as Record<string, unknown>, graphCtx);
+              break;
+            }
+            case 'graph_assert': {
+              const graphCtx: GraphToolContext = {
+                graphPath: path.join(this.memoryDir, 'graph.json'),
+                runId: this.ctx.runid,
+                agent: 'historian',
+                model: this.model,
+                audit: this.ctx.audit,
+              };
+              // Dedup check before asserting
+              const dedupWarning = await this.checkSemanticDuplicates(block.input as Record<string, unknown>);
+              const assertResult = await executeGraphTool('graph_assert', block.input as Record<string, unknown>, graphCtx);
+              result = dedupWarning ? `${dedupWarning}\\n\\n${assertResult}` : assertResult;
+              break;
+            }"""
 
-- **"universal"** — Pattern applies to any project (testing strategies,
-  coding conventions, error handling, tool usage, prompt engineering)
-- **"project-specific"** — Pattern is tied to a specific target's codebase,
-  architecture, or domain (e.g., "Aurora uses SQLite", "neuron-hq uses Zod")
+if old_block not in content:
+    print("ERROR: old block not found!")
+    exit(1)
 
-**Rule of thumb:** If the pattern would help someone working on a *different*
-project, it's universal. If it only makes sense in the context of *this* target,
-it's project-specific.
+content = content.replace(old_block, new_block)
 
-Example:
-```
-graph_assert({
-  node: {
-    type: "pattern",
-    title: "Run tests with -q to avoid context overflow",
-    properties: { ... },
-    confidence: 0.8,
-    scope: "universal"
-  }
-})
-```
-"""
-
-# Insert after "bump confidence" line
-marker = '   - When confirming an existing pattern → use `graph_update` to bump confidence'
-content = content.replace(marker, marker + '\n' + insertion)
-
-with open('prompts/historian.md', 'w') as f:
+with open('src/core/agents/historian.ts', 'w') as f:
     f.write(content)
 
-print("Done - inserted Scope Tagging section into historian.md")
+print("Patched case statement successfully")

@@ -23,6 +23,7 @@ import {
   costsCommand,
   dbImportCommand,
   dbMigrateCommand,
+  embedNodesCommand,
 } from './commands/index.js';
 import { scaffoldCommand } from './commands/scaffold.js';
 import { runBriefAgent } from './core/agents/brief-agent.js';
@@ -130,6 +131,11 @@ program
   .command('db-import')
   .description('Import existing file data into Postgres')
   .action(dbImportCommand);
+
+program
+  .command('embed-nodes')
+  .description('Generate embeddings for all knowledge graph nodes without one')
+  .action(embedNodesCommand);
 
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =

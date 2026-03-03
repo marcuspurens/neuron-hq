@@ -8,6 +8,8 @@ import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import { loadGraph, saveGraph, applyConfidenceDecay } from '../knowledge-graph.js';
+import { semanticSearch } from '../semantic-search.js';
+import { isEmbeddingAvailable } from '../embeddings.js';
 
 type MemoryFile = 'runs' | 'patterns' | 'errors';
 
@@ -380,8 +382,8 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
               break;
             case 'graph_query':
             case 'graph_traverse':
-            case 'graph_assert':
-            case 'graph_update': {
+            case 'graph_update':
+            case 'graph_semantic_search': {
               const graphCtx: GraphToolContext = {
                 graphPath: path.join(this.memoryDir, 'graph.json'),
                 runId: this.ctx.runid,
@@ -390,6 +392,20 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
                 audit: this.ctx.audit,
               };
               result = await executeGraphTool(block.name, block.input as Record<string, unknown>, graphCtx);
+              break;
+            }
+            case 'graph_assert': {
+              const graphCtx: GraphToolContext = {
+                graphPath: path.join(this.memoryDir, 'graph.json'),
+                runId: this.ctx.runid,
+                agent: 'historian',
+                model: this.model,
+                audit: this.ctx.audit,
+              };
+              // Dedup check before asserting
+              const dedupWarning = await this.checkSemanticDuplicates(block.input as Record<string, unknown>);
+              const assertResult = await executeGraphTool('graph_assert', block.input as Record<string, unknown>, graphCtx);
+              result = dedupWarning ? `${dedupWarning}\n\n${assertResult}` : assertResult;
               break;
             }
             default:
@@ -409,6 +425,45 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
     }
 
     return results;
+  }
+
+  /**
+   * Check for semantically similar nodes before adding a new one.
+   * Returns warning/info message or null if no duplicates found.
+   */
+  private async checkSemanticDuplicates(input: Record<string, unknown>): Promise<string | null> {
+    try {
+      if (!(await isEmbeddingAvailable())) return null;
+
+      const nodeInput = input.node as { title?: string; type?: string } | undefined;
+      if (!nodeInput?.title) return null;
+
+      const results = await semanticSearch(nodeInput.title, {
+        type: nodeInput.type,
+        limit: 5,
+        minSimilarity: 0.8,
+      });
+
+      if (results.length === 0) return null;
+
+      const warnings: string[] = [];
+      for (const match of results) {
+        if (match.similarity >= 0.9) {
+          warnings.push(
+            `\u26a0\ufe0f Very similar node exists: "${match.title}" (id: ${match.id}, similarity: ${match.similarity.toFixed(2)}). Consider updating it instead of creating a new node.`
+          );
+        } else if (match.similarity >= 0.8) {
+          warnings.push(
+            `\u2139\ufe0f Related node found: "${match.title}" (id: ${match.id}, similarity: ${match.similarity.toFixed(2)})`
+          );
+        }
+      }
+
+      return warnings.length > 0 ? `[Semantic Dedup Check]\n${warnings.join('\n')}` : null;
+    } catch {
+      // Non-fatal: if semantic search fails, proceed without dedup check
+      return null;
+    }
   }
 
   private async executeReadFile(input: { path: string }): Promise<string> {
