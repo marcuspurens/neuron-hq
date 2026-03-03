@@ -131,6 +131,37 @@ Innan du avslutar, skriv `implementer_handoff.md` i runs-katalogen (samma plats 
 ### Vad som INTE gjordes
 - [Saker från brief som medvetet lämnades utanför scope, och varför]
 
+## Strukturerad resultatfil (obligatorisk)
+
+Utöver `implementer_handoff.md`, skriv OCKSÅ `implementer_result.json` i samma runs-katalog.
+Denna fil används för programmatisk validering av ditt arbete.
+
+Exakt JSON-format:
+
+```json
+{
+  "taskId": "T1",
+  "filesModified": [
+    { "path": "src/core/messages.ts", "reason": "Created message schemas" }
+  ],
+  "decisions": [
+    { "choice": "Used Zod for validation", "reason": "Already a project dependency" }
+  ],
+  "risks": ["Edge case with empty arrays not tested"],
+  "notDone": [],
+  "confidence": "HIGH",
+  "concern": "None",
+  "testsPassing": true
+}
+```
+
+Regler:
+- `taskId`: kopiera från uppgiftsbeskrivningen (t.ex. "T1", "T2")
+- `confidence`: en av `HIGH`, `MEDIUM`, `LOW`
+- `testsPassing`: `true` om alla tester passerar, annars `false`
+- `concern`: valfritt fält — utelämna om inget att rapportera
+- Skriv ALLTID båda filerna (handoff.md + result.json)
+
 ### Before You Report Done
 Stop and check:
 1. Re-read the acceptance criteria from brief.md — did you address ALL of them?

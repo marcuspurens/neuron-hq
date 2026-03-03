@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { validateHandoff, IMPLEMENTER_REQUIRED, REVIEWER_REQUIRED } from '../../src/core/verification-gate.js';
+import { validateImplementerResult, validateReviewerResult } from '../../src/core/verification-gate.js';
 
 describe('verification-gate', () => {
   // Unit tests for validateHandoff
@@ -73,5 +74,69 @@ describe('verification-gate', () => {
 - Gut feeling: Clean
 `;
     expect(validateHandoff(handoff, REVIEWER_REQUIRED)).toEqual([]);
+  });
+});
+
+describe('schema-based validation', () => {
+  it('validateImplementerResult succeeds with valid JSON', () => {
+    const json = JSON.stringify({
+      taskId: 'T1',
+      filesModified: [{ path: 'foo.ts', reason: 'Added feature' }],
+      decisions: [],
+      risks: [],
+      notDone: [],
+      confidence: 'HIGH',
+      testsPassing: true,
+    });
+    const result = validateImplementerResult(json);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.taskId).toBe('T1');
+    }
+  });
+
+  it('validateImplementerResult fails with invalid JSON string', () => {
+    const result = validateImplementerResult('not json');
+    expect(result.success).toBe(false);
+  });
+
+  it('validateImplementerResult fails with missing required fields', () => {
+    const json = JSON.stringify({ taskId: 'T1' });
+    const result = validateImplementerResult(json);
+    expect(result.success).toBe(false);
+  });
+
+  it('validateReviewerResult succeeds with valid JSON', () => {
+    const json = JSON.stringify({
+      verdict: 'GREEN',
+      testsRun: 50,
+      testsPassing: 50,
+      acceptanceCriteria: [{ criterion: 'Test', passed: true }],
+      blockers: [],
+      suggestions: [],
+    });
+    const result = validateReviewerResult(json);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.verdict).toBe('GREEN');
+    }
+  });
+
+  it('validateReviewerResult fails with invalid verdict value', () => {
+    const json = JSON.stringify({
+      verdict: 'ORANGE',
+      testsRun: 10,
+      testsPassing: 10,
+      acceptanceCriteria: [],
+      blockers: [],
+      suggestions: [],
+    });
+    const result = validateReviewerResult(json);
+    expect(result.success).toBe(false);
+  });
+
+  it('validateReviewerResult fails with malformed JSON string', () => {
+    const result = validateReviewerResult('{broken}');
+    expect(result.success).toBe(false);
   });
 });

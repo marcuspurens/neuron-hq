@@ -244,6 +244,33 @@ When baseline had no tests:
 - If Implementer did NOT add tests: verdict is YELLOW at best, RED if changes are non-trivial
 <!-- /ARCHIVE: no-tests -->
 
+## Strukturerad resultatfil (obligatorisk)
+
+Utöver `reviewer_handoff.md`, skriv OCKSÅ `reviewer_result.json` i runs-katalogen.
+Denna fil används för programmatisk validering.
+
+Exakt JSON-format:
+
+```json
+{
+  "verdict": "GREEN",
+  "testsRun": 811,
+  "testsPassing": 811,
+  "acceptanceCriteria": [
+    { "criterion": "Schema validates correctly", "passed": true, "note": "All tests pass" }
+  ],
+  "blockers": [],
+  "suggestions": ["Consider adding more edge case tests"]
+}
+```
+
+Regler:
+- `verdict`: en av `GREEN`, `YELLOW`, `RED`
+- `testsRun` och `testsPassing`: exakta siffror från testkörningen
+- `acceptanceCriteria`: lista VARJE kriterium från briefen med `passed` true/false
+- `blockers`: tom lista om GREEN, annars specificera vad som blockerar
+- `suggestions`: valfria förbättringsförslag
+- Skriv ALLTID båda filerna (handoff.md + result.json)
 
 <!-- ARCHIVE: handoff -->
 ## Handoff to Manager

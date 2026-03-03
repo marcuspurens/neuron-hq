@@ -23,6 +23,12 @@ import { taskBranchName, type TaskBranchStatus } from '../parallel-coordinator.j
 import { GitOperations } from '../git.js';
 import { loadPromptHierarchy, buildHierarchicalPrompt } from '../prompt-hierarchy.js';
 import { loadOverlay } from '../prompt-overlays.js';
+import {
+  ImplementerResultSchema,
+  ReviewerResultSchema,
+  type ImplementerResult,
+  type ReviewerResult,
+} from '../messages.js';
 
 const execAsync = promisify(exec);
 
@@ -905,16 +911,55 @@ Stop when time limit approaches or when blockers are encountered.
     const implementer = new ImplementerAgent(this.ctx, this.baseDir);
     await implementer.run(input.task);
 
-    // Read handoff file if it exists
+    // Try to read structured JSON result first
+    let structuredResult: ImplementerResult | null = null;
+    const jsonPath = path.join(this.ctx.runDir, 'implementer_result.json');
+    try {
+      const jsonContent = await fs.readFile(jsonPath, 'utf-8');
+      const parsed = ImplementerResultSchema.safeParse(JSON.parse(jsonContent));
+      if (parsed.success) {
+        structuredResult = parsed.data;
+        await this.ctx.audit.log({
+          ts: new Date().toISOString(),
+          role: 'manager',
+          tool: 'agent_message',
+          allowed: true,
+          note: JSON.stringify({
+            event: 'agent_message',
+            from: 'implementer',
+            to: 'manager',
+            payload_type: 'ImplementerResult',
+            confidence: parsed.data.confidence,
+          }),
+        });
+      }
+    } catch {
+      // No JSON result file — fallback to markdown handoff
+    }
+
+    // Read markdown handoff (always — for human readability)
     const handoffPath = path.join(this.ctx.runDir, 'implementer_handoff.md');
     try {
       const handoff = await fs.readFile(handoffPath, 'utf-8');
       const missing = validateHandoff(handoff, IMPLEMENTER_REQUIRED);
+      
+      let result: string;
       if (missing.length > 0) {
-        return `Implementer completed but handoff missing sections: ${missing.join(', ')}. Consider re-delegating.\n\n--- IMPLEMENTER HANDOFF ---\n${handoff}`;
+        result = `Implementer completed but handoff missing sections: ${missing.join(', ')}. Consider re-delegating.\n\n--- IMPLEMENTER HANDOFF ---\n${handoff}`;
+      } else {
+        result = `Implementer agent completed.\n\n--- IMPLEMENTER HANDOFF ---\n${handoff}`;
       }
-      return `Implementer agent completed.\n\n--- IMPLEMENTER HANDOFF ---\n${handoff}`;
+      
+      // Append structured result summary if available
+      if (structuredResult) {
+        result += `\n\n--- STRUCTURED RESULT ---\nConfidence: ${structuredResult.confidence}\nFiles modified: ${structuredResult.filesModified.length}\nRisks: ${structuredResult.risks.length}\nTests passing: ${structuredResult.testsPassing}`;
+      }
+      
+      return result;
     } catch {
+      if (structuredResult) {
+        return `Implementer agent completed.\n\n--- STRUCTURED RESULT ---\nConfidence: ${structuredResult.confidence}\nFiles modified: ${structuredResult.filesModified.length}\nRisks: ${structuredResult.risks.length}\nTests passing: ${structuredResult.testsPassing}`;
+      }
       return 'Implementer agent completed successfully. (No handoff written)';
     }
   }
@@ -1050,16 +1095,55 @@ Stop when time limit approaches or when blockers are encountered.
     const reviewer = new ReviewerAgent(this.ctx, this.baseDir);
     await reviewer.run();
 
-    // Read handoff file if it exists
+    // Try to read structured JSON result first
+    let structuredResult: ReviewerResult | null = null;
+    const jsonPath = path.join(this.ctx.runDir, 'reviewer_result.json');
+    try {
+      const jsonContent = await fs.readFile(jsonPath, 'utf-8');
+      const parsed = ReviewerResultSchema.safeParse(JSON.parse(jsonContent));
+      if (parsed.success) {
+        structuredResult = parsed.data;
+        await this.ctx.audit.log({
+          ts: new Date().toISOString(),
+          role: 'manager',
+          tool: 'agent_message',
+          allowed: true,
+          note: JSON.stringify({
+            event: 'agent_message',
+            from: 'reviewer',
+            to: 'manager',
+            payload_type: 'ReviewerResult',
+            verdict: parsed.data.verdict,
+          }),
+        });
+      }
+    } catch {
+      // No JSON result file — fallback to markdown handoff
+    }
+
+    // Read markdown handoff
     const handoffPath = path.join(this.ctx.runDir, 'reviewer_handoff.md');
     try {
       const handoff = await fs.readFile(handoffPath, 'utf-8');
       const missing = validateHandoff(handoff, REVIEWER_REQUIRED);
+      
+      let result: string;
       if (missing.length > 0) {
-        return `Reviewer completed but handoff missing sections: ${missing.join(', ')}. Consider re-delegating.\n\n--- REVIEWER HANDOFF ---\n${handoff}`;
+        result = `Reviewer completed but handoff missing sections: ${missing.join(', ')}. Consider re-delegating.\n\n--- REVIEWER HANDOFF ---\n${handoff}`;
+      } else {
+        result = `Reviewer agent completed.\n\n--- REVIEWER HANDOFF ---\n${handoff}`;
       }
-      return `Reviewer agent completed.\n\n--- REVIEWER HANDOFF ---\n${handoff}`;
+      
+      // Append structured result summary if available
+      if (structuredResult) {
+        result += `\n\n--- STRUCTURED RESULT ---\nVerdict: ${structuredResult.verdict}\nTests: ${structuredResult.testsPassing}/${structuredResult.testsRun}\nBlockers: ${structuredResult.blockers.length}\nSuggestions: ${structuredResult.suggestions.length}`;
+      }
+      
+      return result;
     } catch {
+      if (structuredResult) {
+        return `Reviewer agent completed.\n\n--- STRUCTURED RESULT ---\nVerdict: ${structuredResult.verdict}\nTests: ${structuredResult.testsPassing}/${structuredResult.testsRun}\nBlockers: ${structuredResult.blockers.length}\nSuggestions: ${structuredResult.suggestions.length}`;
+      }
       return 'Reviewer agent completed successfully. (No handoff written)';
     }
   }

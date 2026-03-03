@@ -1,10 +1,22 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
 import { fileURLToPath } from 'url';
 import { ManagerAgent } from '../../src/core/agents/manager.js';
 import { createPolicyEnforcer } from '../../src/core/policy.js';
+
+vi.mock('../../src/core/agents/implementer.js', () => ({
+  ImplementerAgent: vi.fn().mockImplementation(() => ({
+    run: vi.fn().mockResolvedValue(undefined),
+  })),
+}));
+
+vi.mock('../../src/core/agents/reviewer.js', () => ({
+  ReviewerAgent: vi.fn().mockImplementation(() => ({
+    run: vi.fn().mockResolvedValue(undefined),
+  })),
+}));
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -195,34 +207,125 @@ describe('ManagerAgent', () => {
       const handoffContent = '### Vad gjordes\n- Changed foo.ts\n\n### Risker\n- Edge case X';
       await fs.writeFile(path.join(runDir, 'implementer_handoff.md'), handoffContent);
 
-      // Mock implementer.run to be a no-op
-      const origImplementer = (await import('../../src/core/agents/implementer.js')).ImplementerAgent;
-      const mockRun = async () => {};
-      const origProto = origImplementer.prototype.run;
-      origImplementer.prototype.run = mockRun;
-
-      try {
-        const result = await (agent as any).delegateToImplementer({ task: 'test task' });
-        expect(result).toContain('IMPLEMENTER HANDOFF');
-        expect(result).toContain('Vad gjordes');
-        expect(result).toContain('Edge case X');
-      } finally {
-        origImplementer.prototype.run = origProto;
-      }
+      const result = await (agent as any).delegateToImplementer({ task: 'test task' });
+      expect(result).toContain('IMPLEMENTER HANDOFF');
+      expect(result).toContain('Vad gjordes');
+      expect(result).toContain('Edge case X');
     });
 
     it('returns graceful fallback when implementer_handoff.md is missing', async () => {
-      const origImplementer = (await import('../../src/core/agents/implementer.js')).ImplementerAgent;
-      const mockRun = async () => {};
-      const origProto = origImplementer.prototype.run;
-      origImplementer.prototype.run = mockRun;
+      const result = await (agent as any).delegateToImplementer({ task: 'test task' });
+      expect(result).toContain('No handoff written');
+    });
+  });
 
-      try {
-        const result = await (agent as any).delegateToImplementer({ task: 'test task' });
-        expect(result).toContain('No handoff written');
-      } finally {
-        origImplementer.prototype.run = origProto;
-      }
+  describe('structured result parsing', () => {
+    it('reads implementer_result.json when available', async () => {
+      const validResult = {
+        taskId: 'T1',
+        filesModified: [{ path: 'src/foo.ts', reason: 'Added feature' }],
+        decisions: [],
+        risks: ['Edge case'],
+        notDone: [],
+        confidence: 'HIGH',
+        testsPassing: true,
+      };
+      await fs.writeFile(
+        path.join(runDir, 'implementer_result.json'),
+        JSON.stringify(validResult),
+      );
+      await fs.writeFile(
+        path.join(runDir, 'implementer_handoff.md'),
+        '## Self-Check\nConfidence: HIGH',
+      );
+      const result = await (agent as any).delegateToImplementer({ task: 'test task' });
+      expect(result).toContain('STRUCTURED RESULT');
+      expect(result).toContain('Confidence: HIGH');
+    });
+
+    it('falls back to markdown when implementer_result.json missing', async () => {
+      await fs.writeFile(
+        path.join(runDir, 'implementer_handoff.md'),
+        '## Self-Check\nConfidence: MEDIUM',
+      );
+      const result = await (agent as any).delegateToImplementer({ task: 'test task' });
+      expect(result).toContain('IMPLEMENTER HANDOFF');
+      expect(result).not.toContain('STRUCTURED RESULT');
+    });
+
+    it('falls back to markdown when implementer_result.json is invalid', async () => {
+      await fs.writeFile(
+        path.join(runDir, 'implementer_result.json'),
+        JSON.stringify({ taskId: 'T1' }),
+      );
+      await fs.writeFile(
+        path.join(runDir, 'implementer_handoff.md'),
+        '## Self-Check\nConfidence: MEDIUM',
+      );
+      const result = await (agent as any).delegateToImplementer({ task: 'test task' });
+      expect(result).toContain('IMPLEMENTER HANDOFF');
+      expect(result).not.toContain('STRUCTURED RESULT');
+    });
+
+    it('reads reviewer_result.json when available', async () => {
+      const validResult = {
+        verdict: 'GREEN',
+        testsRun: 50,
+        testsPassing: 50,
+        acceptanceCriteria: [{ criterion: 'Tests pass', passed: true }],
+        blockers: [],
+        suggestions: [],
+      };
+      await fs.writeFile(
+        path.join(runDir, 'reviewer_result.json'),
+        JSON.stringify(validResult),
+      );
+      await fs.writeFile(
+        path.join(runDir, 'reviewer_handoff.md'),
+        '## Self-Check\nTests run: YES\nAcceptance criteria checked: 1/1',
+      );
+      const result = await (agent as any).delegateToReviewer();
+      expect(result).toContain('STRUCTURED RESULT');
+      expect(result).toContain('Verdict: GREEN');
+    });
+
+    it('falls back to markdown when reviewer_result.json missing', async () => {
+      await fs.writeFile(
+        path.join(runDir, 'reviewer_handoff.md'),
+        '## Self-Check\nTests run: YES\nAcceptance criteria checked: 5/5',
+      );
+      const result = await (agent as any).delegateToReviewer();
+      expect(result).toContain('REVIEWER HANDOFF');
+      expect(result).not.toContain('STRUCTURED RESULT');
+    });
+
+    it('logs agent_message audit entry for implementer', async () => {
+      const auditEntries: any[] = [];
+      const mockCtx = createMockContext(policy, runDir, workspaceDir);
+      mockCtx.audit = { log: async (entry: any) => { auditEntries.push(entry); } };
+      const testAgent = new ManagerAgent(mockCtx, BASE_DIR);
+      (testAgent as any).memoryDir = memoryDir;
+
+      const validResult = {
+        taskId: 'T1',
+        filesModified: [],
+        decisions: [],
+        risks: [],
+        notDone: [],
+        confidence: 'HIGH',
+        testsPassing: true,
+      };
+      await fs.writeFile(path.join(runDir, 'implementer_result.json'), JSON.stringify(validResult));
+      await fs.writeFile(path.join(runDir, 'implementer_handoff.md'), '## Self-Check\nConfidence: HIGH');
+
+      await (testAgent as any).delegateToImplementer({ task: 'test task' });
+
+      const agentMsgEntries = auditEntries.filter(e => e.tool === 'agent_message');
+      expect(agentMsgEntries.length).toBeGreaterThan(0);
+      const parsed = JSON.parse(agentMsgEntries[0].note);
+      expect(parsed.event).toBe('agent_message');
+      expect(parsed.from).toBe('implementer');
+      expect(parsed.payload_type).toBe('ImplementerResult');
     });
   });
 });
