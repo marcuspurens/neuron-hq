@@ -7,7 +7,6 @@ import {
   addEdge,
   findNodes,
   type KGNode,
-  type KnowledgeGraph,
 } from '../../src/core/knowledge-graph.js';
 
 // Helper to read prompt files

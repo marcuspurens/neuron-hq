@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   findDuplicateCandidates,
   jaccardSimilarity,
 } from '../../src/core/graph-merge.js';
-import { type KnowledgeGraph, createEmptyGraph, addNode, type KGNode } from '../../src/core/knowledge-graph.js';
+import { createEmptyGraph, addNode, type KGNode } from '../../src/core/knowledge-graph.js';
 
 // Test that Jaccard misses semantically similar terms
 describe('Consolidator semantic dedup', () => {

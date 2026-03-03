@@ -68,7 +68,7 @@ describe('Transfer Learning — KGNodeSchema scope', () => {
   });
 
   it('defaults scope to "unknown" when omitted', () => {
-    const { scope, ...nodeWithoutScope } = makeNode();
+    const { scope: _scope, ...nodeWithoutScope } = makeNode();
     const result = KGNodeSchema.parse(nodeWithoutScope);
     expect(result.scope).toBe('unknown');
   });
@@ -86,7 +86,7 @@ describe('Transfer Learning — addNode scope', () => {
   });
 
   it('sets scope to "unknown" if not provided', () => {
-    const { scope, ...nodeWithoutScope } = makeNode();
+    const { scope: _scope, ...nodeWithoutScope } = makeNode();
     const newGraph = addNode(graph, nodeWithoutScope as KGNode);
     expect(newGraph.nodes[0].scope).toBe('unknown');
   });
@@ -189,7 +189,6 @@ describe('Transfer Learning — migrateAddScope', () => {
 
   it('updates lastUpdated timestamp', () => {
     const graph = createEmptyGraph();
-    const oldDate = graph.lastUpdated;
     // Small delay to ensure different timestamp
     const { graph: migrated } = migrateAddScope(graph);
     expect(migrated.lastUpdated).toBeDefined();

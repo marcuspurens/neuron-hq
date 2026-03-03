@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeExecutionWaves, splitConflictingWave, taskBranchName, detectFileConflicts } from '../../src/core/parallel-coordinator.js';
+import { computeExecutionWaves, splitConflictingWave, detectFileConflicts } from '../../src/core/parallel-coordinator.js';
 import type { AtomicTask } from '../../src/core/task-splitter.js';
 
 function makeTask(id: string, deps: string[] = [], files: string[] = [`file-${id}.ts`]): AtomicTask {

@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import { createEmptyGraph, addNode, addEdge, saveGraph, loadGraph, type KGNode, type KGEdge, type KnowledgeGraph } from '../../../src/core/knowledge-graph.js';
+import { createEmptyGraph, addNode, addEdge, saveGraph, loadGraph, type KGNode } from '../../../src/core/knowledge-graph.js';
 import { mergeNodes, findDuplicateCandidates, findStaleNodes, findMissingEdges } from '../../../src/core/graph-merge.js';
 
 function makeNode(overrides: Partial<KGNode> = {}): KGNode {
@@ -14,6 +14,7 @@ function makeNode(overrides: Partial<KGNode> = {}): KGNode {
     created: new Date().toISOString(),
     updated: new Date().toISOString(),
     confidence: 0.8,
+    scope: 'unknown',
     ...overrides,
   };
 }

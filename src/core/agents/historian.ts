@@ -80,7 +80,7 @@ export class HistorianAgent {
         ...currentGraph,
         nodes: currentGraph.nodes.map(n => {
           if (n.properties.decay_applied !== true) return n;
-          const { decay_applied, ...rest } = n.properties;
+          const { decay_applied: _decay_applied, ...rest } = n.properties;
           return { ...n, properties: rest };
         }),
       };

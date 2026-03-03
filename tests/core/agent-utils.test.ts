@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
 import Anthropic from '@anthropic-ai/sdk';
-import { searchMemoryFiles, truncateToolResult, trimMessages, MAX_TOOL_RESULT_CHARS, withRetry, isOverloadedError, isConnectionError, isRetryableError, CONNECTION_RETRY_BASE_DELAY_MS } from '../../src/core/agents/agent-utils.js';
+import { searchMemoryFiles, truncateToolResult, trimMessages, MAX_TOOL_RESULT_CHARS, withRetry, isOverloadedError, isConnectionError, isRetryableError } from '../../src/core/agents/agent-utils.js';
 
 describe('searchMemoryFiles', () => {
   const tmpDirs: string[] = [];

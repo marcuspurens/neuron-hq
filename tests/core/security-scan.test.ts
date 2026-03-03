@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   scanDiff,
   formatScanReport,
-  SECURITY_PATTERNS,
   SecurityFindingSchema,
   ScanResultSchema,
 } from '../../src/core/security-scan.js';

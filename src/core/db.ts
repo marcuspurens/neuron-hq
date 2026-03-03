@@ -38,7 +38,8 @@ export async function isDbAvailable(): Promise<boolean> {
     const client = await p.connect();
     client.release();
     return true;
-  } catch {
+  } catch (err) {
+    console.warn('Warning: Database not available:', err);
     return false;
   }
 }

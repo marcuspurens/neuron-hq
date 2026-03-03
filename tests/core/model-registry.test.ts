@@ -6,7 +6,6 @@ import {
   AgentModelMapSchema,
   AGENT_ROLES,
   type AgentModelMap,
-  type ModelConfig,
 } from '../../src/core/model-registry.js';
 
 describe('resolveModelConfig', () => {

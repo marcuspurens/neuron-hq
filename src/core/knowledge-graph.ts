@@ -46,7 +46,7 @@ export const KGNodeSchema = z.object({
     .or(z.string().regex(/^\d{4}-\d{2}-\d{2}/)),
   confidence: z.number().min(0).max(1),
   scope: NodeScopeSchema.default('unknown'),
-  model: z.string().optional(),
+  model: z.string().nullish(),
 });
 export type KGNode = z.infer<typeof KGNodeSchema>;
 
@@ -156,7 +156,8 @@ export async function loadGraphFromDb(): Promise<KnowledgeGraph | null> {
       edges,
       lastUpdated: new Date().toISOString(),
     };
-  } catch {
+  } catch (err) {
+    console.warn('Warning: Failed to load knowledge graph from DB:', err);
     return null;
   }
 }
@@ -344,8 +345,8 @@ export async function saveGraph(
       const nodeIds = validated.nodes.map(n => n.id);
       await autoEmbedNodes(nodeIds);
     }
-  } catch {
-    // DB write failure is non-fatal — file is the backup
+  } catch (err) {
+    console.warn('Warning: DB write failed during saveGraph (file backup exists):', err);
   }
 }
 
