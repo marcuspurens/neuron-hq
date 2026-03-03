@@ -11,3 +11,4 @@ export { costsCommand } from './costs.js';
 export { dbImportCommand } from './db-import.js';
 export { dbMigrateCommand } from './db-migrate.js';
 export { embedNodesCommand } from './embed-nodes.js';
+export { mcpServerCommand } from './mcp-server.js';

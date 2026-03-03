@@ -24,6 +24,7 @@ import {
   dbImportCommand,
   dbMigrateCommand,
   embedNodesCommand,
+  mcpServerCommand,
 } from './commands/index.js';
 import { scaffoldCommand } from './commands/scaffold.js';
 import { runBriefAgent } from './core/agents/brief-agent.js';
@@ -136,6 +137,11 @@ program
   .command('embed-nodes')
   .description('Generate embeddings for all knowledge graph nodes without one')
   .action(embedNodesCommand);
+
+program
+  .command('mcp-server')
+  .description('Start Neuron HQ as an MCP server (stdio transport)')
+  .action(mcpServerCommand);
 
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =

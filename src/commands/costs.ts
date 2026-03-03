@@ -4,30 +4,7 @@ import chalk from 'chalk';
 import { BASE_DIR } from '../cli.js';
 import { getPool, isDbAvailable } from '../core/db.js';
 
-// Pricing per million tokens (USD)
-const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-  'sonnet': { input: 3.0, output: 15.0 },
-  'haiku': { input: 0.80, output: 4.0 },
-  'opus': { input: 15.0, output: 75.0 },
-};
-
-function getModelShortName(model: string): string {
-  if (model.includes('haiku')) return 'haiku';
-  if (model.includes('opus')) return 'opus';
-  return 'sonnet';
-}
-
-function getModelLabel(model: string): string {
-  if (model.includes('haiku')) return 'Haiku';
-  if (model.includes('opus')) return 'Opus';
-  if (model.includes('sonnet')) return 'Sonnet 4.5';
-  return model;
-}
-
-function calcCost(inputTokens: number, outputTokens: number, modelKey: string): number {
-  const pricing = MODEL_PRICING[modelKey] ?? MODEL_PRICING['sonnet'];
-  return (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
-}
+import { MODEL_PRICING, getModelShortName, getModelLabel, calcCost } from '../core/pricing.js';
 
 interface RunCostRow {
   runid: string;
