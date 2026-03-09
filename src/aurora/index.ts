@@ -77,3 +77,11 @@ export {
   type Memory,
   type MemoryStats,
 } from './memory.js';
+
+export {
+  isYouTubeUrl,
+  extractVideoId,
+  ingestYouTube,
+  type YouTubeIngestOptions,
+  type YouTubeIngestResult,
+} from './youtube.js';

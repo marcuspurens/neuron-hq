@@ -35,6 +35,7 @@ import { auroraAskCommand } from './commands/aurora-ask.js';
 import { auroraRememberCommand } from './commands/aurora-remember.js';
 import { auroraRecallCommand } from './commands/aurora-recall.js';
 import { auroraMemoryStatsCommand } from './commands/aurora-memory-stats.js';
+import { auroraIngestYouTubeCommand } from './commands/aurora-ingest-youtube.js';
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
@@ -200,6 +201,15 @@ program
   .command('aurora:memory-stats')
   .description('Show Aurora memory statistics')
   .action(auroraMemoryStatsCommand);
+
+program
+  .command('aurora:ingest-youtube <url>')
+  .description('Ingest a YouTube video into Aurora knowledge graph')
+  .option('--diarize', 'Run speaker identification')
+  .option('--scope <scope>', 'personal | shared | project', 'personal')
+  .option('--max-chunks <N>', 'Max chunks')
+  .option('--whisper-model <model>', 'Whisper model: tiny|small|medium|large', 'small')
+  .action(auroraIngestYouTubeCommand);
 
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =

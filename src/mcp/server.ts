@@ -11,6 +11,8 @@ import { registerAuroraAskTool } from './tools/aurora-ask.js';
 import { registerAuroraRememberTool } from './tools/aurora-remember.js';
 import { registerAuroraRecallTool } from './tools/aurora-recall.js';
 import { registerAuroraMemoryStatsTool } from './tools/aurora-memory-stats.js';
+import { registerAuroraIngestYouTubeTool } from './tools/aurora-ingest-youtube.js';
+import { registerAuroraVoiceGalleryTool } from './tools/aurora-voice-gallery.js';
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -29,6 +31,8 @@ export function createMcpServer(): McpServer {
   registerAuroraRememberTool(server);
   registerAuroraRecallTool(server);
   registerAuroraMemoryStatsTool(server);
+  registerAuroraIngestYouTubeTool(server);
+  registerAuroraVoiceGalleryTool(server);
 
   return server;
 }

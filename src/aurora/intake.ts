@@ -5,7 +5,7 @@
  */
 
 import { createHash } from 'crypto';
-import { extname } from 'path';
+import { extname, resolve } from 'path';
 import { runWorker } from './worker-bridge.js';
 import { chunkText } from './chunker.js';
 import {
@@ -16,6 +16,7 @@ import {
   autoEmbedAuroraNodes,
 } from './aurora-graph.js';
 import type { AuroraNodeType, AuroraScope, AuroraNode } from './aurora-schema.js';
+import { isYouTubeUrl, ingestYouTube } from './youtube.js';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -58,6 +59,21 @@ export async function ingestUrl(
   url: string,
   options?: IngestOptions,
 ): Promise<IngestResult> {
+  // YouTube URL detection — route to specialized pipeline
+  if (isYouTubeUrl(url)) {
+    const result = await ingestYouTube(url, {
+      scope: options?.scope,
+      maxChunks: options?.maxChunks,
+    });
+    return {
+      documentNodeId: result.transcriptNodeId,
+      chunkNodeIds: [],  // YouTube pipeline doesn't return chunk IDs in same format
+      title: result.title,
+      wordCount: 0,
+      chunkCount: result.chunksCreated,
+    };
+  }
+
   const result = await runWorker({ action: 'extract_url', source: url });
   if (!result.ok) {
     throw new Error(result.error);
@@ -90,7 +106,8 @@ export async function ingestDocument(
     throw new Error(`Unsupported file type: ${ext}`);
   }
 
-  const result = await runWorker({ action, source: filePath });
+  const absolutePath = resolve(filePath);
+  const result = await runWorker({ action, source: absolutePath });
   if (!result.ok) {
     throw new Error(result.error);
   }
