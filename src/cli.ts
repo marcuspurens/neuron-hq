@@ -32,6 +32,9 @@ import { auroraStatusCommand } from './commands/aurora-status.js';
 import { auroraDecayCommand } from './commands/aurora-decay.js';
 import { auroraIngestCommand } from './commands/aurora-ingest.js';
 import { auroraAskCommand } from './commands/aurora-ask.js';
+import { auroraRememberCommand } from './commands/aurora-remember.js';
+import { auroraRecallCommand } from './commands/aurora-recall.js';
+import { auroraMemoryStatsCommand } from './commands/aurora-memory-stats.js';
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
@@ -175,6 +178,28 @@ program
   .option('--type <type>', 'Node type: document, research, etc. (default: document)')
   .option('--max-chunks <n>', 'Maximum number of chunks (default: 100)')
   .action(auroraIngestCommand);
+
+program
+  .command('aurora:remember <text>')
+  .description('Save a fact or preference to Aurora memory')
+  .option('--type <type>', 'fact | preference', 'fact')
+  .option('--scope <scope>', 'personal | shared | project', 'personal')
+  .option('--tags <tags>', 'Comma-separated tags')
+  .option('--source <source>', 'Source of the information')
+  .action(auroraRememberCommand);
+
+program
+  .command('aurora:recall <query>')
+  .description('Recall facts and preferences from Aurora memory')
+  .option('--type <type>', 'fact | preference')
+  .option('--scope <scope>', 'personal | shared | project')
+  .option('--limit <N>', 'Max results', '10')
+  .action(auroraRecallCommand);
+
+program
+  .command('aurora:memory-stats')
+  .description('Show Aurora memory statistics')
+  .action(auroraMemoryStatsCommand);
 
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =

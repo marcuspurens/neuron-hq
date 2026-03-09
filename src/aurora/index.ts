@@ -65,3 +65,15 @@ export {
   type AskResult,
   type Citation,
 } from './ask.js';
+
+export {
+  remember,
+  recall,
+  memoryStats,
+  type RememberOptions,
+  type RememberResult,
+  type RecallOptions,
+  type RecallResult,
+  type Memory,
+  type MemoryStats,
+} from './memory.js';
