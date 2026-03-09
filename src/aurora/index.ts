@@ -110,3 +110,9 @@ export {
   type UnifiedSearchResult,
   type UnifiedSearchOptions,
 } from './cross-ref.js';
+
+export {
+  briefing,
+  type BriefingOptions,
+  type BriefingResult,
+} from './briefing.js';

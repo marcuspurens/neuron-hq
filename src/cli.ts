@@ -39,6 +39,7 @@ import { auroraIngestYouTubeCommand } from './commands/aurora-ingest-youtube.js'
 import { auroraTimelineCommand } from './commands/aurora-timeline.js';
 import { auroraGapsCommand } from './commands/aurora-gaps.js';
 import { auroraCrossRefCommand } from './commands/aurora-cross-ref.js';
+import { auroraBriefingCommand } from './commands/aurora-briefing.js';
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
@@ -237,6 +238,15 @@ program
   .option('--min-similarity <n>', 'Minimum similarity threshold')
   .option('--type <type>', 'Filter by node type')
   .action(auroraCrossRefCommand);
+
+program
+  .command('aurora:briefing <topic>')
+  .description('Generate a knowledge briefing about a topic')
+  .option('--max-facts <n>', 'Max facts to include', '10')
+  .option('--max-timeline <n>', 'Max timeline entries', '10')
+  .option('--max-gaps <n>', 'Max knowledge gaps', '5')
+  .option('--max-cross-refs <n>', 'Max cross-refs per graph', '5')
+  .action(auroraBriefingCommand);
 
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =
