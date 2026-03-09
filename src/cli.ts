@@ -28,6 +28,7 @@ import {
 } from './commands/index.js';
 import { scaffoldCommand } from './commands/scaffold.js';
 import { runBriefAgent } from './core/agents/brief-agent.js';
+import { auroraStatusCommand } from './commands/aurora-status.js';
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
@@ -142,6 +143,11 @@ program
   .command('mcp-server')
   .description('Start Neuron HQ as an MCP server (stdio transport)')
   .action(mcpServerCommand);
+
+program
+  .command('aurora:status')
+  .description('Show Aurora knowledge graph statistics')
+  .action(auroraStatusCommand);
 
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =

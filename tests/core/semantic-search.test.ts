@@ -4,9 +4,9 @@ import { semanticSearch, findSimilarNodes } from '../../src/core/semantic-search
 // Mock the embeddings module
 vi.mock('../../src/core/embeddings.js', () => ({
   getEmbeddingProvider: vi.fn().mockReturnValue({
-    embed: vi.fn().mockResolvedValue(Array.from({ length: 768 }, () => 0.1)),
+    embed: vi.fn().mockResolvedValue(Array.from({ length: 1024 }, () => 0.1)),
     embedBatch: vi.fn(),
-    dimension: 768,
+    dimension: 1024,
   }),
 }));
 
@@ -155,5 +155,72 @@ describe('findSimilarNodes', () => {
 
     const results = await findSimilarNodes('nonexistent');
     expect(results).toEqual([]);
+  });
+});
+
+describe('semanticSearch with table parameter', () => {
+  beforeEach(() => {
+    mockQuery.mockReset();
+  });
+
+  it('defaults to kg_nodes table', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    await semanticSearch('test');
+
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain('FROM kg_nodes');
+  });
+
+  it('uses aurora_nodes table when specified', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    await semanticSearch('test', { table: 'aurora_nodes' });
+
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain('FROM aurora_nodes');
+    expect(sql).not.toContain('FROM kg_nodes');
+  });
+
+  it('rejects invalid table name (SQL injection protection)', async () => {
+    await expect(
+      semanticSearch('test', { table: 'kg_nodes; DROP TABLE users--' as any }),
+    ).rejects.toThrow('Invalid table');
+  });
+
+  it('rejects arbitrary table names', async () => {
+    await expect(
+      semanticSearch('test', { table: 'some_other_table' as any }),
+    ).rejects.toThrow('Invalid table');
+  });
+});
+
+describe('findSimilarNodes with table parameter', () => {
+  beforeEach(() => {
+    mockQuery.mockReset();
+  });
+
+  it('defaults to kg_nodes table', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    await findSimilarNodes('p-1');
+
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain('kg_nodes');
+  });
+
+  it('uses aurora_nodes table when specified', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    await findSimilarNodes('p-1', { table: 'aurora_nodes' });
+
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain('aurora_nodes');
+  });
+
+  it('rejects invalid table name', async () => {
+    await expect(
+      findSimilarNodes('p-1', { table: 'evil_table' as any }),
+    ).rejects.toThrow('Invalid table');
   });
 });

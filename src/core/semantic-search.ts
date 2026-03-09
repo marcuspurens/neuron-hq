@@ -1,6 +1,16 @@
 import { getPool } from './db.js';
 import { getEmbeddingProvider } from './embeddings.js';
 
+const ALLOWED_TABLES = ['kg_nodes', 'aurora_nodes'] as const;
+type AllowedTable = (typeof ALLOWED_TABLES)[number];
+
+function validateTable(table: string): AllowedTable {
+  if (!(ALLOWED_TABLES as readonly string[]).includes(table)) {
+    throw new Error(`Invalid table: ${table}. Allowed: ${ALLOWED_TABLES.join(', ')}`);
+  }
+  return table as AllowedTable;
+}
+
 export interface SemanticResult {
   id: string;
   title: string;
@@ -21,8 +31,10 @@ export async function semanticSearch(
     limit?: number;
     minSimilarity?: number;
     scope?: string;
+    table?: 'kg_nodes' | 'aurora_nodes';
   }
 ): Promise<SemanticResult[]> {
+  const tableName = validateTable(options?.table ?? 'kg_nodes');
   const provider = getEmbeddingProvider();
   const queryEmbedding = await provider.embed(query);
   const pool = getPool();
@@ -33,7 +45,7 @@ export async function semanticSearch(
   let sql = `
     SELECT id, title, type, confidence, scope,
            1 - (embedding <=> $1::vector) AS similarity
-    FROM kg_nodes
+    FROM ${tableName}
     WHERE embedding IS NOT NULL
   `;
   const params: unknown[] = [`[${queryEmbedding.join(',')}]`];
@@ -67,8 +79,13 @@ export async function semanticSearch(
  */
 export async function findSimilarNodes(
   nodeId: string,
-  options?: { limit?: number; minSimilarity?: number }
+  options?: {
+    limit?: number;
+    minSimilarity?: number;
+    table?: 'kg_nodes' | 'aurora_nodes';
+  }
 ): Promise<SemanticResult[]> {
+  const tableName = validateTable(options?.table ?? 'kg_nodes');
   const pool = getPool();
   const limit = options?.limit ?? 5;
   const minSim = options?.minSimilarity ?? 0.8;
@@ -77,7 +94,7 @@ export async function findSimilarNodes(
     `
     SELECT b.id, b.title, b.type, b.confidence, b.scope,
            1 - (a.embedding <=> b.embedding) AS similarity
-    FROM kg_nodes a, kg_nodes b
+    FROM ${tableName} a, ${tableName} b
     WHERE a.id = $1
       AND b.id != $1
       AND a.embedding IS NOT NULL
