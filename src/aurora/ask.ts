@@ -6,6 +6,9 @@ import {
   DEFAULT_MODEL_CONFIG,
   type ModelConfig,
 } from '../core/model-registry.js';
+import { remember } from './memory.js';
+import type { RememberResult } from './memory.js';
+import { recordGap } from './knowledge-gaps.js';
 
 export interface AskOptions {
   maxSources?: number; // Default: 10
@@ -13,6 +16,8 @@ export interface AskOptions {
   type?: string;
   scope?: string;
   maxTokens?: number; // Default: 1024
+  /** Extrahera och spara fakta från svaret. Default: false. */
+  learn?: boolean;
 }
 
 export interface AskResult {
@@ -20,6 +25,8 @@ export interface AskResult {
   citations: Citation[];
   sourcesUsed: number;
   noSourcesFound: boolean;
+  /** Fakta som lärdes (om learn=true). */
+  factsLearned?: RememberResult[];
 }
 
 export interface Citation {
@@ -77,6 +84,70 @@ function getAskModelConfig(): ModelConfig {
 }
 
 /**
+ * Get a cheap Haiku config for auto-learning extraction.
+ */
+function getLearnModelConfig(): ModelConfig {
+  return {
+    ...DEFAULT_MODEL_CONFIG,
+    model: 'claude-haiku-4-5-20251001',
+    maxTokens: 1024,
+  };
+}
+
+/**
+ * Extract key facts from an answer using a cheap Haiku call,
+ * then save them via remember().
+ */
+async function learnFromAnswer(answer: string): Promise<RememberResult[]> {
+  const config = getLearnModelConfig();
+  const { client, model } = createAgentClient(config);
+
+  const response = await client.messages.create({
+    model,
+    max_tokens: 512,
+    messages: [
+      {
+        role: 'user',
+        content: `Extrahera de viktigaste fakta från detta svar som korta, oberoende påståenden.
+Returnera som JSON-array: ["faktum 1", "faktum 2", ...]
+Max 5 fakta. Bara fakta som faktiskt finns i svaret, inga spekulationer.
+Om svaret inte innehåller tydliga fakta, returnera en tom array.
+
+Svar att extrahera från:
+${answer}`,
+      },
+    ],
+  });
+
+  // Parse JSON array from response
+  const text = response.content
+    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+    .map((block) => block.text)
+    .join('');
+
+  // Try to extract JSON array from the response text
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) return [];
+
+  const facts: unknown = JSON.parse(jsonMatch[0]);
+  if (!Array.isArray(facts)) return [];
+
+  // Save each fact via remember()
+  const results: RememberResult[] = [];
+  for (const fact of facts.slice(0, 5)) {
+    if (typeof fact === 'string' && fact.trim().length > 0) {
+      const result = await remember(fact.trim(), {
+        type: 'fact',
+        source: 'auto-extracted',
+      });
+      results.push(result);
+    }
+  }
+
+  return results;
+}
+
+/**
  * Ask a question against the Aurora knowledge graph.
  *
  * Searches for relevant sources, then uses Claude to synthesize
@@ -97,6 +168,12 @@ export async function ask(
 
   // Step 2: No results — return early without calling Claude
   if (results.length === 0) {
+    // Record knowledge gap
+    try {
+      await recordGap(question);
+    } catch {
+      // Non-fatal — don't block the answer
+    }
     return {
       answer:
         'Inga relevanta källor hittades i kunskapsbasen för din fråga.',
@@ -140,12 +217,23 @@ export async function ask(
       .map((block) => block.text)
       .join('\n');
 
-    // Step 8: Return result
+    // Step 8: Auto-learn if requested
+    let factsLearned: RememberResult[] | undefined;
+    if (options?.learn) {
+      try {
+        factsLearned = await learnFromAnswer(answer);
+      } catch {
+        // Auto-learning is non-fatal — log but don't block
+      }
+    }
+
+    // Step 9: Return result
     return {
       answer,
       citations,
       sourcesUsed: results.length,
       noSourcesFound: false,
+      ...(factsLearned ? { factsLearned } : {}),
     };
   } catch (error: unknown) {
     const message =

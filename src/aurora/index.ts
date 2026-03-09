@@ -85,3 +85,16 @@ export {
   type YouTubeIngestOptions,
   type YouTubeIngestResult,
 } from './youtube.js';
+
+export {
+  timeline,
+  type TimelineEntry,
+  type TimelineOptions,
+} from './timeline.js';
+
+export {
+  recordGap,
+  getGaps,
+  type KnowledgeGap,
+  type GapsResult,
+} from './knowledge-gaps.js';

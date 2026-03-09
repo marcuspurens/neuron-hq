@@ -36,6 +36,8 @@ import { auroraRememberCommand } from './commands/aurora-remember.js';
 import { auroraRecallCommand } from './commands/aurora-recall.js';
 import { auroraMemoryStatsCommand } from './commands/aurora-memory-stats.js';
 import { auroraIngestYouTubeCommand } from './commands/aurora-ingest-youtube.js';
+import { auroraTimelineCommand } from './commands/aurora-timeline.js';
+import { auroraGapsCommand } from './commands/aurora-gaps.js';
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
@@ -210,6 +212,22 @@ program
   .option('--max-chunks <N>', 'Max chunks')
   .option('--whisper-model <model>', 'Whisper model: tiny|small|medium|large', 'small')
   .action(auroraIngestYouTubeCommand);
+
+program
+  .command('aurora:timeline')
+  .description('Show a chronological timeline of Aurora knowledge base entries')
+  .option('--limit <n>', 'Max entries to show')
+  .option('--type <type>', 'Filter by node type')
+  .option('--scope <scope>', 'Filter by scope')
+  .option('--since <date>', 'From date (ISO)')
+  .option('--until <date>', 'To date (ISO)')
+  .action(auroraTimelineCommand);
+
+program
+  .command('aurora:gaps')
+  .description('Show knowledge gaps — questions Aurora could not answer')
+  .option('--limit <n>', 'Max gaps to show')
+  .action(auroraGapsCommand);
 
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =

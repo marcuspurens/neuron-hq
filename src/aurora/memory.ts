@@ -10,6 +10,13 @@ import {
 } from './aurora-graph.js';
 import { searchAurora } from './search.js';
 import type { AuroraNode, AuroraGraph, AuroraEdgeType } from './aurora-schema.js';
+import { createAgentClient } from '../core/agent-client.js';
+import {
+  resolveModelConfig,
+  DEFAULT_MODEL_CONFIG,
+  type ModelConfig,
+} from '../core/model-registry.js';
+import type Anthropic from '@anthropic-ai/sdk';
 
 // --- Interfaces ---
 
@@ -26,6 +33,19 @@ export interface RememberResult {
   action: 'created' | 'updated' | 'duplicate';
   existingNodeId?: string;
   similarity?: number;
+  /** Noder som motsäger det nya faktumet. */
+  contradictions?: Contradiction[];
+}
+
+export interface Contradiction {
+  /** ID på den motsägande noden. */
+  nodeId: string;
+  /** Titel. */
+  title: string;
+  /** Similarity score. */
+  similarity: number;
+  /** Förklaring av motsägelsen. */
+  reason: string;
 }
 
 export interface RecallOptions {
@@ -126,6 +146,86 @@ function nodeToMemory(
   };
 }
 
+/** Get a cheap Haiku model config for contradiction checks. */
+function getContradictionModelConfig(): ModelConfig {
+  try {
+    return resolveModelConfig('researcher');
+  } catch {
+    return {
+      ...DEFAULT_MODEL_CONFIG,
+      model: 'claude-haiku-4-5-20251001',
+    };
+  }
+}
+
+/**
+ * Check candidates for contradictions against the new text.
+ * Max 3 candidates. Uses Haiku for cheap, fast checks.
+ * Returns contradictions found, or empty array on failure.
+ */
+async function checkContradictions(
+  text: string,
+  candidates: { id: string; similarity: number; title: string }[],
+  graph: AuroraGraph,
+): Promise<Contradiction[]> {
+  const config = getContradictionModelConfig();
+  const { client, model } = createAgentClient(config);
+  const contradictions: Contradiction[] = [];
+
+  // Check max 3 candidates
+  for (const candidate of candidates.slice(0, 3)) {
+    const node = graph.nodes.find((n) => n.id === candidate.id);
+    if (!node) continue;
+
+    const existingText = typeof node.properties.text === 'string'
+      ? node.properties.text
+      : node.title;
+
+    try {
+      const response = await client.messages.create({
+        model,
+        max_tokens: 256,
+        messages: [
+          {
+            role: 'user',
+            content: `Jämför dessa två påståenden. Motsäger de varandra?
+
+Nytt: "${text}"
+Befintligt: "${existingText}"
+
+Svara med JSON: { "contradicts": true/false, "reason": "kort förklaring" }`,
+          },
+        ],
+      });
+
+      const responseText = response.content
+        .filter(
+          (block): block is Anthropic.TextBlock => block.type === 'text',
+        )
+        .map((block) => block.text)
+        .join('');
+
+      // Parse JSON from response
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]) as { contradicts?: boolean; reason?: string };
+        if (parsed.contradicts) {
+          contradictions.push({
+            nodeId: candidate.id,
+            title: candidate.title,
+            similarity: candidate.similarity,
+            reason: parsed.reason ?? 'Contradiction detected',
+          });
+        }
+      }
+    } catch {
+      // Individual candidate check failed — skip silently
+    }
+  }
+
+  return contradictions;
+}
+
 // --- Core Functions ---
 
 /**
@@ -222,7 +322,7 @@ export async function remember(
 
   graph = addAuroraNode(graph, node);
 
-  // Step 4: Create related_to edges for similar (but not duplicate) results
+  // Step 4: Check for contradictions and create edges
   const relatedCandidates = candidates.filter(
     (c) =>
       c.similarity !== null &&
@@ -230,17 +330,43 @@ export async function remember(
       c.similarity < dedupThreshold,
   );
 
-  for (const candidate of relatedCandidates) {
-    const edgeType: AuroraEdgeType = 'related_to';
-    graph = addAuroraEdge(graph, {
-      from: newId,
-      to: candidate.id,
-      type: edgeType,
-      metadata: {
-        createdBy: 'memory',
-        timestamp: now,
-      },
+  let contradictions: Contradiction[] | undefined;
+
+  if (relatedCandidates.length > 0) {
+    // Build candidate info for contradiction check
+    const candidateInfo = relatedCandidates.map((c) => {
+      const node = graph.nodes.find((n) => n.id === c.id);
+      return {
+        id: c.id,
+        similarity: c.similarity!,
+        title: node?.title ?? c.id,
+      };
     });
+
+    // Check for contradictions (non-fatal)
+    try {
+      contradictions = await checkContradictions(text, candidateInfo, graph);
+    } catch {
+      // Contradiction check failed — fall back to related_to edges
+    }
+
+    const contradictionIds = new Set(contradictions?.map((c) => c.nodeId) ?? []);
+
+    for (const candidate of relatedCandidates) {
+      // Use 'contradicts' edge for contradictions, 'related_to' for others
+      const edgeType: AuroraEdgeType = contradictionIds.has(candidate.id)
+        ? 'contradicts'
+        : 'related_to';
+      graph = addAuroraEdge(graph, {
+        from: newId,
+        to: candidate.id,
+        type: edgeType,
+        metadata: {
+          createdBy: 'memory',
+          timestamp: now,
+        },
+      });
+    }
   }
 
   // Step 5: Save
@@ -249,6 +375,7 @@ export async function remember(
   return {
     action: 'created',
     nodeId: newId,
+    ...(contradictions && contradictions.length > 0 ? { contradictions } : {}),
   };
 }
 
