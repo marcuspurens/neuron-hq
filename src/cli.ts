@@ -29,6 +29,7 @@ import {
 import { scaffoldCommand } from './commands/scaffold.js';
 import { runBriefAgent } from './core/agents/brief-agent.js';
 import { auroraStatusCommand } from './commands/aurora-status.js';
+import { auroraDecayCommand } from './commands/aurora-decay.js';
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
@@ -148,6 +149,14 @@ program
   .command('aurora:status')
   .description('Show Aurora knowledge graph statistics')
   .action(auroraStatusCommand);
+
+program
+  .command('aurora:decay')
+  .description('Apply confidence decay to inactive Aurora nodes')
+  .option('--dry-run', 'Show what would change without modifying data')
+  .option('--days <days>', 'Inactive threshold in days (default: 20)')
+  .option('--factor <factor>', 'Decay factor (default: 0.9)')
+  .action(auroraDecayCommand);
 
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =

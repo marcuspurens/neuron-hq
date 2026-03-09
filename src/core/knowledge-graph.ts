@@ -270,16 +270,26 @@ export async function autoEmbedNodes(nodeIds: string[]): Promise<void> {
       nodeIds,
     );
     
-    for (const node of rows) {
+    // Build texts for all nodes
+    const texts = rows.map((node: Record<string, unknown>) =>
+      `${node.type}: ${node.title}. ${JSON.stringify(node.properties)}`
+    );
+
+    // Process in batches of 20
+    const BATCH_SIZE = 20;
+    for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+      const batchTexts = texts.slice(i, i + BATCH_SIZE);
+      const batchRows = rows.slice(i, i + BATCH_SIZE);
       try {
-        const text = `${node.type}: ${node.title}. ${JSON.stringify(node.properties)}`;
-        const embedding = await provider.embed(text);
-        await pool.query(
-          'UPDATE kg_nodes SET embedding = $1 WHERE id = $2',
-          [`[${embedding.join(',')}]`, node.id],
-        );
+        const embeddings = await provider.embedBatch(batchTexts);
+        for (let j = 0; j < batchRows.length; j++) {
+          await pool.query(
+            'UPDATE kg_nodes SET embedding = $1 WHERE id = $2',
+            [`[${embeddings[j].join(',')}]`, batchRows[j].id],
+          );
+        }
       } catch (err) {
-        console.warn(`Warning: Failed to embed node ${node.id}:`, err);
+        console.warn(`Warning: Failed to embed batch starting at index ${i}:`, err);
       }
     }
   } catch (err) {

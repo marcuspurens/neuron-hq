@@ -5,6 +5,7 @@ import { registerKnowledgeTool } from './tools/knowledge.js';
 import { registerCostsTool } from './tools/costs.js';
 import { registerStartTool } from './tools/start.js';
 import { registerAuroraStatusTool } from './tools/aurora-status.js';
+import { registerAuroraSearchTool } from './tools/aurora-search.js';
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -17,6 +18,7 @@ export function createMcpServer(): McpServer {
   registerCostsTool(server);
   registerStartTool(server);
   registerAuroraStatusTool(server);
+  registerAuroraSearchTool(server);
 
   return server;
 }
