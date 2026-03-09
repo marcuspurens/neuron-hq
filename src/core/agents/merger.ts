@@ -308,7 +308,7 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
             },
             source_branch: {
               type: 'string',
-              description: 'The branch name to merge (e.g. neuron/run-123/task-T1)',
+              description: 'The branch name to merge (e.g. neuron-run-123-task-T1)',
             },
           },
           required: ['task_id', 'source_branch'],

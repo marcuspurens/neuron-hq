@@ -50,7 +50,7 @@ export function computeExecutionWaves(tasks: AtomicTask[]): AtomicTask[][] {
  * Generates a git branch name for a task within a run.
  */
 export function taskBranchName(runId: string, taskId: string): string {
-  return `neuron/${runId}/task-${taskId}`;
+  return `neuron-${runId}-task-${taskId}`;
 }
 
 /**

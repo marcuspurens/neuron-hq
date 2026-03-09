@@ -61,7 +61,7 @@ describe('computeExecutionWaves', () => {
 
 describe('taskBranchName', () => {
   it('correct format', () => {
-    expect(taskBranchName('run-123', 'T1')).toBe('neuron/run-123/task-T1');
+    expect(taskBranchName('run-123', 'T1')).toBe('neuron-run-123-task-T1');
   });
 });
 
