@@ -51,3 +51,17 @@ export {
   type IngestOptions,
   type IngestResult,
 } from './intake.js';
+
+export {
+  searchAurora,
+  type SearchOptions,
+  type SearchResult,
+} from './search.js';
+
+export {
+  ask,
+  formatContext,
+  type AskOptions,
+  type AskResult,
+  type Citation,
+} from './ask.js';

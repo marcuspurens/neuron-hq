@@ -31,6 +31,7 @@ import { runBriefAgent } from './core/agents/brief-agent.js';
 import { auroraStatusCommand } from './commands/aurora-status.js';
 import { auroraDecayCommand } from './commands/aurora-decay.js';
 import { auroraIngestCommand } from './commands/aurora-ingest.js';
+import { auroraAskCommand } from './commands/aurora-ask.js';
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
@@ -158,6 +159,14 @@ program
   .option('--days <days>', 'Inactive threshold in days (default: 20)')
   .option('--factor <factor>', 'Decay factor (default: 0.9)')
   .action(auroraDecayCommand);
+
+program
+  .command('aurora:ask <question>')
+  .description('Ask a question and get an answer from Aurora knowledge base')
+  .option('--max-sources <n>', 'Maximum number of sources to use (default: 10)')
+  .option('--type <type>', 'Filter by node type (document, fact, etc.)')
+  .option('--scope <scope>', 'Filter by scope (personal, shared, project)')
+  .action(auroraAskCommand);
 
 program
   .command('aurora:ingest <source>')

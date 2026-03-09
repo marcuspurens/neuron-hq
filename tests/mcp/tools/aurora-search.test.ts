@@ -1,15 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockSemanticSearch = vi.fn();
-vi.mock('../../../src/core/semantic-search.js', () => ({
-  semanticSearch: (...args: unknown[]) => mockSemanticSearch(...args),
-}));
-
-const mockLoadAuroraGraph = vi.fn();
-const mockFindAuroraNodes = vi.fn();
-vi.mock('../../../src/aurora/aurora-graph.js', () => ({
-  loadAuroraGraph: () => mockLoadAuroraGraph(),
-  findAuroraNodes: (...args: unknown[]) => mockFindAuroraNodes(...args),
+const mockSearchAurora = vi.fn();
+vi.mock('../../../src/aurora/search.js', () => ({
+  searchAurora: (...args: unknown[]) => mockSearchAurora(...args),
 }));
 
 import { registerAuroraSearchTool } from '../../../src/mcp/tools/aurora-search.js';
@@ -32,9 +25,7 @@ const mockServer = {
 
 describe('aurora_search MCP tool', () => {
   beforeEach(() => {
-    mockSemanticSearch.mockReset();
-    mockLoadAuroraGraph.mockReset();
-    mockFindAuroraNodes.mockReset();
+    mockSearchAurora.mockReset();
     registerAuroraSearchTool(mockServer);
   });
 
@@ -47,8 +38,8 @@ describe('aurora_search MCP tool', () => {
     );
   });
 
-  it('returns semantic results when available', async () => {
-    mockSemanticSearch.mockResolvedValue([
+  it('returns search results with all fields mapped', async () => {
+    mockSearchAurora.mockResolvedValue([
       {
         id: 'doc-1',
         title: 'Test Doc',
@@ -56,6 +47,9 @@ describe('aurora_search MCP tool', () => {
         similarity: 0.95,
         confidence: 0.8,
         scope: 'personal',
+        text: 'Some content',
+        source: 'semantic',
+        related: [{ id: 'doc-2', title: 'Related', edgeType: 'references' }],
       },
     ]);
 
@@ -65,76 +59,52 @@ describe('aurora_search MCP tool', () => {
     expect(data).toHaveLength(1);
     expect(data[0].id).toBe('doc-1');
     expect(data[0].similarity).toBe(0.95);
-    expect(data[0].properties).toEqual({});
-    expect(mockSemanticSearch).toHaveBeenCalledWith('test', {
-      table: 'aurora_nodes',
-      type: undefined,
-      scope: undefined,
-      limit: 10,
-    });
+    expect(data[0].text).toBe('Some content');
+    expect(data[0].source).toBe('semantic');
+    expect(data[0].related).toEqual([
+      { id: 'doc-2', title: 'Related', edgeType: 'references' },
+    ]);
   });
 
-  it('filters by type and scope', async () => {
-    mockSemanticSearch.mockResolvedValue([
-      {
-        id: 'f-1',
-        title: 'A Fact',
-        type: 'fact',
-        similarity: 0.9,
-        confidence: 0.7,
-        scope: 'shared',
-      },
-    ]);
+  it('passes type, scope, and limit to searchAurora', async () => {
+    mockSearchAurora.mockResolvedValue([]);
 
-    const result = await toolHandler({
+    await toolHandler({
       query: 'test',
       type: 'fact',
       scope: 'shared',
       limit: 5,
     });
-    const data = JSON.parse(result.content[0].text);
 
-    expect(data).toHaveLength(1);
-    expect(data[0].type).toBe('fact');
-    expect(mockSemanticSearch).toHaveBeenCalledWith('test', {
-      table: 'aurora_nodes',
+    expect(mockSearchAurora).toHaveBeenCalledWith('test', {
       type: 'fact',
       scope: 'shared',
       limit: 5,
+      includeRelated: true,
     });
   });
 
-  it('falls back to keyword search on semantic error', async () => {
-    mockSemanticSearch.mockRejectedValue(new Error('No Postgres'));
+  it('defaults related to empty array when undefined', async () => {
+    mockSearchAurora.mockResolvedValue([
+      {
+        id: 'doc-1',
+        title: 'No Related',
+        type: 'document',
+        similarity: 0.8,
+        confidence: 0.7,
+        scope: 'personal',
+        source: 'semantic',
+      },
+    ]);
 
-    const keywordNode = {
-      id: 'doc-1',
-      type: 'document',
-      title: 'Keyword Doc',
-      properties: { desc: 'found' },
-      confidence: 0.8,
-      scope: 'personal',
-      created: '2024-01-01',
-      updated: '2024-01-01',
-    };
-    mockLoadAuroraGraph.mockResolvedValue({
-      nodes: [keywordNode],
-      edges: [],
-      lastUpdated: '2024-01-01',
-    });
-    mockFindAuroraNodes.mockReturnValue([keywordNode]);
-
-    const result = await toolHandler({ query: 'keyword', limit: 10 });
+    const result = await toolHandler({ query: 'test', limit: 10 });
     const data = JSON.parse(result.content[0].text);
 
-    expect(data).toHaveLength(1);
-    expect(data[0].similarity).toBeNull();
-    expect(data[0].properties).toEqual({ desc: 'found' });
-    expect(result.isError).not.toBe(true);
+    expect(data[0].related).toEqual([]);
   });
 
   it('handles empty results', async () => {
-    mockSemanticSearch.mockResolvedValue([]);
+    mockSearchAurora.mockResolvedValue([]);
 
     const result = await toolHandler({ query: 'nonexistent', limit: 10 });
     const data = JSON.parse(result.content[0].text);
@@ -142,13 +112,12 @@ describe('aurora_search MCP tool', () => {
     expect(data).toEqual([]);
   });
 
-  it('returns error on complete failure', async () => {
-    mockSemanticSearch.mockRejectedValue(new Error('No Postgres'));
-    mockLoadAuroraGraph.mockRejectedValue(new Error('File not found'));
+  it('returns error on failure', async () => {
+    mockSearchAurora.mockRejectedValue(new Error('Search failed'));
 
     const result = await toolHandler({ query: 'broken', limit: 10 });
 
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain('Error:');
+    expect(result.content[0].text).toContain('Error: Search failed');
   });
 });

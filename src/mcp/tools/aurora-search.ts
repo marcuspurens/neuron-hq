@@ -1,7 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { loadAuroraGraph, findAuroraNodes } from '../../aurora/aurora-graph.js';
-import type { AuroraNodeType, AuroraScope } from '../../aurora/aurora-schema.js';
+import { searchAurora } from '../../aurora/search.js';
 
 /** Register the aurora_search MCP tool on the given server. */
 export function registerAuroraSearchTool(server: McpServer): void {
@@ -40,51 +39,28 @@ export function registerAuroraSearchTool(server: McpServer): void {
     },
     async (args) => {
       try {
-        let results: Array<Record<string, unknown>>;
+        const results = await searchAurora(args.query, {
+          type: args.type,
+          scope: args.scope,
+          limit: args.limit,
+          includeRelated: true,
+        });
 
-        try {
-          const { semanticSearch } = await import(
-            '../../core/semantic-search.js'
-          );
-          const semanticResults = await semanticSearch(args.query, {
-            table: 'aurora_nodes',
-            type: args.type,
-            scope: args.scope,
-            limit: args.limit,
-          });
-
-          results = semanticResults.map((sr) => ({
-            id: sr.id,
-            title: sr.title,
-            type: sr.type,
-            similarity: sr.similarity,
-            confidence: sr.confidence,
-            scope: sr.scope,
-            properties: {},
-          }));
-        } catch {
-          // Semantic search unavailable, fall back to keyword search
-          const graph = await loadAuroraGraph();
-          results = findAuroraNodes(graph, {
-            type: args.type as AuroraNodeType | undefined,
-            query: args.query,
-            scope: args.scope as AuroraScope | undefined,
-          })
-            .slice(0, args.limit ?? 10)
-            .map((node) => ({
-              id: node.id,
-              title: node.title,
-              type: node.type,
-              similarity: null,
-              confidence: node.confidence,
-              scope: node.scope,
-              properties: node.properties,
-            }));
-        }
+        const mapped = results.map((r) => ({
+          id: r.id,
+          title: r.title,
+          type: r.type,
+          similarity: r.similarity,
+          confidence: r.confidence,
+          scope: r.scope,
+          text: r.text,
+          source: r.source,
+          related: r.related ?? [],
+        }));
 
         return {
           content: [
-            { type: 'text' as const, text: JSON.stringify(results, null, 2) },
+            { type: 'text' as const, text: JSON.stringify(mapped, null, 2) },
           ],
         };
       } catch (err) {

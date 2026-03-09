@@ -7,6 +7,7 @@ import { registerStartTool } from './tools/start.js';
 import { registerAuroraStatusTool } from './tools/aurora-status.js';
 import { registerAuroraSearchTool } from './tools/aurora-search.js';
 import { registerAuroraIngestTools } from './tools/aurora-ingest.js';
+import { registerAuroraAskTool } from './tools/aurora-ask.js';
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -21,6 +22,7 @@ export function createMcpServer(): McpServer {
   registerAuroraStatusTool(server);
   registerAuroraSearchTool(server);
   registerAuroraIngestTools(server);
+  registerAuroraAskTool(server);
 
   return server;
 }
