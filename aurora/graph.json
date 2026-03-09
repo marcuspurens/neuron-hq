@@ -1,0 +1,300 @@
+{
+  "nodes": [
+    {
+      "id": "doc_21725e4d573a",
+      "type": "document",
+      "title": "README",
+      "properties": {
+        "text": "# Neuron HQ\n\n**Autonomous agent swarm control plane for developing target repos**\n\nNeuron HQ coordinates Manager, Implementer, Reviewer, and Researcher agents to autonomously develop code in other repositories over 2-3 hour runs, with full audit trails, policy enforcement, and artifact generation.\n\n## Quick Start\n\n### 1. Install\n\n```bash\npnpm install\n```\n\n### 2. Configure API Key\n\n```bash\ncp .env.example .env\n# Edit .env and add your ANTHROPIC_API_KEY\n```\n\n### 3. Add a Target Repo\n\n```bash\npnpm ",
+        "source_type": "text",
+        "word_count": 591,
+        "language": "unknown"
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T08:39:51.243Z",
+      "updated": "2026-03-09T08:39:51.243Z"
+    },
+    {
+      "id": "doc_21725e4d573a_chunk_0",
+      "type": "document",
+      "title": "README [chunk 1/4]",
+      "properties": {
+        "text": "# Neuron HQ\n\n**Autonomous agent swarm control plane for developing target repos**\n\nNeuron HQ coordinates Manager, Implementer, Reviewer, and Researcher agents to autonomously develop code in other repositories over 2-3 hour runs, with full audit trails, policy enforcement, and artifact generation.\n\n## Quick Start\n\n### 1. Install\n\n```bash\npnpm install\n```\n\n### 2. Configure API Key\n\n```bash\ncp .env.example .env\n# Edit .env and add your ANTHROPIC_API_KEY\n```\n\n### 3. Add a Target Repo\n\n```bash\npnpm neuron target add my-app /path/to/my-app\n```\n\n### 4. Write Your Brief\n\nEdit `briefs/today.md` with what you want to achieve.\n\n### 5. Start a Run\n\n```bash\npnpm neuron run my-app --hours 3\n```\n\n### 6. Review Results\n\n```bash\npnpm neuron report <runid>\ncat runs/<runid>/questions.md\ncat runs/<runid>/ideas.md\n```\n\n## Daily Workflow\n\n1. **Morning**: Edit `briefs/today.md` with your goals\n2. **Start run**: `pnpm neuron run <target> --hours 3`\n3. **Go do other work** while the agents operate autonomously\n4. **Afternoon**: Review `runs/<runid>/report.md`, `questions.md`, `ideas.md`\n5. **If blockers**: Answer in `runs/<runid>/answers.md`\n6. **Resume**: `pnpm neuron resume <runid> --hours 2`\n7.",
+        "chunkIndex": 0,
+        "totalChunks": 4,
+        "wordCount": 172,
+        "parentId": "doc_21725e4d573a"
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T08:39:51.243Z",
+      "updated": "2026-03-09T08:39:51.243Z"
+    },
+    {
+      "id": "doc_21725e4d573a_chunk_1",
+      "type": "document",
+      "title": "README [chunk 2/4]",
+      "properties": {
+        "text": "**Afternoon**: Review `runs/<runid>/report.md`, `questions.md`, `ideas.md`\n5. **If blockers**: Answer in `runs/<runid>/answers.md`\n6. **Resume**: `pnpm neuron resume <runid> --hours 2`\n7. **Repeat** until satisfied\n\n## CLI Commands\n\n### Target Management\n```bash\npnpm neuron target add <name> <path-or-url>   # Add target repo\npnpm neuron target list                        # List all targets\n```\n\n### Running\n```bash\npnpm neuron run <target> --hours 3            # Start new run\npnpm neuron resume <runid> --hours 2          # Resume run\npnpm neuron status                            # List all runs\n```\n\n### Results & Logs\n```bash\npnpm neuron report <runid>                    # Show report\npnpm neuron logs <runid>                      # Show artifact paths\npnpm neuron replay <runid>                    # Re-run verification\n```\n\n## What Gets Created\n\nEvery run creates in `runs/<runid>/`:\n\n- **brief.md** - Snapshot of input brief\n- **baseline.md** - Baseline verification results\n- **report.md** - STOPLIGHT status + how to run/test + risks + rollback\n- **questions.md** - Max 3 blockers (or \"No blockers\")\n- **ideas.md** - Research-driven ideas with impact/effort/risk\n- **knowledge.md** - Learnings, assumptions, open questions\n- **research/sources.md** - Links + summaries\n- **audit.jsonl** - Append-only audit log\n- **manifest.json** - Checksums + commands\n- **usage.json** - Token tracking (info only)\n- **redaction_report.md** - What was redacted from logs\n\n## Agent",
+        "chunkIndex": 1,
+        "totalChunks": 4,
+        "wordCount": 200,
+        "parentId": "doc_21725e4d573a"
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T08:39:51.243Z",
+      "updated": "2026-03-09T08:39:51.243Z"
+    },
+    {
+      "id": "doc_21725e4d573a_chunk_2",
+      "type": "document",
+      "title": "README [chunk 3/4]",
+      "properties": {
+        "text": "Checksums + commands\n- **usage.json** - Token tracking (info only)\n- **redaction_report.md** - What was redacted from logs\n\n## Agent Roles\n\n- **Manager**: Plans, prioritizes, enforces WIP limit (1 feature at a time), stops on time/blockers\n- **Implementer**: Writes clean code, small diffs (<150 lines), runs verifications\n- **Reviewer**: Policy gatekeeper, risk classifier (LOW/MED/HIGH), requires two-phase for HIGH risk\n- **Researcher**: Web search, generates ideas with impact/effort/risk analysis\n\n## Policy Enforcement\n\nAll agents are constrained by policy in `policy/`:\n\n- **bash_allowlist.txt** - Only these commands allowed\n- **forbidden_patterns.txt** - These patterns always blocked\n- **git_rules.md** - Git safety rules (no force push, no history rewrite)\n- **limits.yaml** - Runtime limits (hours, diff size, timeouts)\n\nPolicy violations are logged in `audit.jsonl` and block execution.\n\n## Security\n\n- API keys never committed (use `.env`)\n- All secrets redacted from artifacts\n- Writes restricted to `workspaces/<runid>/` and `runs/<runid>/`\n- Command injection prevented via allowlist\n- File path traversal blocked\n- Git destructive operations blocked\n\n## Development\n\n### Run Tests\n```bash\npnpm test\npnpm test:watch  # Watch mode\n```\n\n### Type Check\n```bash\npnpm typecheck\n```\n\n### Lint & Format\n```bash\npnpm lint\npnpm lint:fix\npnpm format\n```\n\n## Documentation\n\n- [Architecture](docs/architecture.md) - System",
+        "chunkIndex": 2,
+        "totalChunks": 4,
+        "wordCount": 200,
+        "parentId": "doc_21725e4d573a"
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T08:39:51.243Z",
+      "updated": "2026-03-09T08:39:51.243Z"
+    },
+    {
+      "id": "doc_21725e4d573a_chunk_3",
+      "type": "document",
+      "title": "README [chunk 4/4]",
+      "properties": {
+        "text": "typecheck\n```\n\n### Lint & Format\n```bash\npnpm lint\npnpm lint:fix\npnpm format\n```\n\n## Documentation\n\n- [Architecture](docs/architecture.md) - System design\n- [Runbook](docs/runbook.md) - Operations guide\n- [ADRs](docs/adr/) - Architecture decision records\n\n## Status\n\n**MVP Status**: ✅ Core infrastructure complete\n- ✅ Policy enforcement\n- ✅ Target management\n- ✅ Run orchestration\n- ✅ Artifact generation\n- ✅ Audit logging\n- ✅ CLI commands\n- 🚧 Anthropic SDK integration (placeholder agents)\n- 🚧 Full agent implementation\n\n## License\n\nMIT",
+        "chunkIndex": 3,
+        "totalChunks": 4,
+        "wordCount": 79,
+        "parentId": "doc_21725e4d573a"
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T08:39:51.243Z",
+      "updated": "2026-03-09T08:39:51.243Z"
+    },
+    {
+      "id": "0976747b-e732-4e7f-b3f1-559abd51fa2e",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T13:20:25.509Z",
+      "updated": "2026-03-09T13:20:25.509Z"
+    },
+    {
+      "id": "7a1d3c53-271e-4b5e-bbfd-2f794cae1582",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T14:10:13.233Z",
+      "updated": "2026-03-09T14:10:13.233Z"
+    },
+    {
+      "id": "32234ed6-6510-43cd-8571-8591f111f6c6",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T14:10:35.296Z",
+      "updated": "2026-03-09T14:10:35.296Z"
+    },
+    {
+      "id": "07958aac-9998-4912-9185-9ffe955ec66b",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T14:11:40.866Z",
+      "updated": "2026-03-09T14:11:40.866Z"
+    },
+    {
+      "id": "16f0d48d-a319-46dc-971a-e6a05c145b6e",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T14:11:55.483Z",
+      "updated": "2026-03-09T14:11:55.483Z"
+    },
+    {
+      "id": "c275a7cd-38b4-4f50-9ea3-f5b044b8b1c0",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T14:15:09.059Z",
+      "updated": "2026-03-09T14:15:09.059Z"
+    },
+    {
+      "id": "197c66d6-cf91-4a85-a8cf-488c8596b432",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T14:15:23.832Z",
+      "updated": "2026-03-09T14:15:23.832Z"
+    },
+    {
+      "id": "f2dc7402-d3a8-4681-88d2-e5fcf3458035",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T14:23:12.609Z",
+      "updated": "2026-03-09T14:23:12.609Z"
+    },
+    {
+      "id": "dabbf29e-0714-4ea8-8472-be7f47f12368",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T14:23:26.562Z",
+      "updated": "2026-03-09T14:23:26.562Z"
+    },
+    {
+      "id": "0ea9c5e4-af4e-4f05-b111-a475024da143",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T14:39:05.697Z",
+      "updated": "2026-03-09T14:39:05.697Z"
+    },
+    {
+      "id": "0abd3a2c-4f7e-48b8-a5be-aa7fb20bd17c",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T14:40:13.658Z",
+      "updated": "2026-03-09T14:40:13.658Z"
+    },
+    {
+      "id": "34339c8e-e977-4896-bfb5-649ccd35b9f4",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T14:40:39.626Z",
+      "updated": "2026-03-09T14:40:39.626Z"
+    },
+    {
+      "id": "a29c4726-c66d-4063-935f-211ad4e6ef9c",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-09T14:42:44.747Z",
+      "updated": "2026-03-09T14:42:44.747Z"
+    }
+  ],
+  "edges": [
+    {
+      "from": "doc_21725e4d573a_chunk_0",
+      "to": "doc_21725e4d573a",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "intake-pipeline"
+      }
+    },
+    {
+      "from": "doc_21725e4d573a_chunk_1",
+      "to": "doc_21725e4d573a",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "intake-pipeline"
+      }
+    },
+    {
+      "from": "doc_21725e4d573a_chunk_2",
+      "to": "doc_21725e4d573a",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "intake-pipeline"
+      }
+    },
+    {
+      "from": "doc_21725e4d573a_chunk_3",
+      "to": "doc_21725e4d573a",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "intake-pipeline"
+      }
+    }
+  ],
+  "lastUpdated": "2026-03-09T14:42:44.748Z"
+}

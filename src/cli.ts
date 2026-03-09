@@ -38,6 +38,7 @@ import { auroraMemoryStatsCommand } from './commands/aurora-memory-stats.js';
 import { auroraIngestYouTubeCommand } from './commands/aurora-ingest-youtube.js';
 import { auroraTimelineCommand } from './commands/aurora-timeline.js';
 import { auroraGapsCommand } from './commands/aurora-gaps.js';
+import { auroraCrossRefCommand } from './commands/aurora-cross-ref.js';
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
@@ -228,6 +229,14 @@ program
   .description('Show knowledge gaps — questions Aurora could not answer')
   .option('--limit <n>', 'Max gaps to show')
   .action(auroraGapsCommand);
+
+program
+  .command('aurora:cross-ref <query>')
+  .description('Search across both Neuron and Aurora knowledge graphs')
+  .option('--limit <n>', 'Max results per graph')
+  .option('--min-similarity <n>', 'Minimum similarity threshold')
+  .option('--type <type>', 'Filter by node type')
+  .action(auroraCrossRefCommand);
 
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =

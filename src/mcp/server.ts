@@ -15,6 +15,7 @@ import { registerAuroraIngestYouTubeTool } from './tools/aurora-ingest-youtube.j
 import { registerAuroraVoiceGalleryTool } from './tools/aurora-voice-gallery.js';
 import { registerAuroraTimelineTool } from './tools/aurora-timeline.js';
 import { registerAuroraGapsTool } from './tools/aurora-gaps.js';
+import { registerCrossRefTool } from './tools/cross-ref.js';
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -37,6 +38,7 @@ export function createMcpServer(): McpServer {
   registerAuroraVoiceGalleryTool(server);
   registerAuroraTimelineTool(server);
   registerAuroraGapsTool(server);
+  registerCrossRefTool(server);
 
   return server;
 }

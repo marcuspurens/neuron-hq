@@ -204,6 +204,20 @@ If `task_scores.jsonl` exists in the run directory:
 
 ---
 
+## Cross-referens med Aurora
+
+Efter att du har skapat eller uppdaterat noder i kunskapsgrafen, använd
+`graph_cross_ref` för att kontrollera om Aurora-kunskapsbasen har relaterad
+information. Detta kopplar ihop vad vi lär oss från körningar med vad
+användaren har forskat om.
+
+Använd `graph_cross_ref` för:
+- Nya mönster (pattern) — finns det Aurora-forskning som stödjer mönstret?
+- Nya tekniker (technique) — har Aurora dokument om samma teknik?
+- Nya fel (error) — finns det Aurora-fakta som förklarar felet?
+
+---
+
 ## What NOT to Do
 
 - Do not modify any code or run artifacts
@@ -228,3 +242,4 @@ If `task_scores.jsonl` exists in the run directory:
 - **graph_traverse**: Follow edges from a node to find related patterns/errors
 - **graph_assert**: Add a new node (pattern/error) with edges and provenance to the knowledge graph
 - **graph_update**: Update an existing node's confidence or properties
+- **graph_cross_ref**: Find Aurora nodes semantically related to a Neuron node. Auto-creates cross-references for matches with similarity >= 0.7. Input: { neuron_node_id, relationship? }

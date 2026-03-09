@@ -383,7 +383,8 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
             case 'graph_query':
             case 'graph_traverse':
             case 'graph_update':
-            case 'graph_semantic_search': {
+            case 'graph_semantic_search':
+            case 'graph_cross_ref': {
               const graphCtx: GraphToolContext = {
                 graphPath: path.join(this.memoryDir, 'graph.json'),
                 runId: this.ctx.runid,

@@ -16,6 +16,7 @@ import {
 import { semanticSearch } from '../semantic-search.js';
 import { isEmbeddingAvailable } from '../embeddings.js';
 import { type AuditEntry } from '../types.js';
+import { findAuroraMatchesForNeuron, createCrossRef } from '../../aurora/cross-ref.js';
 
 // ── Context & helpers ─────────────────────────────────────────────────
 
@@ -193,12 +194,33 @@ export function graphToolDefinitions(): Anthropic.Tool[] {
         required: ['query'],
       },
     },
+    {
+      name: 'graph_cross_ref',
+      description:
+        'Find Aurora knowledge nodes that are semantically related to a Neuron knowledge graph node. ' +
+        'Automatically creates cross-references for matches with similarity >= 0.7.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          neuron_node_id: {
+            type: 'string',
+            description: 'The Neuron KG node ID to find Aurora matches for',
+          },
+          relationship: {
+            type: 'string',
+            enum: ['supports', 'contradicts', 'enriches', 'discovered_via'],
+            description: 'Relationship type for created cross-refs (default: enriches)',
+          },
+        },
+        required: ['neuron_node_id'],
+      },
+    },
   ];
 }
 
 /** Check if a tool name is one of the graph tools. */
 export function isGraphTool(name: string): boolean {
-  return ['graph_query', 'graph_traverse', 'graph_assert', 'graph_update', 'graph_semantic_search'].includes(name);
+  return ['graph_query', 'graph_traverse', 'graph_assert', 'graph_update', 'graph_semantic_search', 'graph_cross_ref'].includes(name);
 }
 
 /** Return only the read-only graph tools (query + traverse + semantic search). */
@@ -241,6 +263,8 @@ export async function executeGraphTool(
       return executeGraphUpdate(input, ctx);
     case 'graph_semantic_search':
       return executeGraphSemanticSearch(input, ctx);
+    case 'graph_cross_ref':
+      return executeGraphCrossRef(input, ctx);
     default:
       throw new Error(`Unknown graph tool: ${toolName}`);
   }
@@ -460,6 +484,74 @@ async function executeGraphSemanticSearch(
     return JSON.stringify({
       results: [],
       message: `Semantic search failed: ${error}. Use graph_query for keyword search.`,
+    });
+  }
+}
+
+async function executeGraphCrossRef(
+  input: Record<string, unknown>,
+  ctx: GraphToolContext,
+): Promise<string> {
+  const neuronNodeId = input.neuron_node_id as string;
+  const relationship = (input.relationship as 'supports' | 'contradicts' | 'enriches' | 'discovered_via') || 'enriches';
+
+  try {
+    const matches = await findAuroraMatchesForNeuron(neuronNodeId, {
+      limit: 5,
+      minSimilarity: 0.5,
+    });
+
+    const crossRefsCreated: Array<{ auroraNodeId: string; similarity: number }> = [];
+
+    for (const match of matches) {
+      if (match.similarity >= 0.7) {
+        await createCrossRef(
+          neuronNodeId,
+          match.node.id,
+          relationship,
+          match.similarity,
+          { createdBy: ctx.agent, runId: ctx.runId },
+        );
+        crossRefsCreated.push({
+          auroraNodeId: match.node.id,
+          similarity: match.similarity,
+        });
+      }
+    }
+
+    await ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: ctx.agent as AuditEntry['role'],
+      tool: 'graph_cross_ref',
+      allowed: true,
+      note: `Found ${matches.length} Aurora matches, created ${crossRefsCreated.length} cross-refs`,
+    });
+
+    return JSON.stringify({
+      neuronNodeId,
+      matches: matches.map(m => ({
+        auroraNodeId: m.node.id,
+        title: m.node.title,
+        type: m.node.type,
+        similarity: m.similarity,
+        crossRefCreated: m.similarity >= 0.7,
+      })),
+      crossRefsCreated,
+    }, null, 2);
+  } catch (error) {
+    await ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: ctx.agent as AuditEntry['role'],
+      tool: 'graph_cross_ref',
+      allowed: true,
+      note: `graph_cross_ref failed: ${error}`,
+    });
+
+    return JSON.stringify({
+      neuronNodeId,
+      matches: [],
+      crossRefsCreated: [],
+      error: `Failed to search Aurora: ${error instanceof Error ? error.message : error}`,
     });
   }
 }

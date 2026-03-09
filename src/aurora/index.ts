@@ -98,3 +98,15 @@ export {
   type KnowledgeGap,
   type GapsResult,
 } from './knowledge-gaps.js';
+
+export {
+  unifiedSearch,
+  createCrossRef,
+  getCrossRefs,
+  findAuroraMatchesForNeuron,
+  findNeuronMatchesForAurora,
+  type CrossRef,
+  type CrossRefMatch,
+  type UnifiedSearchResult,
+  type UnifiedSearchOptions,
+} from './cross-ref.js';
