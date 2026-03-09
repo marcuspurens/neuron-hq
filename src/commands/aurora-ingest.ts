@@ -50,6 +50,12 @@ export async function auroraIngestCommand(
     console.log(`    Document node: ${result.documentNodeId}`);
     console.log(`    Chunks: ${result.chunkCount}`);
     console.log(`    Scope: ${options.scope ?? 'personal'}`);
+    if (result.crossRefsCreated > 0) {
+      console.log(chalk.cyan(`  🔗 ${result.crossRefsCreated} cross-reference${result.crossRefsCreated > 1 ? 's' : ''} created:`));
+      for (const match of result.crossRefMatches) {
+        console.log(`     → [${match.similarity.toFixed(2)}] ${match.relationship} "${match.neuronTitle}"`);
+      }
+    }
     console.log('');
   } catch (err) {
     console.error(chalk.red(`\n  ❌ Error: ${err instanceof Error ? err.message : err}\n`));

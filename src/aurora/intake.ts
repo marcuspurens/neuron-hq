@@ -17,6 +17,7 @@ import {
 } from './aurora-graph.js';
 import type { AuroraNodeType, AuroraScope, AuroraNode } from './aurora-schema.js';
 import { isYouTubeUrl, ingestYouTube } from './youtube.js';
+import { findNeuronMatchesForAurora, createCrossRef } from './cross-ref.js';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -46,6 +47,15 @@ export interface IngestResult {
   wordCount: number;
   /** Number of chunks created. */
   chunkCount: number;
+  /** Number of cross-references created to Neuron KG nodes. */
+  crossRefsCreated: number;
+  /** Details of Neuron KG matches used for cross-references. */
+  crossRefMatches: Array<{
+    neuronNodeId: string;
+    neuronTitle: string;
+    similarity: number;
+    relationship: string;
+  }>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -71,6 +81,8 @@ export async function ingestUrl(
       title: result.title,
       wordCount: 0,
       chunkCount: result.chunksCreated,
+      crossRefsCreated: result.crossRefsCreated,
+      crossRefMatches: result.crossRefMatches,
     };
   }
 
@@ -126,7 +138,7 @@ export async function ingestDocument(
 
 /**
  * Core pipeline: hash → dedup check → create doc node → chunk → create
- * chunk nodes + edges → save → embed → return result.
+ * chunk nodes + edges → save → embed → auto cross-ref → return result.
  */
 async function processExtractedText(
   title: string,
@@ -156,6 +168,8 @@ async function processExtractedText(
       title: existingDoc.title,
       wordCount,
       chunkCount: existingChunkIds.length,
+      crossRefsCreated: 0,
+      crossRefMatches: [],
     };
   }
 
@@ -221,6 +235,39 @@ async function processExtractedText(
   await saveAuroraGraph(graph);
   await autoEmbedAuroraNodes([docId, ...chunkNodeIds]);
 
+  // --- Auto cross-ref: find Neuron matches for the new document ---
+  let crossRefsCreated = 0;
+  const crossRefMatches: IngestResult['crossRefMatches'] = [];
+
+  try {
+    const matches = await findNeuronMatchesForAurora(docId, {
+      limit: 5,
+      minSimilarity: 0.5,
+    });
+
+    for (const match of matches) {
+      if (match.similarity >= 0.7) {
+        await createCrossRef(
+          match.node.id,
+          docId,
+          'enriches',
+          match.similarity,
+          { createdBy: 'auto-ingest', source: sourceUrl ?? 'file' },
+        );
+        crossRefsCreated++;
+        crossRefMatches.push({
+          neuronNodeId: match.node.id,
+          neuronTitle: match.node.title,
+          similarity: match.similarity,
+          relationship: 'enriches',
+        });
+      }
+    }
+  } catch {
+    // Cross-ref failure should not break ingest
+    // Postgres might not be available, or kg_nodes might be empty
+  }
+
   // --- Return result ---
   const wordCount =
     (metadata.word_count as number | undefined) ??
@@ -231,5 +278,7 @@ async function processExtractedText(
     title,
     wordCount,
     chunkCount: chunkNodeIds.length,
+    crossRefsCreated,
+    crossRefMatches,
   };
 }

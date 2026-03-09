@@ -13,6 +13,7 @@ import {
   autoEmbedAuroraNodes,
 } from './aurora-graph.js';
 import type { AuroraNode } from './aurora-schema.js';
+import { findNeuronMatchesForAurora, createCrossRef } from './cross-ref.js';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -32,6 +33,15 @@ export interface YouTubeIngestResult {
   title: string;
   duration: number;
   videoId: string;
+  /** Number of cross-references created to Neuron KG nodes. */
+  crossRefsCreated: number;
+  /** Details of Neuron KG matches used for cross-references. */
+  crossRefMatches: Array<{
+    neuronNodeId: string;
+    neuronTitle: string;
+    similarity: number;
+    relationship: string;
+  }>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -83,6 +93,7 @@ export function extractVideoId(url: string): string | null {
  * 5. Optionally diarize via worker
  * 6. Create transcript node, chunk nodes, voice_print nodes
  * 7. Save graph & auto-embed
+ * 8. Auto cross-ref to Neuron KG
  */
 export async function ingestYouTube(
   url: string,
@@ -109,6 +120,8 @@ export async function ingestYouTube(
       title: existing.title,
       duration: (existing.properties.duration as number) ?? 0,
       videoId,
+      crossRefsCreated: 0,
+      crossRefMatches: [],
     };
   }
 
@@ -251,6 +264,38 @@ export async function ingestYouTube(
   await saveAuroraGraph(graph);
   await autoEmbedAuroraNodes(allNodeIds);
 
+  // 10. Auto cross-ref: find Neuron matches for the transcript
+  let crossRefsCreated = 0;
+  const crossRefMatches: YouTubeIngestResult['crossRefMatches'] = [];
+
+  try {
+    const matches = await findNeuronMatchesForAurora(transcriptNodeId, {
+      limit: 5,
+      minSimilarity: 0.5,
+    });
+
+    for (const match of matches) {
+      if (match.similarity >= 0.7) {
+        await createCrossRef(
+          match.node.id,
+          transcriptNodeId,
+          'enriches',
+          match.similarity,
+          { createdBy: 'auto-ingest', source: url },
+        );
+        crossRefsCreated++;
+        crossRefMatches.push({
+          neuronNodeId: match.node.id,
+          neuronTitle: match.node.title,
+          similarity: match.similarity,
+          relationship: 'enriches',
+        });
+      }
+    }
+  } catch {
+    // Cross-ref failure should not break ingest
+  }
+
   return {
     transcriptNodeId,
     chunksCreated: chunks.length,
@@ -258,5 +303,7 @@ export async function ingestYouTube(
     title: extractResult.title,
     duration: extractMeta.duration as number,
     videoId,
+    crossRefsCreated,
+    crossRefMatches,
   };
 }
