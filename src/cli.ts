@@ -30,6 +30,7 @@ import { scaffoldCommand } from './commands/scaffold.js';
 import { runBriefAgent } from './core/agents/brief-agent.js';
 import { auroraStatusCommand } from './commands/aurora-status.js';
 import { auroraDecayCommand } from './commands/aurora-decay.js';
+import { auroraIngestCommand } from './commands/aurora-ingest.js';
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
@@ -157,6 +158,14 @@ program
   .option('--days <days>', 'Inactive threshold in days (default: 20)')
   .option('--factor <factor>', 'Decay factor (default: 0.9)')
   .action(auroraDecayCommand);
+
+program
+  .command('aurora:ingest <source>')
+  .description('Ingest a URL or local file into Aurora knowledge graph')
+  .option('--scope <scope>', 'Scope: personal, shared, or project (default: personal)')
+  .option('--type <type>', 'Node type: document, research, etc. (default: document)')
+  .option('--max-chunks <n>', 'Maximum number of chunks (default: 100)')
+  .action(auroraIngestCommand);
 
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =

@@ -28,3 +28,26 @@ export {
   saveAuroraGraphToDb,
   autoEmbedAuroraNodes,
 } from './aurora-graph.js';
+
+export {
+  chunkText,
+  type ChunkOptions,
+  type Chunk,
+} from './chunker.js';
+
+export {
+  runWorker,
+  isWorkerAvailable,
+  type WorkerRequest,
+  type WorkerResult,
+  type WorkerError,
+  type WorkerResponse,
+  type WorkerOptions,
+} from './worker-bridge.js';
+
+export {
+  ingestUrl,
+  ingestDocument,
+  type IngestOptions,
+  type IngestResult,
+} from './intake.js';
