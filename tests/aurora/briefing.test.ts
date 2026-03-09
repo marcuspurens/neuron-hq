@@ -20,8 +20,10 @@ vi.mock('../../src/aurora/knowledge-gaps.js', () => ({
 }));
 
 const mockUnifiedSearch = vi.fn();
+const mockCheckCrossRefIntegrity = vi.fn();
 vi.mock('../../src/aurora/cross-ref.js', () => ({
   unifiedSearch: (...args: unknown[]) => mockUnifiedSearch(...args),
+  checkCrossRefIntegrity: (...args: unknown[]) => mockCheckCrossRefIntegrity(...args),
 }));
 
 const mockCreate = vi.fn();
@@ -135,6 +137,7 @@ function setupDefaultMocks() {
   mockSearchAurora.mockResolvedValue(defaultSearchResult());
   mockGetGaps.mockResolvedValue(defaultGapsResult());
   mockUnifiedSearch.mockResolvedValue(defaultUnifiedSearchResult());
+  mockCheckCrossRefIntegrity.mockResolvedValue([]);
   mockCreate.mockResolvedValue(defaultClaudeResponse());
 }
 
@@ -148,6 +151,7 @@ describe('briefing()', () => {
     mockSearchAurora.mockReset();
     mockGetGaps.mockReset();
     mockUnifiedSearch.mockReset();
+    mockCheckCrossRefIntegrity.mockReset();
     mockCreate.mockReset();
     mockCreateAgentClient.mockClear();
   });
@@ -180,6 +184,7 @@ describe('briefing()', () => {
     mockSearchAurora.mockResolvedValue([]);
     mockGetGaps.mockResolvedValue({ gaps: [], totalUnanswered: 0 });
     mockUnifiedSearch.mockResolvedValue({ neuronResults: [], auroraResults: [], crossRefs: [] });
+    mockCheckCrossRefIntegrity.mockResolvedValue([]);
     mockCreate.mockResolvedValue({
       content: [{ type: 'text', text: '' }],
     });

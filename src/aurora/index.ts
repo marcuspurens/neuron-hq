@@ -105,10 +105,13 @@ export {
   getCrossRefs,
   findAuroraMatchesForNeuron,
   findNeuronMatchesForAurora,
+  transferCrossRefs,
+  checkCrossRefIntegrity,
   type CrossRef,
   type CrossRefMatch,
   type UnifiedSearchResult,
   type UnifiedSearchOptions,
+  type IntegrityIssue,
 } from './cross-ref.js';
 
 export {

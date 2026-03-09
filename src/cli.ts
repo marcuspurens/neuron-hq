@@ -268,6 +268,17 @@ program
     await auroraFreshnessCommand(options);
   });
 
+// aurora:integrity
+program
+  .command('aurora:integrity')
+  .description('Check cross-ref integrity — find weak Neuron connections')
+  .option('--threshold <n>', 'Confidence threshold (default 0.5)')
+  .option('--limit <n>', 'Max issues to show (default 20)')
+  .action(async (options) => {
+    const { auroraIntegrityCommand } = await import('./commands/aurora-integrity.js');
+    await auroraIntegrityCommand(options);
+  });
+
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =
   process.argv[1] &&

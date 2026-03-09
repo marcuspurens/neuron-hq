@@ -50,7 +50,7 @@ describe('Consolidator Agent — Tool Integration', () => {
 
     // Load, merge, save — exactly what the tool does
     const loaded = await loadGraph(graphPath);
-    const merged = mergeNodes(loaded, {
+    const merged = await mergeNodes(loaded, {
       keepNodeId: 'p-001',
       removeNodeId: 'p-002',
       mergedTitle: 'retry with exponential backoff',

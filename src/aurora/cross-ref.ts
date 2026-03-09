@@ -10,6 +10,8 @@ export interface CrossRef {
   relationship: 'supports' | 'contradicts' | 'enriches' | 'discovered_via';
   similarity: number | null;
   metadata: Record<string, unknown>;
+  context: string | null;
+  strength: number | null;
   createdAt: string;
 }
 
@@ -32,6 +34,18 @@ export interface UnifiedSearchResult {
   crossRefs: CrossRef[];
 }
 
+// --- Integrity types ---
+
+export interface IntegrityIssue {
+  crossRefId: number;
+  neuronNodeId: string;
+  neuronTitle: string;
+  neuronConfidence: number;
+  auroraNodeId: string;
+  auroraTitle: string;
+  issue: 'low_confidence' | 'stale_neuron' | 'orphaned';
+}
+
 // --- Private helpers ---
 
 /** Map a snake_case DB row to a camelCase CrossRef object. */
@@ -43,6 +57,8 @@ function rowToCrossRef(row: Record<string, unknown>): CrossRef {
     relationship: row.relationship as CrossRef['relationship'],
     similarity: row.similarity as number | null,
     metadata: (row.metadata ?? {}) as Record<string, unknown>,
+    context: (row.context as string) ?? null,
+    strength: (row.strength as number) ?? null,
     createdAt: (row.created_at as Date).toISOString(),
   };
 }
@@ -133,14 +149,18 @@ export async function createCrossRef(
   relationship: CrossRef['relationship'],
   similarity?: number,
   metadata?: Record<string, unknown>,
+  context?: string,
+  strength?: number,
 ): Promise<CrossRef> {
   const pool = getPool();
 
   const result = await pool.query(
-    `INSERT INTO cross_refs (neuron_node_id, aurora_node_id, relationship, similarity, metadata)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO cross_refs (neuron_node_id, aurora_node_id, relationship, similarity, metadata, context, strength)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      ON CONFLICT (neuron_node_id, aurora_node_id, relationship)
-     DO UPDATE SET similarity = EXCLUDED.similarity, metadata = EXCLUDED.metadata
+     DO UPDATE SET similarity = EXCLUDED.similarity, metadata = EXCLUDED.metadata,
+                   context = COALESCE(EXCLUDED.context, cross_refs.context),
+                   strength = COALESCE(EXCLUDED.strength, cross_refs.strength)
      RETURNING *`,
     [
       neuronNodeId,
@@ -148,6 +168,8 @@ export async function createCrossRef(
       relationship,
       similarity ?? null,
       JSON.stringify(metadata ?? {}),
+      context ?? null,
+      strength ?? similarity ?? null,
     ],
   );
 
@@ -235,5 +257,78 @@ export async function findNeuronMatchesForAurora(
     },
     source: 'neuron' as const,
     similarity: row.similarity as number,
+  }));
+}
+
+// --- Integrity functions ---
+
+/**
+ * Transfer cross-refs from a removed node to a surviving node.
+ * Handles duplicates — skips transfers that would create conflicts.
+ * Called by Consolidator after node-merge.
+ */
+export async function transferCrossRefs(
+  removedNodeId: string,
+  keptNodeId: string,
+  side: 'neuron' | 'aurora',
+): Promise<number> {
+  const pool = getPool();
+  const column = side === 'neuron' ? 'neuron_node_id' : 'aurora_node_id';
+  const otherColumn = side === 'neuron' ? 'aurora_node_id' : 'neuron_node_id';
+
+  // Move cross-refs: removed → kept (skip duplicates)
+  const result = await pool.query(`
+    UPDATE cross_refs
+    SET ${column} = $1,
+        context = COALESCE(context, '') || ' [transferred from merge]'
+    WHERE ${column} = $2
+    AND NOT EXISTS (
+      SELECT 1 FROM cross_refs cr2
+      WHERE cr2.${column} = $1
+        AND cr2.${otherColumn} = cross_refs.${otherColumn}
+        AND cr2.relationship = cross_refs.relationship
+    )
+  `, [keptNodeId, removedNodeId]);
+
+  // Remove any remaining refs that couldn't be transferred (duplicates)
+  await pool.query(`
+    DELETE FROM cross_refs WHERE ${column} = $1
+  `, [removedNodeId]);
+
+  return result.rowCount ?? 0;
+}
+
+/**
+ * Find cross-refs pointing to Neuron nodes with confidence below threshold.
+ * Used by briefing and freshness reports to warn about weak connections.
+ */
+export async function checkCrossRefIntegrity(options?: {
+  confidenceThreshold?: number;
+  limit?: number;
+}): Promise<IntegrityIssue[]> {
+  const pool = getPool();
+  const threshold = options?.confidenceThreshold ?? 0.5;
+  const limit = options?.limit ?? 20;
+
+  const { rows } = await pool.query(`
+    SELECT cr.id, cr.neuron_node_id, cr.aurora_node_id, cr.relationship,
+           kn.title AS neuron_title, kn.confidence AS neuron_confidence,
+           an.title AS aurora_title
+    FROM cross_refs cr
+    JOIN kg_nodes kn ON kn.id = cr.neuron_node_id
+    JOIN aurora_nodes an ON an.id = cr.aurora_node_id
+    WHERE kn.confidence < $1
+    ORDER BY kn.confidence ASC
+    LIMIT $2
+  `, [threshold, limit]);
+
+  return rows.map((row: Record<string, unknown>) => ({
+    crossRefId: row.id as number,
+    neuronNodeId: row.neuron_node_id as string,
+    neuronTitle: row.neuron_title as string,
+    neuronConfidence: row.neuron_confidence as number,
+    auroraNodeId: row.aurora_node_id as string,
+    auroraTitle: row.aurora_title as string,
+    issue: 'low_confidence' as const,
   }));
 }

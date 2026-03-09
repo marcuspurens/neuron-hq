@@ -20,8 +20,10 @@ vi.mock('../../src/aurora/knowledge-gaps.js', () => ({
 }));
 
 const mockUnifiedSearch = vi.fn();
+const mockCheckCrossRefIntegrity = vi.fn();
 vi.mock('../../src/aurora/cross-ref.js', () => ({
   unifiedSearch: (...args: unknown[]) => mockUnifiedSearch(...args),
+  checkCrossRefIntegrity: (...args: unknown[]) => mockCheckCrossRefIntegrity(...args),
 }));
 
 const mockCreate = vi.fn();
@@ -94,6 +96,7 @@ function setupBaseMocks(): void {
     auroraResults: [],
     crossRefs: [],
   });
+  mockCheckCrossRefIntegrity.mockResolvedValue([]);
   mockCreate.mockResolvedValue({
     content: [{ type: 'text', text: 'Summary about TypeScript' }],
   });
@@ -109,6 +112,7 @@ describe('briefing() freshness enrichment', () => {
     mockSearchAurora.mockReset();
     mockGetGaps.mockReset();
     mockUnifiedSearch.mockReset();
+    mockCheckCrossRefIntegrity.mockReset();
     mockCreate.mockReset();
     mockQuery.mockReset();
   });

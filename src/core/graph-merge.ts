@@ -82,11 +82,12 @@ export function findDuplicateCandidates(
 /**
  * Merge two nodes in a graph according to a MergeProposal.
  * Returns a new immutable graph with the merge applied.
+ * Attempts to transfer cross-refs in DB if available (never fails merge on DB error).
  */
-export function mergeNodes(
+export async function mergeNodes(
   graph: KnowledgeGraph,
   proposal: MergeProposal,
-): KnowledgeGraph {
+): Promise<KnowledgeGraph> {
   const validated = MergeProposalSchema.parse(proposal);
 
   const keepNode = graph.nodes.find((n) => n.id === validated.keepNodeId);
@@ -133,6 +134,17 @@ export function mergeNodes(
       seenKeys.add(key);
       return true;
     });
+
+  // Transfer cross-refs from removed node to kept node (if DB available)
+  try {
+    const { transferCrossRefs } = await import('../aurora/cross-ref.js');
+    const { isDbAvailable } = await import('./db.js');
+    if (await isDbAvailable()) {
+      await transferCrossRefs(validated.removeNodeId, validated.keepNodeId, 'neuron');
+    }
+  } catch {
+    // DB might not be available — merge still succeeds
+  }
 
   return {
     ...graph,

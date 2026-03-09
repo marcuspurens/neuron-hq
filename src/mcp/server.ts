@@ -19,6 +19,7 @@ import { registerCrossRefTool } from './tools/cross-ref.js';
 import { registerAuroraBriefingTool } from './tools/aurora-briefing.js';
 import { registerAuroraVerifyTool } from './tools/aurora-verify.js';
 import { registerAuroraFreshnessTool } from './tools/aurora-freshness.js';
+import { registerCrossRefIntegrityTool } from './tools/cross-ref-integrity.js';
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -45,6 +46,7 @@ export function createMcpServer(): McpServer {
   registerAuroraBriefingTool(server);
   registerAuroraVerifyTool(server);
   registerAuroraFreshnessTool(server);
+  registerCrossRefIntegrityTool(server);
 
   return server;
 }

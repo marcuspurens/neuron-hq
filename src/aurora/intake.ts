@@ -253,6 +253,7 @@ async function processExtractedText(
           'enriches',
           match.similarity,
           { createdBy: 'auto-ingest', source: sourceUrl ?? 'file' },
+          'auto-ingest',
         );
         crossRefsCreated++;
         crossRefMatches.push({

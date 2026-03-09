@@ -155,6 +155,7 @@ describe('graph_cross_ref tool', () => {
       'supports',
       0.9,
       expect.objectContaining({ createdBy: 'historian', runId: 'test-run' }),
+      'historian-discovery',
     );
   });
 
@@ -191,6 +192,7 @@ describe('graph_cross_ref tool', () => {
       'enriches',
       0.8,
       expect.any(Object),
+      'historian-discovery',
     );
   });
 

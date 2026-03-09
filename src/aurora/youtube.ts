@@ -282,6 +282,7 @@ export async function ingestYouTube(
           'enriches',
           match.similarity,
           { createdBy: 'auto-ingest', source: url },
+          'auto-ingest-youtube',
         );
         crossRefsCreated++;
         crossRefMatches.push({

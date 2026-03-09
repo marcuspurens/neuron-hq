@@ -31,6 +31,7 @@ function defaultBriefingResult() {
       totalGaps: 1,
       totalCrossRefs: 2,
     },
+    integrityIssues: [],
   };
 }
 
@@ -132,6 +133,7 @@ describe('aurora:briefing command', () => {
         totalGaps: 0,
         totalCrossRefs: 0,
       },
+      integrityIssues: [],
     });
 
     await auroraBriefingCommand('nonexistent', {});

@@ -150,7 +150,7 @@ describe('findDuplicateCandidates', () => {
 });
 
 describe('mergeNodes', () => {
-  it('combines properties with keepNode winning on conflict', () => {
+  it('combines properties with keepNode winning on conflict', async () => {
     const graph = buildGraphWithNodes([
       makeNode({
         id: 'keep',
@@ -166,7 +166,7 @@ describe('mergeNodes', () => {
       }),
     ]);
 
-    const result = mergeNodes(graph, {
+    const result = await mergeNodes(graph, {
       keepNodeId: 'keep',
       removeNodeId: 'remove',
       mergedTitle: 'Merged Node',
@@ -181,7 +181,7 @@ describe('mergeNodes', () => {
     expect(merged.properties.merge_reason).toBe('duplicates');
   });
 
-  it('redirects edges from removed node to kept node', () => {
+  it('redirects edges from removed node to kept node', async () => {
     const graph = buildGraphWithNodes(
       [
         makeNode({ id: 'A', title: 'Node A' }),
@@ -191,7 +191,7 @@ describe('mergeNodes', () => {
       [makeEdge({ from: 'B', to: 'C' })],
     );
 
-    const result = mergeNodes(graph, {
+    const result = await mergeNodes(graph, {
       keepNodeId: 'A',
       removeNodeId: 'B',
       mergedTitle: 'Merged AB',
@@ -206,13 +206,13 @@ describe('mergeNodes', () => {
     expect(result.nodes.find((n) => n.id === 'B')).toBeUndefined();
   });
 
-  it('sets confidence to max of both nodes', () => {
+  it('sets confidence to max of both nodes', async () => {
     const graph = buildGraphWithNodes([
       makeNode({ id: 'keep', title: 'Keep', confidence: 0.5 }),
       makeNode({ id: 'remove', title: 'Remove', confidence: 0.8 }),
     ]);
 
-    const result = mergeNodes(graph, {
+    const result = await mergeNodes(graph, {
       keepNodeId: 'keep',
       removeNodeId: 'remove',
       mergedTitle: 'Merged',
@@ -222,37 +222,37 @@ describe('mergeNodes', () => {
     expect(result.nodes[0].confidence).toBe(0.8);
   });
 
-  it('throws if keepNodeId does not exist', () => {
+  it('throws if keepNodeId does not exist', async () => {
     const graph = buildGraphWithNodes([makeNode({ id: 'remove' })]);
-    expect(() =>
+    await expect(
       mergeNodes(graph, {
         keepNodeId: 'nonexistent',
         removeNodeId: 'remove',
         mergedTitle: 'X',
         reason: 'test',
       }),
-    ).toThrow('Node not found: nonexistent');
+    ).rejects.toThrow('Node not found: nonexistent');
   });
 
-  it('throws if removeNodeId does not exist', () => {
+  it('throws if removeNodeId does not exist', async () => {
     const graph = buildGraphWithNodes([makeNode({ id: 'keep' })]);
-    expect(() =>
+    await expect(
       mergeNodes(graph, {
         keepNodeId: 'keep',
         removeNodeId: 'nonexistent',
         mergedTitle: 'X',
         reason: 'test',
       }),
-    ).toThrow('Node not found: nonexistent');
+    ).rejects.toThrow('Node not found: nonexistent');
   });
 
-  it('removes self-loop edges after redirect', () => {
+  it('removes self-loop edges after redirect', async () => {
     const graph = buildGraphWithNodes(
       [makeNode({ id: 'keep' }), makeNode({ id: 'remove' })],
       [makeEdge({ from: 'keep', to: 'remove' })],
     );
 
-    const result = mergeNodes(graph, {
+    const result = await mergeNodes(graph, {
       keepNodeId: 'keep',
       removeNodeId: 'remove',
       mergedTitle: 'Merged',
@@ -262,7 +262,7 @@ describe('mergeNodes', () => {
     expect(result.edges).toHaveLength(0);
   });
 
-  it('deduplicates edges after redirect', () => {
+  it('deduplicates edges after redirect', async () => {
     const graph = buildGraphWithNodes(
       [
         makeNode({ id: 'keep' }),
@@ -275,7 +275,7 @@ describe('mergeNodes', () => {
       ],
     );
 
-    const result = mergeNodes(graph, {
+    const result = await mergeNodes(graph, {
       keepNodeId: 'keep',
       removeNodeId: 'remove',
       mergedTitle: 'Merged',
@@ -287,14 +287,14 @@ describe('mergeNodes', () => {
     expect(result.edges[0].to).toBe('other');
   });
 
-  it('does not mutate the original graph', () => {
+  it('does not mutate the original graph', async () => {
     const graph = buildGraphWithNodes([
       makeNode({ id: 'keep', title: 'Keep' }),
       makeNode({ id: 'remove', title: 'Remove' }),
     ]);
 
     const originalNodes = graph.nodes.length;
-    mergeNodes(graph, {
+    await mergeNodes(graph, {
       keepNodeId: 'keep',
       removeNodeId: 'remove',
       mergedTitle: 'M',

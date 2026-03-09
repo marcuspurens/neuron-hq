@@ -356,7 +356,7 @@ Analyze the knowledge graph and perform consolidation:
     });
 
     const graph = await loadGraph(graphPath);
-    const merged = mergeNodes(graph, {
+    const merged = await mergeNodes(graph, {
       keepNodeId: input.keepNodeId,
       removeNodeId: input.removeNodeId,
       mergedTitle: input.mergedTitle,

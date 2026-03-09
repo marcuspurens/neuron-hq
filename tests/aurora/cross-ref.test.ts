@@ -20,6 +20,8 @@ import {
   getCrossRefs,
   findAuroraMatchesForNeuron,
   findNeuronMatchesForAurora,
+  transferCrossRefs,
+  checkCrossRefIntegrity,
 } from '../../src/aurora/cross-ref.js';
 
 /* ------------------------------------------------------------------ */
@@ -175,6 +177,80 @@ describe('createCrossRef', () => {
     expect(ref.similarity).toBe(0.95);
     expect(ref.metadata).toEqual({ updated: true });
   });
+
+  it('passes context and strength to the query', async () => {
+    mockQuery.mockResolvedValue({
+      rows: [{
+        id: 1,
+        neuron_node_id: 'p-1',
+        aurora_node_id: 'doc-1',
+        relationship: 'supports',
+        similarity: 0.9,
+        metadata: {},
+        context: 'auto-linked via embedding',
+        strength: 0.85,
+        created_at: new Date('2024-01-01T00:00:00.000Z'),
+      }],
+    });
+
+    const ref = await createCrossRef(
+      'p-1', 'doc-1', 'supports', 0.9, {}, 'auto-linked via embedding', 0.85,
+    );
+
+    expect(ref.context).toBe('auto-linked via embedding');
+    expect(ref.strength).toBe(0.85);
+    // Verify query includes context and strength columns
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain('context');
+    expect(sql).toContain('strength');
+    // Verify params include context and strength
+    const params = mockQuery.mock.calls[0][1] as unknown[];
+    expect(params[5]).toBe('auto-linked via embedding');
+    expect(params[6]).toBe(0.85);
+  });
+
+  it('defaults strength to similarity when strength is not provided', async () => {
+    mockQuery.mockResolvedValue({
+      rows: [{
+        id: 1,
+        neuron_node_id: 'p-1',
+        aurora_node_id: 'doc-1',
+        relationship: 'supports',
+        similarity: 0.9,
+        metadata: {},
+        context: null,
+        strength: 0.9,
+        created_at: new Date('2024-01-01T00:00:00.000Z'),
+      }],
+    });
+
+    await createCrossRef('p-1', 'doc-1', 'supports', 0.9);
+
+    const params = mockQuery.mock.calls[0][1] as unknown[];
+    // context should be null
+    expect(params[5]).toBeNull();
+    // strength should default to similarity (0.9)
+    expect(params[6]).toBe(0.9);
+  });
+
+  it('returns null for context and strength when not in DB row', async () => {
+    mockQuery.mockResolvedValue({
+      rows: [{
+        id: 1,
+        neuron_node_id: 'p-1',
+        aurora_node_id: 'doc-1',
+        relationship: 'supports',
+        similarity: 0.9,
+        metadata: {},
+        created_at: new Date('2024-01-01T00:00:00.000Z'),
+      }],
+    });
+
+    const ref = await createCrossRef('p-1', 'doc-1', 'supports', 0.9);
+
+    expect(ref.context).toBeNull();
+    expect(ref.strength).toBeNull();
+  });
 });
 
 /* ------------------------------------------------------------------ */
@@ -323,5 +399,149 @@ describe('findNeuronMatchesForAurora', () => {
     const matches = await findNeuronMatchesForAurora('doc-1');
 
     expect(matches).toHaveLength(0);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  Tests: transferCrossRefs                                           */
+/* ------------------------------------------------------------------ */
+
+describe('transferCrossRefs', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('transfers cross-refs from removed to kept node on neuron side', async () => {
+    // First call: UPDATE (transfer), second call: DELETE (cleanup)
+    mockQuery
+      .mockResolvedValueOnce({ rowCount: 2 })
+      .mockResolvedValueOnce({ rowCount: 0 });
+
+    const transferred = await transferCrossRefs('old-node', 'kept-node', 'neuron');
+
+    expect(transferred).toBe(2);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+
+    // Verify UPDATE query uses neuron_node_id column
+    const updateSql = mockQuery.mock.calls[0][0] as string;
+    expect(updateSql).toContain('UPDATE cross_refs');
+    expect(updateSql).toContain('neuron_node_id');
+    expect(updateSql).toContain('[transferred from merge]');
+    const updateParams = mockQuery.mock.calls[0][1] as unknown[];
+    expect(updateParams[0]).toBe('kept-node');
+    expect(updateParams[1]).toBe('old-node');
+
+    // Verify DELETE query for remaining duplicates
+    const deleteSql = mockQuery.mock.calls[1][0] as string;
+    expect(deleteSql).toContain('DELETE FROM cross_refs');
+  });
+
+  it('transfers cross-refs on aurora side', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rowCount: 1 })
+      .mockResolvedValueOnce({ rowCount: 0 });
+
+    const transferred = await transferCrossRefs('old-aurora', 'kept-aurora', 'aurora');
+
+    expect(transferred).toBe(1);
+
+    // Verify UPDATE query uses aurora_node_id column
+    const updateSql = mockQuery.mock.calls[0][0] as string;
+    expect(updateSql).toContain('aurora_node_id');
+  });
+
+  it('returns 0 when no refs to transfer', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rowCount: 0 })
+      .mockResolvedValueOnce({ rowCount: 0 });
+
+    const transferred = await transferCrossRefs('no-refs', 'kept', 'neuron');
+
+    expect(transferred).toBe(0);
+  });
+
+  it('handles null rowCount gracefully', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rowCount: null })
+      .mockResolvedValueOnce({ rowCount: 0 });
+
+    const transferred = await transferCrossRefs('old', 'kept', 'neuron');
+
+    expect(transferred).toBe(0);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  Tests: checkCrossRefIntegrity                                      */
+/* ------------------------------------------------------------------ */
+
+describe('checkCrossRefIntegrity', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns low-confidence issues', async () => {
+    mockQuery.mockResolvedValue({
+      rows: [{
+        id: 1,
+        neuron_node_id: 'p-1',
+        aurora_node_id: 'doc-1',
+        relationship: 'supports',
+        neuron_title: 'Weak Pattern',
+        neuron_confidence: 0.3,
+        aurora_title: 'Research Doc',
+      }],
+    });
+
+    const issues = await checkCrossRefIntegrity();
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0].crossRefId).toBe(1);
+    expect(issues[0].neuronNodeId).toBe('p-1');
+    expect(issues[0].neuronTitle).toBe('Weak Pattern');
+    expect(issues[0].neuronConfidence).toBe(0.3);
+    expect(issues[0].auroraNodeId).toBe('doc-1');
+    expect(issues[0].auroraTitle).toBe('Research Doc');
+    expect(issues[0].issue).toBe('low_confidence');
+  });
+
+  it('uses default threshold of 0.5 and limit of 20', async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await checkCrossRefIntegrity();
+
+    const params = mockQuery.mock.calls[0][1] as unknown[];
+    expect(params[0]).toBe(0.5);  // threshold
+    expect(params[1]).toBe(20);   // limit
+  });
+
+  it('accepts custom options', async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await checkCrossRefIntegrity({ confidenceThreshold: 0.7, limit: 5 });
+
+    const params = mockQuery.mock.calls[0][1] as unknown[];
+    expect(params[0]).toBe(0.7);
+    expect(params[1]).toBe(5);
+  });
+
+  it('returns empty array when no issues found', async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    const issues = await checkCrossRefIntegrity();
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it('queries with JOINs on kg_nodes and aurora_nodes', async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await checkCrossRefIntegrity();
+
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain('JOIN kg_nodes');
+    expect(sql).toContain('JOIN aurora_nodes');
+    expect(sql).toContain('confidence');
+    expect(sql).toContain('ORDER BY');
   });
 });

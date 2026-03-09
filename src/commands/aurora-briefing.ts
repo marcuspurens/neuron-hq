@@ -83,6 +83,16 @@ export async function auroraBriefingCommand(
       }
     }
 
+    // Integrity issues
+    if (result.integrityIssues && result.integrityIssues.length > 0) {
+      console.log(chalk.bold(`\n⚠️ Integritetsproblem (${result.integrityIssues.length}):`));
+      for (const issue of result.integrityIssues) {
+        console.log(
+          `  → Neuron "${issue.neuronTitle}" (confidence ${issue.neuronConfidence.toFixed(2)}) kopplad till "${issue.auroraTitle}"`,
+        );
+      }
+    }
+
     // Footer
     const footer = `── Rapport genererad ${result.metadata.generatedAt} | ${result.metadata.totalSources} källor | ${result.metadata.totalGaps} luckor | ${result.metadata.totalCrossRefs} kopplingar`;
     console.log(`\n${chalk.dim(footer)}\n`);

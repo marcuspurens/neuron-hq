@@ -511,6 +511,7 @@ async function executeGraphCrossRef(
           relationship,
           match.similarity,
           { createdBy: ctx.agent, runId: ctx.runId },
+          'historian-discovery',
         );
         crossRefsCreated.push({
           auroraNodeId: match.node.id,

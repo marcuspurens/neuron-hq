@@ -2,6 +2,7 @@ import { recall } from './memory.js';
 import { searchAurora } from './search.js';
 import { getGaps } from './knowledge-gaps.js';
 import { unifiedSearch } from './cross-ref.js';
+import { checkCrossRefIntegrity, type IntegrityIssue } from './cross-ref.js';
 import { createAgentClient } from '../core/agent-client.js';
 import {
   resolveModelConfig,
@@ -52,6 +53,12 @@ export interface BriefingResult {
     neuron: Array<{ title: string; type: string; similarity: number }>;
     aurora: Array<{ title: string; type: string; similarity: number }>;
   };
+  integrityIssues: Array<{
+    neuronTitle: string;
+    neuronConfidence: number;
+    auroraTitle: string;
+    issue: string;
+  }>;
   metadata: {
     generatedAt: string;
     totalSources: number;
@@ -168,6 +175,14 @@ export async function briefing(
     similarity: r.similarity,
   }));
 
+  // Step 5b: Check cross-ref integrity
+  let integrityIssues: IntegrityIssue[] = [];
+  try {
+    integrityIssues = await checkCrossRefIntegrity({ limit: 5 });
+  } catch {
+    // DB might not be available
+  }
+
   // Step 6: Generate summary with Claude Haiku
   const config = getModelConfig();
   const { client, model } = createAgentClient(config);
@@ -212,6 +227,12 @@ export async function briefing(
     timeline: timelineEntries,
     gaps: filteredGaps,
     crossRefs: { neuron: neuronRefs, aurora: auroraRefs },
+    integrityIssues: integrityIssues.map((i) => ({
+      neuronTitle: i.neuronTitle,
+      neuronConfidence: i.neuronConfidence,
+      auroraTitle: i.auroraTitle,
+      issue: i.issue,
+    })),
     metadata: {
       generatedAt: new Date().toISOString(),
       totalSources,
