@@ -8,6 +8,8 @@ import {
   DEFAULT_MODEL_CONFIG,
   type ModelConfig,
 } from '../core/model-registry.js';
+import { getPool } from '../core/db.js';
+import { calculateFreshnessScore, freshnessStatus } from './freshness.js';
 import type Anthropic from '@anthropic-ai/sdk';
 
 // --- Interfaces ---
@@ -20,6 +22,9 @@ export interface BriefingOptions {
   minSimilarity?: number; // Default: 0.3
 }
 
+/** Possible freshness statuses for a fact. */
+type FreshnessStatusType = 'fresh' | 'aging' | 'stale' | 'unverified';
+
 export interface BriefingResult {
   topic: string;
   summary: string;
@@ -29,6 +34,8 @@ export interface BriefingResult {
     confidence: number;
     similarity: number;
     text?: string;
+    freshnessScore: number;
+    freshnessStatus: FreshnessStatusType;
   }>;
   timeline: Array<{
     title: string;
@@ -93,14 +100,42 @@ export async function briefing(
       unifiedSearch(topic, { limit: maxCrossRefs, minSimilarity }),
     ]);
 
-  // Step 2: Map facts from recall
+  // Step 2: Map facts from recall (with nodeId for freshness lookup)
   const facts = recallResult.memories.map((m) => ({
+    nodeId: m.id, // for freshness lookup
     title: m.title,
     type: m.type,
     confidence: m.confidence,
     similarity: m.similarity ?? 0,
     ...(m.text ? { text: m.text } : {}),
+    freshnessScore: 0, // default, enriched below
+    freshnessStatus: 'unverified' as FreshnessStatusType,
   }));
+
+  // Step 2b: Enrich facts with freshness info
+  try {
+    const pool = getPool();
+    for (const fact of facts) {
+      try {
+        const { rows } = await pool.query(
+          'SELECT last_verified FROM aurora_nodes WHERE id = $1',
+          [fact.nodeId],
+        );
+        const lastVerified = rows[0]?.last_verified
+          ? new Date(rows[0].last_verified)
+          : null;
+        fact.freshnessScore = calculateFreshnessScore(lastVerified);
+        fact.freshnessStatus = freshnessStatus(
+          fact.freshnessScore,
+          lastVerified,
+        );
+      } catch {
+        // Keep defaults (0, 'unverified') on failure
+      }
+    }
+  } catch {
+    // DB not available — all facts stay as 'unverified'
+  }
 
   // Step 3: Map timeline from searchAurora
   // SearchResult doesn't have createdAt — use empty string
@@ -173,7 +208,7 @@ export async function briefing(
   return {
     topic,
     summary: finalSummary,
-    facts,
+    facts: facts.map(({ nodeId, ...rest }) => rest),
     timeline: timelineEntries,
     gaps: filteredGaps,
     crossRefs: { neuron: neuronRefs, aurora: auroraRefs },

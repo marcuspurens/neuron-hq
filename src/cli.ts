@@ -248,6 +248,26 @@ program
   .option('--max-cross-refs <n>', 'Max cross-refs per graph', '5')
   .action(auroraBriefingCommand);
 
+// aurora:verify <node-id>
+program
+  .command('aurora:verify <nodeId>')
+  .description('Mark an Aurora source as verified')
+  .action(async (nodeId: string) => {
+    const { auroraVerifyCommand } = await import('./commands/aurora-verify.js');
+    await auroraVerifyCommand(nodeId);
+  });
+
+// aurora:freshness
+program
+  .command('aurora:freshness')
+  .description('Show freshness report for Aurora sources')
+  .option('--stale', 'Only show stale/unverified sources')
+  .option('--limit <n>', 'Max sources to show', '20')
+  .action(async (options) => {
+    const { auroraFreshnessCommand } = await import('./commands/aurora-freshness.js');
+    await auroraFreshnessCommand(options);
+  });
+
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =
   process.argv[1] &&

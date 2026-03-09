@@ -35,6 +35,14 @@ export async function auroraBriefingCommand(
       for (const fact of result.facts) {
         const sim = `[${fact.similarity.toFixed(2)}]`;
         console.log(`  ${chalk.cyan(sim)} "${fact.title}" (${fact.type}, confidence: ${fact.confidence})`);
+        // Freshness warning
+        if (fact.freshnessStatus === 'unverified') {
+          console.log(chalk.gray(`    [!] Overifierad källa`));
+        } else if (fact.freshnessStatus === 'stale') {
+          console.log(chalk.red(`    [!] Föråldrad källa (freshness: ${fact.freshnessScore.toFixed(2)})`));
+        } else if (fact.freshnessStatus === 'aging') {
+          console.log(chalk.yellow(`    [i] Åldrande källa (freshness: ${fact.freshnessScore.toFixed(2)})`));
+        }
       }
     }
     console.log('');
