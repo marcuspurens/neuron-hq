@@ -204,4 +204,23 @@ export class GitOperations {
       cwd: this.repoPath,
     });
   }
+
+  /**
+   * Create a git worktree with a new branch.
+   * Each worktree gets its own working directory backed by the same .git.
+   */
+  async addWorktree(worktreePath: string, branchName: string): Promise<void> {
+    await execAsync(`git worktree add "${worktreePath}" -b "${branchName}"`, {
+      cwd: this.repoPath,
+    });
+  }
+
+  /**
+   * Remove a git worktree and its directory.
+   */
+  async removeWorktree(worktreePath: string): Promise<void> {
+    await execAsync(`git worktree remove "${worktreePath}" --force`, {
+      cwd: this.repoPath,
+    });
+  }
 }
