@@ -16,15 +16,13 @@ vi.mock('../../src/aurora/intake.js', () => ({
   ingestDocument: (...args: unknown[]) => mockIngestDocument(...args),
 }));
 
-const mockIngestYouTube = vi.fn();
-const mockIsYouTubeUrl = vi.fn();
-vi.mock('../../src/aurora/youtube.js', () => ({
-  ingestYouTube: (...args: unknown[]) => mockIngestYouTube(...args),
-  isYouTubeUrl: (...args: unknown[]) => mockIsYouTubeUrl(...args),
+const mockIngestVideo = vi.fn();
+vi.mock('../../src/aurora/video.js', () => ({
+  ingestVideo: (...args: unknown[]) => mockIngestVideo(...args),
 }));
 
 import { auroraIngestCommand } from '../../src/commands/aurora-ingest.js';
-import { auroraIngestYouTubeCommand } from '../../src/commands/aurora-ingest-youtube.js';
+import { auroraIngestVideoCommand } from '../../src/commands/aurora-ingest-video.js';
 
 /* ------------------------------------------------------------------ */
 /*  Setup                                                              */
@@ -105,19 +103,19 @@ describe('aurora:ingest cross-ref CLI output', () => {
   });
 
   /* ---------------------------------------------------------------- */
-  /*  YouTube ingest cross-ref display                                 */
+  /*  Video ingest cross-ref display                                   */
   /* ---------------------------------------------------------------- */
 
-  it('shows cross-ref info for YouTube ingest when matches exist', async () => {
-    mockIsYouTubeUrl.mockReturnValue(true);
+  it('shows cross-ref info for video ingest when matches exist', async () => {
     mockIsWorkerAvailable.mockResolvedValue(true);
-    mockIngestYouTube.mockResolvedValue({
+    mockIngestVideo.mockResolvedValue({
       transcriptNodeId: 'yt-abc123',
       chunksCreated: 5,
       voicePrintsCreated: 0,
       title: 'Coding Tutorial',
       duration: 300,
       videoId: 'abc123',
+      platform: 'youtube',
       crossRefsCreated: 1,
       crossRefMatches: [
         {
@@ -129,7 +127,7 @@ describe('aurora:ingest cross-ref CLI output', () => {
       ],
     });
 
-    await auroraIngestYouTubeCommand('https://www.youtube.com/watch?v=abc123', {});
+    await auroraIngestVideoCommand('https://www.youtube.com/watch?v=abc123', {});
 
     const output = consoleOutput.join('\n');
     expect(output).toContain('cross-reference');
@@ -137,21 +135,21 @@ describe('aurora:ingest cross-ref CLI output', () => {
     expect(output).toContain('0.82');
   });
 
-  it('does NOT show cross-ref section for YouTube when no matches', async () => {
-    mockIsYouTubeUrl.mockReturnValue(true);
+  it('does NOT show cross-ref section for video when no matches', async () => {
     mockIsWorkerAvailable.mockResolvedValue(true);
-    mockIngestYouTube.mockResolvedValue({
+    mockIngestVideo.mockResolvedValue({
       transcriptNodeId: 'yt-xyz789',
       chunksCreated: 3,
       voicePrintsCreated: 0,
       title: 'Random Video',
       duration: 120,
       videoId: 'xyz789',
+      platform: 'youtube',
       crossRefsCreated: 0,
       crossRefMatches: [],
     });
 
-    await auroraIngestYouTubeCommand('https://www.youtube.com/watch?v=xyz789', {});
+    await auroraIngestVideoCommand('https://www.youtube.com/watch?v=xyz789', {});
 
     const output = consoleOutput.join('\n');
     expect(output).toContain('Random Video');

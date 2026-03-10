@@ -30,6 +30,7 @@ def extract_url(url: str) -> dict:
     metadata = trafilatura.extract_metadata(downloaded)
     title = metadata.title if metadata and metadata.title else url
     language = metadata.language if metadata and metadata.language else "unknown"
+    published_date = metadata.date if metadata and metadata.date else None
 
     words = text.split()
     return {
@@ -39,5 +40,6 @@ def extract_url(url: str) -> dict:
             "source_type": "url",
             "word_count": len(words),
             "language": language,
+            "publishedDate": published_date,
         },
     }

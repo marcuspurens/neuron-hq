@@ -16,7 +16,7 @@ import {
   autoEmbedAuroraNodes,
 } from './aurora-graph.js';
 import type { AuroraNodeType, AuroraScope, AuroraNode } from './aurora-schema.js';
-import { isYouTubeUrl, ingestYouTube } from './youtube.js';
+import { isVideoUrl, ingestVideo } from './video.js';
 import { findNeuronMatchesForAurora, createCrossRef } from './cross-ref.js';
 
 /* ------------------------------------------------------------------ */
@@ -69,9 +69,9 @@ export async function ingestUrl(
   url: string,
   options?: IngestOptions,
 ): Promise<IngestResult> {
-  // YouTube URL detection — route to specialized pipeline
-  if (isYouTubeUrl(url)) {
-    const result = await ingestYouTube(url, {
+  // Video URL detection — route to specialized video pipeline
+  if (isVideoUrl(url)) {
+    const result = await ingestVideo(url, {
       scope: options?.scope,
       maxChunks: options?.maxChunks,
     });

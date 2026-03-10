@@ -41,7 +41,7 @@ function emptyGraph(): AuroraGraph {
   return { nodes: [], edges: [], lastUpdated: new Date().toISOString() };
 }
 
-const extractYouTubeResponse = {
+const extractVideoResponse = {
   ok: true,
   title: 'Test Video',
   text: '',
@@ -49,7 +49,23 @@ const extractYouTubeResponse = {
     videoId: 'dQw4w9WgXcQ',
     duration: 120,
     audioPath: '/tmp/audio.m4a',
-    source_type: 'youtube',
+    source_type: 'video',
+    extractor: 'youtube',
+    webpage_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+  },
+};
+
+const extractSvtResponse = {
+  ok: true,
+  title: 'SVT Nyheter',
+  text: '',
+  metadata: {
+    videoId: null,
+    duration: 300,
+    audioPath: '/tmp/svt-audio.m4a',
+    source_type: 'video',
+    extractor: 'svtplay',
+    webpage_url: 'https://www.svt.se/nyheter/test-article',
   },
 };
 
@@ -90,9 +106,8 @@ const diarizeResponse = {
 /*  Import after mocks                                                 */
 /* ------------------------------------------------------------------ */
 
-const { isYouTubeUrl, extractVideoId, ingestYouTube } = await import(
-  '../../src/aurora/youtube.js'
-);
+const { isYouTubeUrl, isVideoUrl, extractVideoId, videoNodeId, ingestVideo } =
+  await import('../../src/aurora/video.js');
 
 /* ------------------------------------------------------------------ */
 /*  isYouTubeUrl                                                       */
@@ -135,6 +150,63 @@ describe('isYouTubeUrl', () => {
 });
 
 /* ------------------------------------------------------------------ */
+/*  isVideoUrl                                                         */
+/* ------------------------------------------------------------------ */
+
+describe('isVideoUrl', () => {
+  it('detects YouTube URLs', () => {
+    expect(isVideoUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(true);
+  });
+
+  it('detects youtu.be URLs', () => {
+    expect(isVideoUrl('https://youtu.be/dQw4w9WgXcQ')).toBe(true);
+  });
+
+  it('detects Vimeo URLs', () => {
+    expect(isVideoUrl('https://vimeo.com/123456789')).toBe(true);
+  });
+
+  it('detects SVT URLs', () => {
+    expect(isVideoUrl('https://www.svt.se/nyheter/test')).toBe(true);
+    expect(isVideoUrl('https://www.svtplay.se/video/12345')).toBe(true);
+  });
+
+  it('detects TV4 URLs', () => {
+    expect(isVideoUrl('https://www.tv4play.se/program/test')).toBe(true);
+    expect(isVideoUrl('https://www.tv4.se/klipp/test')).toBe(true);
+  });
+
+  it('detects TikTok URLs', () => {
+    expect(isVideoUrl('https://www.tiktok.com/@user/video/123')).toBe(true);
+  });
+
+  it('detects Dailymotion URLs', () => {
+    expect(isVideoUrl('https://www.dailymotion.com/video/x123')).toBe(true);
+  });
+
+  it('detects Twitch URLs', () => {
+    expect(isVideoUrl('https://www.twitch.tv/videos/123')).toBe(true);
+  });
+
+  it('detects Rumble URLs', () => {
+    expect(isVideoUrl('https://rumble.com/v123-test.html')).toBe(true);
+  });
+
+  it('rejects unknown domains', () => {
+    expect(isVideoUrl('https://example.com')).toBe(false);
+    expect(isVideoUrl('https://blog.example.com/article')).toBe(false);
+  });
+
+  it('rejects empty string', () => {
+    expect(isVideoUrl('')).toBe(false);
+  });
+
+  it('rejects invalid URLs', () => {
+    expect(isVideoUrl('not-a-url')).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------ */
 /*  extractVideoId                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -167,10 +239,38 @@ describe('extractVideoId', () => {
 });
 
 /* ------------------------------------------------------------------ */
-/*  ingestYouTube                                                      */
+/*  videoNodeId                                                        */
 /* ------------------------------------------------------------------ */
 
-describe('ingestYouTube', () => {
+describe('videoNodeId', () => {
+  it('returns yt-{id} for YouTube URLs', () => {
+    expect(videoNodeId('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(
+      'yt-dQw4w9WgXcQ',
+    );
+  });
+
+  it('returns vid-{hash} for non-YouTube URLs', () => {
+    const id = videoNodeId('https://www.svt.se/nyheter/test');
+    expect(id).toMatch(/^vid-[a-f0-9]{12}$/);
+  });
+
+  it('returns same ID for same URL (deterministic)', () => {
+    const url = 'https://vimeo.com/123456789';
+    expect(videoNodeId(url)).toBe(videoNodeId(url));
+  });
+
+  it('returns different IDs for different URLs', () => {
+    const id1 = videoNodeId('https://vimeo.com/111111111');
+    const id2 = videoNodeId('https://vimeo.com/222222222');
+    expect(id1).not.toBe(id2);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  ingestVideo                                                        */
+/* ------------------------------------------------------------------ */
+
+describe('ingestVideo', () => {
   beforeEach(() => {
     mockRunWorker.mockReset();
     mockLoadAuroraGraph.mockReset();
@@ -181,29 +281,45 @@ describe('ingestYouTube', () => {
     mockAutoEmbedAuroraNodes.mockResolvedValue(undefined);
   });
 
-  it('creates transcript node + chunks', async () => {
+  it('creates transcript node + chunks for YouTube URL', async () => {
     mockRunWorker
-      .mockResolvedValueOnce(extractYouTubeResponse)
+      .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse);
 
-    const result = await ingestYouTube(
+    const result = await ingestVideo(
       'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     );
 
     expect(result.transcriptNodeId).toBe('yt-dQw4w9WgXcQ');
     expect(result.chunksCreated).toBeGreaterThanOrEqual(1);
     expect(result.title).toBe('Test Video');
+    expect(result.videoId).toBe('dQw4w9WgXcQ');
+    expect(result.platform).toBe('youtube');
     expect(mockSaveAuroraGraph).toHaveBeenCalledTimes(1);
     expect(mockAutoEmbedAuroraNodes).toHaveBeenCalledTimes(1);
   });
 
+  it('creates transcript node for non-YouTube URL', async () => {
+    mockRunWorker
+      .mockResolvedValueOnce(extractSvtResponse)
+      .mockResolvedValueOnce(transcribeResponse);
+
+    const result = await ingestVideo('https://www.svt.se/nyheter/test-article');
+
+    expect(result.transcriptNodeId).toMatch(/^vid-[a-f0-9]{12}$/);
+    expect(result.videoId).toBeNull();
+    expect(result.platform).toBe('svtplay');
+    expect(result.title).toBe('SVT Nyheter');
+    expect(result.chunksCreated).toBeGreaterThanOrEqual(1);
+  });
+
   it('with diarize creates voice_print nodes', async () => {
     mockRunWorker
-      .mockResolvedValueOnce(extractYouTubeResponse)
+      .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse)
       .mockResolvedValueOnce(diarizeResponse);
 
-    const result = await ingestYouTube(
+    const result = await ingestVideo(
       'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       { diarize: true },
     );
@@ -211,14 +327,14 @@ describe('ingestYouTube', () => {
     expect(result.voicePrintsCreated).toBe(2);
   });
 
-  it('dedup returns early if video already ingested', async () => {
+  it('dedup returns early if video already ingested (YouTube)', async () => {
     const graphWithExisting: AuroraGraph = {
       nodes: [
         {
           id: 'yt-dQw4w9WgXcQ',
           type: 'transcript',
           title: 'Existing Video',
-          properties: { duration: 120, videoId: 'dQw4w9WgXcQ' },
+          properties: { duration: 120, videoId: 'dQw4w9WgXcQ', platform: 'youtube' },
           confidence: 0.9,
           scope: 'personal',
           sourceUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
@@ -231,13 +347,41 @@ describe('ingestYouTube', () => {
     };
     mockLoadAuroraGraph.mockResolvedValue(graphWithExisting);
 
-    const result = await ingestYouTube(
+    const result = await ingestVideo(
       'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     );
 
     expect(mockRunWorker).not.toHaveBeenCalled();
     expect(result.chunksCreated).toBe(0);
     expect(result.voicePrintsCreated).toBe(0);
+  });
+
+  it('dedup returns early if non-YouTube video already ingested', async () => {
+    const svtUrl = 'https://www.svt.se/nyheter/test-article';
+    const nodeId = videoNodeId(svtUrl);
+    const graphWithExisting: AuroraGraph = {
+      nodes: [
+        {
+          id: nodeId,
+          type: 'transcript',
+          title: 'Existing SVT Video',
+          properties: { duration: 300, platform: 'svtplay' },
+          confidence: 0.9,
+          scope: 'personal',
+          sourceUrl: svtUrl,
+          created: new Date().toISOString(),
+          updated: new Date().toISOString(),
+        },
+      ],
+      edges: [],
+      lastUpdated: new Date().toISOString(),
+    };
+    mockLoadAuroraGraph.mockResolvedValue(graphWithExisting);
+
+    const result = await ingestVideo(svtUrl);
+
+    expect(mockRunWorker).not.toHaveBeenCalled();
+    expect(result.chunksCreated).toBe(0);
   });
 
   it('handles worker error gracefully', async () => {
@@ -247,28 +391,30 @@ describe('ingestYouTube', () => {
     });
 
     await expect(
-      ingestYouTube('https://www.youtube.com/watch?v=dQw4w9WgXcQ'),
+      ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ'),
     ).rejects.toThrow('download failed');
   });
 
-  it('throws for non-YouTube URL', async () => {
-    await expect(ingestYouTube('https://example.com')).rejects.toThrow();
-  });
-
-  it('passes correct actions to workers', async () => {
+  it('sends extract_video action to worker', async () => {
     mockRunWorker
-      .mockResolvedValueOnce(extractYouTubeResponse)
+      .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse);
 
-    await ingestYouTube('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
 
-    expect(mockRunWorker).toHaveBeenCalledWith({
-      action: 'extract_youtube',
-      source: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    });
-    expect(mockRunWorker).toHaveBeenCalledWith({
-      action: 'transcribe_audio',
-      source: '/tmp/audio.m4a',
-    });
+    expect(mockRunWorker).toHaveBeenCalledWith(
+      {
+        action: 'extract_video',
+        source: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      },
+      { timeout: 300_000 },
+    );
+    expect(mockRunWorker).toHaveBeenCalledWith(
+      {
+        action: 'transcribe_audio',
+        source: '/tmp/audio.m4a',
+      },
+      { timeout: 600_000 },
+    );
   });
 });

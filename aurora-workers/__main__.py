@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from extract_url import extract_url
 from extract_pdf import extract_pdf
 from extract_text import extract_text
-from extract_youtube import extract_youtube
+from extract_video import extract_video
 from transcribe_audio import transcribe_audio
 from diarize_audio import diarize_audio
 
@@ -17,7 +17,8 @@ HANDLERS: dict[str, callable] = {
     "extract_url": extract_url,
     "extract_pdf": extract_pdf,
     "extract_text": extract_text,
-    "extract_youtube": extract_youtube,
+    "extract_video": extract_video,
+    "extract_youtube": extract_video,  # backward compat alias
     "transcribe_audio": transcribe_audio,
     "diarize_audio": diarize_audio,
 }

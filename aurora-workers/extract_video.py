@@ -1,27 +1,23 @@
-"""Extract metadata and audio from a YouTube video using yt-dlp."""
+"""Extract metadata and audio from any video URL using yt-dlp."""
 import json
 import re
 import subprocess
 import tempfile
 
 
-def extract_youtube(source: str) -> dict:
-    """Download audio and extract metadata from a YouTube URL.
+def extract_video(source: str) -> dict:
+    """Download audio and extract metadata from any yt-dlp supported URL.
 
     Args:
-        source: YouTube URL (youtube.com/watch?v=, youtu.be/, youtube.com/shorts/).
+        source: Video URL (YouTube, SVT, Vimeo, TV4, TikTok, etc.).
 
     Returns:
         Dict with title, text, and metadata keys.
 
     Raises:
-        ValueError: If the URL is not a valid YouTube URL or download fails.
+        ValueError: If yt-dlp cannot handle the URL or download fails.
     """
-    video_id = _parse_video_id(source)
-    if not video_id:
-        raise ValueError(f"Could not parse YouTube video ID from URL: {source}")
-
-    output_dir = tempfile.mkdtemp(prefix="aurora_yt_")
+    output_dir = tempfile.mkdtemp(prefix="aurora_vid_")
     output_path = f"{output_dir}/audio.m4a"
 
     try:
@@ -54,6 +50,13 @@ def extract_youtube(source: str) -> dict:
 
     title = info.get("title", source)
     duration = info.get("duration", 0)
+    video_id = _parse_youtube_id(source)
+
+    # yt-dlp returns upload_date as YYYYMMDD string
+    raw_date = info.get("upload_date")
+    published_date = None
+    if raw_date and len(raw_date) == 8:
+        published_date = f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:8]}"
 
     return {
         "title": title,
@@ -62,18 +65,18 @@ def extract_youtube(source: str) -> dict:
             "videoId": video_id,
             "duration": int(duration) if duration else 0,
             "audioPath": output_path,
-            "source_type": "youtube",
+            "source_type": "video",
+            "extractor": info.get("extractor", "unknown"),
+            "webpage_url": info.get("webpage_url", source),
+            "publishedDate": published_date,
         },
     }
 
 
-def _parse_video_id(url: str) -> str | None:
-    """Extract YouTube video ID from various URL formats.
+def _parse_youtube_id(url: str) -> str | None:
+    """Extract YouTube video ID if the URL is a YouTube URL.
 
-    Supports:
-        - youtube.com/watch?v=VIDEO_ID
-        - youtu.be/VIDEO_ID
-        - youtube.com/shorts/VIDEO_ID
+    Returns None for non-YouTube URLs.
     """
     patterns = [
         r"(?:youtube\.com/watch\?.*v=)([a-zA-Z0-9_-]{11})",

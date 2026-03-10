@@ -6,24 +6,21 @@ vi.mock('../../src/aurora/worker-bridge.js', () => ({
   isWorkerAvailable: () => mockIsWorkerAvailable(),
 }));
 
-// Mock youtube module
-const mockIngestYouTube = vi.fn();
-const mockIsYouTubeUrl = vi.fn();
-vi.mock('../../src/aurora/youtube.js', () => ({
-  ingestYouTube: (...args: unknown[]) => mockIngestYouTube(...args),
-  isYouTubeUrl: (...args: unknown[]) => mockIsYouTubeUrl(...args),
+// Mock video module
+const mockIngestVideo = vi.fn();
+vi.mock('../../src/aurora/video.js', () => ({
+  ingestVideo: (...args: unknown[]) => mockIngestVideo(...args),
 }));
 
-import { auroraIngestYouTubeCommand } from '../../src/commands/aurora-ingest-youtube.js';
+import { auroraIngestVideoCommand } from '../../src/commands/aurora-ingest-video.js';
 
-describe('aurora:ingest-youtube command', () => {
+describe('aurora:ingest-video command', () => {
   let consoleOutput: string[];
   let consoleErrors: string[];
 
   beforeEach(() => {
     mockIsWorkerAvailable.mockReset();
-    mockIngestYouTube.mockReset();
-    mockIsYouTubeUrl.mockReset();
+    mockIngestVideo.mockReset();
     consoleOutput = [];
     consoleErrors = [];
     vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
@@ -34,80 +31,93 @@ describe('aurora:ingest-youtube command', () => {
     });
   });
 
-  it('shows error for non-YouTube URL', async () => {
-    mockIsYouTubeUrl.mockReturnValue(false);
-    await auroraIngestYouTubeCommand('https://example.com', {});
-    expect(consoleErrors.join('\n')).toContain('Not a valid YouTube URL');
-  });
-
   it('shows worker not available message when Python missing', async () => {
-    mockIsYouTubeUrl.mockReturnValue(true);
     mockIsWorkerAvailable.mockResolvedValue(false);
-    await auroraIngestYouTubeCommand('https://www.youtube.com/watch?v=abc123', {});
+    await auroraIngestVideoCommand('https://www.youtube.com/watch?v=abc123', {});
     expect(consoleErrors.join('\n')).toContain('not available');
   });
 
-  it('ingests YouTube video and shows correct output', async () => {
-    mockIsYouTubeUrl.mockReturnValue(true);
+  it('ingests video and shows correct output', async () => {
     mockIsWorkerAvailable.mockResolvedValue(true);
-    mockIngestYouTube.mockResolvedValue({
+    mockIngestVideo.mockResolvedValue({
       transcriptNodeId: 'yt-abc123',
       chunksCreated: 5,
       voicePrintsCreated: 0,
       title: 'Test Video',
       duration: 120,
       videoId: 'abc123',
+      platform: 'youtube',
     });
 
-    await auroraIngestYouTubeCommand('https://www.youtube.com/watch?v=abc123', {});
+    await auroraIngestVideoCommand('https://www.youtube.com/watch?v=abc123', {});
     const output = consoleOutput.join('\n');
-    expect(output).toContain('YouTube video ingested');
+    expect(output).toContain('Video ingested');
     expect(output).toContain('Test Video');
     expect(output).toContain('yt-abc123');
+    expect(output).toContain('youtube');
   });
 
   it('shows voice prints when diarize flag is set', async () => {
-    mockIsYouTubeUrl.mockReturnValue(true);
     mockIsWorkerAvailable.mockResolvedValue(true);
-    mockIngestYouTube.mockResolvedValue({
+    mockIngestVideo.mockResolvedValue({
       transcriptNodeId: 'yt-abc123',
       chunksCreated: 5,
       voicePrintsCreated: 3,
       title: 'Test Video',
       duration: 120,
       videoId: 'abc123',
+      platform: 'youtube',
     });
 
-    await auroraIngestYouTubeCommand('https://www.youtube.com/watch?v=abc123', { diarize: true });
+    await auroraIngestVideoCommand('https://www.youtube.com/watch?v=abc123', { diarize: true });
     const output = consoleOutput.join('\n');
     expect(output).toContain('Voice prints: 3');
   });
 
   it('handles ingest errors gracefully', async () => {
-    mockIsYouTubeUrl.mockReturnValue(true);
     mockIsWorkerAvailable.mockResolvedValue(true);
-    mockIngestYouTube.mockRejectedValue(new Error('download failed'));
+    mockIngestVideo.mockRejectedValue(new Error('download failed'));
 
-    await auroraIngestYouTubeCommand('https://www.youtube.com/watch?v=abc123', {});
+    await auroraIngestVideoCommand('https://www.youtube.com/watch?v=abc123', {});
     expect(consoleErrors.join('\n')).toContain('download failed');
   });
 
-  it('passes diarize option to ingestYouTube', async () => {
-    mockIsYouTubeUrl.mockReturnValue(true);
+  it('passes diarize option to ingestVideo', async () => {
     mockIsWorkerAvailable.mockResolvedValue(true);
-    mockIngestYouTube.mockResolvedValue({
+    mockIngestVideo.mockResolvedValue({
       transcriptNodeId: 'yt-abc123',
       chunksCreated: 5,
       voicePrintsCreated: 0,
       title: 'Test Video',
       duration: 120,
       videoId: 'abc123',
+      platform: 'youtube',
     });
 
-    await auroraIngestYouTubeCommand('https://www.youtube.com/watch?v=abc123', { diarize: true, scope: 'shared' });
-    expect(mockIngestYouTube).toHaveBeenCalledWith(
+    await auroraIngestVideoCommand('https://www.youtube.com/watch?v=abc123', { diarize: true, scope: 'shared' });
+    expect(mockIngestVideo).toHaveBeenCalledWith(
       'https://www.youtube.com/watch?v=abc123',
       expect.objectContaining({ diarize: true, scope: 'shared' }),
     );
+  });
+
+  it('accepts non-YouTube video URLs', async () => {
+    mockIsWorkerAvailable.mockResolvedValue(true);
+    mockIngestVideo.mockResolvedValue({
+      transcriptNodeId: 'vid-abc123456789',
+      chunksCreated: 3,
+      voicePrintsCreated: 0,
+      title: 'SVT Nyheter',
+      duration: 300,
+      videoId: null,
+      platform: 'svtplay',
+    });
+
+    await auroraIngestVideoCommand('https://www.svt.se/nyheter/test', {});
+    const output = consoleOutput.join('\n');
+    expect(output).toContain('Video ingested');
+    expect(output).toContain('SVT Nyheter');
+    expect(output).toContain('svtplay');
+    expect(output).not.toContain('Video ID');
   });
 });

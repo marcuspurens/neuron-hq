@@ -69,7 +69,7 @@ beforeEach(() => {
 /* ------------------------------------------------------------------ */
 
 const { ingestUrl } = await import('../../src/aurora/intake.js');
-const { ingestYouTube } = await import('../../src/aurora/youtube.js');
+const { ingestVideo } = await import('../../src/aurora/video.js');
 
 /* ------------------------------------------------------------------ */
 /*  ingestUrl auto cross-ref tests                                     */
@@ -232,10 +232,10 @@ describe('ingestUrl auto cross-ref', () => {
 });
 
 /* ------------------------------------------------------------------ */
-/*  ingestYouTube auto cross-ref tests                                 */
+/*  ingestVideo auto cross-ref tests                                 */
 /* ------------------------------------------------------------------ */
 
-describe('ingestYouTube auto cross-ref', () => {
+describe('ingestVideo auto cross-ref', () => {
   it('creates cross-refs for transcript node', async () => {
     mockRunWorker
       .mockResolvedValueOnce({
@@ -260,7 +260,7 @@ describe('ingestYouTube auto cross-ref', () => {
     ]);
     mockCreateCrossRef.mockResolvedValue({ id: 1 });
 
-    const result = await ingestYouTube(
+    const result = await ingestVideo(
       'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     );
 
@@ -287,7 +287,7 @@ describe('ingestYouTube auto cross-ref', () => {
 
     mockFindNeuronMatchesForAurora.mockResolvedValue([]);
 
-    const result = await ingestYouTube(
+    const result = await ingestVideo(
       'https://www.youtube.com/watch?v=abc12345678',
     );
 

@@ -1,15 +1,15 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { ingestYouTube, isYouTubeUrl } from '../../aurora/youtube.js';
-import type { YouTubeIngestOptions } from '../../aurora/youtube.js';
+import { ingestVideo } from '../../aurora/video.js';
+import type { VideoIngestOptions } from '../../aurora/video.js';
 
-/** Register aurora_ingest_youtube MCP tool. */
-export function registerAuroraIngestYouTubeTool(server: McpServer): void {
+/** Register aurora_ingest_video MCP tool. */
+export function registerAuroraIngestVideoTool(server: McpServer): void {
   server.tool(
-    'aurora_ingest_youtube',
-    'Ingest a YouTube video: extract audio, transcribe, optionally identify speakers, and store in Aurora knowledge base.',
+    'aurora_ingest_video',
+    'Ingest a video (YouTube, SVT, Vimeo, TV4, TikTok, etc.): extract audio, transcribe, optionally identify speakers, and store in Aurora knowledge base.',
     {
-      url: z.string().url().describe('YouTube video URL'),
+      url: z.string().url().describe('Video URL (any yt-dlp supported site)'),
       diarize: z
         .boolean()
         .optional()
@@ -28,22 +28,13 @@ export function registerAuroraIngestYouTubeTool(server: McpServer): void {
     },
     async (args) => {
       try {
-        if (!isYouTubeUrl(args.url)) {
-          return {
-            content: [
-              { type: 'text' as const, text: 'Error: Not a valid YouTube URL' },
-            ],
-            isError: true,
-          };
-        }
-
-        const options: YouTubeIngestOptions = {
+        const options: VideoIngestOptions = {
           diarize: args.diarize,
           scope: args.scope,
           whisperModel: args.whisper_model,
         };
 
-        const result = await ingestYouTube(args.url, options);
+        const result = await ingestVideo(args.url, options);
 
         return {
           content: [

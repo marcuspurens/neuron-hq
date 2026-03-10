@@ -1,13 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockIngestYouTube = vi.fn();
-const mockIsYouTubeUrl = vi.fn();
-vi.mock('../../../src/aurora/youtube.js', () => ({
-  ingestYouTube: (...args: unknown[]) => mockIngestYouTube(...args),
-  isYouTubeUrl: (...args: unknown[]) => mockIsYouTubeUrl(...args),
+const mockIngestVideo = vi.fn();
+vi.mock('../../../src/aurora/video.js', () => ({
+  ingestVideo: (...args: unknown[]) => mockIngestVideo(...args),
 }));
 
-import { registerAuroraIngestYouTubeTool } from '../../../src/mcp/tools/aurora-ingest-youtube.js';
+import { registerAuroraIngestVideoTool } from '../../../src/mcp/tools/aurora-ingest-video.js';
 
 type ToolHandler = (
   args: Record<string, unknown>,
@@ -25,31 +23,30 @@ const mockServer = {
   ),
 } as unknown as import('@modelcontextprotocol/sdk/server/mcp.js').McpServer;
 
-describe('aurora_ingest_youtube MCP tool', () => {
+describe('aurora_ingest_video MCP tool', () => {
   beforeEach(() => {
-    mockIngestYouTube.mockReset();
-    mockIsYouTubeUrl.mockReset();
+    mockIngestVideo.mockReset();
     mockServer.tool.mockClear();
-    registerAuroraIngestYouTubeTool(mockServer);
+    registerAuroraIngestVideoTool(mockServer);
   });
 
   it('registers tool with correct name', () => {
     expect(mockServer.tool).toHaveBeenCalledTimes(1);
-    expect(toolHandlers).toHaveProperty('aurora_ingest_youtube');
+    expect(toolHandlers).toHaveProperty('aurora_ingest_video');
   });
 
-  it('returns YouTubeIngestResult on success', async () => {
-    mockIsYouTubeUrl.mockReturnValue(true);
-    mockIngestYouTube.mockResolvedValue({
+  it('returns VideoIngestResult on success', async () => {
+    mockIngestVideo.mockResolvedValue({
       transcriptNodeId: 'yt-abc123',
       chunksCreated: 5,
       voicePrintsCreated: 0,
       title: 'Test Video',
       duration: 120,
       videoId: 'abc123',
+      platform: 'youtube',
     });
 
-    const result = await toolHandlers['aurora_ingest_youtube']({
+    const result = await toolHandlers['aurora_ingest_video']({
       url: 'https://www.youtube.com/watch?v=abc123',
       diarize: false,
       scope: 'personal',
@@ -61,42 +58,32 @@ describe('aurora_ingest_youtube MCP tool', () => {
     expect(result.isError).not.toBe(true);
   });
 
-  it('returns error for non-YouTube URL', async () => {
-    mockIsYouTubeUrl.mockReturnValue(false);
-    const result = await toolHandlers['aurora_ingest_youtube']({
-      url: 'https://example.com',
-    });
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain('Not a valid YouTube URL');
-  });
-
   it('handles ingest errors', async () => {
-    mockIsYouTubeUrl.mockReturnValue(true);
-    mockIngestYouTube.mockRejectedValue(new Error('download failed'));
-    const result = await toolHandlers['aurora_ingest_youtube']({
+    mockIngestVideo.mockRejectedValue(new Error('download failed'));
+    const result = await toolHandlers['aurora_ingest_video']({
       url: 'https://www.youtube.com/watch?v=abc123',
     });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('download failed');
   });
 
-  it('passes all options to ingestYouTube', async () => {
-    mockIsYouTubeUrl.mockReturnValue(true);
-    mockIngestYouTube.mockResolvedValue({
+  it('passes all options to ingestVideo', async () => {
+    mockIngestVideo.mockResolvedValue({
       transcriptNodeId: 'yt-abc123',
       chunksCreated: 5,
       voicePrintsCreated: 2,
       title: 'Test',
       duration: 60,
       videoId: 'abc123',
+      platform: 'youtube',
     });
-    await toolHandlers['aurora_ingest_youtube']({
+    await toolHandlers['aurora_ingest_video']({
       url: 'https://www.youtube.com/watch?v=abc123',
       diarize: true,
       scope: 'shared',
       whisper_model: 'large',
     });
-    expect(mockIngestYouTube).toHaveBeenCalledWith(
+    expect(mockIngestVideo).toHaveBeenCalledWith(
       'https://www.youtube.com/watch?v=abc123',
       expect.objectContaining({
         diarize: true,
@@ -104,5 +91,25 @@ describe('aurora_ingest_youtube MCP tool', () => {
         whisperModel: 'large',
       }),
     );
+  });
+
+  it('accepts non-YouTube URLs', async () => {
+    mockIngestVideo.mockResolvedValue({
+      transcriptNodeId: 'vid-abc123456789',
+      chunksCreated: 3,
+      voicePrintsCreated: 0,
+      title: 'SVT Video',
+      duration: 180,
+      videoId: null,
+      platform: 'svtplay',
+    });
+
+    const result = await toolHandlers['aurora_ingest_video']({
+      url: 'https://www.svt.se/nyheter/test',
+    });
+    const data = JSON.parse(result.content[0].text);
+    expect(data.transcriptNodeId).toMatch(/^vid-/);
+    expect(data.platform).toBe('svtplay');
+    expect(result.isError).not.toBe(true);
   });
 });

@@ -80,11 +80,13 @@ export {
 
 export {
   isYouTubeUrl,
+  isVideoUrl,
   extractVideoId,
-  ingestYouTube,
-  type YouTubeIngestOptions,
-  type YouTubeIngestResult,
-} from './youtube.js';
+  videoNodeId,
+  ingestVideo,
+  type VideoIngestOptions,
+  type VideoIngestResult,
+} from './video.js';
 
 export {
   timeline,

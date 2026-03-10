@@ -35,7 +35,7 @@ import { auroraAskCommand } from './commands/aurora-ask.js';
 import { auroraRememberCommand } from './commands/aurora-remember.js';
 import { auroraRecallCommand } from './commands/aurora-recall.js';
 import { auroraMemoryStatsCommand } from './commands/aurora-memory-stats.js';
-import { auroraIngestYouTubeCommand } from './commands/aurora-ingest-youtube.js';
+import { auroraIngestVideoCommand } from './commands/aurora-ingest-video.js';
 import { auroraTimelineCommand } from './commands/aurora-timeline.js';
 import { auroraGapsCommand } from './commands/aurora-gaps.js';
 import { auroraCrossRefCommand } from './commands/aurora-cross-ref.js';
@@ -207,13 +207,13 @@ program
   .action(auroraMemoryStatsCommand);
 
 program
-  .command('aurora:ingest-youtube <url>')
-  .description('Ingest a YouTube video into Aurora knowledge graph')
+  .command('aurora:ingest-video <url>')
+  .description('Ingest a video (YouTube, SVT, Vimeo, TV4, etc.) into Aurora knowledge graph')
   .option('--diarize', 'Run speaker identification')
   .option('--scope <scope>', 'personal | shared | project', 'personal')
   .option('--max-chunks <N>', 'Max chunks')
   .option('--whisper-model <model>', 'Whisper model: tiny|small|medium|large', 'small')
-  .action(auroraIngestYouTubeCommand);
+  .action(auroraIngestVideoCommand);
 
 program
   .command('aurora:timeline')

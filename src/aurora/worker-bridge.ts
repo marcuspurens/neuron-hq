@@ -14,7 +14,7 @@ const execFileAsync = promisify(execFile);
 /* ------------------------------------------------------------------ */
 
 export interface WorkerRequest {
-  action: 'extract_url' | 'extract_pdf' | 'extract_text' | 'extract_youtube' | 'transcribe_audio' | 'diarize_audio';
+  action: 'extract_url' | 'extract_pdf' | 'extract_text' | 'extract_video' | 'extract_youtube' | 'transcribe_audio' | 'diarize_audio';
   source: string;
 }
 
