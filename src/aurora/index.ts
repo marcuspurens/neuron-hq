@@ -119,3 +119,11 @@ export {
   type BriefingOptions,
   type BriefingResult,
 } from './briefing.js';
+
+export {
+  extractFromConversation,
+  learnFromConversation,
+  type ConversationMessage,
+  type LearnedItem,
+  type ConversationLearningResult,
+} from './conversation.js';

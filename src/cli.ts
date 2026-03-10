@@ -279,6 +279,17 @@ program
     await auroraIntegrityCommand(options);
   });
 
+
+// aurora:learn-conversation
+program
+  .command('aurora:learn-conversation <file>')
+  .description('Learn facts and preferences from a conversation JSON file')
+  .option('--dry-run', 'Show what would be learned without storing')
+  .action(async (file, options) => {
+    const { auroraLearnConversationCommand } = await import('./commands/aurora-learn-conversation.js');
+    await auroraLearnConversationCommand(file, options);
+  });
+
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =
   process.argv[1] &&

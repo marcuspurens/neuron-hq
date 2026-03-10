@@ -12,6 +12,7 @@ import { registerAuroraRememberTool } from './tools/aurora-remember.js';
 import { registerAuroraRecallTool } from './tools/aurora-recall.js';
 import { registerAuroraMemoryStatsTool } from './tools/aurora-memory-stats.js';
 import { registerAuroraIngestYouTubeTool } from './tools/aurora-ingest-youtube.js';
+import { registerAuroraLearnConversationTool } from './tools/aurora-learn-conversation.js';
 import { registerAuroraVoiceGalleryTool } from './tools/aurora-voice-gallery.js';
 import { registerAuroraTimelineTool } from './tools/aurora-timeline.js';
 import { registerAuroraGapsTool } from './tools/aurora-gaps.js';
@@ -46,6 +47,7 @@ export function createMcpServer(): McpServer {
   registerAuroraBriefingTool(server);
   registerAuroraVerifyTool(server);
   registerAuroraFreshnessTool(server);
+  registerAuroraLearnConversationTool(server);
   registerCrossRefIntegrityTool(server);
 
   return server;
