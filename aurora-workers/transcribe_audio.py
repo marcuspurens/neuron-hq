@@ -1,14 +1,24 @@
-"""Transcribe audio files using faster-whisper."""
+"""Transcribe audio files using faster-whisper with language-aware model selection."""
 import os
 
 from faster_whisper import WhisperModel
 
+# Language → model mapping. Override via env vars.
+LANG_MODEL_MAP = {
+    "sv": os.environ.get("WHISPER_MODEL_SV", "KBLab/kb-whisper-large"),
+}
+DEFAULT_MODEL = os.environ.get("WHISPER_MODEL", "small")
+DETECT_MODEL = os.environ.get("WHISPER_MODEL_DETECT", "tiny")
 
-def transcribe_audio(source: str) -> dict:
+
+def transcribe_audio(source: str, options: dict | None = None) -> dict:
     """Transcribe an audio file to text with timestamps.
 
     Args:
         source: Path to the audio file.
+        options: Optional dict with keys:
+            - whisper_model: Explicit model to use (overrides auto-selection).
+            - language: Language code (e.g. 'sv', 'en') — skips auto-detection.
 
     Returns:
         Dict with title, text, and metadata including timed segments.
@@ -20,11 +30,38 @@ def transcribe_audio(source: str) -> dict:
     if not os.path.isfile(source):
         raise FileNotFoundError(f"Audio file not found: {source}")
 
-    model_size = os.environ.get("WHISPER_MODEL", "small")
-    model = WhisperModel(model_size)
+    opts = options or {}
+    explicit_model = opts.get("whisper_model")
+    explicit_language = opts.get("language")
+
+    if explicit_model:
+        # User explicitly chose a model — respect it
+        model_id = explicit_model
+        detected_language = explicit_language
+    elif explicit_language:
+        # User specified language — pick best model for it
+        model_id = LANG_MODEL_MAP.get(explicit_language, DEFAULT_MODEL)
+        detected_language = explicit_language
+    else:
+        # Auto-detect language with tiny model, then pick model
+        detect_model = WhisperModel(DETECT_MODEL)
+        _, detect_info = detect_model.transcribe(
+            source,
+            beam_size=1,
+            best_of=1,
+            without_timestamps=True,
+        )
+        detected_language = detect_info.language if detect_info else None
+        model_id = LANG_MODEL_MAP.get(detected_language, DEFAULT_MODEL) if detected_language else DEFAULT_MODEL
+
+    # Full transcription with chosen model
+    model = WhisperModel(model_id)
+    transcribe_kwargs = {}
+    if detected_language:
+        transcribe_kwargs["language"] = detected_language
 
     try:
-        raw_segments, info = model.transcribe(source)
+        raw_segments, info = model.transcribe(source, **transcribe_kwargs)
     except Exception as e:
         raise ValueError(f"Transcription failed: {e}")
 
@@ -51,6 +88,7 @@ def transcribe_audio(source: str) -> dict:
             "segments": segments,
             "segment_count": len(segments),
             "language": language,
+            "model_used": model_id,
             "source_type": "audio_transcription",
         },
     }

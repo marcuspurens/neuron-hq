@@ -213,6 +213,7 @@ program
   .option('--scope <scope>', 'personal | shared | project', 'personal')
   .option('--max-chunks <N>', 'Max chunks')
   .option('--whisper-model <model>', 'Whisper model: tiny|small|medium|large', 'small')
+  .option('--language <lang>', 'Language code (e.g. sv, en) — skip auto-detection')
   .action(auroraIngestVideoCommand);
 
 program

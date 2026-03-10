@@ -1,4 +1,5 @@
 """Aurora workers — JSON stdin/stdout dispatcher."""
+import inspect
 import json
 import os
 import sys
@@ -31,12 +32,18 @@ def main() -> None:
         request = json.loads(raw)
         action = request.get("action", "")
         source = request.get("source", "")
+        options = request.get("options", {})
 
         if action not in HANDLERS:
             print(json.dumps({"ok": False, "error": f"Unknown action: {action}"}))
             sys.exit(1)
 
-        result = HANDLERS[action](source)
+        handler = HANDLERS[action]
+        sig = inspect.signature(handler)
+        if len(sig.parameters) > 1:
+            result = handler(source, options)
+        else:
+            result = handler(source)
         print(json.dumps({"ok": True, **result}))
     except Exception as e:
         print(json.dumps({"ok": False, "error": str(e)}))

@@ -120,4 +120,44 @@ describe('aurora:ingest-video command', () => {
     expect(output).toContain('svtplay');
     expect(output).not.toContain('Video ID');
   });
+
+  it('passes language option to ingestVideo', async () => {
+    mockIsWorkerAvailable.mockResolvedValue(true);
+    mockIngestVideo.mockResolvedValue({
+      transcriptNodeId: 'yt-abc123',
+      chunksCreated: 5,
+      voicePrintsCreated: 0,
+      title: 'Test Video',
+      duration: 120,
+      videoId: 'abc123',
+      platform: 'youtube',
+    });
+
+    await auroraIngestVideoCommand('https://www.youtube.com/watch?v=abc123', {
+      language: 'sv',
+    });
+
+    expect(mockIngestVideo).toHaveBeenCalledWith(
+      'https://www.youtube.com/watch?v=abc123',
+      expect.objectContaining({ language: 'sv' }),
+    );
+  });
+
+  it('shows model used in output when available', async () => {
+    mockIsWorkerAvailable.mockResolvedValue(true);
+    mockIngestVideo.mockResolvedValue({
+      transcriptNodeId: 'yt-abc123',
+      chunksCreated: 5,
+      voicePrintsCreated: 0,
+      title: 'Test Video',
+      duration: 120,
+      videoId: 'abc123',
+      platform: 'youtube',
+      modelUsed: 'KBLab/kb-whisper-large',
+    });
+
+    await auroraIngestVideoCommand('https://www.youtube.com/watch?v=abc123', {});
+    const output = consoleOutput.join('\n');
+    expect(output).toContain('Model used: KBLab/kb-whisper-large');
+  });
 });

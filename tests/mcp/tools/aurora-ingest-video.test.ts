@@ -112,4 +112,26 @@ describe('aurora_ingest_video MCP tool', () => {
     expect(data.platform).toBe('svtplay');
     expect(result.isError).not.toBe(true);
   });
+
+  it('passes language option to ingestVideo', async () => {
+    mockIngestVideo.mockResolvedValue({
+      transcriptNodeId: 'yt-abc123',
+      chunksCreated: 5,
+      voicePrintsCreated: 0,
+      title: 'Test Video',
+      duration: 120,
+      videoId: 'abc123',
+      platform: 'youtube',
+    });
+
+    await toolHandlers['aurora_ingest_video']({
+      url: 'https://www.youtube.com/watch?v=abc123',
+      language: 'sv',
+    });
+
+    expect(mockIngestVideo).toHaveBeenCalledWith(
+      'https://www.youtube.com/watch?v=abc123',
+      expect.objectContaining({ language: 'sv' }),
+    );
+  });
 });

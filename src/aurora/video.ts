@@ -26,6 +26,8 @@ export interface VideoIngestOptions {
   maxChunks?: number;
   diarize?: boolean;
   whisperModel?: string;
+  /** Language code (e.g. "sv", "en") — skips auto-detection when set. */
+  language?: string;
 }
 
 export interface VideoIngestResult {
@@ -45,6 +47,8 @@ export interface VideoIngestResult {
     similarity: number;
     relationship: string;
   }>;
+  /** The Whisper model that was actually used for transcription. */
+  modelUsed?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -171,10 +175,19 @@ export async function ingestVideo(
   const platform = (extractMeta.extractor as string) ?? 'unknown';
 
   // 3. Transcribe audio (may take several minutes on CPU)
+  const transcribeOptions: Record<string, unknown> = {};
+  if (options?.whisperModel) {
+    transcribeOptions.whisper_model = options.whisperModel;
+  }
+  if (options?.language) {
+    transcribeOptions.language = options.language;
+  }
+
   const transcribeResult = await runWorker(
     {
       action: 'transcribe_audio',
       source: extractMeta.audioPath as string,
+      ...(Object.keys(transcribeOptions).length > 0 ? { options: transcribeOptions } : {}),
     },
     { timeout: 600_000 },
   );
@@ -182,6 +195,7 @@ export async function ingestVideo(
     throw new Error(transcribeResult.error);
   }
   const transcribeMeta = transcribeResult.metadata as Record<string, unknown>;
+  const modelUsed = (transcribeMeta.model_used as string) ?? undefined;
 
   // 4. Optional diarization
   let speakers: Array<{ speaker: string; start_ms: number; end_ms: number }> = [];
@@ -351,5 +365,6 @@ export async function ingestVideo(
     platform,
     crossRefsCreated,
     crossRefMatches,
+    modelUsed,
   };
 }

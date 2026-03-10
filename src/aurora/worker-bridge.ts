@@ -16,6 +16,8 @@ const execFileAsync = promisify(execFile);
 export interface WorkerRequest {
   action: 'extract_url' | 'extract_pdf' | 'extract_text' | 'extract_video' | 'extract_youtube' | 'transcribe_audio' | 'diarize_audio';
   source: string;
+  /** Optional key-value options forwarded to the Python handler. */
+  options?: Record<string, unknown>;
 }
 
 export interface WorkerResult {

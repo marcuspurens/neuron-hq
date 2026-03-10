@@ -9,7 +9,13 @@ import type { VideoIngestOptions } from '../aurora/video.js';
  */
 export async function auroraIngestVideoCommand(
   url: string,
-  cmdOptions: { diarize?: boolean; scope?: string; maxChunks?: string; whisperModel?: string },
+  cmdOptions: {
+    diarize?: boolean;
+    scope?: string;
+    maxChunks?: string;
+    whisperModel?: string;
+    language?: string;
+  },
 ): Promise<void> {
   console.log(chalk.bold('\n🎬 Ingesting video...'));
   console.log(`  URL: ${url}\n`);
@@ -28,6 +34,7 @@ export async function auroraIngestVideoCommand(
     scope: (cmdOptions.scope as VideoIngestOptions['scope']) ?? 'personal',
     maxChunks: cmdOptions.maxChunks ? parseInt(cmdOptions.maxChunks, 10) : undefined,
     whisperModel: cmdOptions.whisperModel,
+    language: cmdOptions.language,
   };
 
   try {
@@ -48,6 +55,9 @@ export async function auroraIngestVideoCommand(
       console.log(`    Video ID: ${result.videoId}`);
     }
     console.log(`    Duration: ${result.duration}s`);
+    if (result.modelUsed) {
+      console.log(`    Model used: ${result.modelUsed}`);
+    }
     if (result.crossRefsCreated > 0) {
       console.log(chalk.cyan(`  🔗 ${result.crossRefsCreated} cross-reference${result.crossRefsCreated > 1 ? 's' : ''} created:`));
       for (const match of result.crossRefMatches) {

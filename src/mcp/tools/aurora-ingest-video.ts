@@ -21,10 +21,15 @@ export function registerAuroraIngestVideoTool(server: McpServer): void {
         .default('personal')
         .describe('Scope for the nodes'),
       whisper_model: z
-        .enum(['tiny', 'small', 'medium', 'large'])
+        .string()
         .optional()
-        .default('small')
-        .describe('Whisper model to use for transcription'),
+        .describe(
+          'Whisper model to use for transcription (e.g. small, large, KBLab/kb-whisper-large)',
+        ),
+      language: z
+        .string()
+        .optional()
+        .describe('Language code (e.g. "sv", "en") — skip auto-detection'),
     },
     async (args) => {
       try {
@@ -32,6 +37,7 @@ export function registerAuroraIngestVideoTool(server: McpServer): void {
           diarize: args.diarize,
           scope: args.scope,
           whisperModel: args.whisper_model,
+          language: args.language,
         };
 
         const result = await ingestVideo(args.url, options);

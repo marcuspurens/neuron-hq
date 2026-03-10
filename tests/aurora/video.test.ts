@@ -417,4 +417,93 @@ describe('ingestVideo', () => {
       { timeout: 600_000 },
     );
   });
+
+  it('passes whisperModel to transcribe worker options', async () => {
+    mockRunWorker
+      .mockResolvedValueOnce(extractVideoResponse)
+      .mockResolvedValueOnce(transcribeResponse);
+
+    await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ', {
+      whisperModel: 'large',
+    });
+
+    expect(mockRunWorker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'transcribe_audio',
+        source: '/tmp/audio.m4a',
+        options: { whisper_model: 'large' },
+      }),
+      { timeout: 600_000 },
+    );
+  });
+
+  it('passes language to transcribe worker options', async () => {
+    mockRunWorker
+      .mockResolvedValueOnce(extractVideoResponse)
+      .mockResolvedValueOnce(transcribeResponse);
+
+    await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ', {
+      language: 'sv',
+    });
+
+    expect(mockRunWorker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'transcribe_audio',
+        source: '/tmp/audio.m4a',
+        options: { language: 'sv' },
+      }),
+      { timeout: 600_000 },
+    );
+  });
+
+  it('passes both whisperModel and language when both specified', async () => {
+    mockRunWorker
+      .mockResolvedValueOnce(extractVideoResponse)
+      .mockResolvedValueOnce(transcribeResponse);
+
+    await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ', {
+      whisperModel: 'large',
+      language: 'sv',
+    });
+
+    expect(mockRunWorker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'transcribe_audio',
+        source: '/tmp/audio.m4a',
+        options: { whisper_model: 'large', language: 'sv' },
+      }),
+      { timeout: 600_000 },
+    );
+  });
+
+  it('does not include options key when no whisperModel or language', async () => {
+    mockRunWorker
+      .mockResolvedValueOnce(extractVideoResponse)
+      .mockResolvedValueOnce(transcribeResponse);
+
+    await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+
+    const transcribeCall = mockRunWorker.mock.calls.find(
+      (call: unknown[]) => (call[0] as Record<string, unknown>).action === 'transcribe_audio',
+    );
+    expect(transcribeCall).toBeDefined();
+    expect(transcribeCall![0]).not.toHaveProperty('options');
+  });
+
+  it('includes modelUsed in result when returned by worker', async () => {
+    const transcribeResponseWithModel = {
+      ...transcribeResponse,
+      metadata: {
+        ...transcribeResponse.metadata,
+        model_used: 'KBLab/kb-whisper-large',
+      },
+    };
+    mockRunWorker
+      .mockResolvedValueOnce(extractVideoResponse)
+      .mockResolvedValueOnce(transcribeResponseWithModel);
+
+    const result = await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    expect(result.modelUsed).toBe('KBLab/kb-whisper-large');
+  });
+
 });
