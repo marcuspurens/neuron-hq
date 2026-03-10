@@ -268,6 +268,17 @@ program
     await auroraFreshnessCommand(options);
   });
 
+// aurora:suggest-research
+program
+  .command('aurora:suggest-research [question]')
+  .description('Generate research suggestions from knowledge gaps')
+  .option('--top <n>', 'Generate for top N gaps (default: 3)', '3')
+  .option('--max-facts <n>', 'Max facts to include per suggestion', '10')
+  .action(async (question, options) => {
+    const { auroraSuggestResearchCommand } = await import('./commands/aurora-suggest-research.js');
+    await auroraSuggestResearchCommand(question, options);
+  });
+
 // aurora:integrity
 program
   .command('aurora:integrity')

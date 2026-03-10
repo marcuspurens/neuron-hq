@@ -127,3 +127,10 @@ export {
   type LearnedItem,
   type ConversationLearningResult,
 } from './conversation.js';
+
+export {
+  suggestResearch,
+  suggestResearchBatch,
+  type ResearchSuggestion,
+  type SuggestResearchOptions,
+} from './gap-brief.js';

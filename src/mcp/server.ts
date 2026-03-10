@@ -21,6 +21,7 @@ import { registerAuroraBriefingTool } from './tools/aurora-briefing.js';
 import { registerAuroraVerifyTool } from './tools/aurora-verify.js';
 import { registerAuroraFreshnessTool } from './tools/aurora-freshness.js';
 import { registerCrossRefIntegrityTool } from './tools/cross-ref-integrity.js';
+import { registerAuroraSuggestResearchTool } from './tools/aurora-suggest-research.js';
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -49,6 +50,7 @@ export function createMcpServer(): McpServer {
   registerAuroraFreshnessTool(server);
   registerAuroraLearnConversationTool(server);
   registerCrossRefIntegrityTool(server);
+  registerAuroraSuggestResearchTool(server);
 
   return server;
 }
