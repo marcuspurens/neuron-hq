@@ -342,6 +342,33 @@ program
     await auroraSuggestSpeakersCommand({ threshold: parseFloat(options.threshold) });
   });
 
+// aurora:confirm-speaker
+program
+  .command('aurora:confirm-speaker <voicePrintId> <identityName>')
+  .description('Confirm a voice print belongs to a speaker identity')
+  .action(async (voicePrintId: string, identityName: string) => {
+    const { auroraConfirmSpeakerCommand } = await import('./commands/aurora-confirm-speaker.js');
+    await auroraConfirmSpeakerCommand(voicePrintId, identityName);
+  });
+
+// aurora:reject-speaker
+program
+  .command('aurora:reject-speaker <voicePrintId> <identityId>')
+  .description('Reject a speaker identity suggestion for a voice print')
+  .action(async (voicePrintId: string, identityId: string) => {
+    const { auroraRejectSpeakerCommand } = await import('./commands/aurora-reject-speaker.js');
+    await auroraRejectSpeakerCommand(voicePrintId, identityId);
+  });
+
+// aurora:speaker-identities
+program
+  .command('aurora:speaker-identities')
+  .description('List all known speaker identities with confidence')
+  .action(async () => {
+    const { auroraSpeakerIdentitiesCommand } = await import('./commands/aurora-speaker-identities.js');
+    await auroraSpeakerIdentitiesCommand();
+  });
+
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =
   process.argv[1] &&

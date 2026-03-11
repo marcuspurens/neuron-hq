@@ -26,6 +26,10 @@ import { registerAuroraCheckDepsTool } from './tools/aurora-check-deps.js';
 import { registerAuroraRenameSpeakerTool } from './tools/aurora-rename-speaker.js';
 import { registerAuroraMergeSpeakersTool } from './tools/aurora-merge-speakers.js';
 import { registerAuroraSuggestSpeakersTool } from './tools/aurora-suggest-speakers.js';
+import { registerAuroraConfirmSpeakerTool } from './tools/aurora-confirm-speaker.js';
+import { registerAuroraRejectSpeakerTool } from './tools/aurora-reject-speaker.js';
+import { registerAuroraSpeakerIdentitiesTool } from './tools/aurora-speaker-identities.js';
+import { registerAuroraAutoTagSpeakersTool } from './tools/aurora-auto-tag-speakers.js';
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -59,6 +63,10 @@ export function createMcpServer(): McpServer {
   registerAuroraRenameSpeakerTool(server);
   registerAuroraMergeSpeakersTool(server);
   registerAuroraSuggestSpeakersTool(server);
+  registerAuroraConfirmSpeakerTool(server);
+  registerAuroraRejectSpeakerTool(server);
+  registerAuroraSpeakerIdentitiesTool(server);
+  registerAuroraAutoTagSpeakersTool(server);
 
   return server;
 }

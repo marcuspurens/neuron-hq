@@ -7,6 +7,7 @@ export const AuroraNodeTypeSchema = z.enum([
   'preference',
   'research',
   'voice_print',
+  'speaker_identity',
 ]);
 export type AuroraNodeType = z.infer<typeof AuroraNodeTypeSchema>;
 

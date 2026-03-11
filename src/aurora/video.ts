@@ -16,6 +16,8 @@ import {
 } from './aurora-graph.js';
 import type { AuroraNode } from './aurora-schema.js';
 import { findNeuronMatchesForAurora, createCrossRef } from './cross-ref.js';
+import { autoTagSpeakers } from './speaker-identity.js';
+import { renameSpeaker } from './voiceprint.js';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -279,6 +281,7 @@ export async function ingestVideo(
 
   // 7. Voice print nodes (if diarized)
   let voicePrintsCreated = 0;
+  const newVoicePrintIds: string[] = [];
   if (options?.diarize && speakers.length > 0) {
     const uniqueSpeakers = [...new Set(speakers.map((s) => s.speaker))];
     for (const speakerLabel of uniqueSpeakers) {
@@ -315,12 +318,30 @@ export async function ingestVideo(
         metadata: { createdBy: 'video-intake' },
       });
       voicePrintsCreated++;
+      newVoicePrintIds.push(vpId);
     }
   }
 
   // 8. Save & embed
   await saveAuroraGraph(graph);
   await autoEmbedAuroraNodes(allNodeIds);
+
+  // 8b. Auto-tag speakers with known identities
+  if (newVoicePrintIds.length > 0) {
+    try {
+      const autoTagResults = await autoTagSpeakers(newVoicePrintIds);
+      for (const result of autoTagResults) {
+        if (result.action === 'auto_tagged') {
+          await renameSpeaker(result.voicePrintId, result.identityName);
+          console.log(`  🏷️  Auto-tagged: ${result.identityName} (confidence: ${result.confidence.toFixed(2)})`);
+        } else if (result.action === 'suggestion') {
+          console.log(`  💡 Suggestion: ${result.identityName}? (confidence: ${result.confidence.toFixed(2)})`);
+        }
+      }
+    } catch {
+      // Auto-tag failure should not break ingest
+    }
+  }
 
   // 9. Auto cross-ref: find Neuron matches for the transcript
   let crossRefsCreated = 0;
