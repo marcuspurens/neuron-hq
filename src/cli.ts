@@ -313,6 +313,35 @@ program
     await auroraCheckDepsCommand(options);
   });
 
+
+// aurora:rename-speaker
+program
+  .command('aurora:rename-speaker <voicePrintId> <newName>')
+  .description('Rename a speaker in a voice print')
+  .action(async (voicePrintId: string, newName: string) => {
+    const { auroraRenameSpeakerCommand } = await import('./commands/aurora-rename-speaker.js');
+    await auroraRenameSpeakerCommand(voicePrintId, newName);
+  });
+
+// aurora:merge-speakers
+program
+  .command('aurora:merge-speakers <sourceId> <targetId>')
+  .description('Merge two voice prints (source → target)')
+  .action(async (sourceId: string, targetId: string) => {
+    const { auroraMergeSpeakersCommand } = await import('./commands/aurora-merge-speakers.js');
+    await auroraMergeSpeakersCommand(sourceId, targetId);
+  });
+
+// aurora:suggest-speakers
+program
+  .command('aurora:suggest-speakers')
+  .description('Suggest matching speakers across videos')
+  .option('--threshold <number>', 'Minimum similarity threshold', '0.7')
+  .action(async (options: { threshold: string }) => {
+    const { auroraSuggestSpeakersCommand } = await import('./commands/aurora-suggest-speakers.js');
+    await auroraSuggestSpeakersCommand({ threshold: parseFloat(options.threshold) });
+  });
+
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =
   process.argv[1] &&

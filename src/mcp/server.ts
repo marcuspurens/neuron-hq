@@ -23,6 +23,9 @@ import { registerAuroraFreshnessTool } from './tools/aurora-freshness.js';
 import { registerCrossRefIntegrityTool } from './tools/cross-ref-integrity.js';
 import { registerAuroraSuggestResearchTool } from './tools/aurora-suggest-research.js';
 import { registerAuroraCheckDepsTool } from './tools/aurora-check-deps.js';
+import { registerAuroraRenameSpeakerTool } from './tools/aurora-rename-speaker.js';
+import { registerAuroraMergeSpeakersTool } from './tools/aurora-merge-speakers.js';
+import { registerAuroraSuggestSpeakersTool } from './tools/aurora-suggest-speakers.js';
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -53,6 +56,9 @@ export function createMcpServer(): McpServer {
   registerCrossRefIntegrityTool(server);
   registerAuroraSuggestResearchTool(server);
   registerAuroraCheckDepsTool(server);
+  registerAuroraRenameSpeakerTool(server);
+  registerAuroraMergeSpeakersTool(server);
+  registerAuroraSuggestSpeakersTool(server);
 
   return server;
 }
