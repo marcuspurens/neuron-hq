@@ -42,6 +42,7 @@ import { auroraCrossRefCommand } from './commands/aurora-cross-ref.js';
 import { auroraBriefingCommand } from './commands/aurora-briefing.js';
 import { auroraIngestImageCommand } from './commands/aurora-ingest-image.js';
 import { auroraOcrPdfCommand } from './commands/aurora-ocr-pdf.js';
+import { auroraIngestBookCommand } from './commands/aurora-ingest-book.js';
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
@@ -233,6 +234,15 @@ program
   .option('--dpi <dpi>', 'Render resolution (default: 200)', '200')
   .option('--scope <scope>', 'personal | shared | project', 'personal')
   .action(auroraOcrPdfCommand);
+
+program
+  .command('aurora:ingest-book <folder>')
+  .description('Batch OCR a folder of scanned images into a single document')
+  .option('--language <lang>', 'OCR language hint (en, sv, de, fr, etc.)', 'en')
+  .option('--title <title>', 'Document title (default: folder name)')
+  .option('--output <path>', 'Save combined markdown to this path')
+  .option('--scope <scope>', 'personal | shared | project', 'personal')
+  .action(auroraIngestBookCommand);
 
 program
   .command('aurora:timeline')

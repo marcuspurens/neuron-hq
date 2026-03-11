@@ -16,6 +16,7 @@ from diarize_audio import diarize_audio
 from check_deps import check_deps
 from extract_ocr import extract_ocr
 from ocr_pdf import ocr_pdf
+from batch_ocr import batch_ocr
 
 HANDLERS: dict[str, callable] = {
     "extract_url": extract_url,
@@ -28,6 +29,7 @@ HANDLERS: dict[str, callable] = {
     "check_deps": check_deps,
     "extract_ocr": extract_ocr,
     "ocr_pdf": ocr_pdf,
+    "batch_ocr": batch_ocr,
 }
 
 
