@@ -302,6 +302,17 @@ program
     await auroraLearnConversationCommand(file, options);
   });
 
+
+// aurora:check-deps
+program
+  .command('aurora:check-deps')
+  .description('Check which Python dependencies are available for Aurora')
+  .option('--preload-models', 'Also try loading Whisper models')
+  .action(async (options) => {
+    const { auroraCheckDepsCommand } = await import('./commands/aurora-check-deps.js');
+    await auroraCheckDepsCommand(options);
+  });
+
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =
   process.argv[1] &&

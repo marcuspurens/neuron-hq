@@ -8,6 +8,7 @@ describe('aurora-workers package', () => {
   const expectedFiles = [
     '__init__.py',
     '__main__.py',
+    'check_deps.py',
     'extract_url.py',
     'extract_pdf.py',
     'extract_text.py',
@@ -32,6 +33,11 @@ describe('aurora-workers package', () => {
     expect(main).toContain('"extract_url"');
     expect(main).toContain('"extract_pdf"');
     expect(main).toContain('"extract_text"');
+  });
+
+  it('__main__.py registers check_deps handler', () => {
+    const main = fs.readFileSync(path.join(workersDir, '__main__.py'), 'utf-8');
+    expect(main).toContain('"check_deps"');
   });
 
   it('__main__.py uses sys.path.insert for sibling imports', () => {
