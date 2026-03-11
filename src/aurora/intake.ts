@@ -123,6 +123,16 @@ export async function ingestDocument(
   if (!result.ok) {
     throw new Error(result.error);
   }
+
+  // For PDFs, check if text looks garbled and fall back to OCR
+  if (ext === '.pdf') {
+    const { isTextGarbled, ocrPdf: ocrPdfFallback } = await import('./ocr.js');
+    if (isTextGarbled(result.text)) {
+      console.log('  ⚠️  Text looks garbled — falling back to OCR...');
+      return ocrPdfFallback(absolutePath, options);
+    }
+  }
+
   return processExtractedText(
     result.title,
     result.text,
@@ -133,14 +143,14 @@ export async function ingestDocument(
 }
 
 /* ------------------------------------------------------------------ */
-/*  Internal                                                           */
+/*  Shared pipeline                                                    */
 /* ------------------------------------------------------------------ */
 
 /**
  * Core pipeline: hash → dedup check → create doc node → chunk → create
  * chunk nodes + edges → save → embed → auto cross-ref → return result.
  */
-async function processExtractedText(
+export async function processExtractedText(
   title: string,
   text: string,
   sourceUrl: string | null,

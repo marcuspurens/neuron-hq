@@ -40,6 +40,8 @@ import { auroraTimelineCommand } from './commands/aurora-timeline.js';
 import { auroraGapsCommand } from './commands/aurora-gaps.js';
 import { auroraCrossRefCommand } from './commands/aurora-cross-ref.js';
 import { auroraBriefingCommand } from './commands/aurora-briefing.js';
+import { auroraIngestImageCommand } from './commands/aurora-ingest-image.js';
+import { auroraOcrPdfCommand } from './commands/aurora-ocr-pdf.js';
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
@@ -215,6 +217,22 @@ program
   .option('--whisper-model <model>', 'Whisper model: tiny|small|medium|large', 'small')
   .option('--language <lang>', 'Language code (e.g. sv, en) — skip auto-detection')
   .action(auroraIngestVideoCommand);
+
+
+program
+  .command('aurora:ingest-image <path>')
+  .description('Ingest an image file via OCR (PaddleOCR)')
+  .option('--language <lang>', 'Language hint for OCR (en, sv, de, fr, etc.)', 'en')
+  .option('--scope <scope>', 'personal | shared | project', 'personal')
+  .action(auroraIngestImageCommand);
+
+program
+  .command('aurora:ocr-pdf <path>')
+  .description('Force OCR extraction of a PDF (for broken font encoding)')
+  .option('--language <lang>', 'Language hint for OCR (en, sv, de, fr, etc.)', 'en')
+  .option('--dpi <dpi>', 'Render resolution (default: 200)', '200')
+  .option('--scope <scope>', 'personal | shared | project', 'personal')
+  .action(auroraOcrPdfCommand);
 
 program
   .command('aurora:timeline')

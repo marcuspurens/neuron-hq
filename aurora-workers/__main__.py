@@ -14,6 +14,8 @@ from extract_video import extract_video
 from transcribe_audio import transcribe_audio
 from diarize_audio import diarize_audio
 from check_deps import check_deps
+from extract_ocr import extract_ocr
+from ocr_pdf import ocr_pdf
 
 HANDLERS: dict[str, callable] = {
     "extract_url": extract_url,
@@ -24,6 +26,8 @@ HANDLERS: dict[str, callable] = {
     "transcribe_audio": transcribe_audio,
     "diarize_audio": diarize_audio,
     "check_deps": check_deps,
+    "extract_ocr": extract_ocr,
+    "ocr_pdf": ocr_pdf,
 }
 
 

@@ -30,6 +30,8 @@ import { registerAuroraConfirmSpeakerTool } from './tools/aurora-confirm-speaker
 import { registerAuroraRejectSpeakerTool } from './tools/aurora-reject-speaker.js';
 import { registerAuroraSpeakerIdentitiesTool } from './tools/aurora-speaker-identities.js';
 import { registerAuroraAutoTagSpeakersTool } from './tools/aurora-auto-tag-speakers.js';
+import { registerAuroraIngestImageTool } from './tools/aurora-ingest-image.js';
+import { registerAuroraOcrPdfTool } from './tools/aurora-ocr-pdf.js';
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -67,6 +69,8 @@ export function createMcpServer(): McpServer {
   registerAuroraRejectSpeakerTool(server);
   registerAuroraSpeakerIdentitiesTool(server);
   registerAuroraAutoTagSpeakersTool(server);
+  registerAuroraIngestImageTool(server);
+  registerAuroraOcrPdfTool(server);
 
   return server;
 }
