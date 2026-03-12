@@ -397,6 +397,17 @@ program
     await auroraSpeakerIdentitiesCommand();
   });
 
+
+// aurora:confidence
+program
+  .command('aurora:confidence <nodeId>')
+  .description('Show Bayesian confidence update history for an Aurora node')
+  .option('--limit <n>', 'Max entries to show', '20')
+  .action(async (nodeId: string, options: { limit?: string }) => {
+    const { auroraConfidenceCommand } = await import('./commands/aurora-confidence.js');
+    await auroraConfidenceCommand(nodeId, options);
+  });
+
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =
   process.argv[1] &&

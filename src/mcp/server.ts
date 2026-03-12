@@ -33,6 +33,7 @@ import { registerAuroraAutoTagSpeakersTool } from './tools/aurora-auto-tag-speak
 import { registerAuroraIngestImageTool } from './tools/aurora-ingest-image.js';
 import { registerAuroraOcrPdfTool } from './tools/aurora-ocr-pdf.js';
 import { registerAuroraIngestBookTool } from './tools/aurora-ingest-book.js';
+import { registerAuroraConfidenceTool } from './tools/aurora-confidence.js';
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -73,6 +74,7 @@ export function createMcpServer(): McpServer {
   registerAuroraIngestImageTool(server);
   registerAuroraOcrPdfTool(server);
   registerAuroraIngestBookTool(server);
+  registerAuroraConfidenceTool(server);
 
   return server;
 }

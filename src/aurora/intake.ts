@@ -18,6 +18,7 @@ import {
 import type { AuroraNodeType, AuroraScope, AuroraNode } from './aurora-schema.js';
 import { isVideoUrl, ingestVideo } from './video.js';
 import { findNeuronMatchesForAurora, createCrossRef } from './cross-ref.js';
+import { updateConfidence, classifySource } from './bayesian-confidence.js';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -272,6 +273,22 @@ export async function processExtractedText(
           similarity: match.similarity,
           relationship: 'enriches',
         });
+
+        // Bayesian confidence update
+        try {
+          await updateConfidence(docId, {
+            direction: 'supports',
+            sourceType: classifySource(sourceUrl),
+            reason: `Cross-ref with Neuron node "${match.node.title}" (similarity: ${match.similarity.toFixed(2)})`,
+            metadata: {
+              neuronNodeId: match.node.id,
+              similarity: match.similarity,
+              sourceUrl,
+            },
+          });
+        } catch {
+          // confidence update failure should not break ingest
+        }
       }
     }
   } catch {
