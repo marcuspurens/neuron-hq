@@ -5,6 +5,7 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 import { MergerAgent } from '../../src/core/agents/merger.js';
 import { createPolicyEnforcer } from '../../src/core/policy.js';
+import { executeSharedBash, executeSharedWriteFile } from '../../src/core/agents/shared-tools.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -83,6 +84,12 @@ describe('MergerAgent', () => {
     expect(names).toContain('copy_to_target');
   });
 
+  it('does not define list_files tool', () => {
+    const tools: Array<{ name: string }> = (agent as any).defineTools();
+    const names = tools.map((t) => t.name);
+    expect(names).not.toContain('list_files');
+  });
+
   describe('run() — reviewer gate', () => {
     it('returns MERGER_BLOCKED when report.md does not exist', async () => {
       const result = await agent.run();
@@ -115,8 +122,9 @@ describe('MergerAgent', () => {
   });
 
   describe('bash policy', () => {
-    it('blocks forbidden bash commands', async () => {
-      const result = await (agent as any).executeBash({ command: 'sudo rm -rf /' });
+    it('blocks forbidden bash commands via shared executeSharedBash', async () => {
+      const toolCtx = { ctx: (agent as any).ctx, agentRole: 'merger' };
+      const result = await executeSharedBash(toolCtx, 'sudo rm -rf /');
       expect(result).toMatch(/BLOCKED/);
     });
 
@@ -125,8 +133,9 @@ describe('MergerAgent', () => {
       expect(result).toMatch(/BLOCKED/);
     });
 
-    it('allows git status in workspace', async () => {
-      const result = await (agent as any).executeBash({ command: 'git status' });
+    it('allows git status in workspace via shared executeSharedBash', async () => {
+      const toolCtx = { ctx: (agent as any).ctx, agentRole: 'merger' };
+      const result = await executeSharedBash(toolCtx, 'git status');
       expect(result).not.toMatch(/BLOCKED/);
     });
 
@@ -183,11 +192,14 @@ describe('MergerAgent', () => {
   });
 
   describe('write_file policy', () => {
-    it('blocks writes outside runs dir', async () => {
-      const result = await (agent as any).executeWriteFile({
-        path: '/etc/evil.txt',
-        content: 'bad',
-      });
+    it('blocks writes outside runs dir via shared executeSharedWriteFile', async () => {
+      const toolCtx = { ctx: (agent as any).ctx, agentRole: 'merger' };
+      const result = await executeSharedWriteFile(
+        toolCtx,
+        '/etc/evil.txt',
+        'bad',
+        runDir,
+      );
       expect(result).toMatch(/BLOCKED/);
     });
   });

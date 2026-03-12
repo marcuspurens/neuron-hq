@@ -12,6 +12,25 @@ const BASE_DIR = path.resolve(__dirname, '../..');
 
 process.env.ANTHROPIC_API_KEY = 'test-key-for-unit-tests';
 
+/**
+ * Helper to build a mock tool_use ContentBlock for calling executeTools.
+ */
+function toolUseBlock(name: string, input: Record<string, unknown>, id = 'tool-1') {
+  return { type: 'tool_use' as const, id, name, input };
+}
+
+/**
+ * Call the private executeTools method with a single tool_use block and return the result string.
+ */
+async function callTool(
+  agent: TesterAgent,
+  name: string,
+  input: Record<string, unknown>,
+): Promise<string> {
+  const results = await (agent as any).executeTools([toolUseBlock(name, input)]);
+  return results[0]?.content as string;
+}
+
 function createMockContext(
   policy: Awaited<ReturnType<typeof createPolicyEnforcer>>,
   runDir: string,
@@ -26,7 +45,7 @@ function createMockContext(
     policy,
     audit: { log: async () => {} },
     manifest: { addCommand: async () => {} },
-    usage: { recordTokens: () => {}, recordToolCall: () => {} },
+    usage: { recordTokens: () => {}, recordToolCall: () => {}, recordIterations: () => {} },
     artifacts: { readBrief: async () => '# Brief\n\nTest brief.' },
     startTime: new Date(),
     endTime: new Date(Date.now() + 3_600_000),
@@ -80,12 +99,12 @@ describe('TesterAgent', () => {
 
   describe('bash policy', () => {
     it('blocks forbidden bash commands', async () => {
-      const result = await (agent as any).executeBash({ command: 'sudo rm -rf /' });
+      const result = await callTool(agent, 'bash_exec', { command: 'sudo rm -rf /' });
       expect(result).toMatch(/BLOCKED/);
     });
 
     it('allows pytest command', async () => {
-      const result = await (agent as any).executeBash({
+      const result = await callTool(agent, 'bash_exec', {
         command: 'python -m pytest tests/ -v',
       });
       // Should not be BLOCKED — may fail if no tests exist, but not policy-blocked
@@ -93,13 +112,13 @@ describe('TesterAgent', () => {
     });
 
     it('allows npm test command', async () => {
-      const result = await (agent as any).executeBash({ command: 'npm test' });
+      const result = await callTool(agent, 'bash_exec', { command: 'npm test' });
       expect(result).not.toMatch(/^BLOCKED/);
     });
 
     it('includes stderr in output for test runners', async () => {
       // echo writes to stdout — just verify we get some output back
-      const result = await (agent as any).executeBash({ command: 'echo "test output"' });
+      const result = await callTool(agent, 'bash_exec', { command: 'echo "test output"' });
       expect(result).toContain('test output');
     });
   });
@@ -107,21 +126,21 @@ describe('TesterAgent', () => {
   describe('list_files', () => {
     it('lists workspace root by default', async () => {
       await fs.writeFile(path.join(workspaceDir, 'package.json'), '{}');
-      const result = await (agent as any).executeListFiles({});
+      const result = await callTool(agent, 'list_files', {});
       expect(result).toContain('package.json');
     });
 
     it('lists a subdirectory', async () => {
       await fs.mkdir(path.join(workspaceDir, 'tests'), { recursive: true });
       await fs.writeFile(path.join(workspaceDir, 'tests', 'test_app.py'), '# test');
-      const result = await (agent as any).executeListFiles({ path: 'tests' });
+      const result = await callTool(agent, 'list_files', { path: 'tests' });
       expect(result).toContain('test_app.py');
     });
   });
 
   describe('write_file policy', () => {
     it('blocks writes outside runs dir', async () => {
-      const result = await (agent as any).executeWriteFile({
+      const result = await callTool(agent, 'write_file', {
         path: '/etc/evil.txt',
         content: 'bad',
       });

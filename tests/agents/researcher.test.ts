@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { ResearcherAgent } from '../../src/core/agents/researcher.js';
+import { executeSharedBash, executeSharedWriteFile, type AgentToolContext } from '../../src/core/agents/shared-tools.js';
 import { createPolicyEnforcer } from '../../src/core/policy.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -29,10 +30,13 @@ function createMockContext(policy: Awaited<ReturnType<typeof createPolicyEnforce
 
 describe('ResearcherAgent', () => {
   let agent: ResearcherAgent;
+  let toolCtx: AgentToolContext;
 
   beforeAll(async () => {
     const policy = await createPolicyEnforcer(path.join(BASE_DIR, 'policy'), BASE_DIR);
-    agent = new ResearcherAgent(createMockContext(policy), BASE_DIR);
+    const mockCtx = createMockContext(policy);
+    agent = new ResearcherAgent(mockCtx, BASE_DIR);
+    toolCtx = { ctx: mockCtx, agentRole: 'researcher' };
   });
 
   it('can be instantiated', () => {
@@ -56,7 +60,7 @@ describe('ResearcherAgent', () => {
   });
 
   it('blocks forbidden bash commands', async () => {
-    const result = await (agent as any).executeBash({ command: 'rm -rf /tmp' });
+    const result = await executeSharedBash(toolCtx, 'rm -rf /tmp', { truncate: true });
     expect(result).toMatch(/BLOCKED/);
   });
 
@@ -67,18 +71,22 @@ describe('ResearcherAgent', () => {
   });
 
   it('blocks file writes outside allowed scope', async () => {
-    const result = await (agent as any).executeWriteFile({
-      path: '/home/user/malicious.txt',
-      content: 'test',
-    });
+    const result = await executeSharedWriteFile(
+      toolCtx,
+      '/home/user/malicious.txt',
+      'test',
+      toolCtx.ctx.workspaceDir,
+    );
     expect(result).toMatch(/BLOCKED/);
   });
 
   it('allows file writes to runs directory', async () => {
-    const result = await (agent as any).executeWriteFile({
-      path: path.join(BASE_DIR, 'runs', '20260221-1200-test', 'ideas.md'),
-      content: '# Ideas\n\nTest.',
-    });
+    const result = await executeSharedWriteFile(
+      toolCtx,
+      path.join(BASE_DIR, 'runs', '20260221-1200-test', 'ideas.md'),
+      '# Ideas\n\nTest.',
+      toolCtx.ctx.workspaceDir,
+    );
     expect(result).not.toMatch(/BLOCKED/);
   });
 });

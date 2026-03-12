@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { ReviewerAgent } from '../../src/core/agents/reviewer.js';
 import { createPolicyEnforcer } from '../../src/core/policy.js';
+import { executeSharedBash, executeSharedWriteFile, type AgentToolContext } from '../../src/core/agents/shared-tools.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,9 +30,10 @@ function createMockContext(policy: Awaited<ReturnType<typeof createPolicyEnforce
 
 describe('ReviewerAgent', () => {
   let agent: ReviewerAgent;
+  let policy: Awaited<ReturnType<typeof createPolicyEnforcer>>;
 
   beforeAll(async () => {
-    const policy = await createPolicyEnforcer(path.join(BASE_DIR, 'policy'), BASE_DIR);
+    policy = await createPolicyEnforcer(path.join(BASE_DIR, 'policy'), BASE_DIR);
     agent = new ReviewerAgent(createMockContext(policy), BASE_DIR);
   });
 
@@ -55,22 +57,31 @@ describe('ReviewerAgent', () => {
     expect(names).toContain('list_files');
   });
 
-  it('blocks forbidden bash commands', async () => {
-    const result = await (agent as any).executeBash({ command: 'sudo rm -rf /' });
+  it('blocks forbidden bash commands via shared executeSharedBash', async () => {
+    const ctx = createMockContext(policy);
+    const toolCtx: AgentToolContext = { ctx, agentRole: 'reviewer' };
+    const result = await executeSharedBash(toolCtx, 'sudo rm -rf /');
     expect(result).toMatch(/BLOCKED/);
   });
 
-  it('allows git status command', async () => {
-    const result = await (agent as any).executeBash({ command: 'git status' });
+  it('allows git status command via shared executeSharedBash', async () => {
+    const ctx = createMockContext(policy);
+    const toolCtx: AgentToolContext = { ctx, agentRole: 'reviewer' };
+    const result = await executeSharedBash(toolCtx, 'git status');
     // Should not be BLOCKED — may fail if no git repo at /tmp/workspace, but not policy-blocked
     expect(result).not.toMatch(/BLOCKED/);
   });
 
-  it('blocks file writes outside allowed scope', async () => {
-    const result = await (agent as any).executeWriteFile({
-      path: '/etc/malicious.txt',
-      content: 'test',
-    });
+  it('blocks file writes outside allowed scope via shared executeSharedWriteFile', async () => {
+    const ctx = createMockContext(policy);
+    const toolCtx: AgentToolContext = { ctx, agentRole: 'reviewer' };
+    const result = await executeSharedWriteFile(toolCtx, '/etc/malicious.txt', 'test', '/etc');
     expect(result).toMatch(/BLOCKED/);
+  });
+
+  it('exposes toolCtx getter that returns reviewer role', () => {
+    const toolCtx: AgentToolContext = (agent as any).toolCtx;
+    expect(toolCtx.agentRole).toBe('reviewer');
+    expect(toolCtx.ctx).toBeDefined();
   });
 });

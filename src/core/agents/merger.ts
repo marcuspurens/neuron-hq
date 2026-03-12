@@ -1,6 +1,7 @@
 import { type RunContext } from '../run.js';
 import { GitOperations } from '../git.js';
 import { withRetry } from './agent-utils.js';
+import { executeSharedBash, executeSharedReadFile, executeSharedWriteFile, coreToolDefinitions, type AgentToolContext } from './shared-tools.js';
 import fs from 'fs/promises';
 import path from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
@@ -37,6 +38,11 @@ export class MergerAgent {
 
     const limits = ctx.policy.getLimits();
     this.maxIterations = limits.max_iterations_merger ?? limits.max_iterations_per_run;
+  }
+
+  /** Shared tool context for the 3 standard tools. */
+  private get toolCtx(): AgentToolContext {
+    return { ctx: this.ctx, agentRole: 'merger' };
   }
 
   async loadPrompt(): Promise<string> {
@@ -212,22 +218,15 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
   }
 
   private defineTools(): Anthropic.Tool[] {
+    const coreTools = coreToolDefinitions({
+      bash: 'Execute a bash command in the workspace. Use for read-only operations: git diff, git status, ls, grep, cat.',
+      readFile: 'Read a file from the workspace or runs directory.',
+      writeFile: 'Write a file to the runs directory (merge_plan.md, questions.md, merge_summary.md).',
+    });
+    // Filter out list_files since merger doesn't need it
+    const filteredCore = coreTools.filter(t => t.name !== 'list_files');
     return [
-      {
-        name: 'bash_exec',
-        description:
-          'Execute a bash command in the workspace. Use for read-only operations: git diff, git status, ls, grep, cat.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            command: {
-              type: 'string',
-              description: 'The bash command to execute',
-            },
-          },
-          required: ['command'],
-        },
-      },
+      ...filteredCore,
       {
         name: 'bash_exec_in_target',
         description:
@@ -241,39 +240,6 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
             },
           },
           required: ['command'],
-        },
-      },
-      {
-        name: 'read_file',
-        description: 'Read a file from the workspace or runs directory.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            path: {
-              type: 'string',
-              description: 'Absolute path or path relative to workspace',
-            },
-          },
-          required: ['path'],
-        },
-      },
-      {
-        name: 'write_file',
-        description:
-          'Write a file to the runs directory (merge_plan.md, questions.md, merge_summary.md).',
-        input_schema: {
-          type: 'object',
-          properties: {
-            path: {
-              type: 'string',
-              description: 'Absolute path (must be inside runs dir)',
-            },
-            content: {
-              type: 'string',
-              description: 'Content to write',
-            },
-          },
-          required: ['path', 'content'],
         },
       },
       {
@@ -332,19 +298,19 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
 
           switch (block.name) {
             case 'bash_exec':
-              result = await this.executeBash(block.input as { command: string });
+              result = await executeSharedBash(this.toolCtx, (block.input as { command: string }).command);
               break;
             case 'bash_exec_in_target':
               result = await this.executeBashInTarget(block.input as { command: string });
               break;
             case 'read_file':
-              result = await this.executeReadFile(block.input as { path: string });
+              result = await executeSharedReadFile(this.toolCtx, (block.input as { path: string }).path);
               break;
-            case 'write_file':
-              result = await this.executeWriteFile(
-                block.input as { path: string; content: string }
-              );
+            case 'write_file': {
+              const writeInput = block.input as { path: string; content: string };
+              result = await executeSharedWriteFile(this.toolCtx, writeInput.path, writeInput.content, this.ctx.runDir);
               break;
+            }
             case 'copy_to_target':
               result = await this.executeCopyToTarget(
                 block.input as { workspace_path: string; target_path: string }
@@ -372,38 +338,6 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
     }
 
     return results;
-  }
-
-  private async executeBash(input: { command: string }): Promise<string> {
-    const { command } = input;
-    const policyCheck = this.ctx.policy.checkBashCommand(command);
-
-    await this.ctx.audit.log({
-      ts: new Date().toISOString(),
-      role: 'merger',
-      tool: 'bash_exec',
-      allowed: policyCheck.allowed,
-      policy_event: policyCheck.reason,
-      note: `Command: ${command}`,
-    });
-
-    if (!policyCheck.allowed) {
-      return `BLOCKED: ${policyCheck.reason}`;
-    }
-
-    try {
-      const { stdout } = await execAsync(command, {
-        cwd: this.ctx.workspaceDir,
-        maxBuffer: 10 * 1024 * 1024,
-        timeout: this.ctx.policy.getLimits().bash_timeout_seconds * 1000,
-      });
-      await this.ctx.manifest.addCommand(command, 0);
-      return stdout;
-    } catch (error) {
-      const e = error as { status?: number; stderr?: string; message?: string };
-      await this.ctx.manifest.addCommand(command, e.status || 1);
-      return `Command failed (exit ${e.status || 1}):\n${e.stderr || e.message}`;
-    }
   }
 
   private async executeBashInTarget(input: { command: string }): Promise<string> {
@@ -435,60 +369,6 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
       const e = error as { status?: number; stderr?: string; message?: string };
       await this.ctx.manifest.addCommand(command, e.status || 1);
       return `Command failed (exit ${e.status || 1}):\n${e.stderr || e.message}`;
-    }
-  }
-
-  private async executeReadFile(input: { path: string }): Promise<string> {
-    const { path: filePath } = input;
-    const absolutePath = path.isAbsolute(filePath)
-      ? filePath
-      : path.join(this.ctx.workspaceDir, filePath);
-
-    try {
-      const content = await fs.readFile(absolutePath, 'utf-8');
-      await this.ctx.audit.log({
-        ts: new Date().toISOString(),
-        role: 'merger',
-        tool: 'read_file',
-        allowed: true,
-        files_touched: [absolutePath],
-      });
-      return content;
-    } catch (error) {
-      return `Error reading file: ${error instanceof Error ? error.message : String(error)}`;
-    }
-  }
-
-  private async executeWriteFile(input: {
-    path: string;
-    content: string;
-  }): Promise<string> {
-    const { path: filePath, content } = input;
-    const absolutePath = path.isAbsolute(filePath)
-      ? filePath
-      : path.join(this.ctx.runDir, filePath);
-
-    const policyCheck = this.ctx.policy.checkFileWriteScope(absolutePath, this.ctx.runid);
-
-    await this.ctx.audit.log({
-      ts: new Date().toISOString(),
-      role: 'merger',
-      tool: 'write_file',
-      allowed: policyCheck.allowed,
-      policy_event: policyCheck.reason,
-      files_touched: [absolutePath],
-    });
-
-    if (!policyCheck.allowed) {
-      return `BLOCKED: ${policyCheck.reason}`;
-    }
-
-    try {
-      await fs.mkdir(path.dirname(absolutePath), { recursive: true });
-      await fs.writeFile(absolutePath, content, 'utf-8');
-      return `File written successfully: ${filePath}`;
-    } catch (error) {
-      return `Error writing file: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 

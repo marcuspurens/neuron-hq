@@ -1,15 +1,12 @@
 import { type RunContext } from '../run.js';
 import { withRetry } from './agent-utils.js';
+import { executeSharedBash, executeSharedReadFile, executeSharedWriteFile, executeSharedListFiles, coreToolDefinitions, type AgentToolContext } from './shared-tools.js';
 import fs from 'fs/promises';
 import path from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
 
 /**
  * Tester Agent - independently runs the test suite and reports results.
@@ -35,6 +32,11 @@ export class TesterAgent {
 
     const limits = ctx.policy.getLimits();
     this.maxIterations = limits.max_iterations_tester ?? limits.max_iterations_per_run;
+  }
+
+  /** Shared tool context for the tester agent. */
+  private get toolCtx(): AgentToolContext {
+    return { ctx: this.ctx, agentRole: 'tester' };
   }
 
   async loadPrompt(): Promise<string> {
@@ -195,68 +197,12 @@ and write test_report.md to the run artifacts directory.
   }
 
   private defineTools(): Anthropic.Tool[] {
-    return [
-      {
-        name: 'bash_exec',
-        description:
-          'Execute a bash command in the workspace. Use to run tests (pytest, npm test, etc.) and inspect files.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            command: {
-              type: 'string',
-              description: 'The bash command to execute',
-            },
-          },
-          required: ['command'],
-        },
-      },
-      {
-        name: 'read_file',
-        description: 'Read a file from the workspace (e.g. package.json, pyproject.toml).',
-        input_schema: {
-          type: 'object',
-          properties: {
-            path: {
-              type: 'string',
-              description: 'Absolute path or workspace-relative path',
-            },
-          },
-          required: ['path'],
-        },
-      },
-      {
-        name: 'write_file',
-        description: 'Write test_report.md to the runs directory.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            path: {
-              type: 'string',
-              description: 'Absolute path (must be inside runs dir)',
-            },
-            content: {
-              type: 'string',
-              description: 'Content to write',
-            },
-          },
-          required: ['path', 'content'],
-        },
-      },
-      {
-        name: 'list_files',
-        description: 'List files in a directory to discover test framework.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            path: {
-              type: 'string',
-              description: 'Directory path (defaults to workspace root)',
-            },
-          },
-        },
-      },
-    ];
+    return coreToolDefinitions({
+      bash: 'Execute a bash command in the workspace. Use to run tests (pytest, npm test, etc.) and inspect files.',
+      readFile: 'Read a file from the workspace (e.g. package.json, pyproject.toml).',
+      writeFile: 'Write test_report.md to the runs directory.',
+      listFiles: 'List files in a directory to discover test framework.',
+    });
   }
 
   private async executeTools(
@@ -274,18 +220,18 @@ and write test_report.md to the run artifacts directory.
 
           switch (block.name) {
             case 'bash_exec':
-              result = await this.executeBash(block.input as { command: string });
+              result = await executeSharedBash(this.toolCtx, (block.input as { command: string }).command, { includeStderr: true });
               break;
             case 'read_file':
-              result = await this.executeReadFile(block.input as { path: string });
+              result = await executeSharedReadFile(this.toolCtx, (block.input as { path: string }).path);
               break;
-            case 'write_file':
-              result = await this.executeWriteFile(
-                block.input as { path: string; content: string }
-              );
+            case 'write_file': {
+              const writeInput = block.input as { path: string; content: string };
+              result = await executeSharedWriteFile(this.toolCtx, writeInput.path, writeInput.content, this.ctx.runDir);
               break;
+            }
             case 'list_files':
-              result = await this.executeListFiles(block.input as { path?: string });
+              result = await executeSharedListFiles(this.toolCtx, (block.input as { path?: string }).path);
               break;
             default:
               result = `Error: Unknown tool ${block.name}`;
@@ -304,115 +250,5 @@ and write test_report.md to the run artifacts directory.
     }
 
     return results;
-  }
-
-  private async executeBash(input: { command: string }): Promise<string> {
-    const { command } = input;
-    const policyCheck = this.ctx.policy.checkBashCommand(command);
-
-    await this.ctx.audit.log({
-      ts: new Date().toISOString(),
-      role: 'tester',
-      tool: 'bash_exec',
-      allowed: policyCheck.allowed,
-      policy_event: policyCheck.reason,
-      note: `Command: ${command}`,
-    });
-
-    if (!policyCheck.allowed) {
-      return `BLOCKED: ${policyCheck.reason}`;
-    }
-
-    try {
-      const { stdout, stderr } = await execAsync(command, {
-        cwd: this.ctx.workspaceDir,
-        maxBuffer: 10 * 1024 * 1024,
-        timeout: this.ctx.policy.getLimits().bash_timeout_seconds * 1000,
-      });
-      await this.ctx.manifest.addCommand(command, 0);
-      // Include stderr in output — test runners often write results to stderr
-      return (stdout + (stderr ? '\n' + stderr : '')).trim();
-    } catch (error) {
-      const e = error as { status?: number; stderr?: string; stdout?: string; message?: string };
-      await this.ctx.manifest.addCommand(command, e.status || 1);
-      // For test runners, exit code != 0 means tests failed — include full output
-      const out = [
-        e.stdout || '',
-        e.stderr || '',
-      ].filter(Boolean).join('\n');
-      return `Exit ${e.status || 1}:\n${out || e.message}`;
-    }
-  }
-
-  private async executeReadFile(input: { path: string }): Promise<string> {
-    const { path: filePath } = input;
-    const absolutePath = path.isAbsolute(filePath)
-      ? filePath
-      : path.join(this.ctx.workspaceDir, filePath);
-
-    try {
-      const content = await fs.readFile(absolutePath, 'utf-8');
-      await this.ctx.audit.log({
-        ts: new Date().toISOString(),
-        role: 'tester',
-        tool: 'read_file',
-        allowed: true,
-        files_touched: [absolutePath],
-      });
-      return content;
-    } catch (error) {
-      return `Error reading file: ${error instanceof Error ? error.message : String(error)}`;
-    }
-  }
-
-  private async executeWriteFile(input: { path: string; content: string }): Promise<string> {
-    const { path: filePath, content } = input;
-    const absolutePath = path.isAbsolute(filePath)
-      ? filePath
-      : path.join(this.ctx.runDir, filePath);
-
-    const policyCheck = this.ctx.policy.checkFileWriteScope(absolutePath, this.ctx.runid);
-
-    await this.ctx.audit.log({
-      ts: new Date().toISOString(),
-      role: 'tester',
-      tool: 'write_file',
-      allowed: policyCheck.allowed,
-      policy_event: policyCheck.reason,
-      files_touched: [absolutePath],
-    });
-
-    if (!policyCheck.allowed) {
-      return `BLOCKED: ${policyCheck.reason}`;
-    }
-
-    try {
-      await fs.mkdir(path.dirname(absolutePath), { recursive: true });
-      await fs.writeFile(absolutePath, content, 'utf-8');
-      return `File written successfully: ${filePath}`;
-    } catch (error) {
-      return `Error writing file: ${error instanceof Error ? error.message : String(error)}`;
-    }
-  }
-
-  private async executeListFiles(input: { path?: string }): Promise<string> {
-    const dirPath = input.path
-      ? path.isAbsolute(input.path)
-        ? input.path
-        : path.join(this.ctx.workspaceDir, input.path)
-      : this.ctx.workspaceDir;
-
-    try {
-      const entries = await fs.readdir(dirPath, { withFileTypes: true });
-      const formatted = entries
-        .map((entry: { isDirectory: () => boolean; name: string }) => {
-          const type = entry.isDirectory() ? 'DIR' : 'FILE';
-          return `${type}\t${entry.name}`;
-        })
-        .join('\n');
-      return formatted || '(empty directory)';
-    } catch (error) {
-      return `Error listing files: ${error instanceof Error ? error.message : String(error)}`;
-    }
   }
 }

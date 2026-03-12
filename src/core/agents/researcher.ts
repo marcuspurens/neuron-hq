@@ -1,5 +1,6 @@
 import { type RunContext } from '../run.js';
-import { truncateToolResult, trimMessages, withRetry } from './agent-utils.js';
+import { trimMessages, withRetry } from './agent-utils.js';
+import { executeSharedBash, executeSharedReadFile, executeSharedWriteFile, executeSharedListFiles, coreToolDefinitions, type AgentToolContext } from './shared-tools.js';
 import { graphReadToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -7,10 +8,6 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
 
 /**
  * Researcher Agent - reads code, generates ideas.md and sources.md.
@@ -39,6 +36,10 @@ export class ResearcherAgent {
 
   async loadPrompt(): Promise<string> {
     return await fs.readFile(this.promptPath, 'utf-8');
+  }
+
+  private get toolCtx(): AgentToolContext {
+    return { ctx: this.ctx, agentRole: 'researcher' };
   }
 
   /**
@@ -207,67 +208,12 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
 
   private defineTools(): Anthropic.Tool[] {
     return [
-      {
-        name: 'bash_exec',
-        description:
-          'Execute a bash command for code reading. Use grep, cat, find to explore the codebase.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            command: {
-              type: 'string',
-              description: 'The bash command to execute',
-            },
-          },
-          required: ['command'],
-        },
-      },
-      {
-        name: 'read_file',
-        description: 'Read the contents of a file.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            path: {
-              type: 'string',
-              description: 'File path relative to workspace or absolute path',
-            },
-          },
-          required: ['path'],
-        },
-      },
-      {
-        name: 'write_file',
-        description:
-          'Write content to a file. Use to write ideas.md and sources.md to the runs directory.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            path: {
-              type: 'string',
-              description: 'File path relative to workspace or absolute path',
-            },
-            content: {
-              type: 'string',
-              description: 'Content to write to the file',
-            },
-          },
-          required: ['path', 'content'],
-        },
-      },
-      {
-        name: 'list_files',
-        description: 'List files in a directory.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            path: {
-              type: 'string',
-              description: 'Directory path to list (defaults to workspace root)',
-            },
-          },
-        },
-      },
+      ...coreToolDefinitions({
+        bash: 'Execute a bash command for code reading. Use grep, cat, find to explore the codebase.',
+        readFile: 'Read the contents of a file.',
+        writeFile: 'Write content to a file. Use to write ideas.md and sources.md to the runs directory.',
+        listFiles: 'List files in a directory.',
+      }),
       ...graphReadToolDefinitions(),
     ];
   }
@@ -287,18 +233,18 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
 
           switch (block.name) {
             case 'bash_exec':
-              result = await this.executeBash(block.input as { command: string });
+              result = await executeSharedBash(this.toolCtx, (block.input as { command: string }).command, { truncate: true });
               break;
             case 'read_file':
-              result = await this.executeReadFile(block.input as { path: string });
+              result = await executeSharedReadFile(this.toolCtx, (block.input as { path: string }).path, { truncate: true });
               break;
-            case 'write_file':
-              result = await this.executeWriteFile(
-                block.input as { path: string; content: string }
-              );
+            case 'write_file': {
+              const writeInput = block.input as { path: string; content: string };
+              result = await executeSharedWriteFile(this.toolCtx, writeInput.path, writeInput.content, this.ctx.workspaceDir);
               break;
+            }
             case 'list_files':
-              result = await this.executeListFiles(block.input as { path?: string });
+              result = await executeSharedListFiles(this.toolCtx, (block.input as { path?: string }).path);
               break;
             case 'graph_query':
             case 'graph_traverse': {
@@ -328,112 +274,5 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
     }
 
     return results;
-  }
-
-  private async executeBash(input: { command: string }): Promise<string> {
-    const { command } = input;
-    const policyCheck = this.ctx.policy.checkBashCommand(command);
-
-    await this.ctx.audit.log({
-      ts: new Date().toISOString(),
-      role: 'researcher',
-      tool: 'bash_exec',
-      allowed: policyCheck.allowed,
-      policy_event: policyCheck.reason,
-      note: `Command: ${command}`,
-    });
-
-    if (!policyCheck.allowed) {
-      return `BLOCKED: ${policyCheck.reason}`;
-    }
-
-    try {
-      const { stdout } = await execAsync(command, {
-        cwd: this.ctx.workspaceDir,
-        maxBuffer: 10 * 1024 * 1024,
-        timeout: this.ctx.policy.getLimits().bash_timeout_seconds * 1000,
-      });
-
-      await this.ctx.manifest.addCommand(command, 0);
-      return truncateToolResult(stdout);
-    } catch (error) {
-      const e = error as { status?: number; stderr?: string; message?: string };
-      await this.ctx.manifest.addCommand(command, e.status || 1);
-      return `Command failed (exit ${e.status || 1}):\n${e.stderr || e.message}`;
-    }
-  }
-
-  private async executeReadFile(input: { path: string }): Promise<string> {
-    const { path: filePath } = input;
-    const absolutePath = path.isAbsolute(filePath)
-      ? filePath
-      : path.join(this.ctx.workspaceDir, filePath);
-
-    try {
-      const content = await fs.readFile(absolutePath, 'utf-8');
-
-      await this.ctx.audit.log({
-        ts: new Date().toISOString(),
-        role: 'researcher',
-        tool: 'read_file',
-        allowed: true,
-        files_touched: [absolutePath],
-      });
-
-      return truncateToolResult(content);
-    } catch (error) {
-      return `Error reading file: ${error instanceof Error ? error.message : String(error)}`;
-    }
-  }
-
-  private async executeWriteFile(input: { path: string; content: string }): Promise<string> {
-    const { path: filePath, content } = input;
-    const absolutePath = path.isAbsolute(filePath)
-      ? filePath
-      : path.join(this.ctx.workspaceDir, filePath);
-
-    const policyCheck = this.ctx.policy.checkFileWriteScope(absolutePath, this.ctx.runid);
-
-    await this.ctx.audit.log({
-      ts: new Date().toISOString(),
-      role: 'researcher',
-      tool: 'write_file',
-      allowed: policyCheck.allowed,
-      policy_event: policyCheck.reason,
-      files_touched: [absolutePath],
-    });
-
-    if (!policyCheck.allowed) {
-      return `BLOCKED: ${policyCheck.reason}`;
-    }
-
-    try {
-      await fs.mkdir(path.dirname(absolutePath), { recursive: true });
-      await fs.writeFile(absolutePath, content, 'utf-8');
-      return `File written successfully: ${filePath}`;
-    } catch (error) {
-      return `Error writing file: ${error instanceof Error ? error.message : String(error)}`;
-    }
-  }
-
-  private async executeListFiles(input: { path?: string }): Promise<string> {
-    const dirPath = input.path
-      ? path.isAbsolute(input.path)
-        ? input.path
-        : path.join(this.ctx.workspaceDir, input.path)
-      : this.ctx.workspaceDir;
-
-    try {
-      const entries = await fs.readdir(dirPath, { withFileTypes: true });
-      const formatted = entries
-        .map((entry: { isDirectory: () => boolean; name: string }) => {
-          const type = entry.isDirectory() ? 'DIR' : 'FILE';
-          return `${type}\t${entry.name}`;
-        })
-        .join('\n');
-      return formatted || '(empty directory)';
-    } catch (error) {
-      return `Error listing files: ${error instanceof Error ? error.message : String(error)}`;
-    }
   }
 }

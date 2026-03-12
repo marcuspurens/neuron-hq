@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { ImplementerAgent } from '../../src/core/agents/implementer.js';
+import { executeSharedBash, executeSharedWriteFile, type AgentToolContext } from '../../src/core/agents/shared-tools.js';
 import { createPolicyEnforcer } from '../../src/core/policy.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,10 +31,13 @@ function createMockContext(policy: Awaited<ReturnType<typeof createPolicyEnforce
 
 describe('ImplementerAgent', () => {
   let agent: ImplementerAgent;
+  let toolCtx: AgentToolContext;
 
   beforeAll(async () => {
     const policy = await createPolicyEnforcer(path.join(BASE_DIR, 'policy'), BASE_DIR);
-    agent = new ImplementerAgent(createMockContext(policy), BASE_DIR);
+    const mockCtx = createMockContext(policy);
+    agent = new ImplementerAgent(mockCtx, BASE_DIR);
+    toolCtx = { ctx: mockCtx, agentRole: 'implementer' };
   });
 
   it('can be instantiated', () => {
@@ -57,23 +61,27 @@ describe('ImplementerAgent', () => {
   });
 
   it('blocks forbidden bash commands', async () => {
-    const result = await (agent as any).executeBash({ command: 'rm -rf /' });
+    const result = await executeSharedBash(toolCtx, 'rm -rf /', { truncate: true });
     expect(result).toMatch(/BLOCKED/);
   });
 
   it('blocks file writes outside allowed scope', async () => {
-    const result = await (agent as any).executeWriteFile({
-      path: '/tmp/outside-scope.txt',
-      content: 'test',
-    });
+    const result = await executeSharedWriteFile(
+      toolCtx,
+      '/tmp/outside-scope.txt',
+      'test',
+      toolCtx.ctx.workspaceDir,
+    );
     expect(result).toMatch(/BLOCKED/);
   });
 
   it('allows file writes inside runs directory', async () => {
-    const result = await (agent as any).executeWriteFile({
-      path: path.join(BASE_DIR, 'runs', '20260221-1200-test', 'knowledge.md'),
-      content: '# Knowledge\n\nTest.',
-    });
+    const result = await executeSharedWriteFile(
+      toolCtx,
+      path.join(BASE_DIR, 'runs', '20260221-1200-test', 'knowledge.md'),
+      '# Knowledge\n\nTest.',
+      toolCtx.ctx.workspaceDir,
+    );
     // Should not be BLOCKED (may succeed or fail on filesystem, but not policy-blocked)
     expect(result).not.toMatch(/BLOCKED/);
   });

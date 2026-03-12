@@ -1,6 +1,7 @@
 import { type RunContext } from '../run.js';
 import { withRetry } from './agent-utils.js';
 import { graphReadToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
+import { executeSharedBash, executeSharedReadFile, executeSharedWriteFile, executeSharedListFiles, coreToolDefinitions, type AgentToolContext } from './shared-tools.js';
 import fs from 'fs/promises';
 import path from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
@@ -46,6 +47,10 @@ export class ReviewerAgent {
 
     const limits = ctx.policy.getLimits();
     this.maxIterations = limits.max_iterations_reviewer ?? limits.max_iterations_per_run;
+  }
+
+  private get toolCtx(): AgentToolContext {
+    return { ctx: this.ctx, agentRole: 'reviewer' };
   }
 
   async loadPrompt(): Promise<string> {
@@ -280,67 +285,12 @@ IMPORTANT: Never claim something is done without running a command to verify it.
 
   private defineTools(): Anthropic.Tool[] {
     return [
-      {
-        name: 'bash_exec',
-        description:
-          'Execute a bash command. Use for git diff, git log, git status, and running tests/checks.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            command: {
-              type: 'string',
-              description: 'The bash command to execute',
-            },
-          },
-          required: ['command'],
-        },
-      },
-      {
-        name: 'read_file',
-        description: 'Read the contents of a file.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            path: {
-              type: 'string',
-              description: 'File path relative to workspace or absolute path',
-            },
-          },
-          required: ['path'],
-        },
-      },
-      {
-        name: 'write_file',
-        description:
-          'Write content to a file. Use to write report.md and questions.md to the runs directory.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            path: {
-              type: 'string',
-              description: 'File path relative to workspace or absolute path',
-            },
-            content: {
-              type: 'string',
-              description: 'Content to write to the file',
-            },
-          },
-          required: ['path', 'content'],
-        },
-      },
-      {
-        name: 'list_files',
-        description: 'List files in a directory.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            path: {
-              type: 'string',
-              description: 'Directory path to list (defaults to workspace root)',
-            },
-          },
-        },
-      },
+      ...coreToolDefinitions({
+        bash: 'Execute a bash command. Use for git diff, git log, git status, and running tests/checks.',
+        readFile: 'Read the contents of a file.',
+        writeFile: 'Write content to a file. Use to write report.md and questions.md to the runs directory.',
+        listFiles: 'List files in a directory.',
+      }),
       ...graphReadToolDefinitions(),
     ];
   }
@@ -360,18 +310,18 @@ IMPORTANT: Never claim something is done without running a command to verify it.
 
           switch (block.name) {
             case 'bash_exec':
-              result = await this.executeBash(block.input as { command: string });
+              result = await executeSharedBash(this.toolCtx, (block.input as { command: string }).command);
               break;
             case 'read_file':
-              result = await this.executeReadFile(block.input as { path: string });
+              result = await executeSharedReadFile(this.toolCtx, (block.input as { path: string }).path);
               break;
-            case 'write_file':
-              result = await this.executeWriteFile(
-                block.input as { path: string; content: string }
-              );
+            case 'write_file': {
+              const writeInput = block.input as { path: string; content: string };
+              result = await executeSharedWriteFile(this.toolCtx, writeInput.path, writeInput.content, this.ctx.workspaceDir);
               break;
+            }
             case 'list_files':
-              result = await this.executeListFiles(block.input as { path?: string });
+              result = await executeSharedListFiles(this.toolCtx, (block.input as { path?: string }).path);
               break;
             case 'graph_query':
             case 'graph_traverse': {
@@ -401,112 +351,5 @@ IMPORTANT: Never claim something is done without running a command to verify it.
     }
 
     return results;
-  }
-
-  private async executeBash(input: { command: string }): Promise<string> {
-    const { command } = input;
-    const policyCheck = this.ctx.policy.checkBashCommand(command);
-
-    await this.ctx.audit.log({
-      ts: new Date().toISOString(),
-      role: 'reviewer',
-      tool: 'bash_exec',
-      allowed: policyCheck.allowed,
-      policy_event: policyCheck.reason,
-      note: `Command: ${command}`,
-    });
-
-    if (!policyCheck.allowed) {
-      return `BLOCKED: ${policyCheck.reason}`;
-    }
-
-    try {
-      const { stdout } = await execAsync(command, {
-        cwd: this.ctx.workspaceDir,
-        maxBuffer: 10 * 1024 * 1024,
-        timeout: this.ctx.policy.getLimits().bash_timeout_seconds * 1000,
-      });
-
-      await this.ctx.manifest.addCommand(command, 0);
-      return stdout;
-    } catch (error) {
-      const e = error as { status?: number; stderr?: string; message?: string };
-      await this.ctx.manifest.addCommand(command, e.status || 1);
-      return `Command failed (exit ${e.status || 1}):\n${e.stderr || e.message}`;
-    }
-  }
-
-  private async executeReadFile(input: { path: string }): Promise<string> {
-    const { path: filePath } = input;
-    const absolutePath = path.isAbsolute(filePath)
-      ? filePath
-      : path.join(this.ctx.workspaceDir, filePath);
-
-    try {
-      const content = await fs.readFile(absolutePath, 'utf-8');
-
-      await this.ctx.audit.log({
-        ts: new Date().toISOString(),
-        role: 'reviewer',
-        tool: 'read_file',
-        allowed: true,
-        files_touched: [absolutePath],
-      });
-
-      return content;
-    } catch (error) {
-      return `Error reading file: ${error instanceof Error ? error.message : String(error)}`;
-    }
-  }
-
-  private async executeWriteFile(input: { path: string; content: string }): Promise<string> {
-    const { path: filePath, content } = input;
-    const absolutePath = path.isAbsolute(filePath)
-      ? filePath
-      : path.join(this.ctx.workspaceDir, filePath);
-
-    const policyCheck = this.ctx.policy.checkFileWriteScope(absolutePath, this.ctx.runid);
-
-    await this.ctx.audit.log({
-      ts: new Date().toISOString(),
-      role: 'reviewer',
-      tool: 'write_file',
-      allowed: policyCheck.allowed,
-      policy_event: policyCheck.reason,
-      files_touched: [absolutePath],
-    });
-
-    if (!policyCheck.allowed) {
-      return `BLOCKED: ${policyCheck.reason}`;
-    }
-
-    try {
-      await fs.mkdir(path.dirname(absolutePath), { recursive: true });
-      await fs.writeFile(absolutePath, content, 'utf-8');
-      return `File written successfully: ${filePath}`;
-    } catch (error) {
-      return `Error writing file: ${error instanceof Error ? error.message : String(error)}`;
-    }
-  }
-
-  private async executeListFiles(input: { path?: string }): Promise<string> {
-    const dirPath = input.path
-      ? path.isAbsolute(input.path)
-        ? input.path
-        : path.join(this.ctx.workspaceDir, input.path)
-      : this.ctx.workspaceDir;
-
-    try {
-      const entries = await fs.readdir(dirPath, { withFileTypes: true });
-      const formatted = entries
-        .map((entry: { isDirectory: () => boolean; name: string }) => {
-          const type = entry.isDirectory() ? 'DIR' : 'FILE';
-          return `${type}\t${entry.name}`;
-        })
-        .join('\n');
-      return formatted || '(empty directory)';
-    } catch (error) {
-      return `Error listing files: ${error instanceof Error ? error.message : String(error)}`;
-    }
   }
 }
