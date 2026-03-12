@@ -1,6 +1,6 @@
 # Neuron HQ Architecture
 
-> Last updated: 2026-03-03 (Session 62)
+> Last updated: 2026-03-03 (Session 63)
 
 Neuron HQ is a **control plane** that orchestrates autonomous agent swarms to develop code in target repositories. It provides isolation, auditability, policy enforcement, persistent learning, and structured artifact generation.
 
@@ -10,10 +10,10 @@ Neuron HQ is a **control plane** that orchestrates autonomous agent swarms to de
                               ┌──────────────────────────────────────────────────────────────────────┐
                               │                          NEURON  HQ                                  │
                               │                                                                      │
-                              │  ┌──────────┐  ┌──────────────┐  ┌──────────┐  ┌───────────────┐    │
-                              │  │   CLI     │  │   Policy     │  │  Audit   │  │  Model        │    │
-                              │  │ Commands  │  │  Enforcer    │  │  Logger  │  │  Registry     │    │
-                              │  └────┬─────┘  └──────┬───────┘  └────┬─────┘  └──────┬────────┘    │
+                              │  ┌──────────┐  ┌──────────────┐  ┌──────────┐  ┌───────────────┐  ┌─────┐│
+                              │  │   CLI     │  │   Policy     │  │  Audit   │  │  Model        │  │ MCP ││
+                              │  │ Commands  │  │  Enforcer    │  │  Logger  │  │  Registry     │  │Serv.││
+                              │  └────┬─────┘  └──────┬───────┘  └────┬─────┘  └──────┬────────┘  └──┬──┘│
                               │       │               │               │               │             │
                               │  ┌────▼───────────────▼───────────────▼───────────────▼──────────┐  │
                               │  │                    Run Orchestrator                            │  │
@@ -481,6 +481,67 @@ Additional optional artifacts:
 
 ---
 
+## MCP Server
+
+Neuron HQ can be exposed as a **Model Context Protocol (MCP) server**, allowing Claude Desktop or Claude Code to query Neuron's data directly from any chat session.
+
+### Architecture
+
+```
+Claude Desktop / Claude Code
+         │
+         │  stdio (JSON-RPC)
+         ▼
+┌─────────────────────┐
+│   MCP Server        │
+│   (src/mcp/server.ts)│
+│                     │
+│  ┌───────────────┐  │        ┌──────────────┐
+│  │ neuron_runs   │──┼───────►│ runs table   │
+│  │ neuron_costs  │──┼───────►│ usage table  │
+│  │ neuron_know.  │──┼───────►│ kg_nodes     │
+│  │ neuron_start  │──┼───────►│ child_process│
+│  └───────────────┘  │        └──────────────┘
+└─────────────────────┘
+```
+
+### Tools
+
+| Tool | Type | Input | Output |
+|------|------|-------|--------|
+| `neuron_runs` | Read | status?, target?, last?, runid? | Run list or single run details |
+| `neuron_knowledge` | Read | query, type?, scope?, semantic?, limit? | Matching nodes with edges |
+| `neuron_costs` | Read | last?, by_agent?, summary_only? | Cost totals and breakdowns |
+| `neuron_start` | Write | target, brief, hours?, confirm | Starts run as child process |
+
+### Transport
+
+- **Stdio** — the server communicates via stdin/stdout (MCP JSON-RPC protocol)
+- Started as subprocess by Claude Desktop/Code
+- All logging goes to stderr (stdout reserved for protocol)
+
+### Configuration
+
+Example configuration for Claude Desktop (`mcp-config.example.json`):
+
+```json
+{
+  "mcpServers": {
+    "neuron-hq": {
+      "command": "npx",
+      "args": ["tsx", "src/cli.ts", "mcp-server"],
+      "cwd": "/path/to/neuron-hq"
+    }
+  }
+}
+```
+
+### SDK
+
+Uses `@modelcontextprotocol/sdk` (official MCP TypeScript SDK). Tools are registered with Zod input schemas for automatic validation.
+
+---
+
 ## CLI Commands
 
 Entry point: `npx tsx src/cli.ts <command>`
@@ -503,6 +564,7 @@ Entry point: `npx tsx src/cli.ts <command>`
 | `db-migrate` | Apply pending Postgres migrations |
 | `db-import` | Import file-based data into Postgres |
 | `embed-nodes` | Generate embeddings for nodes without vectors |
+| `mcp-server` | Start Neuron HQ as an MCP server (stdio) |
 
 ---
 
@@ -544,9 +606,17 @@ CLI (cli.ts)
                     └── graph-merge.ts (duplicate detection)
                           └── knowledge-graph.ts
 
+MCP Server (src/mcp/server.ts)
+  └── tools/*
+        ├── runs.ts ──► db.ts, runs/ filesystem
+        ├── knowledge.ts ──► knowledge-graph.ts, semantic-search.ts
+        ├── costs.ts ──► db.ts, pricing.ts
+        └── start.ts ──► child_process (spawn CLI)
+
 Leaf modules (no internal deps):
   types.ts, model-registry.ts, messages.ts, task-splitter.ts,
-  security-scan.ts, scaffold.ts, prompt-hierarchy.ts, prompt-overlays.ts
+  security-scan.ts, scaffold.ts, prompt-hierarchy.ts, prompt-overlays.ts,
+  pricing.ts
 ```
 
 ---
@@ -604,6 +674,7 @@ The overlay system adjusts prompts per model family:
 | Runtime | Node.js 20+ |
 | Package Manager | pnpm |
 | Agent SDK | Anthropic Claude API (`@anthropic-ai/sdk`) |
+| MCP | `@modelcontextprotocol/sdk` (stdio transport) |
 | Database | PostgreSQL 17 + pgvector |
 | Embeddings | Ollama + snowflake-arctic-embed (1024 dims) |
 | Validation | Zod schemas throughout |
@@ -613,17 +684,18 @@ The overlay system adjusts prompts per model family:
 
 ---
 
-## Project Statistics (as of Session 62)
+## Project Statistics (as of Session 63)
 
 | Metric | Value |
 |--------|-------|
-| Tests | 938 passing (85 files) |
-| Total runs completed | 94 |
+| Tests | 984 passing (91 files) |
+| Total runs completed | 95 |
 | Knowledge graph nodes | 122 (all with embeddings) |
 | Knowledge graph edges | 77 |
 | Agent types | 10 |
 | Core source files | 34 + 12 agent files |
-| CLI commands | 15 |
+| CLI commands | 16 |
+| MCP tools | 4 (runs, knowledge, costs, start) |
 | Postgres tables | 7 + 1 (migrations) |
 | Prompt files | 10 + 5 overlays |
 | Policy files | 4 |
@@ -644,7 +716,9 @@ Neuron HQ är ett TypeScript-baserat **agentorkestreringssystem** som koordinera
 
 Knowledge-grafen (122 noder, 77 kanter) fungerar som långtidsminne med confidence decay på inaktiva noder, semantisk dedup (cosine similarity ≥ 0.8 varnar, ≥ 0.9 blockerar), och Jaccard+embedding-baserad konsolidering. Varje körning producerar 11+ strukturerade artefakter med checksummor.
 
-Systemet har 938 tester (85 filer), 94 genomförda körningar, och konfigurerbara per-agent modellval (Sonnet för tunga uppgifter, Haiku för kostnadseffektiva).
+Sedan session 63 exponeras systemet som **MCP-server** (Model Context Protocol, stdio-transport) med 4 verktyg: `neuron_runs`, `neuron_knowledge`, `neuron_costs`, `neuron_start`. Det möjliggör att Claude Desktop/Code kan fråga kunskapsgrafen, hämta körningsdata och starta nya körningar direkt — utan CLI.
+
+Systemet har 984 tester (91 filer), 95 genomförda körningar, och konfigurerbara per-agent modellval (Sonnet för tunga uppgifter, Haiku för kostnadseffektiva).
 
 ---
 
@@ -675,7 +749,8 @@ Neuron HQ är ett styrningssystem för AI-drivna utvecklingsteam. Istället för
 
 **Siffror:**
 
-- 94 genomförda körningar
-- 938 automatiska tester som verifierar att systemet fungerar korrekt
+- 95 genomförda körningar
+- 984 automatiska tester som verifierar att systemet fungerar korrekt
 - 10 specialiserade agentroller
 - Kunskapsbibliotek med 122 dokumenterade mönster och erfarenheter
+- **MCP-integration:** Claude Desktop/Code kan fråga Neuron HQ direkt — visa körningar, söka i kunskapen, kolla kostnader, och starta nya körningar

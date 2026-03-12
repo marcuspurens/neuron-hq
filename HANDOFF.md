@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-02-28T1000-session50-graphrag-g3-djupsamtal.md](docs/handoffs/HANDOFF-2026-02-28T1000-session50-graphrag-g3-djupsamtal.md)
+Senaste handoff: [HANDOFF-2026-03-12T0930-session78-f0-bayesian-confidence.md](docs/handoffs/HANDOFF-2026-03-12T0930-session78-f0-bayesian-confidence.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -48,5 +48,34 @@ Senaste handoff: [HANDOFF-2026-02-28T1000-session50-graphrag-g3-djupsamtal.md](d
 | 2026-02-27 | 13:30 | 48 | GraphRAG G1 — Core + Migration | [länk](docs/handoffs/HANDOFF-2026-02-27T1330-session48-graphrag-g1.md) |
 | 2026-02-27 | 16:30 | 49 | GraphRAG G1 merge + G2 körning | [länk](docs/handoffs/HANDOFF-2026-02-27T1630-session49-graphrag-g1-g2.md) |
 | 2026-02-28 | 10:00 | 50 | GraphRAG G3 + djupsamtal + 4 briefs | [länk](docs/handoffs/HANDOFF-2026-02-28T1000-session50-graphrag-g3-djupsamtal.md) |
+| 2026-02-28 | 11:00 | 51 | 4 körningar (N7–N10) + docs-städning + 3 nya briefs | [länk](docs/handoffs/HANDOFF-2026-02-28T1100-session51-fyra-korningar-docs.md) |
+| 2026-03-01 | 01:00 | 52 | 5 körningar (N1+N3+N11+S1+S2) + smartare agenter-spår | [länk](docs/handoffs/HANDOFF-2026-03-01T0100-session52-fem-korningar-smartare-agenter.md) |
+| 2026-03-01 | 09:00 | 53 | 2 körningar (S6+S8) + 3 briefs (S6, S8, S4) | [länk](docs/handoffs/HANDOFF-2026-03-01T0900-session53-tre-briefs-s-sparet.md) |
+| 2026-03-01 | 10:00 | 54 | 2 körningar (S4+S7) + S7 brief | [länk](docs/handoffs/HANDOFF-2026-03-01T1000-session54-s4-s7-klara.md) |
+| 2026-03-01 | 12:00 | 55 | 2 körningar (N13+N14) + 3 briefs + S9 på roadmap | [länk](docs/handoffs/HANDOFF-2026-03-01T1200-session55-n13-n14-s3-brief.md) |
+| 2026-03-01 | 15:30 | 56 | S3 körning + S3.1 worktrees + S5 brief | [länk](docs/handoffs/HANDOFF-2026-03-01T1530-session56-s3-worktrees-s5-brief.md) |
+| 2026-03-01 | 16:30 | 57 | Costs-kommando + auto-update + parse-fix | [länk](docs/handoffs/HANDOFF-2026-03-01T1630-session57-costs-command.md) |
+| 2026-03-01 | 21:00 | 58 | S5 Multi-provider 🟢 + djupsamtal | [länk](docs/handoffs/HANDOFF-2026-03-01T2100-session58-s5-multi-provider.md) |
+| 2026-03-02 | 20:00 | 59 | S9 Prompt-overlays 🟢 + S9.1 model-tag 🟢 | [länk](docs/handoffs/HANDOFF-2026-03-02T2000-session59-s9-prompt-overlays.md) |
+| 2026-03-03 | 03:00 | 60a | N4 Typed Message Bus 🟢 | [länk](docs/handoffs/HANDOFF-2026-03-03T0300-session60-n4-typed-message-bus.md) |
+| 2026-03-03 | 07:00 | 60b | N4 + D1 Postgres 🟢 | [länk](docs/handoffs/HANDOFF-2026-03-03T0700-session60-n4-d1-postgres.md) |
+| 2026-03-03 | 11:00 | 61 | D1 operativt + D2 pgvector 🟢 | [länk](docs/handoffs/HANDOFF-2026-03-03T1100-session61-d1-operativt-d2-pgvector.md) |
+| 2026-03-03 | 13:00 | 62 | Lint-cleanup + arkitekturdokument | [länk](docs/handoffs/HANDOFF-2026-03-03T1300-session62-lint-cleanup-arkitektur.md) |
+| 2026-03-03 | 15:00 | 63 | D3 MCP-server 🟢 | [länk](docs/handoffs/HANDOFF-2026-03-03T1500-session63-d3-mcp-server.md) |
+| 2026-03-08 | 00:30 | 64 | Aurora MCP-config + UI-utforskning | [länk](docs/handoffs/HANDOFF-2026-03-08T0030-session64-aurora-mcp-ui.md) |
+| 2026-03-08 | 12:00 | 65 | Aurora FastMCP-migrering — MCP Apps fungerar! | [länk](docs/handoffs/HANDOFF-2026-03-08T1200-session65-aurora-fastmcp-migration.md) |
+| 2026-03-09 | 00:00 | 66 | Neuron HQ v2 — Aurora unified platform | [länk](docs/handoffs/HANDOFF-2026-03-09T0000-session66-neuron-v2-aurora-unified.md) |
+| 2026-03-09 | 10:00 | 67 | Aurora A1 + A1.1 + A2 pipeline | [länk](docs/handoffs/HANDOFF-2026-03-09T1000-session67-aurora-a1-a2-pipeline.md) |
+| 2026-03-09 | 13:00 | 68 | Aurora A3 + A4 + A5 (ask + minne + YouTube) | [länk](docs/handoffs/HANDOFF-2026-03-09T1300-session68-aurora-a3-a4-a5.md) |
+| 2026-03-09 | 14:30 | 69 | Aurora A6 + A7 — **Spår A KOMPLETT** (smart minne + cross-ref) | [länk](docs/handoffs/HANDOFF-2026-03-09T1430-session69-aurora-a6-smart-memory.md) |
+| 2026-03-09 | 18:00 | 70 | B1 Briefing 🟢 + Spår B roadmap (B1–B6) | [länk](docs/handoffs/HANDOFF-2026-03-09T1800-session70-b1-briefing-b-roadmap.md) |
+| 2026-03-09 | 22:00 | 71 | B2 🟢 + B3 🟢 + branch-namnfix | [länk](docs/handoffs/HANDOFF-2026-03-09T2200-session71-b2-auto-cross-ref-branch-fix.md) |
+| 2026-03-10 | 06:30 | 72 | Djupsamtal + B4 🟢 + testfix (1454 tester) | [länk](docs/handoffs/HANDOFF-2026-03-10T0630-session72-djupsamtal-b4-testfix.md) |
+| 2026-03-10 | 09:00 | 73 | B5 🟢 + B6 🟢 — **Spår B KOMPLETT** + Spår C/E roadmap | [länk](docs/handoffs/HANDOFF-2026-03-10T0900-session73-b5-b6-spar-b-komplett.md) |
+| 2026-03-10 | 11:00 | 74 | C1 🟢 Video-pipeline generaliserad | [länk](docs/handoffs/HANDOFF-2026-03-10T1100-session74-c1-video-pipeline.md) |
+| 2026-03-10 | 13:00 | 75 | STT-förbättringar 🟢 + Aurora-vision omdefinierad | [länk](docs/handoffs/HANDOFF-2026-03-10T1300-session75-stt-aurora-vision.md) |
+| 2026-03-11 | 19:00 | 76 | C2+C2.1+C3 🟢 Voiceprint + OCR | [länk](docs/handoffs/HANDOFF-2026-03-11T1900-session76-c2-c3-voiceprint-ocr.md) |
+| 2026-03-11 | 21:00 | 77 | C3.1 🟢 Batch-OCR + Spår F bayesiskt medvetande | [länk](docs/handoffs/HANDOFF-2026-03-11T2100-session77-c3.1-batch-ocr-bayesian.md) |
+| 2026-03-12 | 09:30 | 78 | F0 🟢 Bayesisk confidence i Aurora | [länk](docs/handoffs/HANDOFF-2026-03-12T0930-session78-f0-bayesian-confidence.md) |
 
 > **Not:** Session 1 och 6 saknas — handoffs skapades inte vid dessa tillfällen.

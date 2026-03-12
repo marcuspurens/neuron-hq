@@ -221,7 +221,7 @@ Appendas av Historian-agenten när problem identifieras.
 **Symptom:** Reviewer kör `git diff main | grep -iE '(eval|exec|rm -rf|...)'` som en säkerhetsskanning av diffen. Kommandot blockeras av policy eftersom strängen `rm -rf` matchar det förbjudna mönstret `\brm\s+.*-rf\b`, trots att kommandot bara söker efter mönstret — inte utför det.
 **Orsak:** Policy-filtret matchar mot hela kommandosträngen inklusive grep-argument, inte bara den faktiska operationen.
 **Lösning:** Reviewer bör undvika att inkludera `rm -rf` som en literal sträng i grep-kommandon. Alternativ: (1) dela upp i separata grep-anrop utan `rm -rf`, (2) använda `grep -c 'rm.*-rf'` med escape, eller (3) söka efter farliga mönster via `read_file` + manuell inspektion istället för bash grep.
-**Status:** ⚠️ Identifierat
+**Status:** ✅ Löst — körning 20260301-1038-neuron-hq implementerade `src/core/security-scan.ts` med `scanDiff()` som skannar diffen via TypeScript-regex istället för bash grep. Reviewer behöver inte längre köra `grep -iE '(eval|exec|rm -rf|...)'` i bash — mönsterdetektering sker nu i kod, utan policykonflikt.
 **Keywords:** reviewer, security-scan, policy-block, grep, rm-rf, forbidden-pattern
 **Relaterat:** —
 
@@ -238,4 +238,64 @@ Appendas av Historian-agenten när problem identifieras.
 
 ---
 
+## Hjälpskript mergades till target utan cleanup-pass
+**Session:** 20260228-2344-neuron-hq
+**Symptom:** Två Python-hjälpskript (`scripts/add-task-plan-method.py`, `scripts/fix-emoji.py`) som Implementer skapade under arbetet inkluderades i Mergers commit (51d287d) och hamnade i target-repot. Merge_summary.md listar 6 filer — 4 avsedda + 2 oavsedda skript.
+**Orsak:** Manager delegerade inte ett cleanup-pass efter Implementer, trots att mönstret "Manager delegerar cleanup-pass" är etablerat och bekräftat i 3+ tidigare körningar (senast 20260228-2328). Reviewer inspekterade `scripts/`-katalogen men flaggade inte skripten som oönskade. Merger kopierade allt som skilde sig från target utan att filtrera.
+**Lösning:** (1) Manager bör inspektera workspace efter Implementer och delegera cleanup för temporära filer i scripts/, (2) Reviewer bör flagga filer i scripts/ som inte nämns i briefen, (3) Merger bör jämföra committade filer mot briefens filspecifikation
+**Status:** ✅ Löst — Merger filtrerar nu konsekvent hjälpskript vid merge. Bekräftat i 3 körningar: 20260301-0800, 20260301-0834, 20260301-1247. Merger använder `git diff --stat -- ':!scripts/'` för att exkludera scripts/-filer.
+**Keywords:** hjälpskript, scripts, cleanup, merger, target-förorening, quality-gate
+**Relaterat:** patterns.md#Manager delegerar cleanup-pass efter Implementer, errors.md#Implementer transform-skript blockeras av policy
 
+---
+
+_Historian-korrigering: Invariant INV-008 skrevs felaktigt till runs.md istället för invariants.md. Posten som skrevs till runs.md (om ARCHIVE-sektioner) ska ignoreras — korrekt version finns nedan._
+
+## Merge-konflikt i aurora/graph.json från test-sidoeffekter
+**Session:** 20260309-2134-neuron-hq
+**Symptom:** `git merge` eller `git rebase` misslyckas med konfliktmarkören i aurora/graph.json (4 `<<<<<<<` / `=======` / `>>>>>>>` blockets)
+**Orsak:** Testfiler uppdaterar aurora/graph.json med slumpmässiga UUID:s och ISO-tidsstämplar vid varje körning. När tester kördes under denna körning skrev de ändringar som krockar med den förväntade statiska versionen. Filen är databeskrivning för testgenererad forskning, inte funktionskod.
+**Lösning:** 
+1. Lösa konflikten: `git add -p` och välja en sida (innehållet är icke-kritiskt), eller
+2. Lång term: Lägg aurora/graph.json i `.gitignore` eller använd ett tmpfs-testkvinnor för datamängdstillstånd istället för source-tracked JSON
+3. Alternativ: Implementera deterministisk UUID-generering i tester så samma test alltid producerar samma output
+**Status:** ⚠️ Identifierat — måste lösas före commit
+**Keywords:** merge-conflict, test-artifacts, data-file, aurora-graph
+**Relaterat:** runs.md#Körning 20260309-2134-neuron-hq
+
+---
+
+---
+
+## Researcher policy blocker vid skrivning till /tmp
+**Session:** 20260312-0907-neuron-hq
+**Symptom:** Researcher-agenten försökte skriva en sammanfattning till /tmp/final_summary.md men blockerades av policy `BLOCKED: matches forbidden pattern`
+**Orsak:** `/tmp/` är inte en tillåten skrivsluts för agenter. Policy förhindrar oavsiktliga filer utanför workspace/runs.
+**Lösning:** Researcher borde ha skrivit filerna till workspace eller run-mappen istället. I framtida körningar, dirigera output till `runs/` för tydligare artefakthantering.
+**Status:** ✅ Löst — ej en kritisk blocker, implementeringen levererades utan denna fil. Kan konfigureras i framtida körningar genom att ange outputsökväg i brieffet.
+**Keywords:** policy-enforcement, tmp-restriction, researcher-agent, non-blocking
+**Relaterat:** patterns.md#Policy-restriktioner för agent skrivning
+
+---
+
+## Researcher policy block vid /tmp/-skrivning
+**Session:** 20260312-0907-neuron-hq
+**Symptom:** Researcher-agenten försökte skriva en sammanfattning till /tmp/final_summary.md men blockerades av policy `BLOCKED: matches forbidden pattern`
+**Orsak:** Policy begränsar agentfilskrivning till designerade säkra katalogerna (workspace, runs) för att förhindra oavsiktliga artefakter utanför projektkontroll. Mönstret `/tmp/` är inte tillåtet.
+**Lösning:** Researcher bör ha dirigerat output till workspace eller runs-katalogen istället. I framtida körningar kan briefen explicitly ange output-sökväg för att guida agenten. Alternativt kan Researcher använda `write_to_memory`-verktyget för dokumentation.
+**Status:** ✅ Löst — inte en kritisk blockerare; implementeringen levererades utan denna fil. Kan enkelt konfigureras genom briefningsinstruktioner.
+**Keywords:** policy-enforcement, tmp-restriction, researcher-agent, non-blocking, output-routing
+**Relaterat:** patterns.md#Policy-restriktioner för agent-skrivning, invariants.md#[INV-003]
+
+---
+
+## Merge conflict resolution in bayesian-confidence.ts
+**Session:** 20260312-0907-neuron-hq
+**Symptom:** Multiple implementer tasks (T1, T4, T6, T7) created parallel versions of bayesian-confidence.ts; git merge produced conflicts requiring resolution
+**Orsak:** Parallel task delegation without deconfliction strategy. Each task received copy of source, made independent implementations, all merged to same file.
+**Lösning:** Manager used "git checkout --ours" strategy to keep T1's implementation (core module) intact, then "git checkout --theirs" for test files from T6 (unit tests) and T7 (CLI/MCP tests). This proved correct since T1 had definitive implementation. Future: Designate one task as "owner" of core modules or use feature branches per task.
+**Status:** ✅ Löst — conflicts resolved cleanly, final code passes all 1652 tests
+**Keywords:** git-merge, parallel-tasks, conflict-resolution, implementer-coordination
+**Relaterat:** patterns.md#Parallel task delegation
+
+---

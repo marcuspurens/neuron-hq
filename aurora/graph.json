@@ -6,28 +6,13 @@
       "title": "README",
       "properties": {
         "text": "# Neuron HQ\n\n**Autonomous agent swarm control plane for developing target repos**\n\nNeuron HQ coordinates Manager, Implementer, Reviewer, and Researcher agents to autonomously develop code in other repositories over 2-3 hour runs, with full audit trails, policy enforcement, and artifact generation.\n\n## Quick Start\n\n### 1. Install\n\n```bash\npnpm install\n```\n\n### 2. Configure API Key\n\n```bash\ncp .env.example .env\n# Edit .env and add your ANTHROPIC_API_KEY\n```\n\n### 3. Add a Target Repo\n\n```bash\npnpm ",
-        "source_type": "text",
+        "language": "unknown",
         "word_count": 591,
-        "language": "unknown"
+        "source_type": "text"
       },
       "confidence": 0.5,
       "scope": "personal",
-      "created": "2026-03-09T08:39:51.243Z",
-      "updated": "2026-03-09T08:39:51.243Z"
-    },
-    {
-      "id": "doc_21725e4d573a_chunk_0",
-      "type": "document",
-      "title": "README [chunk 1/4]",
-      "properties": {
-        "text": "# Neuron HQ\n\n**Autonomous agent swarm control plane for developing target repos**\n\nNeuron HQ coordinates Manager, Implementer, Reviewer, and Researcher agents to autonomously develop code in other repositories over 2-3 hour runs, with full audit trails, policy enforcement, and artifact generation.\n\n## Quick Start\n\n### 1. Install\n\n```bash\npnpm install\n```\n\n### 2. Configure API Key\n\n```bash\ncp .env.example .env\n# Edit .env and add your ANTHROPIC_API_KEY\n```\n\n### 3. Add a Target Repo\n\n```bash\npnpm neuron target add my-app /path/to/my-app\n```\n\n### 4. Write Your Brief\n\nEdit `briefs/today.md` with what you want to achieve.\n\n### 5. Start a Run\n\n```bash\npnpm neuron run my-app --hours 3\n```\n\n### 6. Review Results\n\n```bash\npnpm neuron report <runid>\ncat runs/<runid>/questions.md\ncat runs/<runid>/ideas.md\n```\n\n## Daily Workflow\n\n1. **Morning**: Edit `briefs/today.md` with your goals\n2. **Start run**: `pnpm neuron run <target> --hours 3`\n3. **Go do other work** while the agents operate autonomously\n4. **Afternoon**: Review `runs/<runid>/report.md`, `questions.md`, `ideas.md`\n5. **If blockers**: Answer in `runs/<runid>/answers.md`\n6. **Resume**: `pnpm neuron resume <runid> --hours 2`\n7.",
-        "chunkIndex": 0,
-        "totalChunks": 4,
-        "wordCount": 172,
-        "parentId": "doc_21725e4d573a"
-      },
-      "confidence": 0.5,
-      "scope": "personal",
+      "sourceUrl": null,
       "created": "2026-03-09T08:39:51.243Z",
       "updated": "2026-03-09T08:39:51.243Z"
     },
@@ -37,29 +22,14 @@
       "title": "README [chunk 2/4]",
       "properties": {
         "text": "**Afternoon**: Review `runs/<runid>/report.md`, `questions.md`, `ideas.md`\n5. **If blockers**: Answer in `runs/<runid>/answers.md`\n6. **Resume**: `pnpm neuron resume <runid> --hours 2`\n7. **Repeat** until satisfied\n\n## CLI Commands\n\n### Target Management\n```bash\npnpm neuron target add <name> <path-or-url>   # Add target repo\npnpm neuron target list                        # List all targets\n```\n\n### Running\n```bash\npnpm neuron run <target> --hours 3            # Start new run\npnpm neuron resume <runid> --hours 2          # Resume run\npnpm neuron status                            # List all runs\n```\n\n### Results & Logs\n```bash\npnpm neuron report <runid>                    # Show report\npnpm neuron logs <runid>                      # Show artifact paths\npnpm neuron replay <runid>                    # Re-run verification\n```\n\n## What Gets Created\n\nEvery run creates in `runs/<runid>/`:\n\n- **brief.md** - Snapshot of input brief\n- **baseline.md** - Baseline verification results\n- **report.md** - STOPLIGHT status + how to run/test + risks + rollback\n- **questions.md** - Max 3 blockers (or \"No blockers\")\n- **ideas.md** - Research-driven ideas with impact/effort/risk\n- **knowledge.md** - Learnings, assumptions, open questions\n- **research/sources.md** - Links + summaries\n- **audit.jsonl** - Append-only audit log\n- **manifest.json** - Checksums + commands\n- **usage.json** - Token tracking (info only)\n- **redaction_report.md** - What was redacted from logs\n\n## Agent",
+        "parentId": "doc_21725e4d573a",
+        "wordCount": 200,
         "chunkIndex": 1,
-        "totalChunks": 4,
-        "wordCount": 200,
-        "parentId": "doc_21725e4d573a"
+        "totalChunks": 4
       },
       "confidence": 0.5,
       "scope": "personal",
-      "created": "2026-03-09T08:39:51.243Z",
-      "updated": "2026-03-09T08:39:51.243Z"
-    },
-    {
-      "id": "doc_21725e4d573a_chunk_2",
-      "type": "document",
-      "title": "README [chunk 3/4]",
-      "properties": {
-        "text": "Checksums + commands\n- **usage.json** - Token tracking (info only)\n- **redaction_report.md** - What was redacted from logs\n\n## Agent Roles\n\n- **Manager**: Plans, prioritizes, enforces WIP limit (1 feature at a time), stops on time/blockers\n- **Implementer**: Writes clean code, small diffs (<150 lines), runs verifications\n- **Reviewer**: Policy gatekeeper, risk classifier (LOW/MED/HIGH), requires two-phase for HIGH risk\n- **Researcher**: Web search, generates ideas with impact/effort/risk analysis\n\n## Policy Enforcement\n\nAll agents are constrained by policy in `policy/`:\n\n- **bash_allowlist.txt** - Only these commands allowed\n- **forbidden_patterns.txt** - These patterns always blocked\n- **git_rules.md** - Git safety rules (no force push, no history rewrite)\n- **limits.yaml** - Runtime limits (hours, diff size, timeouts)\n\nPolicy violations are logged in `audit.jsonl` and block execution.\n\n## Security\n\n- API keys never committed (use `.env`)\n- All secrets redacted from artifacts\n- Writes restricted to `workspaces/<runid>/` and `runs/<runid>/`\n- Command injection prevented via allowlist\n- File path traversal blocked\n- Git destructive operations blocked\n\n## Development\n\n### Run Tests\n```bash\npnpm test\npnpm test:watch  # Watch mode\n```\n\n### Type Check\n```bash\npnpm typecheck\n```\n\n### Lint & Format\n```bash\npnpm lint\npnpm lint:fix\npnpm format\n```\n\n## Documentation\n\n- [Architecture](docs/architecture.md) - System",
-        "chunkIndex": 2,
-        "totalChunks": 4,
-        "wordCount": 200,
-        "parentId": "doc_21725e4d573a"
-      },
-      "confidence": 0.5,
-      "scope": "personal",
+      "sourceUrl": null,
       "created": "2026-03-09T08:39:51.243Z",
       "updated": "2026-03-09T08:39:51.243Z"
     },
@@ -69,186 +39,429 @@
       "title": "README [chunk 4/4]",
       "properties": {
         "text": "typecheck\n```\n\n### Lint & Format\n```bash\npnpm lint\npnpm lint:fix\npnpm format\n```\n\n## Documentation\n\n- [Architecture](docs/architecture.md) - System design\n- [Runbook](docs/runbook.md) - Operations guide\n- [ADRs](docs/adr/) - Architecture decision records\n\n## Status\n\n**MVP Status**: ✅ Core infrastructure complete\n- ✅ Policy enforcement\n- ✅ Target management\n- ✅ Run orchestration\n- ✅ Artifact generation\n- ✅ Audit logging\n- ✅ CLI commands\n- 🚧 Anthropic SDK integration (placeholder agents)\n- 🚧 Full agent implementation\n\n## License\n\nMIT",
-        "chunkIndex": 3,
-        "totalChunks": 4,
+        "parentId": "doc_21725e4d573a",
         "wordCount": 79,
-        "parentId": "doc_21725e4d573a"
+        "chunkIndex": 3,
+        "totalChunks": 4
       },
       "confidence": 0.5,
       "scope": "personal",
+      "sourceUrl": null,
       "created": "2026-03-09T08:39:51.243Z",
       "updated": "2026-03-09T08:39:51.243Z"
     },
     {
-      "id": "0976747b-e732-4e7f-b3f1-559abd51fa2e",
-      "type": "research",
-      "title": "What is X?",
+      "id": "doc_21725e4d573a_chunk_0",
+      "type": "document",
+      "title": "README [chunk 1/4]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "# Neuron HQ\n\n**Autonomous agent swarm control plane for developing target repos**\n\nNeuron HQ coordinates Manager, Implementer, Reviewer, and Researcher agents to autonomously develop code in other repositories over 2-3 hour runs, with full audit trails, policy enforcement, and artifact generation.\n\n## Quick Start\n\n### 1. Install\n\n```bash\npnpm install\n```\n\n### 2. Configure API Key\n\n```bash\ncp .env.example .env\n# Edit .env and add your ANTHROPIC_API_KEY\n```\n\n### 3. Add a Target Repo\n\n```bash\npnpm neuron target add my-app /path/to/my-app\n```\n\n### 4. Write Your Brief\n\nEdit `briefs/today.md` with what you want to achieve.\n\n### 5. Start a Run\n\n```bash\npnpm neuron run my-app --hours 3\n```\n\n### 6. Review Results\n\n```bash\npnpm neuron report <runid>\ncat runs/<runid>/questions.md\ncat runs/<runid>/ideas.md\n```\n\n## Daily Workflow\n\n1. **Morning**: Edit `briefs/today.md` with your goals\n2. **Start run**: `pnpm neuron run <target> --hours 3`\n3. **Go do other work** while the agents operate autonomously\n4. **Afternoon**: Review `runs/<runid>/report.md`, `questions.md`, `ideas.md`\n5. **If blockers**: Answer in `runs/<runid>/answers.md`\n6. **Resume**: `pnpm neuron resume <runid> --hours 2`\n7.",
+        "parentId": "doc_21725e4d573a",
+        "wordCount": 172,
+        "chunkIndex": 0,
+        "totalChunks": 4
       },
       "confidence": 0.5,
       "scope": "personal",
-      "created": "2026-03-09T13:20:25.509Z",
-      "updated": "2026-03-09T13:20:25.509Z"
+      "sourceUrl": null,
+      "created": "2026-03-09T08:39:51.243Z",
+      "updated": "2026-03-09T08:39:51.243Z"
     },
     {
-      "id": "7a1d3c53-271e-4b5e-bbfd-2f794cae1582",
-      "type": "research",
-      "title": "What is X?",
+      "id": "doc_21725e4d573a_chunk_2",
+      "type": "document",
+      "title": "README [chunk 3/4]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "Checksums + commands\n- **usage.json** - Token tracking (info only)\n- **redaction_report.md** - What was redacted from logs\n\n## Agent Roles\n\n- **Manager**: Plans, prioritizes, enforces WIP limit (1 feature at a time), stops on time/blockers\n- **Implementer**: Writes clean code, small diffs (<150 lines), runs verifications\n- **Reviewer**: Policy gatekeeper, risk classifier (LOW/MED/HIGH), requires two-phase for HIGH risk\n- **Researcher**: Web search, generates ideas with impact/effort/risk analysis\n\n## Policy Enforcement\n\nAll agents are constrained by policy in `policy/`:\n\n- **bash_allowlist.txt** - Only these commands allowed\n- **forbidden_patterns.txt** - These patterns always blocked\n- **git_rules.md** - Git safety rules (no force push, no history rewrite)\n- **limits.yaml** - Runtime limits (hours, diff size, timeouts)\n\nPolicy violations are logged in `audit.jsonl` and block execution.\n\n## Security\n\n- API keys never committed (use `.env`)\n- All secrets redacted from artifacts\n- Writes restricted to `workspaces/<runid>/` and `runs/<runid>/`\n- Command injection prevented via allowlist\n- File path traversal blocked\n- Git destructive operations blocked\n\n## Development\n\n### Run Tests\n```bash\npnpm test\npnpm test:watch  # Watch mode\n```\n\n### Type Check\n```bash\npnpm typecheck\n```\n\n### Lint & Format\n```bash\npnpm lint\npnpm lint:fix\npnpm format\n```\n\n## Documentation\n\n- [Architecture](docs/architecture.md) - System",
+        "parentId": "doc_21725e4d573a",
+        "wordCount": 200,
+        "chunkIndex": 2,
+        "totalChunks": 4
       },
       "confidence": 0.5,
       "scope": "personal",
-      "created": "2026-03-09T14:10:13.233Z",
-      "updated": "2026-03-09T14:10:13.233Z"
+      "sourceUrl": null,
+      "created": "2026-03-09T08:39:51.243Z",
+      "updated": "2026-03-09T08:39:51.243Z"
     },
     {
-      "id": "32234ed6-6510-43cd-8571-8591f111f6c6",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-R3ydGMRtnqU",
+      "type": "transcript",
+      "title": "Only 40 lines of code",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "Some people just have odd hobbies, you know? Like I know some of you out there after a long day at the Pixelmines likes to go home and play that game of Factorio. Yes, Factorio, for when assembly just doesn't feel like it gives you the same high it used to. Now for Jeremere, his special hobby, as he likes to call it, is a habit of skimming the OpenJDK commit log every few weeks. And this time while scanning it, he ended up finding a commit that had 40 line fix that eliminated a 400X performance gap. Now this is actually, it's super cool. How it works is pretty amazing. You got, I love it. There's gonna be flame graphs. I'm gonna explain to you what flame graphs are if you've never used them. And also, hey, you shouldn't knock it until you rock it, okay? Don't make fun of somebody for looking over changelogs, okay? That's a good pastime. Now the changelog that got his attention was this one right here, replacing reading proc to get thread CPU time with clock, get time. And the diff contained 96 insertions, 54 deletions, and the change set adds a 55 line JMH benchmark, which means that the production code itself was actually reduced. And it turns out that this change is actually from like a 2018 bug, JDK821452 that says get current thread user time is 30 to 400X slower than get current thread CPU time. So it's been around for a while, okay? We've all been there, okay? I've had a few JIRA tickets that lasted the entire tenure of my previous job and were never ever fixed. So I get it, I'm not, no stones being thrown here, okay buddy? All right, so let's first like, let's look over the code that got deleted because when you see this, you'll be surprised at how much effort was required to get user current time for a thread. First thing they do is a bunch of like kind of declarations and stuff, right? They get the current thread time right here and then a whole bunch of just initialization of either dummy variables or a buffer right here. The first thing it does is open up a file to the proc name, then it's gonna read out all the data into this 2K buffer, add a little kind of null terminator at the end and then it's gonna close down the file that was open. So then after reading everything from the file, it does this kind of reverse character look into a string right here. Now, apparently this was a source of many bugs. Like this just happened over and over again. And so they came up with this way where it would just find the last parentheses. And then at that point, you knew, okay, everything after this, we're gonna be able to get some information about the process. We're gonna then skip a whole bunch of white space until we get to a non-white space character. Then we're gonna read 13 numbers. That's right, so that means the proc, which remember these proc files, they aren't just like actual real files. They are generated on the fly. So it actually takes a bunch of numbers, converts them into strings, copies them to user space. Then the user space is gonna take that string back out, do a little bit of parsing itself with a little reverse char search and then it's gonna take those stringified numbers and re-put them back into numbers just to get these last two right here. And then at that point, you got yourself a little bit of that user time, okay? Easy as that, just a little one, two, three. By the way, do you ever wonder why people working at really low levels tend to be grumpy? Okay, we call them those angry neckbeards, okay? You understand why? A lot of people had to put up with a lot of shit, okay? So don't you go, don't you be just sitting there adjusting your little div being like, I just want a little drop shadow, okay? There's people that spent their lives trying to figure out why drop shadows aren't working and you're over there complaining. You don't know what's going on in there, okay buddy? And of course, here's the new implementation. There's like a bunch of kind of some internal stuff that is rather confusing exactly how it works. But nonetheless, it does a little bit of kind of flipping a couple of bits inside of this little clock ID and then down here, boom, it just gets the thread time. Yes, it's still for a lot of people that looks like very ugly code, but it is significantly better. We can all agree than reading out from a proc file, doing a bit of string processing, hitting a scan F and then grabbing 12th and 13th number out of a list. We can all agree, this has to be better, right? Now the best way to kind of understand the performance of how something runs is using flame graphs. If you've never used a flame graph before, here one is they're actually not too confusing. They're actually pretty simple. How you read this is that you read this as, from the very bottom, this is like the very bottom function call and then each one of these little tops, these are all different function calls. Now the ordering doesn't necessarily matter. These are not time dependent. Instead, you look at the very top and this top part, this is the percentage of the program while running was within this function right here. So you just kind of look at it as like relative portions. You can say that, hey, the time spent closing a file, this operation right here, looks like 33% of the time of getting user time was just spent closing a file. What appears to be like 16% of what? Oh, I just realized, I forgot that they have this. It's 34% of the time. I forgot that it has like a little percent sign right there when you hover over it. Read was 16.8% of the time and F open was 43% of the time. Yes, most of that time, if you did quick maths in your head, about 90% of the time was spent just fangolin and jangolin around with files. This right here, this was the scan F time. Like very little, just only 3.9% of the time was it actually doing something. The rest of the time is just off in file land, copying and doing to whoever knows what all these little few texts and everything, these fast user space mutexes. Okay, hey, get my mutex out your mouth, buddy. I actually, I have no idea what that means. And of course the change, this is what the change looks like. Now you can tell right away that something's happened. Okay, you don't have to be a genius here. You don't really have to understand how this works to look at it and just say, hey, it just looks like a lot of stuff is not happening anymore. There's one little peak right here, one little flame. There's one super thin flame right here. We don't really care what that is. And that's it. It's just, it's obvious. Okay, very little things are happening. Jeremy was nice enough of course to actually do the benchmarking also so that way we can have some real times. And it went from about 11 microseconds to 279 nanoseconds. Now this is shocking, right? I would have never, I just would have never guessed that I would have been spending a lot of time and by a lot of time, I mean, it's microseconds. Yeah, sure, you're right. It's not like a ton of time out there. But nonetheless, I would have just never guessed it. I would assume that's like the fastest possible operation. I would have never investigated it at any point. But this is what happened. This is just like a recent fix from just a couple of weeks ago. And I just think these kinds of investigations are super cool. I really do appreciate these write-ups. There's even more cool information within this write-up about how everything exactly works. But I just love the fact that there are just people out there making things better all the time, especially these super intense ones. And then you just get to read about just like, oh my gosh, like I would have never would have thought, I just would have never even put together that getting user time would have been so dang complicated. I just thought it was interesting, okay? I thought I'd take my time and share a little something. By the way, if you liked a little bit more of a technical one, okay, yeah, hey. The thing is, it's engineering's fun. I actually really like engineering. Even if I don't work in the JDK, I don't program C++, okay? I don't do any of that, but it's still awesome to read this stuff. It's still super cool to look at it. And I just enjoy, you know, enjoy engineering and it's fine. So I hope you enjoyed it too. Hey, press that like button or something. Tell me you liked it or tell me you don't like it. Honestly, I don't really care. Whichever one you choose it, don't be a grump, okay? But don't be a grump. The name is the Prime Engine. Hey, do you want to learn how to code? Do you want to become a better backend engineer? Well, you got to check out boot.dev. Now, I personally have made a couple courses from them. I have live walkthroughs free available on YouTube of the whole course, everything on boot.dev. You can go through for free. But if you want the gamified experience, the tracking of your learning and all that, then you got to pay up the money. But hey, go check them out, it's awesome. Many content creators you know and you like make courses there. Boot.dev slash prime for 25% off.",
+        "videoId": "R3ydGMRtnqU",
+        "duration": 479,
+        "language": "en",
+        "videoUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
+        "segmentCount": 222
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-09T14:10:35.296Z",
-      "updated": "2026-03-09T14:10:35.296Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
+      "created": "2026-03-10T07:59:53.156Z",
+      "updated": "2026-03-10T07:59:53.156Z"
     },
     {
-      "id": "07958aac-9998-4912-9185-9ffe955ec66b",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-R3ydGMRtnqU_chunk_2",
+      "type": "transcript",
+      "title": "Only 40 lines of code [chunk 3/10]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "current time for a thread. First thing they do is a bunch of like kind of declarations and stuff, right? They get the current thread time right here and then a whole bunch of just initialization of either dummy variables or a buffer right here. The first thing it does is open up a file to the proc name, then it's gonna read out all the data into this 2K buffer, add a little kind of null terminator at the end and then it's gonna close down the file that was open. So then after reading everything from the file, it does this kind of reverse character look into a string right here. Now, apparently this was a source of many bugs. Like this just happened over and over again. And so they came up with this way where it would just find the last parentheses. And then at that point, you knew, okay, everything after this, we're gonna be able to get some information about the process. We're gonna then skip a whole bunch of white space until we get to a non-white space character. Then we're gonna read 13 numbers.",
+        "parentId": "yt-R3ydGMRtnqU",
+        "wordCount": 192,
+        "chunkIndex": 2,
+        "totalChunks": 10
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-09T14:11:40.866Z",
-      "updated": "2026-03-09T14:11:40.866Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
+      "created": "2026-03-10T07:59:53.156Z",
+      "updated": "2026-03-10T07:59:53.156Z"
     },
     {
-      "id": "16f0d48d-a319-46dc-971a-e6a05c145b6e",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-R3ydGMRtnqU_chunk_4",
+      "type": "transcript",
+      "title": "Only 40 lines of code [chunk 5/10]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "don't you be just sitting there adjusting your little div being like, I just want a little drop shadow, okay? There's people that spent their lives trying to figure out why drop shadows aren't working and you're over there complaining. You don't know what's going on in there, okay buddy? And of course, here's the new implementation. There's like a bunch of kind of some internal stuff that is rather confusing exactly how it works. But nonetheless, it does a little bit of kind of flipping a couple of bits inside of this little clock ID and then down here, boom, it just gets the thread time. Yes, it's still for a lot of people that looks like very ugly code, but it is significantly better. We can all agree than reading out from a proc file, doing a bit of string processing, hitting a scan F and then grabbing 12th and 13th number out of a list. We can all agree, this has to be better, right? Now the best way to kind of understand the performance of how something runs is using flame graphs.",
+        "parentId": "yt-R3ydGMRtnqU",
+        "wordCount": 186,
+        "chunkIndex": 4,
+        "totalChunks": 10
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-09T14:11:55.483Z",
-      "updated": "2026-03-09T14:11:55.483Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
+      "created": "2026-03-10T07:59:53.156Z",
+      "updated": "2026-03-10T07:59:53.156Z"
     },
     {
-      "id": "c275a7cd-38b4-4f50-9ea3-f5b044b8b1c0",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-R3ydGMRtnqU_chunk_1",
+      "type": "transcript",
+      "title": "Only 40 lines of code [chunk 2/10]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "got his attention was this one right here, replacing reading proc to get thread CPU time with clock, get time. And the diff contained 96 insertions, 54 deletions, and the change set adds a 55 line JMH benchmark, which means that the production code itself was actually reduced. And it turns out that this change is actually from like a 2018 bug, JDK821452 that says get current thread user time is 30 to 400X slower than get current thread CPU time. So it's been around for a while, okay? We've all been there, okay? I've had a few JIRA tickets that lasted the entire tenure of my previous job and were never ever fixed. So I get it, I'm not, no stones being thrown here, okay buddy? All right, so let's first like, let's look over the code that got deleted because when you see this, you'll be surprised at how much effort was required to get user current time for a thread. First thing they do is a bunch of like kind of declarations and stuff, right?",
+        "parentId": "yt-R3ydGMRtnqU",
+        "wordCount": 178,
+        "chunkIndex": 1,
+        "totalChunks": 10
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-09T14:15:09.059Z",
-      "updated": "2026-03-09T14:15:09.059Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
+      "created": "2026-03-10T07:59:53.156Z",
+      "updated": "2026-03-10T07:59:53.156Z"
     },
     {
-      "id": "197c66d6-cf91-4a85-a8cf-488c8596b432",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-R3ydGMRtnqU_chunk_9",
+      "type": "transcript",
+      "title": "Only 40 lines of code [chunk 10/10]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "at it. And I just enjoy, you know, enjoy engineering and it's fine. So I hope you enjoyed it too. Hey, press that like button or something. Tell me you liked it or tell me you don't like it. Honestly, I don't really care. Whichever one you choose it, don't be a grump, okay? But don't be a grump. The name is the Prime Engine. Hey, do you want to learn how to code? Do you want to become a better backend engineer? Well, you got to check out boot.dev. Now, I personally have made a couple courses from them. I have live walkthroughs free available on YouTube of the whole course, everything on boot.dev. You can go through for free. But if you want the gamified experience, the tracking of your learning and all that, then you got to pay up the money. But hey, go check them out, it's awesome. Many content creators you know and you like make courses there. Boot.dev slash prime for 25% off.",
+        "parentId": "yt-R3ydGMRtnqU",
+        "wordCount": 169,
+        "chunkIndex": 9,
+        "totalChunks": 10
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-09T14:15:23.832Z",
-      "updated": "2026-03-09T14:15:23.832Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
+      "created": "2026-03-10T07:59:53.156Z",
+      "updated": "2026-03-10T07:59:53.156Z"
     },
     {
-      "id": "f2dc7402-d3a8-4681-88d2-e5fcf3458035",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-R3ydGMRtnqU_chunk_0",
+      "type": "transcript",
+      "title": "Only 40 lines of code [chunk 1/10]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "Some people just have odd hobbies, you know? Like I know some of you out there after a long day at the Pixelmines likes to go home and play that game of Factorio. Yes, Factorio, for when assembly just doesn't feel like it gives you the same high it used to. Now for Jeremere, his special hobby, as he likes to call it, is a habit of skimming the OpenJDK commit log every few weeks. And this time while scanning it, he ended up finding a commit that had 40 line fix that eliminated a 400X performance gap. Now this is actually, it's super cool. How it works is pretty amazing. You got, I love it. There's gonna be flame graphs. I'm gonna explain to you what flame graphs are if you've never used them. And also, hey, you shouldn't knock it until you rock it, okay? Don't make fun of somebody for looking over changelogs, okay? That's a good pastime. Now the changelog that got his attention was this one right here, replacing reading proc to get thread CPU time with clock, get time.",
+        "parentId": "yt-R3ydGMRtnqU",
+        "wordCount": 185,
+        "chunkIndex": 0,
+        "totalChunks": 10
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-09T14:23:12.609Z",
-      "updated": "2026-03-09T14:23:12.609Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
+      "created": "2026-03-10T07:59:53.156Z",
+      "updated": "2026-03-10T07:59:53.156Z"
     },
     {
-      "id": "dabbf29e-0714-4ea8-8472-be7f47f12368",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-R3ydGMRtnqU_chunk_3",
+      "type": "transcript",
+      "title": "Only 40 lines of code [chunk 4/10]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "a whole bunch of white space until we get to a non-white space character. Then we're gonna read 13 numbers. That's right, so that means the proc, which remember these proc files, they aren't just like actual real files. They are generated on the fly. So it actually takes a bunch of numbers, converts them into strings, copies them to user space. Then the user space is gonna take that string back out, do a little bit of parsing itself with a little reverse char search and then it's gonna take those stringified numbers and re-put them back into numbers just to get these last two right here. And then at that point, you got yourself a little bit of that user time, okay? Easy as that, just a little one, two, three. By the way, do you ever wonder why people working at really low levels tend to be grumpy? Okay, we call them those angry neckbeards, okay? You understand why? A lot of people had to put up with a lot of shit, okay? So don't you go, don't you be just sitting there adjusting your little div being like, I just want a little drop shadow, okay?",
+        "parentId": "yt-R3ydGMRtnqU",
+        "wordCount": 200,
+        "chunkIndex": 3,
+        "totalChunks": 10
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-09T14:23:26.562Z",
-      "updated": "2026-03-09T14:23:26.562Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
+      "created": "2026-03-10T07:59:53.156Z",
+      "updated": "2026-03-10T07:59:53.156Z"
     },
     {
-      "id": "0ea9c5e4-af4e-4f05-b111-a475024da143",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-R3ydGMRtnqU_chunk_6",
+      "type": "transcript",
+      "title": "Only 40 lines of code [chunk 7/10]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "of the time. I forgot that it has like a little percent sign right there when you hover over it. Read was 16.8% of the time and F open was 43% of the time. Yes, most of that time, if you did quick maths in your head, about 90% of the time was spent just fangolin and jangolin around with files. This right here, this was the scan F time. Like very little, just only 3.9% of the time was it actually doing something. The rest of the time is just off in file land, copying and doing to whoever knows what all these little few texts and everything, these fast user space mutexes. Okay, hey, get my mutex out your mouth, buddy. I actually, I have no idea what that means. And of course the change, this is what the change looks like. Now you can tell right away that something's happened. Okay, you don't have to be a genius here. You don't really have to understand how this works to look at it and just say, hey, it just looks like a lot of stuff is not happening anymore. There's one little peak right here, one little flame.",
+        "parentId": "yt-R3ydGMRtnqU",
+        "wordCount": 200,
+        "chunkIndex": 6,
+        "totalChunks": 10
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-09T14:39:05.697Z",
-      "updated": "2026-03-09T14:39:05.697Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
+      "created": "2026-03-10T07:59:53.156Z",
+      "updated": "2026-03-10T07:59:53.156Z"
     },
     {
-      "id": "0abd3a2c-4f7e-48b8-a5be-aa7fb20bd17c",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-R3ydGMRtnqU_chunk_5",
+      "type": "transcript",
+      "title": "Only 40 lines of code [chunk 6/10]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "better, right? Now the best way to kind of understand the performance of how something runs is using flame graphs. If you've never used a flame graph before, here one is they're actually not too confusing. They're actually pretty simple. How you read this is that you read this as, from the very bottom, this is like the very bottom function call and then each one of these little tops, these are all different function calls. Now the ordering doesn't necessarily matter. These are not time dependent. Instead, you look at the very top and this top part, this is the percentage of the program while running was within this function right here. So you just kind of look at it as like relative portions. You can say that, hey, the time spent closing a file, this operation right here, looks like 33% of the time of getting user time was just spent closing a file. What appears to be like 16% of what? Oh, I just realized, I forgot that they have this. It's 34% of the time. I forgot that it has like a little percent sign right there when you hover over it.",
+        "parentId": "yt-R3ydGMRtnqU",
+        "wordCount": 196,
+        "chunkIndex": 5,
+        "totalChunks": 10
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-09T14:40:13.658Z",
-      "updated": "2026-03-09T14:40:13.658Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
+      "created": "2026-03-10T07:59:53.156Z",
+      "updated": "2026-03-10T07:59:53.156Z"
     },
     {
-      "id": "34339c8e-e977-4896-bfb5-649ccd35b9f4",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-R3ydGMRtnqU_chunk_8",
+      "type": "transcript",
+      "title": "Only 40 lines of code [chunk 9/10]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "of weeks ago. And I just think these kinds of investigations are super cool. I really do appreciate these write-ups. There's even more cool information within this write-up about how everything exactly works. But I just love the fact that there are just people out there making things better all the time, especially these super intense ones. And then you just get to read about just like, oh my gosh, like I would have never would have thought, I just would have never even put together that getting user time would have been so dang complicated. I just thought it was interesting, okay? I thought I'd take my time and share a little something. By the way, if you liked a little bit more of a technical one, okay, yeah, hey. The thing is, it's engineering's fun. I actually really like engineering. Even if I don't work in the JDK, I don't program C++, okay? I don't do any of that, but it's still awesome to read this stuff. It's still super cool to look at it. And I just enjoy, you know, enjoy engineering and it's fine. So I hope you enjoyed it too.",
+        "parentId": "yt-R3ydGMRtnqU",
+        "wordCount": 195,
+        "chunkIndex": 8,
+        "totalChunks": 10
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-09T14:40:39.626Z",
-      "updated": "2026-03-09T14:40:39.626Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
+      "created": "2026-03-10T07:59:53.156Z",
+      "updated": "2026-03-10T07:59:53.156Z"
     },
     {
-      "id": "a29c4726-c66d-4063-935f-211ad4e6ef9c",
+      "id": "vp-R3ydGMRtnqU-SPEAKER_1",
+      "type": "voice_print",
+      "title": "Speaker: SPEAKER_1",
+      "properties": {
+        "videoId": "R3ydGMRtnqU",
+        "segmentCount": 1,
+        "speakerLabel": "SPEAKER_1",
+        "totalDurationMs": 0
+      },
+      "confidence": 0.7,
+      "scope": "personal",
+      "sourceUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
+      "created": "2026-03-10T07:59:53.156Z",
+      "updated": "2026-03-10T07:59:53.156Z"
+    },
+    {
+      "id": "yt-R3ydGMRtnqU_chunk_7",
+      "type": "transcript",
+      "title": "Only 40 lines of code [chunk 8/10]",
+      "properties": {
+        "text": "just looks like a lot of stuff is not happening anymore. There's one little peak right here, one little flame. There's one super thin flame right here. We don't really care what that is. And that's it. It's just, it's obvious. Okay, very little things are happening. Jeremy was nice enough of course to actually do the benchmarking also so that way we can have some real times. And it went from about 11 microseconds to 279 nanoseconds. Now this is shocking, right? I would have never, I just would have never guessed that I would have been spending a lot of time and by a lot of time, I mean, it's microseconds. Yeah, sure, you're right. It's not like a ton of time out there. But nonetheless, I would have just never guessed it. I would assume that's like the fastest possible operation. I would have never investigated it at any point. But this is what happened. This is just like a recent fix from just a couple of weeks ago. And I just think these kinds of investigations are super cool. I really do appreciate these write-ups.",
+        "parentId": "yt-R3ydGMRtnqU",
+        "wordCount": 189,
+        "chunkIndex": 7,
+        "totalChunks": 10
+      },
+      "confidence": 0.9,
+      "scope": "personal",
+      "sourceUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
+      "created": "2026-03-10T07:59:53.156Z",
+      "updated": "2026-03-10T07:59:53.156Z"
+    },
+    {
+      "id": "doc_153262dee7a8_chunk_1",
+      "type": "document",
+      "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen [chunk 2/4]",
+      "properties": {
+        "text": "färjorna, informerats om.\n– Innan media tog upp detta var det helt nytt för oss, säger bolagets vd Marius Hansen.\nInte heller norska staten kände till dokumenten eller testerna.\n– Om detta stämmer är det ett problem. Rederiet har förpliktat sig att leverera det som står i kontrakten, säger Dag Hole, direktör på Statens vegvesen.\nKan få stora konsekvenser\nFörutom stora kostnader riskeras även norsk infrastruktur och en planerad vätgasfabrik som byggs för att förse färjorna med bränsle.\n– Norska staten investerar mycket pengar. Det blir en politisk förlust och väldigt dålig reklam för vätgas, säger en källa.\nPowercell avböjer intervju men svarar i mejl att de tester och dokument som SVT tagit del av inte är representativa för dagens produkter då systemen uppdaterats bland annat med en nyckelkomponent från elektronikjätten Bosch.\nLedningen hänvisar till att produkterna genomgått omfattande testning och validering, att man kommer leverera enligt förväntan och avtal, och att livslängden är kopplad till korrekt drift och underhåll. Bolaget avfärdar källornas kritik och uppgifter om lögner.\nTa del av NRK:s granskning Hydrogeneventyret.\nHär kan du läsa Powercells eget pressmeddelande från måndagen.",
+        "parentId": "doc_153262dee7a8",
+        "wordCount": 183,
+        "chunkIndex": 1,
+        "totalChunks": 4
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "sourceUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
+      "created": "2026-03-10T08:01:31.061Z",
+      "updated": "2026-03-10T08:01:31.061Z"
+    },
+    {
+      "id": "doc_153262dee7a8",
+      "type": "document",
+      "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen",
+      "properties": {
+        "text": "– Att ens överväga att leverera den här teknologin till en båt som ska frakta människor i en tuff miljö; jag begriper inte det, säger en källa.\nSatsningen gäller två färjor mellan Bodö och Lofoten i Nordnorge, båda ska drivas med vätgas från en ny fabrik som nu byggs. Klimatprojektet har drivits på från högsta politiska nivå i Norge och prislappen för färjorna väntas landa på motsvarande 4,5 miljarder svenska kronor.\nVätgasläckan: Powercells dolda tester\nGöteborgsbolaget Powercell ska leverera b",
+        "language": "unknown",
+        "word_count": 670,
+        "source_type": "url"
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "sourceUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
+      "created": "2026-03-10T08:01:31.061Z",
+      "updated": "2026-03-10T08:01:31.061Z"
+    },
+    {
+      "id": "doc_153262dee7a8_chunk_0",
+      "type": "document",
+      "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen [chunk 1/4]",
+      "properties": {
+        "text": "– Att ens överväga att leverera den här teknologin till en båt som ska frakta människor i en tuff miljö; jag begriper inte det, säger en källa.\nSatsningen gäller två färjor mellan Bodö och Lofoten i Nordnorge, båda ska drivas med vätgas från en ny fabrik som nu byggs. Klimatprojektet har drivits på från högsta politiska nivå i Norge och prislappen för färjorna väntas landa på motsvarande 4,5 miljarder svenska kronor.\nVätgasläckan: Powercells dolda tester\nGöteborgsbolaget Powercell ska leverera bränslecellsystemen som ska driva färjorna. För Powercell är avtalet värt drygt 200 miljoner kronor.\nTeknik inte mogen\nMen SVT Nyheter Väst:s granskning visar att produkten inte klarar i närheten av den livslängd som Powercell utlovat.\nI tester tappar systemen effekt mycket snabbare än vad som angivits i upphandlingen.\n– Det vi säger i dokumenten stämmer inte, säger en källa till SVT.\nTorghatten: ”Helt nytt för oss”\nPowercell skriver i ett mejl till SVT att bolaget har löpande genomgångar med sina kunder där livslängd diskuteras – men de dokument som SVT tagit del av är inget som rederiet Torghatten Nord, som äger färjorna, informerats om.\n– Innan media tog upp detta var det helt nytt för oss, säger bolagets vd Marius Hansen.",
+        "parentId": "doc_153262dee7a8",
+        "wordCount": 200,
+        "chunkIndex": 0,
+        "totalChunks": 4
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "sourceUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
+      "created": "2026-03-10T08:01:31.061Z",
+      "updated": "2026-03-10T08:01:31.061Z"
+    },
+    {
+      "id": "doc_153262dee7a8_chunk_2",
+      "type": "document",
+      "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen [chunk 3/4]",
+      "properties": {
+        "text": "kritik och uppgifter om lögner.\nTa del av NRK:s granskning Hydrogeneventyret.\nHär kan du läsa Powercells eget pressmeddelande från måndagen.\nKällorna inifrån Powercell – därför är de anonyma\nSVT har pratat med ett tiotal personer, med god insyn i Powercell, som tillsammans jobbat ett stort antal år inom bolaget.\nFlera av dem har lämnat samstämmiga vittnesmål oberoende av varandra. Källorna i granskningen medverkar helt anonymt.\nDe är rädda för rättsliga åtgärder med ekonomiska konsekvenser, eller att de ska förlora sina jobb, om de träder fram med namn.\nVätgassatsningen i Lofoten\n- Omställningen till vätgas är ett klimatprojekt på högsta politiska nivå i Norge som drivits av både nuvarande och tidigare regering. År 2020 antogs en ny nationell vätgasstrategi där möjligheterna med vätgas till havs särskilt pekades ut.\n- När färjorna till Lofoten skulle upphandlas var det ett krav att minst 85 procent av energiförbrukningen ska komma från vätgas.\n- Det rederi som 2022 vann upphandlingen, Torghatten Nord, var initialt skeptiska till vätgassatsningen och lyfte följande fråga under ett möte: ”Ska Norges mest krävande linje vara försökskanin för den mest krävande energiformen?”\n- Kontraktet är värt cirka 4.5 miljarder svenska kronor.\nLänk till upphandlingen.",
+        "parentId": "doc_153262dee7a8",
+        "wordCount": 193,
+        "chunkIndex": 2,
+        "totalChunks": 4
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "sourceUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
+      "created": "2026-03-10T08:01:31.061Z",
+      "updated": "2026-03-10T08:01:31.061Z"
+    },
+    {
+      "id": "doc_153262dee7a8_chunk_3",
+      "type": "document",
+      "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen [chunk 4/4]",
+      "properties": {
+        "text": "linje vara försökskanin för den mest krävande energiformen?”\n- Kontraktet är värt cirka 4.5 miljarder svenska kronor.\nLänk till upphandlingen. - Torghatten Nord är ett dotterbolag till rederiet Torghatten, som ägs av svenska EQT Infrastructure and norska Nysnø Klimainvesteringer.\n- Powercell ska leverera bränslecellsystemen som sedan monteras på färjorna av norska SEAM åt rederiet Torghatten Avtalet är värt drygt 200 miljoner kronor för Powercell.\n- De två nya färjorna, Røst och Moskenes, är omkring 117 meter långa och kan ta upp till 599 passagerare och 120 bilar. De skulle börjat trafikera rutten 1 oktober 2025 men har blivit försenade.\nDET HÄR ÄR POWERCELL\n- Svenskt börsnoterat bolag som utvecklar och säljer vätgasdrivna bränsleceller som genererar el.\n- Grundat 2008 som en avknoppning från Volvo Group.\n- Huvudkontor i Göteborg.\n- Har omkring 125 anställda.\n- Tekniken används inom bland annat marin sektor, industri och stationär kraftproduktion.\n- Vd, Rickard Berkling, tillträdde 1 januari 2021.",
+        "parentId": "doc_153262dee7a8",
+        "wordCount": 154,
+        "chunkIndex": 3,
+        "totalChunks": 4
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "sourceUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
+      "created": "2026-03-10T08:01:31.061Z",
+      "updated": "2026-03-10T08:01:31.061Z"
+    },
+    {
+      "id": "vid-4fc93ffbb1cd",
+      "type": "transcript",
+      "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen",
+      "properties": {
+        "text": "Det är enorma investeringar och så kommer man leverera skräp som inte håller. Före media framlade härter också hjälpigt för rök. Här i Lofoten i Nordnorge lanserar Norska staten snart sin gröna miljardsatsning- på vätgas drivna fartyg. Det är de här färgerna som snart ska bytas ut mot vätgas drivna. I centrum står svenska Power Cell som ska leverera vätgassystemen- som ska driva färgerna. Satsningen beskrivs som historisk. Norska staten står för notan och räddriet Torjhatten för fartygen- i en affär värld cirka 4,5 miljarder kronor. Runt 200 miljoner gäller bränsleceller från Power Cell- som installeras som bord av Norska SIM. Men SVT-skranskning visar att tekniken har allvarliga brister. Flera personer med god insyn i Power Cell- vittnar om hur både Norska staten och Torjhatten förts bakom ljuset. Projektet har solts under falska premisser. Det vi säger i alla dokument stämmer inte. För boende här på Väröj är färgen avgörande. Det är den enda färgeförbindelsen man har med fastlandet. Flera som vi pratar med välkomnar satsningen på vätgas. Vi är som fårregangsplöter. Vi kan gå för dagen. Vi tänker på miljöer. Det blir säkert väldigt bra. Mycket står på spel. På andra sidan Västfjorden byggs en helt ny vätgasanläggning- för att förse färgerna med bränsle. Är fabriken baserat på färgen och Power Cell-produkter- bygger man i onödan. Det är Norges längsta och mest väderutsatta färgelinje. När avtalet tecknas 2023 är det Power Cells största affär någonsin- och första gången systemen ska testas i den här skalen. Men åretta på visar interna dokument- att Power Cell vet att bränslecellernas livslängd- bara är en tiondel av vad man lovar- och att systemet inte är moget för Torjhatten. I kontrakten står att man ska klara väldigt mycket- och där finns det ett gap mot verkligheten. Men det är inget som redoriet får veta. De har förlitat sig på kontraktet. Förr i media framlade här till oss är det ett helt nytt förrör. Jag har ingen indikationer per dags dato- att bränsleceller inte ska levera i händelser som avtals. Power Cell avbörjar intervju- men svarar i e-mail att om tester och dokument- SVT tagit del av inte är representativa- för dagens produkter då systemen uppdaterats. Power Cell skriver vidare att produkterna- har genomgått omfattande testning och validering- att man kommer leverera enligt avtal- och att livslängden är kopplad till korrekt drift och underhåll. Ledningen avfärdar källornas kritik och uppgifter om lögner. Vi har gjort allt vi har kunnat för att få påkallat uppmärksamhet- kring de här sakerna, internt och inte fått nåt som helst jag hör för det.",
+        "videoId": null,
+        "videoUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
+        "platform": "svt:page",
+        "duration": 200,
+        "language": "sv",
+        "segmentCount": 52,
+        "publishedDate": "2026-03-10"
+      },
+      "confidence": 0.9,
+      "scope": "personal",
+      "sourceUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
+      "created": "2026-03-10T08:24:51.817Z",
+      "updated": "2026-03-10T08:24:51.817Z"
+    },
+    {
+      "id": "vid-4fc93ffbb1cd_chunk_0",
+      "type": "transcript",
+      "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen [chunk 1/3]",
+      "properties": {
+        "text": "Det är enorma investeringar och så kommer man leverera skräp som inte håller. Före media framlade härter också hjälpigt för rök. Här i Lofoten i Nordnorge lanserar Norska staten snart sin gröna miljardsatsning- på vätgas drivna fartyg. Det är de här färgerna som snart ska bytas ut mot vätgas drivna. I centrum står svenska Power Cell som ska leverera vätgassystemen- som ska driva färgerna. Satsningen beskrivs som historisk. Norska staten står för notan och räddriet Torjhatten för fartygen- i en affär värld cirka 4,5 miljarder kronor. Runt 200 miljoner gäller bränsleceller från Power Cell- som installeras som bord av Norska SIM. Men SVT-skranskning visar att tekniken har allvarliga brister. Flera personer med god insyn i Power Cell- vittnar om hur både Norska staten och Torjhatten förts bakom ljuset. Projektet har solts under falska premisser. Det vi säger i alla dokument stämmer inte. För boende här på Väröj är färgen avgörande. Det är den enda färgeförbindelsen man har med fastlandet. Flera som vi pratar med välkomnar satsningen på vätgas. Vi är som fårregangsplöter. Vi kan gå för dagen. Vi tänker på miljöer. Det blir säkert väldigt bra. Mycket står på spel.",
+        "chunkIndex": 0,
+        "totalChunks": 3,
+        "wordCount": 190,
+        "parentId": "vid-4fc93ffbb1cd"
+      },
+      "confidence": 0.9,
+      "scope": "personal",
+      "sourceUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
+      "created": "2026-03-10T08:24:51.817Z",
+      "updated": "2026-03-10T08:24:51.817Z"
+    },
+    {
+      "id": "vid-4fc93ffbb1cd_chunk_1",
+      "type": "transcript",
+      "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen [chunk 2/3]",
+      "properties": {
+        "text": "som fårregangsplöter. Vi kan gå för dagen. Vi tänker på miljöer. Det blir säkert väldigt bra. Mycket står på spel. På andra sidan Västfjorden byggs en helt ny vätgasanläggning- för att förse färgerna med bränsle. Är fabriken baserat på färgen och Power Cell-produkter- bygger man i onödan. Det är Norges längsta och mest väderutsatta färgelinje. När avtalet tecknas 2023 är det Power Cells största affär någonsin- och första gången systemen ska testas i den här skalen. Men åretta på visar interna dokument- att Power Cell vet att bränslecellernas livslängd- bara är en tiondel av vad man lovar- och att systemet inte är moget för Torjhatten. I kontrakten står att man ska klara väldigt mycket- och där finns det ett gap mot verkligheten. Men det är inget som redoriet får veta. De har förlitat sig på kontraktet. Förr i media framlade här till oss är det ett helt nytt förrör. Jag har ingen indikationer per dags dato- att bränsleceller inte ska levera i händelser som avtals. Power Cell avbörjar intervju- men svarar i e-mail att om tester och dokument- SVT tagit del av inte är representativa- för dagens produkter då systemen uppdaterats.",
+        "chunkIndex": 1,
+        "totalChunks": 3,
+        "wordCount": 191,
+        "parentId": "vid-4fc93ffbb1cd"
+      },
+      "confidence": 0.9,
+      "scope": "personal",
+      "sourceUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
+      "created": "2026-03-10T08:24:51.817Z",
+      "updated": "2026-03-10T08:24:51.817Z"
+    },
+    {
+      "id": "vid-4fc93ffbb1cd_chunk_2",
+      "type": "transcript",
+      "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen [chunk 3/3]",
+      "properties": {
+        "text": "i e-mail att om tester och dokument- SVT tagit del av inte är representativa- för dagens produkter då systemen uppdaterats. Power Cell skriver vidare att produkterna- har genomgått omfattande testning och validering- att man kommer leverera enligt avtal- och att livslängden är kopplad till korrekt drift och underhåll. Ledningen avfärdar källornas kritik och uppgifter om lögner. Vi har gjort allt vi har kunnat för att få påkallat uppmärksamhet- kring de här sakerna, internt och inte fått nåt som helst jag hör för det.",
+        "chunkIndex": 2,
+        "totalChunks": 3,
+        "wordCount": 83,
+        "parentId": "vid-4fc93ffbb1cd"
+      },
+      "confidence": 0.9,
+      "scope": "personal",
+      "sourceUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
+      "created": "2026-03-10T08:24:51.817Z",
+      "updated": "2026-03-10T08:24:51.817Z"
+    },
+    {
+      "id": "vp-vid-4fc93ffbb1cd-SPEAKER_1",
+      "type": "voice_print",
+      "title": "Speaker: SPEAKER_1",
+      "properties": {
+        "speakerLabel": "SPEAKER_1",
+        "videoId": null,
+        "videoNodeId": "vid-4fc93ffbb1cd",
+        "segmentCount": 1,
+        "totalDurationMs": 0
+      },
+      "confidence": 0.7,
+      "scope": "personal",
+      "sourceUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
+      "created": "2026-03-10T08:24:51.817Z",
+      "updated": "2026-03-10T08:24:51.817Z"
+    },
+    {
+      "id": "ed85f1ea-69ae-4b12-b7da-e80fb7a7f9ce",
       "type": "research",
       "title": "What is X?",
       "properties": {
@@ -258,8 +471,64 @@
       },
       "confidence": 0.5,
       "scope": "personal",
-      "created": "2026-03-09T14:42:44.747Z",
-      "updated": "2026-03-09T14:42:44.747Z"
+      "created": "2026-03-12T13:11:27.333Z",
+      "updated": "2026-03-12T13:11:27.333Z"
+    },
+    {
+      "id": "babb5efc-f8ce-4c2b-9d43-ca14ef986f17",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-12T13:11:44.644Z",
+      "updated": "2026-03-12T13:11:44.644Z"
+    },
+    {
+      "id": "d4287e77-6376-4a58-ae39-bd7e5e3b23e2",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-12T13:12:39.969Z",
+      "updated": "2026-03-12T13:12:39.969Z"
+    },
+    {
+      "id": "a693e4fe-b649-4931-84b3-57b6f960d9c5",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-12T13:18:06.888Z",
+      "updated": "2026-03-12T13:18:06.888Z"
+    },
+    {
+      "id": "d098c282-68f7-43bc-8771-b71fddd3a59a",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-12T13:18:38.752Z",
+      "updated": "2026-03-12T13:18:38.752Z"
     }
   ],
   "edges": [
@@ -294,7 +563,159 @@
       "metadata": {
         "createdBy": "intake-pipeline"
       }
+    },
+    {
+      "from": "yt-R3ydGMRtnqU_chunk_0",
+      "to": "yt-R3ydGMRtnqU",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "youtube-intake"
+      }
+    },
+    {
+      "from": "yt-R3ydGMRtnqU_chunk_1",
+      "to": "yt-R3ydGMRtnqU",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "youtube-intake"
+      }
+    },
+    {
+      "from": "yt-R3ydGMRtnqU_chunk_2",
+      "to": "yt-R3ydGMRtnqU",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "youtube-intake"
+      }
+    },
+    {
+      "from": "yt-R3ydGMRtnqU_chunk_3",
+      "to": "yt-R3ydGMRtnqU",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "youtube-intake"
+      }
+    },
+    {
+      "from": "yt-R3ydGMRtnqU_chunk_4",
+      "to": "yt-R3ydGMRtnqU",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "youtube-intake"
+      }
+    },
+    {
+      "from": "yt-R3ydGMRtnqU_chunk_5",
+      "to": "yt-R3ydGMRtnqU",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "youtube-intake"
+      }
+    },
+    {
+      "from": "yt-R3ydGMRtnqU_chunk_6",
+      "to": "yt-R3ydGMRtnqU",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "youtube-intake"
+      }
+    },
+    {
+      "from": "yt-R3ydGMRtnqU_chunk_7",
+      "to": "yt-R3ydGMRtnqU",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "youtube-intake"
+      }
+    },
+    {
+      "from": "yt-R3ydGMRtnqU_chunk_8",
+      "to": "yt-R3ydGMRtnqU",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "youtube-intake"
+      }
+    },
+    {
+      "from": "yt-R3ydGMRtnqU_chunk_9",
+      "to": "yt-R3ydGMRtnqU",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "youtube-intake"
+      }
+    },
+    {
+      "from": "vp-R3ydGMRtnqU-SPEAKER_1",
+      "to": "yt-R3ydGMRtnqU",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "youtube-intake"
+      }
+    },
+    {
+      "from": "doc_153262dee7a8_chunk_0",
+      "to": "doc_153262dee7a8",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "intake-pipeline"
+      }
+    },
+    {
+      "from": "doc_153262dee7a8_chunk_1",
+      "to": "doc_153262dee7a8",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "intake-pipeline"
+      }
+    },
+    {
+      "from": "doc_153262dee7a8_chunk_2",
+      "to": "doc_153262dee7a8",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "intake-pipeline"
+      }
+    },
+    {
+      "from": "doc_153262dee7a8_chunk_3",
+      "to": "doc_153262dee7a8",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "intake-pipeline"
+      }
+    },
+    {
+      "from": "vid-4fc93ffbb1cd_chunk_0",
+      "to": "vid-4fc93ffbb1cd",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "vid-4fc93ffbb1cd_chunk_1",
+      "to": "vid-4fc93ffbb1cd",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "vid-4fc93ffbb1cd_chunk_2",
+      "to": "vid-4fc93ffbb1cd",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "vp-vid-4fc93ffbb1cd-SPEAKER_1",
+      "to": "vid-4fc93ffbb1cd",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
     }
   ],
-  "lastUpdated": "2026-03-09T14:42:44.748Z"
+  "lastUpdated": "2026-03-12T13:18:38.752Z"
 }
