@@ -125,7 +125,7 @@ export async function searchAurora(
   const scope = options?.scope;
 
   let results: SearchResult[] = [];
-  let usedKeyword = false;
+  let cachedGraph: AuroraGraph | null = null;
 
   // Step 1: Try semantic search
   try {
@@ -148,9 +148,8 @@ export async function searchAurora(
     }));
   } catch {
     // Step 2: Fallback to keyword search
-    usedKeyword = true;
-    const graph = await loadAuroraGraph();
-    const keywordResults = findAuroraNodes(graph, {
+    cachedGraph = await loadAuroraGraph();
+    const keywordResults = findAuroraNodes(cachedGraph, {
       type: type as AuroraNodeType | undefined,
       query,
       scope: scope as AuroraScope | undefined,
@@ -169,10 +168,8 @@ export async function searchAurora(
 
   // Step 3: Enrich with related nodes via graph traversal
   if (includeRelated && results.length > 0) {
-    // Load graph once (reuse if already loaded for keyword search)
-    const graph = usedKeyword
-      ? await loadAuroraGraph()
-      : await loadAuroraGraph();
+    // Reuse graph from keyword search, or load once for enrichment
+    const graph = cachedGraph ?? await loadAuroraGraph();
 
     const resultIds = new Set(results.map((r) => r.id));
 

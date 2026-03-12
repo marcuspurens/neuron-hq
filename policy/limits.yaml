@@ -23,7 +23,7 @@ consolidation_frequency: 10  # Run consolidator every N completed runs
 
 # Diff limits
 diff_warn_lines: 150  # Warn if diff exceeds this
-diff_block_lines: 300  # Block if diff exceeds this (require split)
+diff_block_lines: 300  # Block if diff exceeds this (require split). 500 for purely additive (new files only).
 
 # Research limits
 max_web_searches_per_run: 10  # Maximum web searches allowed

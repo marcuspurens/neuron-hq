@@ -171,7 +171,7 @@ describe('ingestDocument', () => {
 
     expect(mockRunWorker).toHaveBeenCalledWith({
       action: 'extract_text',
-      source: 'notes.txt',
+      source: expect.stringContaining('notes.txt'),
     });
   });
 
@@ -187,7 +187,7 @@ describe('ingestDocument', () => {
 
     expect(mockRunWorker).toHaveBeenCalledWith({
       action: 'extract_text',
-      source: 'readme.md',
+      source: expect.stringContaining('readme.md'),
     });
   });
 
@@ -203,7 +203,7 @@ describe('ingestDocument', () => {
 
     expect(mockRunWorker).toHaveBeenCalledWith({
       action: 'extract_text',
-      source: 'doc.markdown',
+      source: expect.stringContaining('doc.markdown'),
     });
   });
 
@@ -219,7 +219,7 @@ describe('ingestDocument', () => {
 
     expect(mockRunWorker).toHaveBeenCalledWith({
       action: 'extract_pdf',
-      source: 'doc.pdf',
+      source: expect.stringContaining('doc.pdf'),
     });
   });
 

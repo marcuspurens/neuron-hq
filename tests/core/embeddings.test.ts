@@ -21,7 +21,7 @@ describe('OllamaEmbedding', () => {
   });
 
   it('embed() calls Ollama API and returns embedding', async () => {
-    const fakeEmbedding = Array.from({ length: 768 }, (_, i) => i * 0.001);
+    const fakeEmbedding = Array.from({ length: 1024 }, (_, i) => i * 0.001);
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ embeddings: [fakeEmbedding] }),
@@ -31,7 +31,7 @@ describe('OllamaEmbedding', () => {
     const result = await provider.embed('test text');
 
     expect(result).toEqual(fakeEmbedding);
-    expect(result.length).toBe(768);
+    expect(result.length).toBe(1024);
     expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:11434/api/embed',
       expect.objectContaining({
@@ -43,8 +43,8 @@ describe('OllamaEmbedding', () => {
 
   it('embedBatch() returns multiple embeddings', async () => {
     const fakeEmbeddings = [
-      Array.from({ length: 768 }, () => 0.5),
-      Array.from({ length: 768 }, () => 0.3),
+      Array.from({ length: 1024 }, () => 0.5),
+      Array.from({ length: 1024 }, () => 0.3),
     ];
     mockFetch.mockResolvedValueOnce({
       ok: true,
@@ -55,8 +55,8 @@ describe('OllamaEmbedding', () => {
     const result = await provider.embedBatch(['text1', 'text2']);
 
     expect(result.length).toBe(2);
-    expect(result[0].length).toBe(768);
-    expect(result[1].length).toBe(768);
+    expect(result[0].length).toBe(1024);
+    expect(result[1].length).toBe(1024);
   });
 
   it('embed() throws on non-OK response', async () => {
@@ -74,7 +74,7 @@ describe('OllamaEmbedding', () => {
   });
 
   it('uses custom baseUrl and model', async () => {
-    const fakeEmbedding = Array.from({ length: 768 }, () => 0);
+    const fakeEmbedding = Array.from({ length: 1024 }, () => 0);
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ embeddings: [fakeEmbedding] }),
@@ -91,9 +91,9 @@ describe('OllamaEmbedding', () => {
     );
   });
 
-  it('dimension is 768', () => {
+  it('dimension is 1024', () => {
     const provider = new OllamaEmbedding();
-    expect(provider.dimension).toBe(768);
+    expect(provider.dimension).toBe(1024);
   });
 });
 

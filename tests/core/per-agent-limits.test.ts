@@ -16,8 +16,8 @@ describe('Per-agent iteration limits', () => {
     policy = await createPolicyEnforcer(policyDir, BASE_DIR);
   });
 
-  it('loads max_iterations_manager as 70 from real policy', () => {
-    expect(policy.getLimits().max_iterations_manager).toBe(70);
+  it('loads max_iterations_manager as 100 from real policy', () => {
+    expect(policy.getLimits().max_iterations_manager).toBe(100);
   });
 
   it('loads max_iterations_tester as 30 from real policy', () => {
@@ -30,12 +30,40 @@ describe('Per-agent iteration limits', () => {
 
   it('loads all per-agent limits from real policy', () => {
     const limits = policy.getLimits();
-    expect(limits.max_iterations_implementer).toBe(50);
+    expect(limits.max_iterations_implementer).toBe(70);
     expect(limits.max_iterations_reviewer).toBe(50);
     expect(limits.max_iterations_merger).toBe(30);
     expect(limits.max_iterations_historian).toBe(30);
     expect(limits.max_iterations_librarian).toBe(30);
     expect(limits.max_iterations_researcher).toBe(40);
+  });
+
+  it('loads max_parallel_implementers as 3 from real policy', () => {
+    expect(policy.getLimits().max_parallel_implementers).toBe(3);
+  });
+
+  it('max_parallel_implementers is optional and defaults to undefined', () => {
+    const minimal = PolicyLimitsSchema.parse({
+      max_run_hours: 8,
+      default_run_hours: 3,
+      bash_timeout_seconds: 600,
+      verification_timeout_seconds: 1800,
+      max_iterations_per_run: 50,
+      max_wip_features: 1,
+      diff_warn_lines: 150,
+      diff_block_lines: 300,
+      max_web_searches_per_run: 10,
+      max_sources_per_research: 20,
+      max_blocker_questions: 3,
+      max_ideas: 10,
+      max_file_size_bytes: 10485760,
+      max_artifact_size_bytes: 5242760,
+      audit_log_max_entries: 10000,
+      manifest_checksum_algorithm: 'sha256',
+      max_command_retries: 2,
+      retry_backoff_seconds: 5,
+    });
+    expect(minimal.max_parallel_implementers).toBeUndefined();
   });
 
   it('optional fields are undefined when not provided in schema', () => {

@@ -17,7 +17,7 @@ vi.mock('../../src/core/embeddings.js', () => ({
   getEmbeddingProvider: vi.fn().mockReturnValue({
     embed: (...args: unknown[]) => mockEmbed(...args),
     embedBatch: (...args: unknown[]) => mockEmbedBatch(...args),
-    dimension: 768,
+    dimension: 1024,
   }),
 }));
 
@@ -53,7 +53,7 @@ describe('embed-nodes command', () => {
 
     mockQuery.mockResolvedValueOnce({ rows: nodes });
 
-    const embedding = Array.from({ length: 768 }, () => 0.1);
+    const embedding = Array.from({ length: 1024 }, () => 0.1);
     mockEmbedBatch
       .mockResolvedValueOnce(Array(10).fill(embedding))
       .mockResolvedValueOnce(Array(5).fill(embedding));
@@ -79,7 +79,7 @@ describe('embed-nodes command', () => {
     }];
 
     mockQuery.mockResolvedValueOnce({ rows: nodes });
-    const embedding = Array.from({ length: 768 }, () => 0.1);
+    const embedding = Array.from({ length: 1024 }, () => 0.1);
     mockEmbedBatch.mockResolvedValueOnce([embedding]);
     mockQuery.mockResolvedValue({ rows: [] });
 
@@ -99,7 +99,7 @@ describe('embed-nodes command', () => {
     }));
 
     mockQuery.mockResolvedValueOnce({ rows: nodes });
-    const embedding = Array.from({ length: 768 }, () => 0.1);
+    const embedding = Array.from({ length: 1024 }, () => 0.1);
     mockEmbedBatch.mockResolvedValueOnce(Array(3).fill(embedding));
     mockQuery.mockResolvedValue({ rows: [] });
 

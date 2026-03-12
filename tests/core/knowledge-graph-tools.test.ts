@@ -26,6 +26,7 @@ function makeNode(overrides: Partial<KGNode> = {}): KGNode {
     created: new Date().toISOString(),
     updated: new Date().toISOString(),
     confidence: 0.8,
+    scope: 'unknown',
     ...overrides,
   };
 }
@@ -339,7 +340,7 @@ describe('Knowledge Graph Tools', () => {
     const graph = await loadGraph(graphPath);
     const node = graph.nodes.find((n) => n.id === 'pattern-001');
     expect(node).toBeDefined();
-    expect(node!.model).toBeUndefined();
+    expect(node!.model).toBeFalsy(); // null or undefined after JSON round-trip
   });
 
   // --- graph_update tests ---

@@ -104,7 +104,7 @@ Status: ❌ NOT VERIFIED
 **Before writing your report, verify**:
 - [ ] Baseline verification passed
 - [ ] After-change verification passed
-- [ ] Diff size acceptable (<300 lines or approved split)
+- [ ] Diff size acceptable (<300 lines modified code, or <500 lines if purely additive new files, or approved split)
 - [ ] No security vulnerabilities
 - [ ] Static analysis passes (ruff/mypy for Python, tsc for TypeScript)
 - [ ] Artifacts complete (report, questions, ideas, knowledge, audit, manifest, usage)
@@ -133,7 +133,7 @@ Status: ❌ NOT VERIFIED
 - Security vulnerability found
 - Verification fails
 - Static analysis fails (ruff/mypy/tsc)
-- Diff > 300 lines without split plan
+- Diff > 300 lines modified code without split plan (500 lines if purely additive new files)
 - HIGH risk without two-phase approval
 - Missing critical artifacts
 - Forbidden pattern matched

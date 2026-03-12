@@ -39,3 +39,13 @@ coverage/
 *.tmp
 tmp/
 temp/
+
+# Graph data (live data, backed by Postgres)
+aurora/graph.json
+memory/graph.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/

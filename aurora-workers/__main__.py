@@ -14,9 +14,43 @@ from extract_video import extract_video
 from transcribe_audio import transcribe_audio
 from diarize_audio import diarize_audio
 from check_deps import check_deps
-from extract_ocr import extract_ocr
-from ocr_pdf import ocr_pdf
-from batch_ocr import batch_ocr
+
+# Lazy imports for OCR — PaddleOCR has heavy dependencies (paddlepaddle,
+# numpy, pandas, sklearn) that may conflict with the base Anaconda env.
+# Only import when actually needed so URL/PDF/video ingest still works.
+_ocr_loaded = False
+_extract_ocr = None
+_ocr_pdf = None
+_batch_ocr = None
+
+
+def _load_ocr():
+    global _ocr_loaded, _extract_ocr, _ocr_pdf, _batch_ocr
+    if _ocr_loaded:
+        return
+    from extract_ocr import extract_ocr as _eo
+    from ocr_pdf import ocr_pdf as _op
+    from batch_ocr import batch_ocr as _bo
+    _extract_ocr = _eo
+    _ocr_pdf = _op
+    _batch_ocr = _bo
+    _ocr_loaded = True
+
+
+def lazy_extract_ocr(source, options=None):
+    _load_ocr()
+    return _extract_ocr(source, options)
+
+
+def lazy_ocr_pdf(source, options=None):
+    _load_ocr()
+    return _ocr_pdf(source, options)
+
+
+def lazy_batch_ocr(source, options=None):
+    _load_ocr()
+    return _batch_ocr(source, options)
+
 
 HANDLERS: dict[str, callable] = {
     "extract_url": extract_url,
@@ -27,9 +61,9 @@ HANDLERS: dict[str, callable] = {
     "transcribe_audio": transcribe_audio,
     "diarize_audio": diarize_audio,
     "check_deps": check_deps,
-    "extract_ocr": extract_ocr,
-    "ocr_pdf": ocr_pdf,
-    "batch_ocr": batch_ocr,
+    "extract_ocr": lazy_extract_ocr,
+    "ocr_pdf": lazy_ocr_pdf,
+    "batch_ocr": lazy_batch_ocr,
 }
 
 

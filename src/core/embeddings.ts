@@ -16,7 +16,7 @@ interface OllamaEmbedResponse {
  * Requires: ollama pull snowflake-arctic-embed
  */
 export class OllamaEmbedding implements EmbeddingProvider {
-  readonly dimension = 768;
+  readonly dimension = 1024;
   private baseUrl: string;
   private model: string;
 

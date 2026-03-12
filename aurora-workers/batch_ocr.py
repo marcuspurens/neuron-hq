@@ -1,6 +1,5 @@
 """Batch OCR: process a folder of images into a single document."""
 import os
-import glob
 import re
 from paddleocr import PaddleOCR
 

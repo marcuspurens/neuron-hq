@@ -26,6 +26,7 @@ function makeNode(overrides: Partial<KGNode> = {}): KGNode {
     created: new Date().toISOString(),
     updated: new Date().toISOString(),
     confidence: 0.8,
+    scope: 'unknown',
     ...overrides,
   };
 }

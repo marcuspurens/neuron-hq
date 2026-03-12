@@ -7,8 +7,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../../src/core/embeddings.js', () => ({
   isEmbeddingAvailable: vi.fn().mockResolvedValue(true),
   getEmbeddingProvider: vi.fn().mockReturnValue({
-    embed: vi.fn().mockResolvedValue(Array.from({ length: 768 }, () => 0.1)),
-    dimension: 768,
+    embed: vi.fn().mockResolvedValue(Array.from({ length: 1024 }, () => 0.1)),
+    dimension: 1024,
   }),
 }));
 
