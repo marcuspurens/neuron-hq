@@ -341,12 +341,16 @@ export async function autoEmbedAuroraNodes(nodeIds: string[]): Promise<void> {
       const batchRows = rows.slice(i, i + BATCH_SIZE);
       try {
         const embeddings = await provider.embedBatch(batchTexts);
-        for (let j = 0; j < batchRows.length; j++) {
-          await pool.query(
-            'UPDATE aurora_nodes SET embedding = $1 WHERE id = $2',
-            [`[${embeddings[j].join(',')}]`, batchRows[j].id],
-          );
-        }
+        const ids = batchRows.map((r: Record<string, unknown>) => r.id as string);
+        const vectors = embeddings.map((e: number[]) => `[${e.join(",")}]`);
+
+        await pool.query(
+          `UPDATE aurora_nodes AS n
+           SET embedding = v.emb::vector
+           FROM unnest($1::text[], $2::text[]) AS v(id, emb)
+           WHERE n.id = v.id`,
+          [ids, vectors],
+        );
       } catch (err) {
         console.warn(`Warning: Failed to embed batch starting at index ${i}:`, err);
       }

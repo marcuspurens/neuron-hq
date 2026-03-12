@@ -23,6 +23,13 @@ vi.mock('../../src/core/embeddings.js', () => ({
 
 import { autoEmbedAuroraNodes } from '../../src/aurora/aurora-graph.js';
 
+/** Helper: extract UPDATE calls from mockQuery */
+function getUpdateCalls(): unknown[][] {
+  return mockQuery.mock.calls.filter(
+    (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('UPDATE'),
+  );
+}
+
 describe('autoEmbedAuroraNodes batch embedding', () => {
   beforeEach(() => {
     mockQuery.mockReset();
@@ -40,32 +47,17 @@ describe('autoEmbedAuroraNodes batch embedding', () => {
       ],
     });
     mockEmbedBatch.mockResolvedValueOnce([[0.1, 0.2], [0.3, 0.4]]);
-    mockQuery.mockResolvedValue({ rows: [], rowCount: 1 }); // UPDATE calls
+    mockQuery.mockResolvedValue({ rows: [], rowCount: 1 });
 
     await autoEmbedAuroraNodes(['n1', 'n2']);
 
     expect(mockEmbedBatch).toHaveBeenCalledTimes(1);
     expect(mockEmbed).not.toHaveBeenCalled();
-  });
 
-  it('respects batch size of 20', async () => {
-    // Create 25 nodes
-    const nodes = Array.from({ length: 25 }, (_, i) => ({
-      id: `n${i}`, type: 'document', title: `Doc ${i}`, properties: {},
-    }));
-    mockQuery.mockResolvedValueOnce({ rows: nodes });
-    mockEmbedBatch
-      .mockResolvedValueOnce(Array(20).fill([0.1, 0.2]))
-      .mockResolvedValueOnce(Array(5).fill([0.3, 0.4]));
-    mockQuery.mockResolvedValue({ rows: [], rowCount: 1 }); // UPDATE calls
-
-    await autoEmbedAuroraNodes(nodes.map(n => n.id));
-
-    expect(mockEmbedBatch).toHaveBeenCalledTimes(2);
-    // First batch: 20 texts
-    expect(mockEmbedBatch.mock.calls[0][0]).toHaveLength(20);
-    // Second batch: 5 texts
-    expect(mockEmbedBatch.mock.calls[1][0]).toHaveLength(5);
+    // Verify only 1 UPDATE query (with unnest) for 2 nodes
+    const updateCalls = getUpdateCalls();
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0][0]).toContain('unnest');
   });
 
   it('returns early for empty array', async () => {
@@ -91,18 +83,109 @@ describe('autoEmbedAuroraNodes batch embedding', () => {
         { id: 'n2', type: 'fact', title: 'Fact 1', properties: { key: 'val' } },
       ],
     });
-    mockEmbedBatch.mockResolvedValueOnce([[1.0, 2.0], [3.0, 4.0]]);
-    mockQuery.mockResolvedValue({ rows: [], rowCount: 1 }); // UPDATE
+    mockEmbedBatch.mockResolvedValueOnce([[1, 2], [3, 4]]);
+    mockQuery.mockResolvedValue({ rows: [], rowCount: 1 });
 
     await autoEmbedAuroraNodes(['n1', 'n2']);
 
-    // Check UPDATE queries were called with correct embeddings
-    // First call was SELECT, subsequent are UPDATEs
-    const updateCalls = mockQuery.mock.calls.filter(
-      (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('UPDATE')
+    // Expect 1 batch UPDATE with unnest, not 2 per-node UPDATEs
+    const updateCalls = getUpdateCalls();
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0][0]).toContain('unnest');
+    expect(updateCalls[0][1]).toEqual([['n1', 'n2'], ['[1,2]', '[3,4]']]);
+  });
+
+  it('batch with 1 node → 1 UPDATE query using unnest', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 'n1', type: 'document', title: 'Doc 1', properties: {} }],
+    });
+    mockEmbedBatch.mockResolvedValueOnce([[0.1, 0.2]]);
+    mockQuery.mockResolvedValue({ rows: [], rowCount: 1 });
+
+    await autoEmbedAuroraNodes(['n1']);
+
+    const updateCalls = getUpdateCalls();
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0][0]).toContain('unnest');
+    expect(updateCalls[0][1]).toEqual([['n1'], ['[0.1,0.2]']]);
+  });
+
+  it('batch with 20 nodes → 1 UPDATE query', async () => {
+    const nodes = Array.from({ length: 20 }, (_, i) => ({
+      id: `n${i}`, type: 'document', title: `Doc ${i}`, properties: {},
+    }));
+    mockQuery.mockResolvedValueOnce({ rows: nodes });
+    mockEmbedBatch.mockResolvedValueOnce(
+      Array.from({ length: 20 }, (_, i) => [i * 0.1, i * 0.2]),
     );
+    mockQuery.mockResolvedValue({ rows: [], rowCount: 1 });
+
+    await autoEmbedAuroraNodes(nodes.map((n) => n.id));
+
+    expect(mockEmbedBatch).toHaveBeenCalledTimes(1);
+    const updateCalls = getUpdateCalls();
+    expect(updateCalls).toHaveLength(1);
+  });
+
+  it('batch with 25 nodes → 2 UPDATE queries (20 + 5)', async () => {
+    const nodes = Array.from({ length: 25 }, (_, i) => ({
+      id: `n${i}`, type: 'document', title: `Doc ${i}`, properties: {},
+    }));
+    mockQuery.mockResolvedValueOnce({ rows: nodes });
+    mockEmbedBatch
+      .mockResolvedValueOnce(Array.from({ length: 20 }, (_, i) => [i, i + 1]))
+      .mockResolvedValueOnce(Array.from({ length: 5 }, (_, i) => [i + 100, i + 101]));
+    mockQuery.mockResolvedValue({ rows: [], rowCount: 1 });
+
+    await autoEmbedAuroraNodes(nodes.map((n) => n.id));
+
+    expect(mockEmbedBatch).toHaveBeenCalledTimes(2);
+    const updateCalls = getUpdateCalls();
     expect(updateCalls).toHaveLength(2);
-    expect(updateCalls[0][1]).toEqual(['[1,2]', 'n1']);
-    expect(updateCalls[1][1]).toEqual(['[3,4]', 'n2']);
+    // First UPDATE has 20 ids
+    expect((updateCalls[0][1] as string[][])[0]).toHaveLength(20);
+    // Second UPDATE has 5 ids
+    expect((updateCalls[1][1] as string[][])[0]).toHaveLength(5);
+  });
+
+  it('embedding error in one batch → other batches continue', async () => {
+    const nodes = Array.from({ length: 25 }, (_, i) => ({
+      id: `n${i}`, type: 'document', title: `Doc ${i}`, properties: {},
+    }));
+    mockQuery.mockResolvedValueOnce({ rows: nodes });
+    // First batch (20 nodes) fails, second (5 nodes) succeeds
+    mockEmbedBatch
+      .mockRejectedValueOnce(new Error('Ollama down'))
+      .mockResolvedValueOnce(Array.from({ length: 5 }, (_, i) => [i, i + 1]));
+    mockQuery.mockResolvedValue({ rows: [], rowCount: 1 });
+
+    await autoEmbedAuroraNodes(nodes.map((n) => n.id));
+
+    // Only 1 UPDATE query from the successful second batch of 5
+    const updateCalls = getUpdateCalls();
+    expect(updateCalls).toHaveLength(1);
+    expect((updateCalls[0][1] as string[][])[0]).toHaveLength(5);
+  });
+
+  it('UPDATE query uses unnest syntax, not per-node', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        { id: 'n1', type: 'document', title: 'Doc 1', properties: {} },
+        { id: 'n2', type: 'fact', title: 'Fact 1', properties: {} },
+      ],
+    });
+    mockEmbedBatch.mockResolvedValueOnce([[1, 2], [3, 4]]);
+    mockQuery.mockResolvedValue({ rows: [], rowCount: 1 });
+
+    await autoEmbedAuroraNodes(['n1', 'n2']);
+
+    const updateCalls = getUpdateCalls();
+    expect(updateCalls.length).toBeGreaterThan(0);
+    for (const call of updateCalls) {
+      // No per-node WHERE id = $2 pattern
+      expect(call[0]).not.toContain('WHERE id = $2');
+      // All UPDATE calls use unnest
+      expect(call[0]).toContain('unnest');
+    }
   });
 });
