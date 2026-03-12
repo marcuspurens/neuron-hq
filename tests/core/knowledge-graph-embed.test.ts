@@ -51,8 +51,9 @@ describe('autoEmbedNodes', () => {
       'pattern: Test Pattern. {"key":"value"}'
     ]);
     expect(mockQuery).toHaveBeenCalledTimes(2);
-    // Second call should be the UPDATE
-    expect(mockQuery.mock.calls[1][0]).toContain('UPDATE kg_nodes SET embedding');
+    // Second call should be the batch UPDATE using unnest
+    expect(mockQuery.mock.calls[1][0]).toContain('UPDATE kg_nodes');
+    expect(mockQuery.mock.calls[1][0]).toContain('unnest');
   });
 
   it('skips when embedding not available', async () => {
@@ -113,10 +114,10 @@ describe('autoEmbedNodes', () => {
       'pattern: Node 1. {}',
       'pattern: Node 2. {}',
     ]);
-    // SELECT + 2 UPDATEs = 3 queries
-    expect(mockQuery).toHaveBeenCalledTimes(3);
-    expect(mockQuery.mock.calls[1][0]).toContain('UPDATE kg_nodes SET embedding');
-    expect(mockQuery.mock.calls[2][0]).toContain('UPDATE kg_nodes SET embedding');
+    // SELECT + 1 batch UPDATE = 2 queries
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+    expect(mockQuery.mock.calls[1][0]).toContain('UPDATE kg_nodes');
+    expect(mockQuery.mock.calls[1][0]).toContain('unnest');
   });
 
   it('gracefully handles total failure', async () => {
