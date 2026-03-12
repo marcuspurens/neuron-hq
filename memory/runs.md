@@ -2329,3 +2329,87 @@ En informationell bugg identifierades men är inte blockerande: stoplight-regexe
 - Retroaktiv backfill-funktion (--backfill) möjliggör retroaktiv statistikuppdatering för alla befintliga körningar — användbar mall för framtida datamigrering
 
 ---
+
+## Körning 20260312-1907-neuron-hq — neuron-hq
+**Datum:** 2026-03-12
+**Uppgift:** Extrahera ~500 rader duplicerad agentverktygs-kod från 6 agenter (implementer, researcher, reviewer, tester, manager, merger) in i en gemensam modul
+**Resultat:** ✅ 7 av 7 uppgifter klara — ren refaktorering med 961 raders nettominskning
+
+**Vad som fungerade:**
+- Gemensam modul `shared-tools.ts` skapad med 5 exporterade funktioner (`executeSharedBash`, `executeSharedReadFile`, `executeSharedWriteFile`, `executeSharedListFiles`, `coreToolDefinitions`)
+- Options-pattern (`BashOptions`, `ReadFileOptions`) korrekt modellerade per-agent-variationerna (truncate, includeStderr, baseDir)
+- Alla 6 agenter migrerade framgångsrikt utan beteende-ändringar
+- 1742 tester gröna (tidigare 1726 + 14 nya för shared-tools)
+- Typecheck clean, lint inga nya fel
+- Nettominskning 961 rader i agentfilerna (krav var ≥150)
+
+**Vad som inte fungerade:**
+Inga kända problem. Alla acceptanskriterier från brief verifierade.
+
+**Lärdomar:**
+- Options-objekt är ett elegant sätt att hantera variationer i delad kod utan många if-grenar
+- Förbestämd ordning för migration (simplest-to-complex) tjänade bra — tester först, sedan reviewer, sedan managers
+- Audit-loggning och policy-enforcement måste bevaras exakt i migrerad kod för att undvika dolda beteende-skillnader
+- Extrahering av tool-definitioner (`coreToolDefinitions`) som en factory-funktion tillåter agenter att välja vilka tools de vill ha
+
+---
+
+## Körning 20260312-1907-neuron-hq — neuron-hq
+**Datum:** 2026-03-12
+**Uppgift:** Extrahera ~500 rader duplicerad agentverktygs-kod från 6 agenter (implementer, researcher, reviewer, tester, manager, merger) in i en gemensam modul
+**Resultat:** ✅ 7 av 7 uppgifter klara — ren refaktorering med 961 raders nettominskning
+
+**Vad som fungerade:**
+- Gemensam modul `shared-tools.ts` skapad med 5 exporterade funktioner (`executeSharedBash`, `executeSharedReadFile`, `executeSharedWriteFile`, `executeSharedListFiles`, `coreToolDefinitions`)
+- Options-pattern (`BashOptions`, `ReadFileOptions`) korrekt modellerade per-agent-variationerna (truncate, includeStderr, baseDir)
+- Alla 6 agenter migrerade framgångsrikt utan beteende-ändringar
+- 1742 tester gröna (tidigare 1726 + 14 nya för shared-tools)
+- Typecheck clean, lint inga nya fel
+- Nettominskning 961 rader i agentfilerna (krav var ≥150)
+
+**Vad som inte fungerade:**
+Inga kända problem. Alla acceptanskriterier från brief verifierade.
+
+**Lärdomar:**
+- Options-objekt är ett elegant sätt att hantera variationer i delad kod utan många if-grenar
+- Förbestämd ordning för migration (simplest-to-complex) tjänade bra — tester först, sedan reviewer, sedan managers
+- Audit-loggning och policy-enforcement måste bevaras exakt i migrerad kod för att undvika dolda beteende-skillnader
+- Extrahering av tool-definitioner (`coreToolDefinitions`) som en factory-funktion tillåter agenter att välja vilka tools de vill ha
+
+---
+
+## Körning 20260312-2023-neuron-hq — neuron-hq
+**Datum:** 2026-03-12
+**Uppgift:** Refaktorera autoEmbedAuroraNodes() för batch UPDATE med unnest istället för per-nod UPDATE-loop (N+1-mönster-fix, TD-14)
+**Resultat:** ✅ 5 av 5 uppgifter klara — Batch UPDATE med unnest implementerad, per-nod-loop borttagen, 1746 tester passerar
+
+**Vad som fungerade:**
+Svärmen implementerade identisk batch-UPDATE-mönster som TD-4 (saveAuroraGraphToDb). Per-nod UPDATE-loopen i autoEmbedAuroraNodes() ersattes med `unnest($1::text[], $2::text[])` som en enda query per batch (max 20 noder). Alla 5 acceptanskriterier verifierade: loopen borta, unnest-syntax korrekt, 1746 tester passerar, 6 nya/omskrivna tester (+4 mer än krävt), typecheck ren. Merge genomfört på commit de5587e.
+
+**Vad som inte fungerade:**
+Inga kända problem. Baseline-test innan förändring: 1742 passar. Efter förändring: 1746 passar (4 nya testfall). Typecheck och eslint rent på ändrade filer. Tre pre-befintliga lint-fel i andra filer påverkade inte detta ändringsärende.
+
+**Lärdomar:**
+- Samma batch UPDATE-mönster (unnest) fungerar konsistenta över flera funktioner — TD-4 + TD-14 bekräftar mönstret. Lämpligt att förstärka detta som universellt mönster för PostgreSQL-batch-operationer.
+- Implementatör skrev python-transformationsskript (scripts/transform_aurora.py) som en engångsverktyg — neutralt men kan vara onödigt i final commit. Ingen påverkan på produktion.
+- Referenspatt till TD-4 i task-beskrivningen gjorde refaktorering trivial — kopyera samma struktur, uppdatera specifika rader. Återanvändbara lösningar är kraftfulla.
+
+---
+
+## Körning 20260312-2023-neuron-hq — neuron-hq
+**Datum:** 2026-03-12
+**Uppgift:** Refaktorera autoEmbedAuroraNodes() för batch UPDATE med unnest istället för per-nod UPDATE-loop (N+1-mönster-fix, TD-14)
+**Resultat:** ✅ 5 av 5 uppgifter klara — Batch UPDATE med unnest implementerad, per-nod-loop borttagen, 1746 tester passerar
+
+**Vad som fungerade:**
+Svärmen implementerade identisk batch-UPDATE-mönster som TD-4 (saveAuroraGraphToDb). Per-nod UPDATE-loopen i autoEmbedAuroraNodes() ersattes med `unnest($1::text[], $2::text[])` som en enda query per batch (max 20 noder). Alla 5 acceptanskriterier verifierade: loopen borta, unnest-syntax korrekt, 1746 tester passerar, 6 nya/omskrivna tester (+4 mer än krävt), typecheck ren. Merge genomfört på commit de5587e.
+
+**Vad som inte fungerade:**
+Inga kända problem. Baseline-test innan förändring: 1742 passar. Efter förändring: 1746 passar (4 nya testfall). Typecheck och eslint rent på ändrade filer. Tre pre-befintliga lint-fel i andra filer påverkade inte detta ändringsärende.
+
+**Lärdomar:**
+- Samma batch UPDATE-mönster (unnest) fungerar konsistente över flera funktioner — TD-4 + TD-14 bekräftar mönstret. Lämpligt att förstärka detta som universellt mönster för PostgreSQL-batch-operationer.
+- Implementatör skrev python-transformationsskript (scripts/transform_aurora.py) som en engångsverktyg — neutralt men kan vara onödigt i final commit. Ingen påverkan på produktion.
+- Referenspatt till TD-4 i task-beskrivningen gjorde refaktorering trivial — kopyera samma struktur, uppdatera specifika rader. Återanvändbara lösningar är kraftfulla.
+
+---

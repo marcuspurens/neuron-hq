@@ -1,18 +1,18 @@
 # Neuron HQ — Körningshistorik & Kostnader
 
-Genererad: 2026-03-12 14:01  
-Antal körningar: 118  
+Genererad: 2026-03-12 20:36  
+Antal körningar: 120  
 Prismodell: Sonnet 4.5 — $3/MTok input, $15/MTok output
 
 ## Sammanfattning
 
 | Mått | Värde |
 |------|-------|
-| Körningar | 118 |
-| GREEN | 61 |
-| Totala tokens | 493.2M |
-| Total kostnad | $1552.81 |
-| Snitt per körning | $13.16 |
+| Körningar | 120 |
+| GREEN | 63 |
+| Totala tokens | 506.5M |
+| Total kostnad | $1594.52 |
+| Snitt per körning | $13.29 |
 | Billigaste | $0.00 |
 | Dyraste | $45.64 |
 
@@ -138,17 +138,19 @@ Prismodell: Sonnet 4.5 — $3/MTok input, $15/MTok output
 | 116 | 2026-03-12 | 09:07 | F0 — Bayesisk confidence i Aurora | GREEN | Sonnet 4.5 | 14.3M | 0.14M | 14.4M | $44.92 | 8 | 38m |
 | 117 | 2026-03-12 | 10:44 | C4 — Lokal vision via Ollama | GREEN | Sonnet 4.5 | 9.6M | 0.09M | 9.7M | $30.27 | 7 | 26m |
 | 118 | 2026-03-12 | 13:29 | F1: Neuron körningsstatistik — Bay… | GREEN | Sonnet 4.5 | 8.9M | 0.10M | 9.0M | $28.27 | 7 | 32m |
+| 119 | 2026-03-12 | 19:07 | TD-13: Extrahera gemensam agentver… | GREEN | Sonnet 4.5 | 10.4M | 0.12M | 10.6M | $33.09 | 6 | 33m |
+| 120 | 2026-03-12 | 20:23 | TD-14: Batch UPDATE i autoEmbedAur… | GREEN | Sonnet 4.5 | 2.7M | 0.03M | 2.7M | $8.62 | 6 | 13m |
 
 ## Kostnad per agent (genomsnitt)
 
 | Agent | Snitt tokens | Kostnad/körning | Andel |
 |-------|------------:|----------------:|------:|
-| manager | 1.33M | $4.13 | 31.1% |
-| implementer | 1.28M | $4.12 | 26.3% |
-| reviewer | 0.75M | $2.34 | 15.4% |
-| tester | 0.08M | $0.27 | 1.7% |
+| manager | 1.33M | $4.15 | 31.0% |
+| implementer | 1.31M | $4.22 | 26.7% |
+| reviewer | 0.75M | $2.35 | 15.3% |
+| tester | 0.09M | $0.29 | 1.8% |
 | merger | 0.19M | $0.63 | 4.0% |
-| researcher | 0.93M | $2.96 | 4.8% |
-| historian | 0.64M | $1.96 | 13.9% |
-| librarian | 0.44M | $1.38 | 1.8% |
+| researcher | 0.93M | $2.96 | 4.6% |
+| historian | 0.64M | $1.96 | 13.7% |
+| librarian | 0.44M | $1.38 | 1.7% |
 | consolidator | 1.40M | $4.34 | 1.1% |

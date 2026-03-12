@@ -1834,3 +1834,75 @@ Each file hyperlinked, cross-referenced, comprehensive. Format enables different
 **Senast bekräftad:** 20260312-1329
 
 ---
+
+## Options-objekt för varierad delad kod
+**Kontext:** Många agenter hade identiska execute-funktioner (bash, readFile, writeFile, listFiles) men med små per-agent variationer (truncate, includeStderr, baseDir)
+**Lösning:** Istället för if-statements eller överlagrad kod, definiera options-interfaces för varje funktion: `BashOptions { truncate?: boolean; includeStderr?: boolean }`, `ReadFileOptions { truncate?: boolean }`. Ge varje agent ansvar att välja sina egna options vid anrop.
+**Effekt:** 961 raders nettominskning i 6 agentfiler. Variationerna blir explicit och lätt att ändra utan att röra den gemensamma implementationen.
+**Keywords:** refactoring, code-extraction, options-pattern, shared-tools, agents
+**Relaterat:** patterns.md#Factory functions for tool definitions
+**Körningar:** #20260312-1907-neuron-hq
+**Senast bekräftad:** 20260312-1907-neuron-hq
+
+---
+
+## Factory functions for tool definitions
+**Kontext:** Tool-definitioner (schemas för bash_exec, read_file, write_file, list_files) var duplicerad i alla 6 agenter. Vissa agenter behövde bara en delmängd av tools (merger exkluderar list_files).
+**Lösning:** Skapa en factory-funktion `coreToolDefinitions(roleDescription?: {...})` som returnerar de 4 standard-verktygen med optional rollspecifika beskrivningar. Agenter anropar denna och filtrerar/utökar vid behov.
+**Effekt:** En källa för truth för tool-schemas. Rollspecifika beskrivningar kan injiceras utan att ändra kärnan. Enkelt för agenter att välja vilka tools de vill ha.
+**Keywords:** tool-definitions, factory-pattern, shared-tools, agents
+**Relaterat:** patterns.md#Options-objekt för varierad delad kod
+**Körningar:** #20260312-1907-neuron-hq
+**Senast bekräftad:** 20260312-1907-neuron-hq
+
+---
+
+## Batch UPDATE med unnest i PostgreSQL
+**Kontext:** Fixat N+1 UPDATE-mönster i autoEmbedAuroraNodes() (TD-14) efter tidigare identisk fix i saveAuroraGraphToDb() (TD-4)
+**Lösning:** Ersätta per-nod UPDATE-loop med `unnest($1::text[], $2::text[])` tabellvärdefunktion. Placera ID och värde i två separata array-parametrar, joina via unnest, uppdatera i en enda query.
+
+```typescript
+const ids = batchRows.map((r: Record<string, unknown>) => r.id as string);
+const vectors = embeddings.map((e: number[]) => `[${e.join(',')}]`);
+
+await pool.query(
+  `UPDATE table_name AS n
+   SET column_name = v.value::TYPE
+   FROM unnest($1::text[], $2::text[]) AS v(id, value)
+   WHERE n.id = v.id`,
+  [ids, vectors],
+);
+```
+
+**Effekt:** Reducerar N UPDATE-queries till 1. Vid 100 noder: från 100 queries till 1. Minnesmässigt små (två array-parametrar). Inkapslar batch-operationer i samma transaktions-scope som loopen tidigare hade.
+**Keywords:** PostgreSQL, batch-update, unnest, N+1, performance, database-optimization
+**Relaterat:** Körningar #20260309-0552-neuron-hq (TD-4 saveAuroraGraphToDb)
+**Körningar:** #20260312-2023-neuron-hq
+**Senast bekräftad:** 20260312-2023-neuron-hq
+
+---
+
+## Batch UPDATE med unnest i PostgreSQL
+**Kontext:** Fixat N+1 UPDATE-mönster i autoEmbedAuroraNodes() (TD-14) efter tidigare identisk fix i saveAuroraGraphToDb() (TD-4)
+**Lösning:** Ersätta per-nod UPDATE-loop med `unnest($1::text[], $2::text[])` tabellvärdefunktion. Placera ID och värde i två separata array-parametrar, joina via unnest, uppdatera i en enda query.
+
+```typescript
+const ids = batchRows.map((r: Record<string, unknown>) => r.id as string);
+const vectors = embeddings.map((e: number[]) => `[${e.join(',')}]`);
+
+await pool.query(
+  `UPDATE table_name AS n
+   SET column_name = v.value::TYPE
+   FROM unnest($1::text[], $2::text[]) AS v(id, value)
+   WHERE n.id = v.id`,
+  [ids, vectors],
+);
+```
+
+**Effekt:** Reducerar N UPDATE-queries till 1. Vid 100 noder: från 100 queries till 1. Minnesmässigt små (två array-parametrar). Inkapslar batch-operationer i samma transaktions-scope som loopen tidigare hade.
+**Keywords:** PostgreSQL, batch-update, unnest, N+1, performance, database-optimization
+**Relaterat:** Körningar #20260309-0552-neuron-hq (TD-4 saveAuroraGraphToDb)
+**Körningar:** #20260312-2023-neuron-hq
+**Senast bekräftad:** 20260312-2023-neuron-hq
+
+---

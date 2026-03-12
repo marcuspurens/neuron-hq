@@ -269,6 +269,39 @@
       "model": null
     },
     {
+      "id": "technique-009",
+      "type": "technique",
+      "title": "Why Agentic-PRs Get Rejected: Comparative Study of Coding Agents",
+      "properties": {
+        "core": "654 rejected PRs from 5 agents: 7 rejection categories unique to agents, 67.9% lack explicit reviewer feedback. Agent-specific failure patterns identified.",
+        "year": 2026,
+        "source": "arxiv:2602.04226",
+        "authors": "Sota Nakashima et al.",
+        "keywords": [
+          "coding-agent",
+          "pull-request",
+          "rejection",
+          "empirical-study",
+          "AI-distrust",
+          "feedback"
+        ],
+        "relevance": "Informs Implementer PR quality and motivates always-explicit feedback from Reviewer agent",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260228-2311-neuron-hq",
+          "timestamp": "2026-02-28T23:23:43.330Z"
+        },
+        "related_techniques": [
+          "technique-010"
+        ]
+      },
+      "created": "2026-02-28T23:23:43.330Z",
+      "updated": "2026-02-28T23:23:51.181Z",
+      "confidence": 0.78,
+      "scope": "unknown",
+      "model": null
+    },
+    {
       "id": "technique-019",
       "type": "technique",
       "title": "BudgetMem: Query-Aware Budget-Tier Routing for Runtime Agent Memory",
@@ -324,39 +357,6 @@
       "created": "2026-02-28T23:23:43.322Z",
       "updated": "2026-03-12T09:42:14.173Z",
       "confidence": 0.9,
-      "scope": "unknown",
-      "model": null
-    },
-    {
-      "id": "technique-009",
-      "type": "technique",
-      "title": "Why Agentic-PRs Get Rejected: Comparative Study of Coding Agents",
-      "properties": {
-        "core": "654 rejected PRs from 5 agents: 7 rejection categories unique to agents, 67.9% lack explicit reviewer feedback. Agent-specific failure patterns identified.",
-        "year": 2026,
-        "source": "arxiv:2602.04226",
-        "authors": "Sota Nakashima et al.",
-        "keywords": [
-          "coding-agent",
-          "pull-request",
-          "rejection",
-          "empirical-study",
-          "AI-distrust",
-          "feedback"
-        ],
-        "relevance": "Informs Implementer PR quality and motivates always-explicit feedback from Reviewer agent",
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260228-2311-neuron-hq",
-          "timestamp": "2026-02-28T23:23:43.330Z"
-        },
-        "related_techniques": [
-          "technique-010"
-        ]
-      },
-      "created": "2026-02-28T23:23:43.330Z",
-      "updated": "2026-02-28T23:23:51.181Z",
-      "confidence": 0.78,
       "scope": "unknown",
       "model": null
     },
@@ -487,6 +487,107 @@
       "model": null
     },
     {
+      "id": "pattern-042",
+      "type": "pattern",
+      "title": "Emergent: getAgentModels() accessor i policy.ts",
+      "properties": {
+        "effect": "Clean encapsulation of agent model configuration loading from limits.yaml.",
+        "context": "Körning 20260301-1544-neuron-hq — clean accessor för agent model config tillagd i policy.ts utöver brief-spec.",
+        "emergent": true,
+        "keywords": [
+          "policy",
+          "accessor",
+          "agent-models",
+          "emergent"
+        ],
+        "provenance": {
+          "agent": "historian",
+          "runId": "20260301-1544-neuron-hq",
+          "timestamp": "2026-03-01T16:20:55.746Z"
+        }
+      },
+      "created": "2026-03-01T16:20:55.746Z",
+      "updated": "2026-03-01T16:20:55.746Z",
+      "confidence": 0.6,
+      "scope": "project-specific",
+      "model": null
+    },
+    {
+      "id": "technique-047",
+      "type": "technique",
+      "title": "TraceCoder: Trace-Driven Multi-Agent Debugging",
+      "properties": {
+        "year": 2026,
+        "authors": "Jiangping Huang et al.",
+        "arxiv_id": "2602.06875",
+        "relevance": "Tester-agent: dynamic instrumentation reveals root cause; learn from mistakes across iterations",
+        "key_result": "34.43% relative improvement; 65.61% from iteration alone",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260309-2009-neuron-hq",
+          "timestamp": "2026-03-09T20:30:21.795Z"
+        },
+        "core_technique": "Runtime traces + causal analysis + HLLM (historical lesson learning) + rollback per iteration"
+      },
+      "created": "2026-03-09T20:30:21.795Z",
+      "updated": "2026-03-09T20:30:21.795Z",
+      "confidence": 0.9,
+      "scope": "project-specific",
+      "model": null
+    },
+    {
+      "id": "technique-041",
+      "type": "technique",
+      "title": "ExtAgents: Scaling External Knowledge via Multi-Agent Collaboration",
+      "properties": {
+        "year": 2025,
+        "authors": "Zijun Liu et al.",
+        "arxiv_id": "2505.21471",
+        "relevance": "Scale swarm: multiple Researchers parallelize over large codebases, sync results",
+        "key_result": "Significant performance improvement with high parallelism despite single-agent context limits",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260309-2009-neuron-hq",
+          "timestamp": "2026-03-09T20:30:07.344Z"
+        },
+        "core_technique": "Multiple agents process knowledge segments in parallel; coordinate for multi-hop reasoning; no longer-context training needed"
+      },
+      "created": "2026-03-09T20:30:07.344Z",
+      "updated": "2026-03-09T20:30:07.344Z",
+      "confidence": 0.85,
+      "scope": "project-specific",
+      "model": null
+    },
+    {
+      "id": "run-055",
+      "type": "run",
+      "title": "Körning 20260312-2023-neuron-hq — TD-14 batch UPDATE refaktor",
+      "properties": {
+        "date": "2026-03-12",
+        "task": "Refaktorera autoEmbedAuroraNodes() för batch UPDATE med unnest",
+        "agents": [
+          "manager",
+          "implementer",
+          "tester",
+          "reviewer",
+          "merger"
+        ],
+        "result": "✅ 5/5 acceptance criteria met",
+        "status": "completed",
+        "target": "neuron-hq",
+        "provenance": {
+          "agent": "historian",
+          "runId": "20260312-2023-neuron-hq",
+          "timestamp": "2026-03-12T20:35:15.794Z"
+        }
+      },
+      "created": "2026-03-12T20:35:15.794Z",
+      "updated": "2026-03-12T20:35:15.794Z",
+      "confidence": 1,
+      "scope": "project-specific",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
       "id": "technique-014",
       "type": "technique",
       "title": "Mem2ActBench: Long-Term Memory Utilization Benchmark",
@@ -520,29 +621,6 @@
       "updated": "2026-03-01T08:22:57.506Z",
       "confidence": 0.8,
       "scope": "unknown",
-      "model": null
-    },
-    {
-      "id": "technique-067",
-      "type": "technique",
-      "title": "Skill-Inject: Measuring Agent Vulnerability to Skill Attacks",
-      "properties": {
-        "year": 2026,
-        "authors": "David Schmotz et al.",
-        "arxiv_id": "2602.20156",
-        "relevance": "80% success rate: all external tools are active attack surfaces; requires contextual authorization",
-        "key_result": "Up to 80% attack success on frontier models; not solved by model scaling or input filtering",
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260309-2009-neuron-hq",
-          "timestamp": "2026-03-09T20:30:58.879Z"
-        },
-        "core_technique": "Benchmark: 202 injection-task pairs testing agent vulnerability to skill file attacks"
-      },
-      "created": "2026-03-09T20:30:58.879Z",
-      "updated": "2026-03-09T20:30:58.879Z",
-      "confidence": 0.9,
-      "scope": "project-specific",
       "model": null
     },
     {
@@ -612,59 +690,6 @@
       "model": "claude-haiku-4-5-20251001"
     },
     {
-      "id": "error-021",
-      "type": "error",
-      "title": "Reviewer använder export PATH i bash-kommandon",
-      "properties": {
-        "orsak": "Säkerhetspolicyn förbjuder `export PATH=...` i bash-kommandon — troligen för att förhindra PATH-manipulation. Reviewer kopierade mönstret från briefens manuella testscenario som innehöll `export PATH=...`.",
-        "status": "⚠️ Identifierat",
-        "session": "20260224-0948-neuron-hq",
-        "symptom": "Reviewer fick 2 bash_exec-anrop blockerade med \"BLOCKED: matches forbidden pattern: ^export\\s+PATH=\" när den försökte köra `export PATH=\"/opt/homebrew/opt/node@20/bin:$PATH\" && npx tsc --noEmit` och liknande.",
-        "keywords": [
-          "reviewer",
-          "export-PATH",
-          "policy",
-          "BLOCKED",
-          "bash_exec",
-          "forbidden-pattern"
-        ],
-        "lösning": "Reviewer (och alla agenter) bör köra kommandon direkt utan `export PATH=...`-prefix. Node-binärer finns redan i systemets PATH. Om node/npm-versioner behöver specifieras, använd absoluta sökvägar (`/opt/homebrew/opt/node@20/bin/npx ...`) istället.",
-        "recurrence": "Recurred in 20260301-1544-neuron-hq — Reviewer tried `export PATH=... && pnpm typecheck`, blocked again. Still not fixed in reviewer.md prompt."
-      },
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-03-01T16:20:40.902Z",
-      "confidence": 0.5,
-      "scope": "unknown",
-      "model": null
-    },
-    {
-      "id": "run-052",
-      "type": "run",
-      "title": "C4 — Lokal bildanalys via Ollama (qwen3-vl:8b)",
-      "properties": {
-        "date": "2026-03-12",
-        "runid": "20260312-1044-neuron-hq",
-        "target": "neuron-hq",
-        "summary": "Vision module with HTTP Ollama integration, CLI command, MCP tool, and 22 new tests — all passing",
-        "verdict": "✅ GREEN",
-        "new_files": 6,
-        "provenance": {
-          "agent": "historian",
-          "runId": "20260312-1044-neuron-hq",
-          "timestamp": "2026-03-12T11:10:10.326Z"
-        },
-        "tests_failed": 0,
-        "tests_passed": 1673,
-        "modified_files": 2,
-        "tasks_completed": 7
-      },
-      "created": "2026-03-12T11:10:10.326Z",
-      "updated": "2026-03-12T11:10:10.326Z",
-      "confidence": 0.95,
-      "scope": "project-specific",
-      "model": "claude-haiku-4-5-20251001"
-    },
-    {
       "id": "pattern-007",
       "type": "pattern",
       "title": "Reviewer git-stash baseline-jämförelse",
@@ -714,6 +739,68 @@
       "created": "2026-03-10T06:28:49.243Z",
       "updated": "2026-03-10T06:28:49.243Z",
       "confidence": 0.9,
+      "scope": "universal",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
+      "id": "technique-091",
+      "type": "technique",
+      "title": "Towards a Neural Debugger for Python",
+      "properties": {
+        "year": 2026,
+        "authors": "Maximilian Beck et al.",
+        "arxiv_id": "2603.09951",
+        "keywords": [
+          "debugging",
+          "neural-debugger",
+          "execution-trace",
+          "code-understanding",
+          "agent"
+        ],
+        "relevance": "Enables agentic coding systems with sophisticated debugging and state inspection capabilities",
+        "key_result": "Strong performance on CruxEval for both output and input prediction tasks",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260311-1941-neuron-hq",
+          "timestamp": "2026-03-11T20:06:00.134Z"
+        },
+        "core_concept": "LLM-based debuggers that emulate traditional debuggers with interactive control and forward/inverse execution prediction",
+        "related_techniques": [
+          "TraceCoder",
+          "Wink",
+          "XAI-for-Coding-Agent-Failures"
+        ]
+      },
+      "created": "2026-03-11T20:06:00.134Z",
+      "updated": "2026-03-11T20:06:15.381Z",
+      "confidence": 0.85,
+      "scope": "universal",
+      "model": null
+    },
+    {
+      "id": "pattern-055",
+      "type": "pattern",
+      "title": "PL/pgSQL atomic guarantees for database-critical operations",
+      "properties": {
+        "benefit": "All-or-nothing semantics: either all nodes update or none. Prevents partial failures from TypeScript crashes",
+        "keywords": [
+          "transactions",
+          "PostgreSQL",
+          "atomic-operations",
+          "data-consistency",
+          "PL-pgSQL"
+        ],
+        "provenance": {
+          "agent": "historian",
+          "runId": "20260309-0643-neuron-hq",
+          "timestamp": "2026-03-09T07:11:59.715Z"
+        },
+        "description": "Move database operations with consistency requirements into PL/pgSQL functions with transaction atomicity",
+        "implementation": "Create decay_confidence() with table allowlist, return before/after statistics for verification"
+      },
+      "created": "2026-03-09T07:11:59.715Z",
+      "updated": "2026-03-09T07:11:59.715Z",
+      "confidence": 0.85,
       "scope": "universal",
       "model": "claude-haiku-4-5-20251001"
     },
@@ -772,173 +859,115 @@
       "model": null
     },
     {
-      "id": "technique-070",
-      "type": "technique",
-      "title": "ParaCodex: GPU Parallelization Agent with Profiling Feedback",
-      "properties": {
-        "year": 2026,
-        "authors": "Erel Kaplan et al.",
-        "arxiv_id": "2601.04327",
-        "relevance": "Multi-step workflow (analyze->plan->validate->refine) matches Implementer pattern",
-        "key_result": "3-5x speedup on HeCBench/Rodinia; succeeds on 31/31 kernels",
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260309-2009-neuron-hq",
-          "timestamp": "2026-03-09T20:31:11.428Z"
-        },
-        "core_technique": "HPC workflow: hotspot analysis -> data movement plan -> correctness gate -> profile-driven refinement"
-      },
-      "created": "2026-03-09T20:31:11.428Z",
-      "updated": "2026-03-09T20:31:11.428Z",
-      "confidence": 0.8,
-      "scope": "universal",
-      "model": null
-    },
-    {
-      "id": "technique-088",
-      "type": "technique",
-      "title": "Agentic Critical Training (ACT)",
-      "properties": {
-        "core": "RL paradigm that trains agents to autonomously judge action quality rather than imitating reflection",
-        "year": 2026,
-        "authors": "Weize Liu et al.",
-        "arxiv_id": "2603.08706",
-        "keywords": [
-          "reinforcement-learning",
-          "self-reflection",
-          "agent-training",
-          "action-quality"
-        ],
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260310-0559-neuron-hq",
-          "timestamp": "2026-03-10T06:25:38.712Z"
-        },
-        "related_techniques": [
-          "PARC",
-          "ReflexiCoder",
-          "MIRA",
-          "Anthropics-agent-architecture"
-        ],
-        "improvement_over_rl": "4.62 points",
-        "improvement_over_imitation": "5.07 points"
-      },
-      "created": "2026-03-10T06:25:38.712Z",
-      "updated": "2026-03-10T06:25:48.573Z",
-      "confidence": 0.85,
-      "scope": "universal",
-      "model": null
-    },
-    {
-      "id": "pattern-087",
+      "id": "pattern-104",
       "type": "pattern",
-      "title": "Valfria interface-fält för bakåtkompatibel utökning",
+      "title": "Batch UPDATE med unnest i PostgreSQL",
       "properties": {
-        "effect": "Enables stepwise extension without API breakage. Eliminates need to migrate all callers simultaneously.",
-        "context": "Adding new fields to APIs without breaking existing callers",
+        "scope": "universal",
+        "effect": "Reducerar N UPDATE-queries till 1. Vid 100 noder från 100 queries till 1",
+        "context": "N+1 UPDATE-mönster vid bulk-operationer",
         "keywords": [
-          "backward-compatibility",
-          "interface-extension",
-          "optional-fields",
-          "TypeScript",
-          "architecture"
+          "PostgreSQL",
+          "batch-update",
+          "unnest",
+          "N+1",
+          "performance",
+          "database-optimization"
         ],
-        "solution": "Use optional fields (e.g., options?: Record<string, unknown>) in TypeScript interfaces. Existing code ignores new fields; new handlers can utilize them.",
         "provenance": {
           "agent": "historian",
-          "runId": "20260310-0843-neuron-hq",
-          "timestamp": "2026-03-10T09:07:16.269Z"
+          "runId": "20260312-2023-neuron-hq",
+          "timestamp": "2026-03-12T20:35:18.253Z"
         },
-        "discovered_in_run": "20260310-0843-neuron-hq"
+        "description": "Ersätta per-nod UPDATE-loop med unnest($1::text[], $2::text[]) tabellvärdefunktion för en enda query",
+        "confirmed_in": [
+          "TD-4 (saveAuroraGraphToDb)",
+          "TD-14 (autoEmbedAuroraNodes)"
+        ]
       },
-      "created": "2026-03-10T09:07:16.269Z",
-      "updated": "2026-03-10T09:07:16.269Z",
-      "confidence": 0.85,
+      "created": "2026-03-12T20:35:18.253Z",
+      "updated": "2026-03-12T20:35:18.253Z",
+      "confidence": 0.9,
       "scope": "universal",
       "model": "claude-haiku-4-5-20251001"
     },
     {
-      "id": "error-024",
-      "type": "error",
-      "title": "Resume-körningar: write_file blockeras för delad workspace",
+      "id": "run-052",
+      "type": "run",
+      "title": "C4 — Lokal bildanalys via Ollama (qwen3-vl:8b)",
       "properties": {
-        "orsak": "Resume-körningar ärver workspace från den ursprungliga körningen men policy-filtret betraktar det som \"other run's workspace\" — write_file tillåts bara till den aktuella körningens egna kataloger.",
-        "status": "⚠️ Identifierat",
-        "session": "20260227-0634-neuron-hq-resume",
-        "symptom": "Implementer fick 3 `write_file`-anrop blockerade med \"BLOCKED: cannot write to other run's workspace/runs\" när den försökte skriva till workspace från den ursprungliga körningen (20260227-0604). Manager fick 1 liknande blockering.",
-        "keywords": [
-          "resume",
-          "write_file",
-          "BLOCKED",
-          "workspace",
-          "policy",
-          "cross-run"
-        ],
-        "lösning": "Agenter i resume-körningar bör (1) använda `sed`/`bash_exec` istället för `write_file` för att redigera filer i ärvd workspace, eller (2) skriva direkt till target-repot vid small fixes. Långsiktigt: policyn bör medge att resume-körningar har write-access till den workspace de ärver.",
-        "beskrivning": "När Reviewer godkänner med APPROVED måste Manager delegera till Merger innan eventuella meta-triggers (META_ANALYSIS, Librarian) hanteras. Meta-triggers får aldrig avbryta den normala merge-kedjan (Tester → Reviewer → Merger → meta-triggers → Historian)."
+        "date": "2026-03-12",
+        "runid": "20260312-1044-neuron-hq",
+        "target": "neuron-hq",
+        "summary": "Vision module with HTTP Ollama integration, CLI command, MCP tool, and 22 new tests — all passing",
+        "verdict": "✅ GREEN",
+        "new_files": 6,
+        "provenance": {
+          "agent": "historian",
+          "runId": "20260312-1044-neuron-hq",
+          "timestamp": "2026-03-12T11:10:10.326Z"
+        },
+        "tests_failed": 0,
+        "tests_passed": 1673,
+        "modified_files": 2,
+        "tasks_completed": 7
       },
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 0.5,
-      "scope": "unknown",
-      "model": null
+      "created": "2026-03-12T11:10:10.326Z",
+      "updated": "2026-03-12T11:10:10.326Z",
+      "confidence": 0.95,
+      "scope": "project-specific",
+      "model": "claude-haiku-4-5-20251001"
     },
     {
-      "id": "pattern-016",
+      "id": "pattern-056",
       "type": "pattern",
-      "title": "Explicita strukturinvarianter i memory/invariants.md",
+      "title": "MCP tool graceful fallback for error scenarios",
       "properties": {
-        "effekt": "Implicita constraints som tidigare bara levde i testlogik görs explicita och sökbara — alla agenter kan läsa invariants.md för att förstå systemets strukturregler. Forskning (StructMemEval 2026, LoCoMo-Plus 2026) bekräftar att explicita constraints förbättrar retrieval-kvalitet jämfört med implicita.",
-        "kontext": "Körning 20260223-1509-neuron-hq — coverage.test.ts fångade en implicit invariant (varje prompt behöver lint-test) men det saknades ett explicit ställe att förvara strukturkrav som alltid måste gälla",
+        "benefit": "Tool never timeout-errors; Claude Desktop always gets a response (empty list or keyword results)",
         "keywords": [
-          "invariants",
-          "memory",
-          "strukturkrav",
-          "guardrails",
-          "historian",
-          "explicita-constraints"
-        ],
-        "lösning": "Skapade `memory/invariants.md` med format `[INV-NNN]` + beskrivning + `Vaktas av:` (vilken test/mekanism garanterar invarianten) + `Tillagd:` (körningsnummer). Historian-prompten uppdaterades med steg 5 som instruerar att läsa invariants.md och lägga till nya invarianter vid behov. Lint-test (`invariants-lint.test.ts`) vaktar formatet."
-      },
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 0.5,
-      "scope": "unknown",
-      "model": null
-    },
-    {
-      "id": "pattern-100",
-      "type": "pattern",
-      "title": "Multi-signal Bayesian belief update for run performance tracking",
-      "properties": {
-        "benefit": "Holistic view of performance without manual calibration; trends detectable over time",
-        "outcome": "Single confidence value in [0,1] per dimension, updated incrementally, audited with timestamp",
-        "signals": [
-          "stoplight_status",
-          "re_delegations",
-          "commands_blocked",
-          "tests_added",
-          "task_scores",
-          "token_budget"
-        ],
-        "keywords": "signal-fusion, bayesian-aggregation, multi-dimensional-tracking",
-        "dimensions": [
-          "agent:role",
-          "brief:type",
-          "target:name",
-          "model:id"
+          "MCP",
+          "fallback",
+          "error-handling",
+          "robustness",
+          "graceful-degradation"
         ],
         "provenance": {
           "agent": "historian",
-          "runId": "20260312-1329-neuron-hq",
-          "timestamp": "2026-03-12T13:59:40.852Z"
+          "runId": "20260309-0643-neuron-hq",
+          "timestamp": "2026-03-09T07:11:59.934Z"
         },
-        "aggregation": "Bayesian update using logit-transform with per-signal weights",
-        "description": "Aggregate multiple independent signals (stoplight, redelegations, blocked commands, tests added, task scores, token budget) into a unified confidence value per dimension (agent, brief type, target, model)"
+        "description": "Implement try/catch in MCP tools with fallback to non-semantic methods when primary path fails",
+        "implementation": "Try semanticSearch(), catch errors and fallback to keyword-based findAuroraNodes()"
       },
-      "created": "2026-03-12T13:59:40.852Z",
-      "updated": "2026-03-12T13:59:40.852Z",
-      "confidence": 0.83,
+      "created": "2026-03-09T07:11:59.934Z",
+      "updated": "2026-03-09T07:11:59.934Z",
+      "confidence": 0.8,
+      "scope": "universal",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
+      "id": "pattern-102",
+      "type": "pattern",
+      "title": "Options-objekt för varierad delad kod",
+      "properties": {
+        "effect": "961 lines net reduction, explicit variations, easy to modify",
+        "context": "Multiple agents with identical execute-functions but per-agent variations",
+        "keywords": [
+          "refactoring",
+          "code-extraction",
+          "options-pattern",
+          "shared-tools"
+        ],
+        "solution": "Define options-interfaces (BashOptions, ReadFileOptions) and let agents choose their own options at call-site",
+        "provenance": {
+          "agent": "historian",
+          "runId": "20260312-1907-neuron-hq",
+          "timestamp": "2026-03-12T19:40:33.339Z"
+        }
+      },
+      "created": "2026-03-12T19:40:33.339Z",
+      "updated": "2026-03-12T19:40:33.339Z",
+      "confidence": 0.9,
       "scope": "universal",
       "model": "claude-haiku-4-5-20251001"
     },
@@ -1033,80 +1062,62 @@
       "model": "claude-haiku-4-5-20251001"
     },
     {
-      "id": "pattern-080",
+      "id": "pattern-100",
       "type": "pattern",
-      "title": "Backwards-compatible API changes with optional parameters",
+      "title": "Multi-signal Bayesian belief update for run performance tracking",
       "properties": {
-        "effect": "All 30+ existing callers of createCrossRef() continue working unchanged. New callers can provide context for better tracking",
-        "context": "Extending createCrossRef() to accept context and strength parameters without breaking existing callers",
-        "pattern": "Always make new function parameters optional with defaults",
-        "keywords": [
-          "backwards-compatibility",
-          "optional-parameters",
-          "API-evolution"
+        "benefit": "Holistic view of performance without manual calibration; trends detectable over time",
+        "outcome": "Single confidence value in [0,1] per dimension, updated incrementally, audited with timestamp",
+        "signals": [
+          "stoplight_status",
+          "re_delegations",
+          "commands_blocked",
+          "tests_added",
+          "task_scores",
+          "token_budget"
         ],
-        "solution": "Make new parameters optional with sensible defaults. Use `strength ?? similarity` to fall back to initial similarity if not specified",
+        "keywords": "signal-fusion, bayesian-aggregation, multi-dimensional-tracking",
+        "dimensions": [
+          "agent:role",
+          "brief:type",
+          "target:name",
+          "model:id"
+        ],
         "provenance": {
           "agent": "historian",
-          "runId": "20260309-2239-neuron-hq",
-          "timestamp": "2026-03-09T23:16:26.983Z"
-        }
+          "runId": "20260312-1329-neuron-hq",
+          "timestamp": "2026-03-12T13:59:40.852Z"
+        },
+        "aggregation": "Bayesian update using logit-transform with per-signal weights",
+        "description": "Aggregate multiple independent signals (stoplight, redelegations, blocked commands, tests added, task scores, token budget) into a unified confidence value per dimension (agent, brief type, target, model)"
       },
-      "created": "2026-03-09T23:16:26.983Z",
-      "updated": "2026-03-09T23:16:26.983Z",
-      "confidence": 0.8,
+      "created": "2026-03-12T13:59:40.852Z",
+      "updated": "2026-03-12T13:59:40.852Z",
+      "confidence": 0.83,
       "scope": "universal",
       "model": "claude-haiku-4-5-20251001"
     },
     {
-      "id": "pattern-057",
-      "type": "pattern",
-      "title": "Graceful fallback från semantisk sökning till keyword-matchning",
-      "properties": {
-        "context": "Aurora search functionality when Ollama/Postgres unavailable",
-        "keywords": [
-          "semantic-search",
-          "graceful-degradation",
-          "fallback",
-          "keyword-search"
-        ],
-        "solution": "Centralized fallback in search module with unified interface",
-        "provenance": {
-          "agent": "historian",
-          "runId": "20260309-0848-neuron-hq",
-          "timestamp": "2026-03-09T09:16:20.517Z"
-        },
-        "merged_from": "pattern-060",
-        "merge_reason": "Exact duplicate (similarity=1.0). Both describe the same graceful fallback pattern from semantic search to keyword matching. Same run (20260309-0848-neuron-hq), created seconds apart by historian agent.",
-        "run_discovered": "20260309-0848-neuron-hq"
-      },
-      "created": "2026-03-09T09:16:20.517Z",
-      "updated": "2026-03-09T22:04:17.114Z",
-      "confidence": 0.85,
-      "scope": "project-specific",
-      "model": "claude-haiku-4-5-20251001"
-    },
-    {
-      "id": "technique-042",
+      "id": "technique-067",
       "type": "technique",
-      "title": "DeepMiner: Dynamic Context Window for Deep Search Agents",
+      "title": "Skill-Inject: Measuring Agent Vulnerability to Skill Attacks",
       "properties": {
-        "year": 2025,
-        "authors": "Qiaoyu Tang et al.",
-        "arxiv_id": "2510.08276",
-        "relevance": "Implementer/Manager interaction: many iteration rounds without context exhaustion",
-        "key_result": "33.5% on BrowseComp (+20 pp); 100 rounds in 32k context",
+        "year": 2026,
+        "authors": "David Schmotz et al.",
+        "arxiv_id": "2602.20156",
+        "relevance": "80% success rate: all external tools are active attack surfaces; requires contextual authorization",
+        "key_result": "Up to 80% attack success on frontier models; not solved by model scaling or input filtering",
         "provenance": {
           "agent": "librarian",
           "runId": "20260309-2009-neuron-hq",
-          "timestamp": "2026-03-09T20:30:07.531Z"
+          "timestamp": "2026-03-09T20:30:58.879Z"
         },
-        "core_technique": "Sliding window mech without external summary model; enables ~100 interaction rounds within 32k context"
+        "core_technique": "Benchmark: 202 injection-task pairs testing agent vulnerability to skill file attacks"
       },
-      "created": "2026-03-09T20:30:07.531Z",
-      "updated": "2026-03-09T20:30:07.531Z",
-      "confidence": 0.85,
-      "scope": "universal",
+      "created": "2026-03-09T20:30:58.879Z",
+      "updated": "2026-03-09T20:30:58.879Z",
+      "confidence": 0.9,
+      "scope": "project-specific",
       "model": null
     },
     {
@@ -1151,6 +1162,288 @@
       "created": "2026-03-10T05:52:11.092Z",
       "updated": "2026-03-10T05:52:11.092Z",
       "confidence": 0.95,
+      "scope": "project-specific",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
+      "id": "pattern-080",
+      "type": "pattern",
+      "title": "Backwards-compatible API changes with optional parameters",
+      "properties": {
+        "effect": "All 30+ existing callers of createCrossRef() continue working unchanged. New callers can provide context for better tracking",
+        "context": "Extending createCrossRef() to accept context and strength parameters without breaking existing callers",
+        "pattern": "Always make new function parameters optional with defaults",
+        "keywords": [
+          "backwards-compatibility",
+          "optional-parameters",
+          "API-evolution"
+        ],
+        "solution": "Make new parameters optional with sensible defaults. Use `strength ?? similarity` to fall back to initial similarity if not specified",
+        "provenance": {
+          "agent": "historian",
+          "runId": "20260309-2239-neuron-hq",
+          "timestamp": "2026-03-09T23:16:26.983Z"
+        }
+      },
+      "created": "2026-03-09T23:16:26.983Z",
+      "updated": "2026-03-09T23:16:26.983Z",
+      "confidence": 0.8,
+      "scope": "universal",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
+      "id": "pattern-103",
+      "type": "pattern",
+      "title": "Factory functions for tool definitions",
+      "properties": {
+        "effect": "Single source of truth for tool schemas; agents can filter/extend as needed",
+        "context": "Tool definitions (schemas) duplicated across 6 agents; some agents need only a subset",
+        "keywords": [
+          "tool-definitions",
+          "factory-pattern",
+          "shared-tools"
+        ],
+        "solution": "Create factory function coreToolDefinitions() that returns standard tools with optional role-specific descriptions",
+        "provenance": {
+          "agent": "historian",
+          "runId": "20260312-1907-neuron-hq",
+          "timestamp": "2026-03-12T19:40:35.190Z"
+        }
+      },
+      "created": "2026-03-12T19:40:35.190Z",
+      "updated": "2026-03-12T19:40:35.190Z",
+      "confidence": 0.85,
+      "scope": "universal",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
+      "id": "technique-070",
+      "type": "technique",
+      "title": "ParaCodex: GPU Parallelization Agent with Profiling Feedback",
+      "properties": {
+        "year": 2026,
+        "authors": "Erel Kaplan et al.",
+        "arxiv_id": "2601.04327",
+        "relevance": "Multi-step workflow (analyze->plan->validate->refine) matches Implementer pattern",
+        "key_result": "3-5x speedup on HeCBench/Rodinia; succeeds on 31/31 kernels",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260309-2009-neuron-hq",
+          "timestamp": "2026-03-09T20:31:11.428Z"
+        },
+        "core_technique": "HPC workflow: hotspot analysis -> data movement plan -> correctness gate -> profile-driven refinement"
+      },
+      "created": "2026-03-09T20:31:11.428Z",
+      "updated": "2026-03-09T20:31:11.428Z",
+      "confidence": 0.8,
+      "scope": "universal",
+      "model": null
+    },
+    {
+      "id": "technique-042",
+      "type": "technique",
+      "title": "DeepMiner: Dynamic Context Window for Deep Search Agents",
+      "properties": {
+        "year": 2025,
+        "authors": "Qiaoyu Tang et al.",
+        "arxiv_id": "2510.08276",
+        "relevance": "Implementer/Manager interaction: many iteration rounds without context exhaustion",
+        "key_result": "33.5% on BrowseComp (+20 pp); 100 rounds in 32k context",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260309-2009-neuron-hq",
+          "timestamp": "2026-03-09T20:30:07.531Z"
+        },
+        "core_technique": "Sliding window mech without external summary model; enables ~100 interaction rounds within 32k context"
+      },
+      "created": "2026-03-09T20:30:07.531Z",
+      "updated": "2026-03-09T20:30:07.531Z",
+      "confidence": 0.85,
+      "scope": "universal",
+      "model": null
+    },
+    {
+      "id": "pattern-087",
+      "type": "pattern",
+      "title": "Valfria interface-fält för bakåtkompatibel utökning",
+      "properties": {
+        "effect": "Enables stepwise extension without API breakage. Eliminates need to migrate all callers simultaneously.",
+        "context": "Adding new fields to APIs without breaking existing callers",
+        "keywords": [
+          "backward-compatibility",
+          "interface-extension",
+          "optional-fields",
+          "TypeScript",
+          "architecture"
+        ],
+        "solution": "Use optional fields (e.g., options?: Record<string, unknown>) in TypeScript interfaces. Existing code ignores new fields; new handlers can utilize them.",
+        "provenance": {
+          "agent": "historian",
+          "runId": "20260310-0843-neuron-hq",
+          "timestamp": "2026-03-10T09:07:16.269Z"
+        },
+        "discovered_in_run": "20260310-0843-neuron-hq"
+      },
+      "created": "2026-03-10T09:07:16.269Z",
+      "updated": "2026-03-10T09:07:16.269Z",
+      "confidence": 0.85,
+      "scope": "universal",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
+      "id": "error-024",
+      "type": "error",
+      "title": "Resume-körningar: write_file blockeras för delad workspace",
+      "properties": {
+        "orsak": "Resume-körningar ärver workspace från den ursprungliga körningen men policy-filtret betraktar det som \"other run's workspace\" — write_file tillåts bara till den aktuella körningens egna kataloger.",
+        "status": "⚠️ Identifierat",
+        "session": "20260227-0634-neuron-hq-resume",
+        "symptom": "Implementer fick 3 `write_file`-anrop blockerade med \"BLOCKED: cannot write to other run's workspace/runs\" när den försökte skriva till workspace från den ursprungliga körningen (20260227-0604). Manager fick 1 liknande blockering.",
+        "keywords": [
+          "resume",
+          "write_file",
+          "BLOCKED",
+          "workspace",
+          "policy",
+          "cross-run"
+        ],
+        "lösning": "Agenter i resume-körningar bör (1) använda `sed`/`bash_exec` istället för `write_file` för att redigera filer i ärvd workspace, eller (2) skriva direkt till target-repot vid small fixes. Långsiktigt: policyn bör medge att resume-körningar har write-access till den workspace de ärver.",
+        "beskrivning": "När Reviewer godkänner med APPROVED måste Manager delegera till Merger innan eventuella meta-triggers (META_ANALYSIS, Librarian) hanteras. Meta-triggers får aldrig avbryta den normala merge-kedjan (Tester → Reviewer → Merger → meta-triggers → Historian)."
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "technique-088",
+      "type": "technique",
+      "title": "Agentic Critical Training (ACT)",
+      "properties": {
+        "core": "RL paradigm that trains agents to autonomously judge action quality rather than imitating reflection",
+        "year": 2026,
+        "authors": "Weize Liu et al.",
+        "arxiv_id": "2603.08706",
+        "keywords": [
+          "reinforcement-learning",
+          "self-reflection",
+          "agent-training",
+          "action-quality"
+        ],
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260310-0559-neuron-hq",
+          "timestamp": "2026-03-10T06:25:38.712Z"
+        },
+        "related_techniques": [
+          "PARC",
+          "ReflexiCoder",
+          "MIRA",
+          "Anthropics-agent-architecture"
+        ],
+        "improvement_over_rl": "4.62 points",
+        "improvement_over_imitation": "5.07 points"
+      },
+      "created": "2026-03-10T06:25:38.712Z",
+      "updated": "2026-03-10T06:25:48.573Z",
+      "confidence": 0.85,
+      "scope": "universal",
+      "model": null
+    },
+    {
+      "id": "pattern-016",
+      "type": "pattern",
+      "title": "Explicita strukturinvarianter i memory/invariants.md",
+      "properties": {
+        "effekt": "Implicita constraints som tidigare bara levde i testlogik görs explicita och sökbara — alla agenter kan läsa invariants.md för att förstå systemets strukturregler. Forskning (StructMemEval 2026, LoCoMo-Plus 2026) bekräftar att explicita constraints förbättrar retrieval-kvalitet jämfört med implicita.",
+        "kontext": "Körning 20260223-1509-neuron-hq — coverage.test.ts fångade en implicit invariant (varje prompt behöver lint-test) men det saknades ett explicit ställe att förvara strukturkrav som alltid måste gälla",
+        "keywords": [
+          "invariants",
+          "memory",
+          "strukturkrav",
+          "guardrails",
+          "historian",
+          "explicita-constraints"
+        ],
+        "lösning": "Skapade `memory/invariants.md` med format `[INV-NNN]` + beskrivning + `Vaktas av:` (vilken test/mekanism garanterar invarianten) + `Tillagd:` (körningsnummer). Historian-prompten uppdaterades med steg 5 som instruerar att läsa invariants.md och lägga till nya invarianter vid behov. Lint-test (`invariants-lint.test.ts`) vaktar formatet."
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "technique-079",
+      "type": "technique",
+      "title": "ReflexiCoder: Self-Reflection and Self-Correction via RL",
+      "properties": {
+        "year": 2026,
+        "authors": "Juyong Jiang et al.",
+        "arxiv_id": "2603.05863",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260309-2239-neuron-hq",
+          "timestamp": "2026-03-09T23:15:29.177Z"
+        },
+        "core_concept": "Internalize structured reasoning (generation → reflection → correction) into model weights"
+      },
+      "created": "2026-03-09T23:15:29.177Z",
+      "updated": "2026-03-09T23:15:29.177Z",
+      "confidence": 0.79,
+      "scope": "universal",
+      "model": null
+    },
+    {
+      "id": "run-027",
+      "type": "run",
+      "title": "Körning 20260228-2311-neuron-hq — Manager Consult Knowledge Graph",
+      "properties": {
+        "date": "2026-02-28",
+        "result": "✅ 6/6 acceptanskriterier",
+        "target": "neuron-hq",
+        "summary": "Lade till Consult Knowledge Graph-planeringssteg i manager.md med graph_query-exempel. 7 nya tester, 498 totalt. Merge commit bd323fd.",
+        "provenance": {
+          "agent": "historian",
+          "runId": "20260228-2311-neuron-hq",
+          "timestamp": "2026-02-28T23:25:30.884Z"
+        },
+        "tests_after": 498,
+        "files_changed": 2,
+        "lines_changed": 62
+      },
+      "created": "2026-02-28T23:25:30.884Z",
+      "updated": "2026-02-28T23:25:30.884Z",
+      "confidence": 1,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "pattern-057",
+      "type": "pattern",
+      "title": "Graceful fallback från semantisk sökning till keyword-matchning",
+      "properties": {
+        "context": "Aurora search functionality when Ollama/Postgres unavailable",
+        "keywords": [
+          "semantic-search",
+          "graceful-degradation",
+          "fallback",
+          "keyword-search"
+        ],
+        "solution": "Centralized fallback in search module with unified interface",
+        "provenance": {
+          "agent": "historian",
+          "runId": "20260309-0848-neuron-hq",
+          "timestamp": "2026-03-09T09:16:20.517Z"
+        },
+        "merged_from": "pattern-060",
+        "merge_reason": "Exact duplicate (similarity=1.0). Both describe the same graceful fallback pattern from semantic search to keyword matching. Same run (20260309-0848-neuron-hq), created seconds apart by historian agent.",
+        "run_discovered": "20260309-0848-neuron-hq"
+      },
+      "created": "2026-03-09T09:16:20.517Z",
+      "updated": "2026-03-09T22:04:17.114Z",
+      "confidence": 0.85,
       "scope": "project-specific",
       "model": "claude-haiku-4-5-20251001"
     },
@@ -1278,6 +1571,108 @@
       "model": null
     },
     {
+      "id": "pattern-005",
+      "type": "pattern",
+      "title": "Librarian dubbelkontrollerar med read-after-write",
+      "properties": {
+        "effekt": "Ger tillförlitlig bekräftelse att entries skrevs — Manager kan lita på Librarian-resultatet utan att själv behöva verifiera filen",
+        "kontext": "Körning 20260222-1651 — Librarian smoke test",
+        "lösning": "Librarian läser tillbaka `techniques.md` efter att ha skrivit alla entries, vilket verifierar att skrivningarna faktiskt sparades korrekt"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "pattern-088",
+      "type": "pattern",
+      "title": "Använd inspect.signature för villkorlig parameter-vidarebefordran",
+      "properties": {
+        "effect": "Enables gradual migration of handlers. Old handlers work unchanged; new handlers can accept additional parameters without modifying dispatch logic.",
+        "context": "Dispatcher pattern where handlers have varying signatures, need to forward new parameters selectively",
+        "keywords": [
+          "dispatcher",
+          "Python",
+          "inspect-module",
+          "parameter-forwarding",
+          "backwards-compatibility"
+        ],
+        "solution": "Use Python's inspect.signature() to check handler arity. Forward extra parameters only to handlers that accept them.",
+        "provenance": {
+          "agent": "historian",
+          "runId": "20260310-0843-neuron-hq",
+          "timestamp": "2026-03-10T09:07:16.597Z"
+        },
+        "discovered_in_run": "20260310-0843-neuron-hq"
+      },
+      "created": "2026-03-10T09:07:16.597Z",
+      "updated": "2026-03-10T09:07:16.597Z",
+      "confidence": 0.9,
+      "scope": "universal",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
+      "id": "technique-013",
+      "type": "technique",
+      "title": "TALM: Tree-Structured Multi-Agent Framework with Long-Term Memory",
+      "properties": {
+        "year": 2025,
+        "author": "Ming-Tung Shen et al.",
+        "source": "arxiv:2510.23010",
+        "summary": "Tree-based multi-agent collaboration with localized re-reasoning and long-term memory for semantic querying and experience reuse in code generation",
+        "keywords": [
+          "tree-structure",
+          "multi-agent",
+          "long-term-memory",
+          "divide-and-conquer",
+          "code-generation",
+          "error-correction"
+        ],
+        "key_result": "Consistent strong performance on HumanEval, BigCodeBench, and ClassEval with high token efficiency",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260301-0800-neuron-hq",
+          "timestamp": "2026-03-01T08:22:50.686Z"
+        },
+        "related_techniques": [
+          "Agyn",
+          "Excalibur",
+          "TraceCoder",
+          "E-mem"
+        ]
+      },
+      "created": "2026-03-01T08:22:50.686Z",
+      "updated": "2026-03-01T08:22:57.488Z",
+      "confidence": 0.82,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "technique-022",
+      "type": "technique",
+      "title": "Wink: Recovering from Misbehaviors in Coding Agents",
+      "properties": {
+        "year": 2026,
+        "authors": "Rahul Nanda et al.",
+        "arxiv_id": "2602.17037",
+        "relevance": "Monitor layer for Implementer/Researcher agents; detects and corrects deviation from tasks",
+        "key_result": "~30% of trajectories have misbehaviors; solves 90% with single intervention; reduces tokens per session",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260309-2009-neuron-hq",
+          "timestamp": "2026-03-09T20:29:16.916Z"
+        },
+        "core_technique": "Lightweight async self-intervention system observing agent trajectories; three misbehavior categories: Specification Drift, Reasoning Problems, Tool Call Failures"
+      },
+      "created": "2026-03-09T20:29:16.916Z",
+      "updated": "2026-03-09T20:29:16.916Z",
+      "confidence": 0.9,
+      "scope": "project-specific",
+      "model": null
+    },
+    {
       "id": "technique-071",
       "type": "technique",
       "title": "SWE-AGI: Benchmark for Specification-Driven Software Construction",
@@ -1332,31 +1727,242 @@
       "model": null
     },
     {
-      "id": "pattern-064",
+      "id": "pattern-098",
       "type": "pattern",
-      "title": "Worker-bridge abstraction for external dependencies",
+      "title": "Try/catch safety wrapper for observation logging",
       "properties": {
-        "effect": "Minimized regression risk, enables comprehensive mocking at bridge layer, scales gracefully",
-        "context": "Adding Python workers for yt-dlp, Whisper, pyannote to Aurora",
-        "keywords": [
-          "worker-bridge",
-          "abstraction",
-          "external-dependencies",
-          "subprocess",
-          "mocking"
-        ],
-        "strategy": "Register handlers in worker-bridge type union + __main__.py HANDLERS dict; new handlers added without modifying TypeScript calling paths",
+        "method": "Wrap statistics operations: try { collectOutcomes(); updateRunBeliefs(); } catch (err) { logger.warn(); }",
+        "benefit": "Observation logic becomes optional optimization, never a blocker. Critical for production robustness",
+        "context": "Integrating statistics collection into finalizeRun() without blocking main execution",
+        "keywords": "error-handling, graceful-degradation, observability, reliability",
         "provenance": {
           "agent": "historian",
-          "runId": "20260309-1104-neuron-hq",
-          "timestamp": "2026-03-09T11:51:46.967Z"
+          "runId": "20260312-1329-neuron-hq",
+          "timestamp": "2026-03-12T13:59:28.137Z"
         },
-        "description": "Isolate external subprocess handlers (Python workers) behind a type-safe bridge using stdin/stdout JSON protocol"
+        "applicable_to": "Any optional monitoring, observability, or analytics integration",
+        "implementation": "Statistics failures logged but never propagate; main run continues"
       },
-      "created": "2026-03-09T11:51:46.967Z",
-      "updated": "2026-03-09T11:51:46.967Z",
-      "confidence": 0.85,
+      "created": "2026-03-12T13:59:28.137Z",
+      "updated": "2026-03-12T13:59:28.137Z",
+      "confidence": 0.88,
       "scope": "universal",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
+      "id": "run-056",
+      "type": "run",
+      "title": "Körning 20260312-2023-neuron-hq — TD-14 batch UPDATE refaktor",
+      "properties": {
+        "date": "2026-03-12",
+        "task": "Refaktorera autoEmbedAuroraNodes() för batch UPDATE med unnest",
+        "agents": [
+          "manager",
+          "implementer",
+          "tester",
+          "reviewer",
+          "merger"
+        ],
+        "result": "✅ 5/5 acceptance criteria met",
+        "status": "completed",
+        "target": "neuron-hq",
+        "provenance": {
+          "agent": "historian",
+          "runId": "20260312-2023-neuron-hq",
+          "timestamp": "2026-03-12T20:35:40.728Z"
+        }
+      },
+      "created": "2026-03-12T20:35:40.728Z",
+      "updated": "2026-03-12T20:35:40.728Z",
+      "confidence": 1,
+      "scope": "project-specific",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
+      "id": "error-006",
+      "type": "error",
+      "title": "Librarian smoke test producerade inga artefakter",
+      "properties": {
+        "orsak": "Okänt — troligen delegerade orchestratorn aldrig till Librarian, eller så saknas Librarian-agenten i swarm-konfigurationen. Ingen audit.jsonl kontrollerad.",
+        "status": "✅ Löst — audit.jsonl bekräftar att Librarian körde och skrev 8 poster till techniques.md. Felet berodde på felaktig diagnos (ingen audit.jsonl-kontroll).",
+        "session": "20260222-1639-aurora-swarm-lab",
+        "symptom": "Endast brief.md skapades. Ingen report.md, questions.md eller merge_summary.md finns. Librarian-agenten verkar aldrig ha exekverats.",
+        "lösning": "Verifiera att Librarian-agenten är registrerad och tillgänglig i swarm-konfigurationen. Kontrollera audit.jsonl för eventuella felmeddelanden. Säkerställ att orchestratorn korrekt delegerar efter att brief skapats."
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "error-021",
+      "type": "error",
+      "title": "Reviewer använder export PATH i bash-kommandon",
+      "properties": {
+        "orsak": "Säkerhetspolicyn förbjuder `export PATH=...` i bash-kommandon — troligen för att förhindra PATH-manipulation. Reviewer kopierade mönstret från briefens manuella testscenario som innehöll `export PATH=...`.",
+        "status": "⚠️ Identifierat",
+        "session": "20260224-0948-neuron-hq",
+        "symptom": "Reviewer fick 2 bash_exec-anrop blockerade med \"BLOCKED: matches forbidden pattern: ^export\\s+PATH=\" när den försökte köra `export PATH=\"/opt/homebrew/opt/node@20/bin:$PATH\" && npx tsc --noEmit` och liknande.",
+        "keywords": [
+          "reviewer",
+          "export-PATH",
+          "policy",
+          "BLOCKED",
+          "bash_exec",
+          "forbidden-pattern"
+        ],
+        "lösning": "Reviewer (och alla agenter) bör köra kommandon direkt utan `export PATH=...`-prefix. Node-binärer finns redan i systemets PATH. Om node/npm-versioner behöver specifieras, använd absoluta sökvägar (`/opt/homebrew/opt/node@20/bin/npx ...`) istället.",
+        "recurrence": "Recurred in 20260301-1544-neuron-hq — Reviewer tried `export PATH=... && pnpm typecheck`, blocked again. Still not fixed in reviewer.md prompt."
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-03-01T16:20:40.902Z",
+      "confidence": 0.5,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "pattern-004",
+      "type": "pattern",
+      "title": "Datumstämplade briefs förhindrar förvirring",
+      "properties": {
+        "effekt": "Historik bevaras, rätt brief pekas ut med `--brief`-flaggan",
+        "kontext": "Session 9 — `today.md` överskrevs av misstag",
+        "lösning": "Briefs namnges `briefs/<YYYY-MM-DD>-<slug>.md`"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "technique-052",
+      "type": "technique",
+      "title": "Gradual Forgetting: Logarithmic Compression for Context Windows",
+      "properties": {
+        "year": 2025,
+        "authors": "Billy Dickson et al.",
+        "arxiv_id": "2510.22109",
+        "relevance": "Historian could compress old runs/patterns logarithmically (older=more summary)",
+        "key_result": "Reduced perplexity; extends transformer long-context capability without architecture change",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260309-2009-neuron-hq",
+          "timestamp": "2026-03-09T20:30:33.411Z"
+        },
+        "core_technique": "Input-level logarithmic compression: older tokens compressed more, recent tokens full resolution"
+      },
+      "created": "2026-03-09T20:30:33.411Z",
+      "updated": "2026-03-09T20:30:33.411Z",
+      "confidence": 0.8,
+      "scope": "universal",
+      "model": null
+    },
+    {
+      "id": "pattern-089",
+      "type": "pattern",
+      "title": "Trestegs-prioritering för flexibel modellval",
+      "properties": {
+        "effect": "Gives users control when they have preferences, falls back to smart detection when needed. Avoids expensive auto-detection when unnecessary.",
+        "context": "Selecting AI models based on user preference, inferred language, or auto-detected language",
+        "keywords": [
+          "model-selection",
+          "language-detection",
+          "priority-order",
+          "STT",
+          "Whisper"
+        ],
+        "solution": "Implement priority order: (1) explicit model if provided, (2) language-to-model lookup if language provided, (3) auto-detect language with lightweight model then select model",
+        "provenance": {
+          "agent": "historian",
+          "runId": "20260310-0843-neuron-hq",
+          "timestamp": "2026-03-10T09:07:16.867Z"
+        },
+        "discovered_in_run": "20260310-0843-neuron-hq"
+      },
+      "created": "2026-03-10T09:07:16.867Z",
+      "updated": "2026-03-10T09:07:16.867Z",
+      "confidence": 0.8,
+      "scope": "project-specific",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
+      "id": "run-008",
+      "type": "run",
+      "title": "run-008",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 1,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "technique-078",
+      "type": "technique",
+      "title": "CodeScout: Contextual Problem Statement Enhancement",
+      "properties": {
+        "year": 2026,
+        "authors": "Manan Suri et al.",
+        "arxiv_id": "2603.05744",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260309-2239-neuron-hq",
+          "timestamp": "2026-03-09T23:15:29.009Z"
+        },
+        "core_concept": "Pre-exploration converts underspecified requests into comprehensive problem statements"
+      },
+      "created": "2026-03-09T23:15:29.009Z",
+      "updated": "2026-03-09T23:15:29.009Z",
+      "confidence": 0.81,
+      "scope": "universal",
+      "model": null
+    },
+    {
+      "id": "run-010",
+      "type": "run",
+      "title": "run-010",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 1,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "run-Körning 20260223-2300-aurora-swarm-lab-resume",
+      "type": "run",
+      "title": "run-Körning 20260223-2300-aurora-swarm-lab-resume",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.923Z",
+      "updated": "2026-02-27T12:13:00.923Z",
+      "confidence": 1,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "run-054",
+      "type": "run",
+      "title": "Körning 20260312-1907-neuron-hq",
+      "properties": {
+        "date": "2026-03-12",
+        "task": "Extrahera ~500 raders duplicerad agentverktygs-kod till gemensam modul",
+        "result": "✅ 7/7 uppgifter klara",
+        "target": "neuron-hq",
+        "new_tests": 14,
+        "provenance": {
+          "agent": "historian",
+          "runId": "20260312-1907-neuron-hq",
+          "timestamp": "2026-03-12T19:40:47.539Z"
+        },
+        "tests_passing": 1742,
+        "net_lines_removed": 961
+      },
+      "created": "2026-03-12T19:40:47.539Z",
+      "updated": "2026-03-12T19:40:47.539Z",
+      "confidence": 0.95,
+      "scope": "project-specific",
       "model": "claude-haiku-4-5-20251001"
     },
     {
@@ -1442,390 +2048,32 @@
       "model": "claude-haiku-4-5-20251001"
     },
     {
-      "id": "technique-078",
-      "type": "technique",
-      "title": "CodeScout: Contextual Problem Statement Enhancement",
-      "properties": {
-        "year": 2026,
-        "authors": "Manan Suri et al.",
-        "arxiv_id": "2603.05744",
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260309-2239-neuron-hq",
-          "timestamp": "2026-03-09T23:15:29.009Z"
-        },
-        "core_concept": "Pre-exploration converts underspecified requests into comprehensive problem statements"
-      },
-      "created": "2026-03-09T23:15:29.009Z",
-      "updated": "2026-03-09T23:15:29.009Z",
-      "confidence": 0.81,
-      "scope": "universal",
-      "model": null
-    },
-    {
-      "id": "technique-022",
-      "type": "technique",
-      "title": "Wink: Recovering from Misbehaviors in Coding Agents",
-      "properties": {
-        "year": 2026,
-        "authors": "Rahul Nanda et al.",
-        "arxiv_id": "2602.17037",
-        "relevance": "Monitor layer for Implementer/Researcher agents; detects and corrects deviation from tasks",
-        "key_result": "~30% of trajectories have misbehaviors; solves 90% with single intervention; reduces tokens per session",
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260309-2009-neuron-hq",
-          "timestamp": "2026-03-09T20:29:16.916Z"
-        },
-        "core_technique": "Lightweight async self-intervention system observing agent trajectories; three misbehavior categories: Specification Drift, Reasoning Problems, Tool Call Failures"
-      },
-      "created": "2026-03-09T20:29:16.916Z",
-      "updated": "2026-03-09T20:29:16.916Z",
-      "confidence": 0.9,
-      "scope": "project-specific",
-      "model": null
-    },
-    {
-      "id": "pattern-088",
+      "id": "pattern-064",
       "type": "pattern",
-      "title": "Använd inspect.signature för villkorlig parameter-vidarebefordran",
+      "title": "Worker-bridge abstraction for external dependencies",
       "properties": {
-        "effect": "Enables gradual migration of handlers. Old handlers work unchanged; new handlers can accept additional parameters without modifying dispatch logic.",
-        "context": "Dispatcher pattern where handlers have varying signatures, need to forward new parameters selectively",
+        "effect": "Minimized regression risk, enables comprehensive mocking at bridge layer, scales gracefully",
+        "context": "Adding Python workers for yt-dlp, Whisper, pyannote to Aurora",
         "keywords": [
-          "dispatcher",
-          "Python",
-          "inspect-module",
-          "parameter-forwarding",
-          "backwards-compatibility"
+          "worker-bridge",
+          "abstraction",
+          "external-dependencies",
+          "subprocess",
+          "mocking"
         ],
-        "solution": "Use Python's inspect.signature() to check handler arity. Forward extra parameters only to handlers that accept them.",
+        "strategy": "Register handlers in worker-bridge type union + __main__.py HANDLERS dict; new handlers added without modifying TypeScript calling paths",
         "provenance": {
           "agent": "historian",
-          "runId": "20260310-0843-neuron-hq",
-          "timestamp": "2026-03-10T09:07:16.597Z"
+          "runId": "20260309-1104-neuron-hq",
+          "timestamp": "2026-03-09T11:51:46.967Z"
         },
-        "discovered_in_run": "20260310-0843-neuron-hq"
+        "description": "Isolate external subprocess handlers (Python workers) behind a type-safe bridge using stdin/stdout JSON protocol"
       },
-      "created": "2026-03-10T09:07:16.597Z",
-      "updated": "2026-03-10T09:07:16.597Z",
-      "confidence": 0.9,
-      "scope": "universal",
-      "model": "claude-haiku-4-5-20251001"
-    },
-    {
-      "id": "technique-013",
-      "type": "technique",
-      "title": "TALM: Tree-Structured Multi-Agent Framework with Long-Term Memory",
-      "properties": {
-        "year": 2025,
-        "author": "Ming-Tung Shen et al.",
-        "source": "arxiv:2510.23010",
-        "summary": "Tree-based multi-agent collaboration with localized re-reasoning and long-term memory for semantic querying and experience reuse in code generation",
-        "keywords": [
-          "tree-structure",
-          "multi-agent",
-          "long-term-memory",
-          "divide-and-conquer",
-          "code-generation",
-          "error-correction"
-        ],
-        "key_result": "Consistent strong performance on HumanEval, BigCodeBench, and ClassEval with high token efficiency",
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260301-0800-neuron-hq",
-          "timestamp": "2026-03-01T08:22:50.686Z"
-        },
-        "related_techniques": [
-          "Agyn",
-          "Excalibur",
-          "TraceCoder",
-          "E-mem"
-        ]
-      },
-      "created": "2026-03-01T08:22:50.686Z",
-      "updated": "2026-03-01T08:22:57.488Z",
-      "confidence": 0.82,
-      "scope": "unknown",
-      "model": null
-    },
-    {
-      "id": "pattern-089",
-      "type": "pattern",
-      "title": "Trestegs-prioritering för flexibel modellval",
-      "properties": {
-        "effect": "Gives users control when they have preferences, falls back to smart detection when needed. Avoids expensive auto-detection when unnecessary.",
-        "context": "Selecting AI models based on user preference, inferred language, or auto-detected language",
-        "keywords": [
-          "model-selection",
-          "language-detection",
-          "priority-order",
-          "STT",
-          "Whisper"
-        ],
-        "solution": "Implement priority order: (1) explicit model if provided, (2) language-to-model lookup if language provided, (3) auto-detect language with lightweight model then select model",
-        "provenance": {
-          "agent": "historian",
-          "runId": "20260310-0843-neuron-hq",
-          "timestamp": "2026-03-10T09:07:16.867Z"
-        },
-        "discovered_in_run": "20260310-0843-neuron-hq"
-      },
-      "created": "2026-03-10T09:07:16.867Z",
-      "updated": "2026-03-10T09:07:16.867Z",
-      "confidence": 0.8,
-      "scope": "project-specific",
-      "model": "claude-haiku-4-5-20251001"
-    },
-    {
-      "id": "pattern-055",
-      "type": "pattern",
-      "title": "PL/pgSQL atomic guarantees for database-critical operations",
-      "properties": {
-        "benefit": "All-or-nothing semantics: either all nodes update or none. Prevents partial failures from TypeScript crashes",
-        "keywords": [
-          "transactions",
-          "PostgreSQL",
-          "atomic-operations",
-          "data-consistency",
-          "PL-pgSQL"
-        ],
-        "provenance": {
-          "agent": "historian",
-          "runId": "20260309-0643-neuron-hq",
-          "timestamp": "2026-03-09T07:11:59.715Z"
-        },
-        "description": "Move database operations with consistency requirements into PL/pgSQL functions with transaction atomicity",
-        "implementation": "Create decay_confidence() with table allowlist, return before/after statistics for verification"
-      },
-      "created": "2026-03-09T07:11:59.715Z",
-      "updated": "2026-03-09T07:11:59.715Z",
+      "created": "2026-03-09T11:51:46.967Z",
+      "updated": "2026-03-09T11:51:46.967Z",
       "confidence": 0.85,
       "scope": "universal",
       "model": "claude-haiku-4-5-20251001"
-    },
-    {
-      "id": "pattern-005",
-      "type": "pattern",
-      "title": "Librarian dubbelkontrollerar med read-after-write",
-      "properties": {
-        "effekt": "Ger tillförlitlig bekräftelse att entries skrevs — Manager kan lita på Librarian-resultatet utan att själv behöva verifiera filen",
-        "kontext": "Körning 20260222-1651 — Librarian smoke test",
-        "lösning": "Librarian läser tillbaka `techniques.md` efter att ha skrivit alla entries, vilket verifierar att skrivningarna faktiskt sparades korrekt"
-      },
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 0.5,
-      "scope": "unknown",
-      "model": null
-    },
-    {
-      "id": "pattern-098",
-      "type": "pattern",
-      "title": "Try/catch safety wrapper for observation logging",
-      "properties": {
-        "method": "Wrap statistics operations: try { collectOutcomes(); updateRunBeliefs(); } catch (err) { logger.warn(); }",
-        "benefit": "Observation logic becomes optional optimization, never a blocker. Critical for production robustness",
-        "context": "Integrating statistics collection into finalizeRun() without blocking main execution",
-        "keywords": "error-handling, graceful-degradation, observability, reliability",
-        "provenance": {
-          "agent": "historian",
-          "runId": "20260312-1329-neuron-hq",
-          "timestamp": "2026-03-12T13:59:28.137Z"
-        },
-        "applicable_to": "Any optional monitoring, observability, or analytics integration",
-        "implementation": "Statistics failures logged but never propagate; main run continues"
-      },
-      "created": "2026-03-12T13:59:28.137Z",
-      "updated": "2026-03-12T13:59:28.137Z",
-      "confidence": 0.88,
-      "scope": "universal",
-      "model": "claude-haiku-4-5-20251001"
-    },
-    {
-      "id": "error-006",
-      "type": "error",
-      "title": "Librarian smoke test producerade inga artefakter",
-      "properties": {
-        "orsak": "Okänt — troligen delegerade orchestratorn aldrig till Librarian, eller så saknas Librarian-agenten i swarm-konfigurationen. Ingen audit.jsonl kontrollerad.",
-        "status": "✅ Löst — audit.jsonl bekräftar att Librarian körde och skrev 8 poster till techniques.md. Felet berodde på felaktig diagnos (ingen audit.jsonl-kontroll).",
-        "session": "20260222-1639-aurora-swarm-lab",
-        "symptom": "Endast brief.md skapades. Ingen report.md, questions.md eller merge_summary.md finns. Librarian-agenten verkar aldrig ha exekverats.",
-        "lösning": "Verifiera att Librarian-agenten är registrerad och tillgänglig i swarm-konfigurationen. Kontrollera audit.jsonl för eventuella felmeddelanden. Säkerställ att orchestratorn korrekt delegerar efter att brief skapats."
-      },
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 0.5,
-      "scope": "unknown",
-      "model": null
-    },
-    {
-      "id": "pattern-004",
-      "type": "pattern",
-      "title": "Datumstämplade briefs förhindrar förvirring",
-      "properties": {
-        "effekt": "Historik bevaras, rätt brief pekas ut med `--brief`-flaggan",
-        "kontext": "Session 9 — `today.md` överskrevs av misstag",
-        "lösning": "Briefs namnges `briefs/<YYYY-MM-DD>-<slug>.md`"
-      },
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 0.5,
-      "scope": "unknown",
-      "model": null
-    },
-    {
-      "id": "technique-052",
-      "type": "technique",
-      "title": "Gradual Forgetting: Logarithmic Compression for Context Windows",
-      "properties": {
-        "year": 2025,
-        "authors": "Billy Dickson et al.",
-        "arxiv_id": "2510.22109",
-        "relevance": "Historian could compress old runs/patterns logarithmically (older=more summary)",
-        "key_result": "Reduced perplexity; extends transformer long-context capability without architecture change",
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260309-2009-neuron-hq",
-          "timestamp": "2026-03-09T20:30:33.411Z"
-        },
-        "core_technique": "Input-level logarithmic compression: older tokens compressed more, recent tokens full resolution"
-      },
-      "created": "2026-03-09T20:30:33.411Z",
-      "updated": "2026-03-09T20:30:33.411Z",
-      "confidence": 0.8,
-      "scope": "universal",
-      "model": null
-    },
-    {
-      "id": "run-008",
-      "type": "run",
-      "title": "run-008",
-      "properties": {},
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 1,
-      "scope": "unknown",
-      "model": null
-    },
-    {
-      "id": "run-010",
-      "type": "run",
-      "title": "run-010",
-      "properties": {},
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 1,
-      "scope": "unknown",
-      "model": null
-    },
-    {
-      "id": "pattern-056",
-      "type": "pattern",
-      "title": "MCP tool graceful fallback for error scenarios",
-      "properties": {
-        "benefit": "Tool never timeout-errors; Claude Desktop always gets a response (empty list or keyword results)",
-        "keywords": [
-          "MCP",
-          "fallback",
-          "error-handling",
-          "robustness",
-          "graceful-degradation"
-        ],
-        "provenance": {
-          "agent": "historian",
-          "runId": "20260309-0643-neuron-hq",
-          "timestamp": "2026-03-09T07:11:59.934Z"
-        },
-        "description": "Implement try/catch in MCP tools with fallback to non-semantic methods when primary path fails",
-        "implementation": "Try semanticSearch(), catch errors and fallback to keyword-based findAuroraNodes()"
-      },
-      "created": "2026-03-09T07:11:59.934Z",
-      "updated": "2026-03-09T07:11:59.934Z",
-      "confidence": 0.8,
-      "scope": "universal",
-      "model": "claude-haiku-4-5-20251001"
-    },
-    {
-      "id": "run-Körning 20260223-2300-aurora-swarm-lab-resume",
-      "type": "run",
-      "title": "run-Körning 20260223-2300-aurora-swarm-lab-resume",
-      "properties": {},
-      "created": "2026-02-27T12:13:00.923Z",
-      "updated": "2026-02-27T12:13:00.923Z",
-      "confidence": 1,
-      "scope": "unknown",
-      "model": null
-    },
-    {
-      "id": "technique-079",
-      "type": "technique",
-      "title": "ReflexiCoder: Self-Reflection and Self-Correction via RL",
-      "properties": {
-        "year": 2026,
-        "authors": "Juyong Jiang et al.",
-        "arxiv_id": "2603.05863",
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260309-2239-neuron-hq",
-          "timestamp": "2026-03-09T23:15:29.177Z"
-        },
-        "core_concept": "Internalize structured reasoning (generation → reflection → correction) into model weights"
-      },
-      "created": "2026-03-09T23:15:29.177Z",
-      "updated": "2026-03-09T23:15:29.177Z",
-      "confidence": 0.79,
-      "scope": "universal",
-      "model": null
-    },
-    {
-      "id": "run-027",
-      "type": "run",
-      "title": "Körning 20260228-2311-neuron-hq — Manager Consult Knowledge Graph",
-      "properties": {
-        "date": "2026-02-28",
-        "result": "✅ 6/6 acceptanskriterier",
-        "target": "neuron-hq",
-        "summary": "Lade till Consult Knowledge Graph-planeringssteg i manager.md med graph_query-exempel. 7 nya tester, 498 totalt. Merge commit bd323fd.",
-        "provenance": {
-          "agent": "historian",
-          "runId": "20260228-2311-neuron-hq",
-          "timestamp": "2026-02-28T23:25:30.884Z"
-        },
-        "tests_after": 498,
-        "files_changed": 2,
-        "lines_changed": 62
-      },
-      "created": "2026-02-28T23:25:30.884Z",
-      "updated": "2026-02-28T23:25:30.884Z",
-      "confidence": 1,
-      "scope": "unknown",
-      "model": null
-    },
-    {
-      "id": "run-031",
-      "type": "run",
-      "title": "Körning 20260301-0734-neuron-hq — Quality metrics per run (S8)",
-      "properties": {
-        "date": "2026-03-01",
-        "commit": "50e8dc1",
-        "result": "✅ 7/7 acceptanskriterier",
-        "target": "neuron-hq",
-        "summary": "Skapade run-metrics.ts med computeRunMetrics(), parseTestCounts(), countDelegations(), aggregateDiffStats(). Integrerade i finalizeRun(). Uppdaterade historian.md med Quality Metrics Analysis. 21 nya tester, 598 totalt.",
-        "provenance": {
-          "agent": "historian",
-          "runId": "20260301-0734-neuron-hq",
-          "timestamp": "2026-03-01T07:53:40.277Z"
-        },
-        "tests_after": 598,
-        "files_changed": 5,
-        "lines_changed": 735
-      },
-      "created": "2026-03-01T07:53:40.277Z",
-      "updated": "2026-03-01T07:53:40.277Z",
-      "confidence": 1,
-      "scope": "unknown",
-      "model": null
     },
     {
       "id": "technique-044",
@@ -1847,32 +2095,6 @@
       "created": "2026-03-09T20:30:07.911Z",
       "updated": "2026-03-09T20:30:07.911Z",
       "confidence": 0.85,
-      "scope": "project-specific",
-      "model": null
-    },
-    {
-      "id": "pattern-042",
-      "type": "pattern",
-      "title": "Emergent: getAgentModels() accessor i policy.ts",
-      "properties": {
-        "effect": "Clean encapsulation of agent model configuration loading from limits.yaml.",
-        "context": "Körning 20260301-1544-neuron-hq — clean accessor för agent model config tillagd i policy.ts utöver brief-spec.",
-        "emergent": true,
-        "keywords": [
-          "policy",
-          "accessor",
-          "agent-models",
-          "emergent"
-        ],
-        "provenance": {
-          "agent": "historian",
-          "runId": "20260301-1544-neuron-hq",
-          "timestamp": "2026-03-01T16:20:55.746Z"
-        }
-      },
-      "created": "2026-03-01T16:20:55.746Z",
-      "updated": "2026-03-01T16:20:55.746Z",
-      "confidence": 0.6,
       "scope": "project-specific",
       "model": null
     },
@@ -1902,44 +2124,6 @@
       "model": null
     },
     {
-      "id": "pattern-099",
-      "type": "pattern",
-      "title": "Regex-based brief type classification (6 categories)",
-      "properties": {
-        "method": "classifyBrief() matches brief title against ordered regex patterns (first match wins)",
-        "benefit": "Simple heuristic classification covers 90%+ of briefs without LLM overhead. Deterministic and testable.",
-        "context": "Classify briefs into feature/refactor/bugfix/test/docs/infrastructure for performance tracking",
-        "fallback": "infrastructure if no match",
-        "keywords": "classification, regex, heuristic, pattern-matching",
-        "categories": [
-          "feature",
-          "refactor",
-          "bugfix",
-          "test",
-          "docs",
-          "infrastructure"
-        ],
-        "edge_cases": "Order matters (feature before infrastructure); ambiguous cases can be manually retagged",
-        "provenance": {
-          "agent": "historian",
-          "runId": "20260312-1329-neuron-hq",
-          "timestamp": "2026-03-12T13:59:28.465Z"
-        },
-        "regex_patterns": {
-          "docs": "/doc|readme/i",
-          "test": "/test/i",
-          "bugfix": "/fix|bug|broken/i",
-          "feature": "/feature|add|implement|new/i",
-          "refactor": "/refactor|clean|restructure/i"
-        }
-      },
-      "created": "2026-03-12T13:59:28.465Z",
-      "updated": "2026-03-12T13:59:28.465Z",
-      "confidence": 0.82,
-      "scope": "project-specific",
-      "model": "claude-haiku-4-5-20251001"
-    },
-    {
       "id": "technique-069",
       "type": "technique",
       "title": "LongCodeBench: Evaluating Coding LLMs at 1M Context",
@@ -1960,29 +2144,6 @@
       "updated": "2026-03-09T20:31:11.213Z",
       "confidence": 0.9,
       "scope": "universal",
-      "model": null
-    },
-    {
-      "id": "technique-047",
-      "type": "technique",
-      "title": "TraceCoder: Trace-Driven Multi-Agent Debugging",
-      "properties": {
-        "year": 2026,
-        "authors": "Jiangping Huang et al.",
-        "arxiv_id": "2602.06875",
-        "relevance": "Tester-agent: dynamic instrumentation reveals root cause; learn from mistakes across iterations",
-        "key_result": "34.43% relative improvement; 65.61% from iteration alone",
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260309-2009-neuron-hq",
-          "timestamp": "2026-03-09T20:30:21.795Z"
-        },
-        "core_technique": "Runtime traces + causal analysis + HLLM (historical lesson learning) + rollback per iteration"
-      },
-      "created": "2026-03-09T20:30:21.795Z",
-      "updated": "2026-03-09T20:30:21.795Z",
-      "confidence": 0.9,
-      "scope": "project-specific",
       "model": null
     },
     {
@@ -2007,26 +2168,28 @@
       "model": null
     },
     {
-      "id": "technique-041",
-      "type": "technique",
-      "title": "ExtAgents: Scaling External Knowledge via Multi-Agent Collaboration",
+      "id": "run-031",
+      "type": "run",
+      "title": "Körning 20260301-0734-neuron-hq — Quality metrics per run (S8)",
       "properties": {
-        "year": 2025,
-        "authors": "Zijun Liu et al.",
-        "arxiv_id": "2505.21471",
-        "relevance": "Scale swarm: multiple Researchers parallelize over large codebases, sync results",
-        "key_result": "Significant performance improvement with high parallelism despite single-agent context limits",
+        "date": "2026-03-01",
+        "commit": "50e8dc1",
+        "result": "✅ 7/7 acceptanskriterier",
+        "target": "neuron-hq",
+        "summary": "Skapade run-metrics.ts med computeRunMetrics(), parseTestCounts(), countDelegations(), aggregateDiffStats(). Integrerade i finalizeRun(). Uppdaterade historian.md med Quality Metrics Analysis. 21 nya tester, 598 totalt.",
         "provenance": {
-          "agent": "librarian",
-          "runId": "20260309-2009-neuron-hq",
-          "timestamp": "2026-03-09T20:30:07.344Z"
+          "agent": "historian",
+          "runId": "20260301-0734-neuron-hq",
+          "timestamp": "2026-03-01T07:53:40.277Z"
         },
-        "core_technique": "Multiple agents process knowledge segments in parallel; coordinate for multi-hop reasoning; no longer-context training needed"
+        "tests_after": 598,
+        "files_changed": 5,
+        "lines_changed": 735
       },
-      "created": "2026-03-09T20:30:07.344Z",
-      "updated": "2026-03-09T20:30:07.344Z",
-      "confidence": 0.85,
-      "scope": "project-specific",
+      "created": "2026-03-01T07:53:40.277Z",
+      "updated": "2026-03-01T07:53:40.277Z",
+      "confidence": 1,
+      "scope": "unknown",
       "model": null
     },
     {
@@ -2052,6 +2215,29 @@
       "created": "2026-03-10T05:52:15.901Z",
       "updated": "2026-03-10T05:52:15.901Z",
       "confidence": 0.85,
+      "scope": "universal",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
+      "id": "pattern-101",
+      "type": "pattern",
+      "title": "Retroaktiv backfill för datamigrering",
+      "properties": {
+        "method": "Lägg till --backfill CLI-flagga som itererar genom alla befintliga run-filer i kronologisk ordning och uppdaterar databastabeller retroaktivt",
+        "benefit": "Möjliggör gradvis datamigration utan att förlora historiska datapoäng. Kan köras som engångsoperation eller regelbundna jobb.",
+        "context": "När nya datakolumner eller tabeller introduceras måste historiska data migreras från filsystem till databas",
+        "keywords": "data-migration, retroactive-update, batch-processing, file-to-db",
+        "provenance": {
+          "agent": "historian",
+          "runId": "20260312-1329-neuron-hq",
+          "timestamp": "2026-03-12T14:00:01.803Z"
+        },
+        "reusable_for": "Framtida kolumn-expansioner, schemaupgradering, data-normalisering",
+        "example_usage": "npx tsx src/cli.ts db-backfill --table run_beliefs --from-files runs/*/metrics.json"
+      },
+      "created": "2026-03-12T14:00:01.803Z",
+      "updated": "2026-03-12T14:00:01.803Z",
+      "confidence": 0.8,
       "scope": "universal",
       "model": "claude-haiku-4-5-20251001"
     },
@@ -2135,81 +2321,42 @@
       "model": null
     },
     {
-      "id": "technique-091",
-      "type": "technique",
-      "title": "Towards a Neural Debugger for Python",
+      "id": "pattern-099",
+      "type": "pattern",
+      "title": "Regex-based brief type classification (6 categories)",
       "properties": {
-        "year": 2026,
-        "authors": "Maximilian Beck et al.",
-        "arxiv_id": "2603.09951",
-        "keywords": [
-          "debugging",
-          "neural-debugger",
-          "execution-trace",
-          "code-understanding",
-          "agent"
+        "method": "classifyBrief() matches brief title against ordered regex patterns (first match wins)",
+        "benefit": "Simple heuristic classification covers 90%+ of briefs without LLM overhead. Deterministic and testable.",
+        "context": "Classify briefs into feature/refactor/bugfix/test/docs/infrastructure for performance tracking",
+        "fallback": "infrastructure if no match",
+        "keywords": "classification, regex, heuristic, pattern-matching",
+        "categories": [
+          "feature",
+          "refactor",
+          "bugfix",
+          "test",
+          "docs",
+          "infrastructure"
         ],
-        "relevance": "Enables agentic coding systems with sophisticated debugging and state inspection capabilities",
-        "key_result": "Strong performance on CruxEval for both output and input prediction tasks",
+        "edge_cases": "Order matters (feature before infrastructure); ambiguous cases can be manually retagged",
         "provenance": {
-          "agent": "librarian",
-          "runId": "20260311-1941-neuron-hq",
-          "timestamp": "2026-03-11T20:06:00.134Z"
+          "agent": "historian",
+          "runId": "20260312-1329-neuron-hq",
+          "timestamp": "2026-03-12T13:59:28.465Z"
         },
-        "core_concept": "LLM-based debuggers that emulate traditional debuggers with interactive control and forward/inverse execution prediction",
-        "related_techniques": [
-          "TraceCoder",
-          "Wink",
-          "XAI-for-Coding-Agent-Failures"
-        ]
+        "regex_patterns": {
+          "docs": "/doc|readme/i",
+          "test": "/test/i",
+          "bugfix": "/fix|bug|broken/i",
+          "feature": "/feature|add|implement|new/i",
+          "refactor": "/refactor|clean|restructure/i"
+        }
       },
-      "created": "2026-03-11T20:06:00.134Z",
-      "updated": "2026-03-11T20:06:15.381Z",
-      "confidence": 0.85,
-      "scope": "universal",
-      "model": null
-    },
-    {
-      "id": "error-019",
-      "type": "error",
-      "title": "Merger-agentens verifieringskommandon blockeras av policy",
-      "properties": {
-        "orsak": "Merger vill verifiera att workspace-filer matchar target innan kopiering, men dessa kommandon finns inte i target-allowlisten. `diff` med absoluta sökvägar blockeras av `bash_exec`, och `md5`/`git hash-object` blockeras av `bash_exec_in_target`.",
-        "status": "✅ Löst — `diff` tillagd i `policy/bash_allowlist.txt` (commit 4dc2c33, körning #21). Workaround i `prompts/merger.md` med `wc -l`/`grep` (commit 9f68e1e, körning #20) kvarstår som fallback.",
-        "session": "20260223-1620-neuron-hq",
-        "symptom": "Merger försökte köra `diff`, `md5` och `git hash-object` på target-repot via `bash_exec` och `bash_exec_in_target` — alla 6 anrop blockerades med \"BLOCKED: not in allowlist\"",
-        "keywords": [
-          "merger",
-          "BLOCKED",
-          "allowlist",
-          "policy",
-          "diff",
-          "bash_exec_in_target"
-        ],
-        "lösning": "Merger bör hoppa över pre-merge-verifiering och istället verifiera post-merge via `git diff HEAD~1..HEAD` i target (som redan fungerar). Alternativt: lägg till `diff`, `md5`, `git hash-object` i target-allowlisten."
-      },
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 0.5,
-      "scope": "unknown",
-      "model": null
-    },
-    {
-      "id": "error-010",
-      "type": "error",
-      "title": "Bash-kommentarer i Manager-kommandon triggar policyblockering",
-      "properties": {
-        "orsak": "Kommandon innehöll inledande `#`-kommentarer (t.ex. `# Check for type hints coverage\\ngrep -rn ...`), vilket troligen inte matchade den tillåtna kommandomönsterlistan",
-        "status": "✅ Löst (session 21: explicit \"Never # comments\" instruktion tillagd i prompts/manager.md)",
-        "session": "20260222-1757-aurora-swarm-lab",
-        "symptom": "Tre bash_exec-anrop från Manager blockerades med \"BLOCKED: not in allowlist\"",
-        "lösning": "Agenter bör köra rena kommandon utan inbäddade kommentarer. Alternativt bör allowlisten uppdateras för att tillåta kommentarer i bash-kommandon."
-      },
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 0.5,
-      "scope": "unknown",
-      "model": null
+      "created": "2026-03-12T13:59:28.465Z",
+      "updated": "2026-03-12T13:59:28.465Z",
+      "confidence": 0.82,
+      "scope": "project-specific",
+      "model": "claude-haiku-4-5-20251001"
     },
     {
       "id": "pattern-081",
@@ -2238,6 +2385,23 @@
       "model": "claude-haiku-4-5-20251001"
     },
     {
+      "id": "error-010",
+      "type": "error",
+      "title": "Bash-kommentarer i Manager-kommandon triggar policyblockering",
+      "properties": {
+        "orsak": "Kommandon innehöll inledande `#`-kommentarer (t.ex. `# Check for type hints coverage\\ngrep -rn ...`), vilket troligen inte matchade den tillåtna kommandomönsterlistan",
+        "status": "✅ Löst (session 21: explicit \"Never # comments\" instruktion tillagd i prompts/manager.md)",
+        "session": "20260222-1757-aurora-swarm-lab",
+        "symptom": "Tre bash_exec-anrop från Manager blockerades med \"BLOCKED: not in allowlist\"",
+        "lösning": "Agenter bör köra rena kommandon utan inbäddade kommentarer. Alternativt bör allowlisten uppdateras för att tillåta kommentarer i bash-kommandon."
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5,
+      "scope": "unknown",
+      "model": null
+    },
+    {
       "id": "error-025",
       "type": "error",
       "title": "per-agent-limits.test.ts förväntar föråldrat värde",
@@ -2254,6 +2418,31 @@
           "hårdkodade-värden"
         ],
         "lösning": "Uppdatera testets assertions att matcha nuvarande `limits.yaml`-värden, eller omskriv testet att läsa limits.yaml dynamiskt istället för hårdkodade förväntningar."
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "error-019",
+      "type": "error",
+      "title": "Merger-agentens verifieringskommandon blockeras av policy",
+      "properties": {
+        "orsak": "Merger vill verifiera att workspace-filer matchar target innan kopiering, men dessa kommandon finns inte i target-allowlisten. `diff` med absoluta sökvägar blockeras av `bash_exec`, och `md5`/`git hash-object` blockeras av `bash_exec_in_target`.",
+        "status": "✅ Löst — `diff` tillagd i `policy/bash_allowlist.txt` (commit 4dc2c33, körning #21). Workaround i `prompts/merger.md` med `wc -l`/`grep` (commit 9f68e1e, körning #20) kvarstår som fallback.",
+        "session": "20260223-1620-neuron-hq",
+        "symptom": "Merger försökte köra `diff`, `md5` och `git hash-object` på target-repot via `bash_exec` och `bash_exec_in_target` — alla 6 anrop blockerades med \"BLOCKED: not in allowlist\"",
+        "keywords": [
+          "merger",
+          "BLOCKED",
+          "allowlist",
+          "policy",
+          "diff",
+          "bash_exec_in_target"
+        ],
+        "lösning": "Merger bör hoppa över pre-merge-verifiering och istället verifiera post-merge via `git diff HEAD~1..HEAD` i target (som redan fungerar). Alternativt: lägg till `diff`, `md5`, `git hash-object` i target-allowlisten."
       },
       "created": "2026-02-27T12:13:00.919Z",
       "updated": "2026-02-27T12:13:00.919Z",
@@ -2548,6 +2737,44 @@
       "model": null
     },
     {
+      "id": "pattern-006",
+      "type": "pattern",
+      "title": "Researcher: multi-signal kodbasanalys ger rika förbättringsförslag",
+      "properties": {
+        "effekt": "Hög kvalitet på leverabeln — varje förslag backas av kvantitativa data snarare än subjektiva omdömen. Gör det möjligt att direkt prioritera och agera.",
+        "kontext": "Körning 20260222-1757 — Researcher analyserade aurora-swarm-lab utan kodändringar",
+        "lösning": "Researcher kombinerade tre signaltyper: (1) filläsning av nyckelfiler (config, core, moduler), (2) kvantitativa bash-grep-analyser (radräkning, mönsterfrekvens som `load_settings()` 46 gånger, `except Exception` 89 gånger), (3) arkitekturella observationer (2590-raders god-modul, saknad conftest.py). Resulterade i ideas.md med 10 prioriterade förslag med impact/effort/risk-bedömning och konkreta tradeoffs."
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.7,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "pattern-017",
+      "type": "pattern",
+      "title": "Merger NO-OP-detektion vid redan mergade ändringar",
+      "properties": {
+        "effekt": "Undviker tomma commits i git-historiken och ger tydlig feedback till Historian om vad som hände. Resume-körningar som är redundanta avslutas rent.",
+        "kontext": "Körning 20260223-2218-resume — en resume-körning startade trots att originalköningens merge redan var klar. Merger kopierade filer men `diff` visade identiskt innehåll.",
+        "keywords": [
+          "merger",
+          "no-op",
+          "resume",
+          "diff",
+          "identical",
+          "idempotent"
+        ],
+        "lösning": "Merger jämförde workspace- och target-filer med `diff`, detekterade att de var byte-identiska, och rapporterade \"NO-OP MERGE\" utan att skapa en tom commit. merge_summary.md dokumenterade tydligt att ändringarna redan fanns."
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.7,
+      "scope": "unknown",
+      "model": null
+    },
+    {
       "id": "technique-023",
       "type": "technique",
       "title": "Excalibur: Difficulty-Aware Planning for LLM Agents",
@@ -2603,44 +2830,6 @@
       "updated": "2026-03-11T20:06:15.665Z",
       "confidence": 0.8,
       "scope": "project-specific",
-      "model": null
-    },
-    {
-      "id": "pattern-006",
-      "type": "pattern",
-      "title": "Researcher: multi-signal kodbasanalys ger rika förbättringsförslag",
-      "properties": {
-        "effekt": "Hög kvalitet på leverabeln — varje förslag backas av kvantitativa data snarare än subjektiva omdömen. Gör det möjligt att direkt prioritera och agera.",
-        "kontext": "Körning 20260222-1757 — Researcher analyserade aurora-swarm-lab utan kodändringar",
-        "lösning": "Researcher kombinerade tre signaltyper: (1) filläsning av nyckelfiler (config, core, moduler), (2) kvantitativa bash-grep-analyser (radräkning, mönsterfrekvens som `load_settings()` 46 gånger, `except Exception` 89 gånger), (3) arkitekturella observationer (2590-raders god-modul, saknad conftest.py). Resulterade i ideas.md med 10 prioriterade förslag med impact/effort/risk-bedömning och konkreta tradeoffs."
-      },
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 0.7,
-      "scope": "unknown",
-      "model": null
-    },
-    {
-      "id": "pattern-017",
-      "type": "pattern",
-      "title": "Merger NO-OP-detektion vid redan mergade ändringar",
-      "properties": {
-        "effekt": "Undviker tomma commits i git-historiken och ger tydlig feedback till Historian om vad som hände. Resume-körningar som är redundanta avslutas rent.",
-        "kontext": "Körning 20260223-2218-resume — en resume-körning startade trots att originalköningens merge redan var klar. Merger kopierade filer men `diff` visade identiskt innehåll.",
-        "keywords": [
-          "merger",
-          "no-op",
-          "resume",
-          "diff",
-          "identical",
-          "idempotent"
-        ],
-        "lösning": "Merger jämförde workspace- och target-filer med `diff`, detekterade att de var byte-identiska, och rapporterade \"NO-OP MERGE\" utan att skapa en tom commit. merge_summary.md dokumenterade tydligt att ändringarna redan fanns."
-      },
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 0.7,
-      "scope": "unknown",
       "model": null
     },
     {
@@ -2887,6 +3076,51 @@
       "model": null
     },
     {
+      "id": "technique-050",
+      "type": "technique",
+      "title": "EMPO²: Exploratory Memory-Augmented On/Off-Policy Optimization",
+      "properties": {
+        "year": 2026,
+        "authors": "Zeyuan Liu et al.",
+        "arxiv_id": "2602.23008",
+        "relevance": "Agents should work without patterns.md but perform better with it; memory as optimization not requirement",
+        "key_result": "128.6% ScienceWorld, 11.3% WebShop improvement; OOD adaptation with few attempts",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260309-2009-neuron-hq",
+          "timestamp": "2026-03-09T20:30:22.301Z"
+        },
+        "core_technique": "Hybrid RL: memory supports exploration, on/off-policy ensures robustness without memory"
+      },
+      "created": "2026-03-09T20:30:22.301Z",
+      "updated": "2026-03-09T20:30:22.301Z",
+      "confidence": 0.85,
+      "scope": "universal",
+      "model": null
+    },
+    {
+      "id": "pattern-012",
+      "type": "pattern",
+      "title": "Audit.jsonl som sanningskälla innan ⚠️-poster skapas",
+      "properties": {
+        "effekt": "Förhindrar falska larm som sedan kräver en hel körning att stänga. I detta fall hade två felaktiga ⚠️-poster överlevt i 4 körningar innan de korrigerades.",
+        "kontext": "Körning 20260223-0728 — Två ⚠️-poster i errors.md visade sig vara falska larm. Researcher verifierade audit.jsonl och bekräftade att Librarian faktiskt körde och skrev 8 entries, men Historian hade aldrig kontrollerat loggen.",
+        "keywords": [
+          "audit.jsonl",
+          "errors.md",
+          "historian",
+          "falska-larm",
+          "verifiering"
+        ],
+        "lösning": "Innan en ⚠️-post skrivs till errors.md ska Historian/Researcher alltid läsa audit.jsonl för den aktuella körningen och verifiera vad som faktiskt hände — inte bara förlita sig på report.md eller avsaknad av synliga artefakter."
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5,
+      "scope": "unknown",
+      "model": null
+    },
+    {
       "id": "run-025",
       "type": "run",
       "title": "Körning 20260228-1442-neuron-hq — Reviewer → Manager handoff",
@@ -2940,68 +3174,6 @@
       "confidence": 0.95,
       "scope": "universal",
       "model": "claude-haiku-4-5-20251001"
-    },
-    {
-      "id": "technique-050",
-      "type": "technique",
-      "title": "EMPO²: Exploratory Memory-Augmented On/Off-Policy Optimization",
-      "properties": {
-        "year": 2026,
-        "authors": "Zeyuan Liu et al.",
-        "arxiv_id": "2602.23008",
-        "relevance": "Agents should work without patterns.md but perform better with it; memory as optimization not requirement",
-        "key_result": "128.6% ScienceWorld, 11.3% WebShop improvement; OOD adaptation with few attempts",
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260309-2009-neuron-hq",
-          "timestamp": "2026-03-09T20:30:22.301Z"
-        },
-        "core_technique": "Hybrid RL: memory supports exploration, on/off-policy ensures robustness without memory"
-      },
-      "created": "2026-03-09T20:30:22.301Z",
-      "updated": "2026-03-09T20:30:22.301Z",
-      "confidence": 0.85,
-      "scope": "universal",
-      "model": null
-    },
-    {
-      "id": "pattern-012",
-      "type": "pattern",
-      "title": "Audit.jsonl som sanningskälla innan ⚠️-poster skapas",
-      "properties": {
-        "effekt": "Förhindrar falska larm som sedan kräver en hel körning att stänga. I detta fall hade två felaktiga ⚠️-poster överlevt i 4 körningar innan de korrigerades.",
-        "kontext": "Körning 20260223-0728 — Två ⚠️-poster i errors.md visade sig vara falska larm. Researcher verifierade audit.jsonl och bekräftade att Librarian faktiskt körde och skrev 8 entries, men Historian hade aldrig kontrollerat loggen.",
-        "keywords": [
-          "audit.jsonl",
-          "errors.md",
-          "historian",
-          "falska-larm",
-          "verifiering"
-        ],
-        "lösning": "Innan en ⚠️-post skrivs till errors.md ska Historian/Researcher alltid läsa audit.jsonl för den aktuella körningen och verifiera vad som faktiskt hände — inte bara förlita sig på report.md eller avsaknad av synliga artefakter."
-      },
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 0.5,
-      "scope": "unknown",
-      "model": null
-    },
-    {
-      "id": "error-001",
-      "type": "error",
-      "title": "Context overflow i Tester-agenten",
-      "properties": {
-        "orsak": "Full pytest-output med coverage-rapport överskred context-fönstret",
-        "status": "✅ Löst",
-        "session": "11",
-        "symptom": "Tester-agenten kraschade mitt i körningen",
-        "lösning": "Lade till `-q --cov-report=term` i tester-prompten + max 30 rader output"
-      },
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 0.5,
-      "scope": "unknown",
-      "model": null
     },
     {
       "id": "technique-027",
@@ -3110,6 +3282,57 @@
       "model": null
     },
     {
+      "id": "error-001",
+      "type": "error",
+      "title": "Context overflow i Tester-agenten",
+      "properties": {
+        "orsak": "Full pytest-output med coverage-rapport överskred context-fönstret",
+        "status": "✅ Löst",
+        "session": "11",
+        "symptom": "Tester-agenten kraschade mitt i körningen",
+        "lösning": "Lade till `-q --cov-report=term` i tester-prompten + max 30 rader output"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "run-016",
+      "type": "run",
+      "title": "run-016",
+      "properties": {},
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 1,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "technique-028",
+      "type": "technique",
+      "title": "AgenticSCR: Autonomous Agentic Secure Code Review",
+      "properties": {
+        "year": 2026,
+        "authors": "Wachiraphan Charoenwet et al.",
+        "arxiv_id": "2601.19138",
+        "relevance": "Strengthen Reviewer-agent with security-focused patterns; semantic memory for vulnerability mosaics",
+        "key_result": "153% higher correct review comments vs LLM baseline; outperforms SAST on 4/5 vulnerability types",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260309-2009-neuron-hq",
+          "timestamp": "2026-03-09T20:29:39.168Z"
+        },
+        "core_technique": "LLM agents with security-focused semantic memory; autonomous code navigation and vulnerability detection at pre-commit"
+      },
+      "created": "2026-03-09T20:29:39.168Z",
+      "updated": "2026-03-09T20:29:39.168Z",
+      "confidence": 0.9,
+      "scope": "project-specific",
+      "model": null
+    },
+    {
       "id": "run-014",
       "type": "run",
       "title": "run-014",
@@ -3177,40 +3400,6 @@
       "model": null
     },
     {
-      "id": "run-016",
-      "type": "run",
-      "title": "run-016",
-      "properties": {},
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 1,
-      "scope": "unknown",
-      "model": null
-    },
-    {
-      "id": "technique-028",
-      "type": "technique",
-      "title": "AgenticSCR: Autonomous Agentic Secure Code Review",
-      "properties": {
-        "year": 2026,
-        "authors": "Wachiraphan Charoenwet et al.",
-        "arxiv_id": "2601.19138",
-        "relevance": "Strengthen Reviewer-agent with security-focused patterns; semantic memory for vulnerability mosaics",
-        "key_result": "153% higher correct review comments vs LLM baseline; outperforms SAST on 4/5 vulnerability types",
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260309-2009-neuron-hq",
-          "timestamp": "2026-03-09T20:29:39.168Z"
-        },
-        "core_technique": "LLM agents with security-focused semantic memory; autonomous code navigation and vulnerability detection at pre-commit"
-      },
-      "created": "2026-03-09T20:29:39.168Z",
-      "updated": "2026-03-09T20:29:39.168Z",
-      "confidence": 0.9,
-      "scope": "project-specific",
-      "model": null
-    },
-    {
       "id": "technique-020",
       "type": "technique",
       "title": "Graph-based Agent Memory: Taxonomy, Techniques, and Applications",
@@ -3231,29 +3420,6 @@
       "updated": "2026-03-09T20:29:16.558Z",
       "confidence": 0.9,
       "scope": "universal",
-      "model": null
-    },
-    {
-      "id": "technique-054",
-      "type": "technique",
-      "title": "Memory Pointers: Beyond Context Window Overflow",
-      "properties": {
-        "year": 2025,
-        "authors": "Anton Bulle Labate et al.",
-        "arxiv_id": "2511.22729",
-        "relevance": "Researcher: store large code files externally, reference via pointers instead of dumping content",
-        "key_result": "~7x token reduction with full capability retention; validated on materials science apps",
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260309-2009-neuron-hq",
-          "timestamp": "2026-03-09T20:30:33.779Z"
-        },
-        "core_technique": "Replace raw tool outputs in context with external references; 7x fewer tokens; preserves functionality"
-      },
-      "created": "2026-03-09T20:30:33.779Z",
-      "updated": "2026-03-09T20:30:33.779Z",
-      "confidence": 0.9,
-      "scope": "project-specific",
       "model": null
     },
     {
@@ -3346,20 +3512,26 @@
       "model": null
     },
     {
-      "id": "error-004",
-      "type": "error",
-      "title": "Researcher skapade inte knowledge.md",
+      "id": "technique-054",
+      "type": "technique",
+      "title": "Memory Pointers: Beyond Context Window Overflow",
       "properties": {
-        "orsak": "Researcher-prompten betonade ideas.md mer än knowledge.md",
-        "status": "✅ Löst (körning #8: Required Outputs-sektion tillagd i researcher.md med knowledge.md som mandatory)",
-        "session": "13-prep (körning 20260222-1457)",
-        "symptom": "knowledge.md saknades som körningsartefakt",
-        "lösning": "Förtydliga att knowledge.md är obligatorisk i Researcher-prompten"
+        "year": 2025,
+        "authors": "Anton Bulle Labate et al.",
+        "arxiv_id": "2511.22729",
+        "relevance": "Researcher: store large code files externally, reference via pointers instead of dumping content",
+        "key_result": "~7x token reduction with full capability retention; validated on materials science apps",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260309-2009-neuron-hq",
+          "timestamp": "2026-03-09T20:30:33.779Z"
+        },
+        "core_technique": "Replace raw tool outputs in context with external references; 7x fewer tokens; preserves functionality"
       },
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 0.5,
-      "scope": "unknown",
+      "created": "2026-03-09T20:30:33.779Z",
+      "updated": "2026-03-09T20:30:33.779Z",
+      "confidence": 0.9,
+      "scope": "project-specific",
       "model": null
     },
     {
@@ -3469,6 +3641,23 @@
       "created": "2026-02-28T23:23:43.274Z",
       "updated": "2026-02-28T23:23:51.126Z",
       "confidence": 0.85,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "error-004",
+      "type": "error",
+      "title": "Researcher skapade inte knowledge.md",
+      "properties": {
+        "orsak": "Researcher-prompten betonade ideas.md mer än knowledge.md",
+        "status": "✅ Löst (körning #8: Required Outputs-sektion tillagd i researcher.md med knowledge.md som mandatory)",
+        "session": "13-prep (körning 20260222-1457)",
+        "symptom": "knowledge.md saknades som körningsartefakt",
+        "lösning": "Förtydliga att knowledge.md är obligatorisk i Researcher-prompten"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5,
       "scope": "unknown",
       "model": null
     },
@@ -3625,6 +3814,28 @@
       "model": null
     },
     {
+      "id": "pattern-008",
+      "type": "pattern",
+      "title": "Implementer: direktskrivning slår transform-skript",
+      "properties": {
+        "effekt": "Snabbare och pålitligare — inga policy-blockeringar, inga mellansteg som kan misslyckas. write_file till workspace-filer är alltid tillåtet.",
+        "kontext": "Körning 20260222-2113 — Implementer försökte först skapa ett Python-transform-skript för att mekaniskt refaktorera test_mcp_server.py, men write_file till /tmp blockerades och bash med inline-skript blev för komplext",
+        "keywords": [
+          "implementer",
+          "write_file",
+          "transform-skript",
+          "policy",
+          "refaktorering"
+        ],
+        "lösning": "Implementer gjorde git checkout, läste hela originalfilen, applicerade ändringarna mentalt, och skrev hela den refaktorerade filen med en enda write_file-anrop direkt till target-filen"
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5,
+      "scope": "unknown",
+      "model": null
+    },
+    {
       "id": "technique-029",
       "type": "technique",
       "title": "MECW: Maximum Effective Context Window for Real World LLMs",
@@ -3668,28 +3879,6 @@
       "updated": "2026-03-09T20:29:39.562Z",
       "confidence": 0.9,
       "scope": "universal",
-      "model": null
-    },
-    {
-      "id": "pattern-008",
-      "type": "pattern",
-      "title": "Implementer: direktskrivning slår transform-skript",
-      "properties": {
-        "effekt": "Snabbare och pålitligare — inga policy-blockeringar, inga mellansteg som kan misslyckas. write_file till workspace-filer är alltid tillåtet.",
-        "kontext": "Körning 20260222-2113 — Implementer försökte först skapa ett Python-transform-skript för att mekaniskt refaktorera test_mcp_server.py, men write_file till /tmp blockerades och bash med inline-skript blev för komplext",
-        "keywords": [
-          "implementer",
-          "write_file",
-          "transform-skript",
-          "policy",
-          "refaktorering"
-        ],
-        "lösning": "Implementer gjorde git checkout, läste hela originalfilen, applicerade ändringarna mentalt, och skrev hela den refaktorerade filen med en enda write_file-anrop direkt till target-filen"
-      },
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 0.5,
-      "scope": "unknown",
       "model": null
     },
     {
@@ -3984,6 +4173,52 @@
       "model": "claude-haiku-4-5-20251001"
     },
     {
+      "id": "technique-032",
+      "type": "technique",
+      "title": "xMemory: Beyond RAG for Agent Memory — Retrieval by Decoupling and Aggregation",
+      "properties": {
+        "year": 2026,
+        "authors": "Zhanghao Hu et al.",
+        "arxiv_id": "2602.02007",
+        "relevance": "Two-step memory read: summary first, then details on demand (not full files)",
+        "key_result": "Consistent improvements on LoCoMo, PerLTQA with token savings",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260309-2009-neuron-hq",
+          "timestamp": "2026-03-09T20:29:39.914Z"
+        },
+        "core_technique": "Hierarchical memory units via sparsity-semantics goal; top-down retrieval: teme->episode->raw; doesn't rely on top-k similarity"
+      },
+      "created": "2026-03-09T20:29:39.914Z",
+      "updated": "2026-03-09T20:29:39.914Z",
+      "confidence": 0.85,
+      "scope": "universal",
+      "model": null
+    },
+    {
+      "id": "technique-031",
+      "type": "technique",
+      "title": "Live-Evo: Online Evolution of Agentic Memory from Continuous Feedback",
+      "properties": {
+        "year": 2026,
+        "authors": "Yaolun Zhang et al.",
+        "arxiv_id": "2602.02369",
+        "relevance": "Historian can auto-downweight inaccurate patterns and upgrade effective ones without retraining",
+        "key_result": "20.8% Brier score improvement, 12.9% ROI improvement over 10 weeks",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260309-2009-neuron-hq",
+          "timestamp": "2026-03-09T20:29:39.740Z"
+        },
+        "core_technique": "Online learning from continuous streams; separates 'what happened' (Experience Bank) from 'how to use' (Meta-Guideline Bank); weights experiences by helpfulness"
+      },
+      "created": "2026-03-09T20:29:39.740Z",
+      "updated": "2026-03-09T20:29:39.740Z",
+      "confidence": 0.9,
+      "scope": "universal",
+      "model": null
+    },
+    {
       "id": "pattern-050",
       "type": "pattern",
       "title": "Extrahera delad affärslogik till src/core för återanvändning",
@@ -4039,52 +4274,6 @@
       "confidence": 0.9,
       "scope": "universal",
       "model": "claude-haiku-4-5-20251001"
-    },
-    {
-      "id": "technique-032",
-      "type": "technique",
-      "title": "xMemory: Beyond RAG for Agent Memory — Retrieval by Decoupling and Aggregation",
-      "properties": {
-        "year": 2026,
-        "authors": "Zhanghao Hu et al.",
-        "arxiv_id": "2602.02007",
-        "relevance": "Two-step memory read: summary first, then details on demand (not full files)",
-        "key_result": "Consistent improvements on LoCoMo, PerLTQA with token savings",
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260309-2009-neuron-hq",
-          "timestamp": "2026-03-09T20:29:39.914Z"
-        },
-        "core_technique": "Hierarchical memory units via sparsity-semantics goal; top-down retrieval: teme->episode->raw; doesn't rely on top-k similarity"
-      },
-      "created": "2026-03-09T20:29:39.914Z",
-      "updated": "2026-03-09T20:29:39.914Z",
-      "confidence": 0.85,
-      "scope": "universal",
-      "model": null
-    },
-    {
-      "id": "technique-031",
-      "type": "technique",
-      "title": "Live-Evo: Online Evolution of Agentic Memory from Continuous Feedback",
-      "properties": {
-        "year": 2026,
-        "authors": "Yaolun Zhang et al.",
-        "arxiv_id": "2602.02369",
-        "relevance": "Historian can auto-downweight inaccurate patterns and upgrade effective ones without retraining",
-        "key_result": "20.8% Brier score improvement, 12.9% ROI improvement over 10 weeks",
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260309-2009-neuron-hq",
-          "timestamp": "2026-03-09T20:29:39.740Z"
-        },
-        "core_technique": "Online learning from continuous streams; separates 'what happened' (Experience Bank) from 'how to use' (Meta-Guideline Bank); weights experiences by helpfulness"
-      },
-      "created": "2026-03-09T20:29:39.740Z",
-      "updated": "2026-03-09T20:29:39.740Z",
-      "confidence": 0.9,
-      "scope": "universal",
-      "model": null
     },
     {
       "id": "pattern-023",
@@ -4162,29 +4351,6 @@
       "updated": "2026-02-27T12:13:00.919Z",
       "confidence": 0.7,
       "scope": "unknown",
-      "model": null
-    },
-    {
-      "id": "technique-057",
-      "type": "technique",
-      "title": "LoCoMo-Plus: Beyond-Factual Cognitive Memory Evaluation",
-      "properties": {
-        "year": 2026,
-        "authors": "Yifei Li et al.",
-        "arxiv_id": "2602.10715",
-        "relevance": "Patterns.md may store implicit rules hard to trigger with keyword search; semantic retrieval needed",
-        "key_result": "All models struggle with cognitive memory; conventional metrics insufficient",
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260309-2009-neuron-hq",
-          "timestamp": "2026-03-09T20:30:45.592Z"
-        },
-        "core_technique": "Benchmark for 'cognitive memory': retaining impliciti constraints/values across cue-trigger disconnect"
-      },
-      "created": "2026-03-09T20:30:45.592Z",
-      "updated": "2026-03-09T20:30:45.592Z",
-      "confidence": 0.85,
-      "scope": "universal",
       "model": null
     },
     {
@@ -4287,6 +4453,29 @@
       "model": null
     },
     {
+      "id": "technique-057",
+      "type": "technique",
+      "title": "LoCoMo-Plus: Beyond-Factual Cognitive Memory Evaluation",
+      "properties": {
+        "year": 2026,
+        "authors": "Yifei Li et al.",
+        "arxiv_id": "2602.10715",
+        "relevance": "Patterns.md may store implicit rules hard to trigger with keyword search; semantic retrieval needed",
+        "key_result": "All models struggle with cognitive memory; conventional metrics insufficient",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260309-2009-neuron-hq",
+          "timestamp": "2026-03-09T20:30:45.592Z"
+        },
+        "core_technique": "Benchmark for 'cognitive memory': retaining impliciti constraints/values across cue-trigger disconnect"
+      },
+      "created": "2026-03-09T20:30:45.592Z",
+      "updated": "2026-03-09T20:30:45.592Z",
+      "confidence": 0.85,
+      "scope": "universal",
+      "model": null
+    },
+    {
       "id": "error-015",
       "type": "error",
       "title": "Librarian-sökvägsproblem: Manager sökte output i workspace istället för delat minne",
@@ -4350,30 +4539,6 @@
       "model": "claude-haiku-4-5-20251001"
     },
     {
-      "id": "run-033",
-      "type": "run",
-      "title": "Körning 20260301-0834-neuron-hq — Hierarkisk kontext (S7)",
-      "properties": {
-        "date": "2026-03-01",
-        "result": "✅ 9/9 acceptanskriterier",
-        "target": "neuron-hq",
-        "summary": "Implementerade core/archive prompt-uppdelning med parsePromptHierarchy(), loadPromptHierarchy(), buildHierarchicalPrompt(). 6 ARCHIVE-sektioner i manager.md, 4 i reviewer.md. Manager-core reducerad 52.5%. 650 tester, merge commit 84dc0fb.",
-        "provenance": {
-          "agent": "historian",
-          "runId": "20260301-0834-neuron-hq",
-          "timestamp": "2026-03-01T09:06:34.418Z"
-        },
-        "tests_after": 650,
-        "files_changed": 6,
-        "lines_changed": 358
-      },
-      "created": "2026-03-01T09:06:34.418Z",
-      "updated": "2026-03-01T09:06:34.418Z",
-      "confidence": 1,
-      "scope": "unknown",
-      "model": null
-    },
-    {
       "id": "technique-036",
       "type": "technique",
       "title": "CAM: Constructivist View of Agentic Memory",
@@ -4418,6 +4583,53 @@
       "updated": "2026-03-01T16:20:07.150Z",
       "confidence": 1,
       "scope": "project-specific",
+      "model": null
+    },
+    {
+      "id": "run-033",
+      "type": "run",
+      "title": "Körning 20260301-0834-neuron-hq — Hierarkisk kontext (S7)",
+      "properties": {
+        "date": "2026-03-01",
+        "result": "✅ 9/9 acceptanskriterier",
+        "target": "neuron-hq",
+        "summary": "Implementerade core/archive prompt-uppdelning med parsePromptHierarchy(), loadPromptHierarchy(), buildHierarchicalPrompt(). 6 ARCHIVE-sektioner i manager.md, 4 i reviewer.md. Manager-core reducerad 52.5%. 650 tester, merge commit 84dc0fb.",
+        "provenance": {
+          "agent": "historian",
+          "runId": "20260301-0834-neuron-hq",
+          "timestamp": "2026-03-01T09:06:34.418Z"
+        },
+        "tests_after": 650,
+        "files_changed": 6,
+        "lines_changed": 358
+      },
+      "created": "2026-03-01T09:06:34.418Z",
+      "updated": "2026-03-01T09:06:34.418Z",
+      "confidence": 1,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "technique-035",
+      "type": "technique",
+      "title": "E-mem: Multi-agent Episodic Context Reconstruction",
+      "properties": {
+        "year": 2026,
+        "authors": "Kaixiang Wang et al.",
+        "arxiv_id": "2601.21714",
+        "relevance": "Segment memory across agents; each reasons locally then aggregates (vs shared retrieval)",
+        "key_result": "54% F1 on LoCoMo (+7.75% over GAM); 70% token reduction",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260309-2009-neuron-hq",
+          "timestamp": "2026-03-09T20:29:53.569Z"
+        },
+        "core_technique": "Parallel assistant agents preserve uncompressed context in segments; master orches global planning; assistants extract context-aware evidence before aggregation"
+      },
+      "created": "2026-03-09T20:29:53.569Z",
+      "updated": "2026-03-09T20:29:53.569Z",
+      "confidence": 0.85,
+      "scope": "universal",
       "model": null
     },
     {
@@ -4469,29 +4681,6 @@
       "confidence": 0.8,
       "scope": "universal",
       "model": "claude-haiku-4-5-20251001"
-    },
-    {
-      "id": "technique-035",
-      "type": "technique",
-      "title": "E-mem: Multi-agent Episodic Context Reconstruction",
-      "properties": {
-        "year": 2026,
-        "authors": "Kaixiang Wang et al.",
-        "arxiv_id": "2601.21714",
-        "relevance": "Segment memory across agents; each reasons locally then aggregates (vs shared retrieval)",
-        "key_result": "54% F1 on LoCoMo (+7.75% over GAM); 70% token reduction",
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260309-2009-neuron-hq",
-          "timestamp": "2026-03-09T20:29:53.569Z"
-        },
-        "core_technique": "Parallel assistant agents preserve uncompressed context in segments; master orches global planning; assistants extract context-aware evidence before aggregation"
-      },
-      "created": "2026-03-09T20:29:53.569Z",
-      "updated": "2026-03-09T20:29:53.569Z",
-      "confidence": 0.85,
-      "scope": "universal",
-      "model": null
     },
     {
       "id": "pattern-094",
@@ -4963,29 +5152,6 @@
       "model": null
     },
     {
-      "id": "technique-064",
-      "type": "technique",
-      "title": "Fault-Tolerant Sandboxing for AI Coding Agents: Transactional Approach",
-      "properties": {
-        "year": 2025,
-        "authors": "Boyang Yan",
-        "arxiv_id": "2512.12806",
-        "relevance": "Implementer: safe command execution with automatic rollback on failure",
-        "key_result": "100% intercept + 100% rollback success; 14.5% overhead (~1.8s/transaction)",
-        "provenance": {
-          "agent": "librarian",
-          "runId": "20260309-2009-neuron-hq",
-          "timestamp": "2026-03-09T20:30:58.318Z"
-        },
-        "core_technique": "Policy-based intercepting + transactional filesystem snapshots; atomic operations with rollback"
-      },
-      "created": "2026-03-09T20:30:58.318Z",
-      "updated": "2026-03-09T20:30:58.318Z",
-      "confidence": 0.9,
-      "scope": "project-specific",
-      "model": null
-    },
-    {
       "id": "pattern-041",
       "type": "pattern",
       "title": "Emergent: defaultModelOverride-fält i RunContext",
@@ -5081,50 +5247,26 @@
       "model": null
     },
     {
-      "id": "technique-065",
+      "id": "technique-064",
       "type": "technique",
-      "title": "PARC: Self-Reflective Coding Agent for Long-Horizon Tasks",
+      "title": "Fault-Tolerant Sandboxing for AI Coding Agents: Transactional Approach",
       "properties": {
         "year": 2025,
-        "authors": "Yuki Orimo et al.",
-        "arxiv_id": "2512.03549",
-        "relevance": "Self-assessment from different context prevents confirmation bias; parallelizes work",
-        "key_result": "Autonomously reproduces scientific results; handles dozens of parallel tasks",
+        "authors": "Boyang Yan",
+        "arxiv_id": "2512.12806",
+        "relevance": "Implementer: safe command execution with automatic rollback on failure",
+        "key_result": "100% intercept + 100% rollback success; 14.5% overhead (~1.8s/transaction)",
         "provenance": {
           "agent": "librarian",
           "runId": "20260309-2009-neuron-hq",
-          "timestamp": "2026-03-09T20:30:58.518Z"
+          "timestamp": "2026-03-09T20:30:58.318Z"
         },
-        "core_technique": "Hierarchical (plan, execute, assess) with independent assessment context; coordinates parallel simulations with auto-correction"
+        "core_technique": "Policy-based intercepting + transactional filesystem snapshots; atomic operations with rollback"
       },
-      "created": "2026-03-09T20:30:58.518Z",
-      "updated": "2026-03-09T20:30:58.518Z",
-      "confidence": 0.85,
+      "created": "2026-03-09T20:30:58.318Z",
+      "updated": "2026-03-09T20:30:58.318Z",
+      "confidence": 0.9,
       "scope": "project-specific",
-      "model": null
-    },
-    {
-      "id": "pattern-026",
-      "type": "pattern",
-      "title": "AGENTS.md som delad systemkonstitution separerar rollprompts från systemprotokoll",
-      "properties": {
-        "effekt": "Eliminerar duplicering och inkonsekvens mellan prompts. Risk-tiers (Low/Medium/High) är nu ett delat språk — Manager kan instruera Implementer \"detta är High-risk\" och Implementer vet exakt vad det kräver. Handoff-mallen standardiserar kommunikationen Implementer→Manager och sparar 5–15 iterationer per körning.",
-        "kontext": "Session 44 — 9 promptfiler hade isolerade regler utan gemensamt protokoll. Risk-tiers, handoff-format och anti-patterns existerade bara i enskilda agenters prompts.",
-        "keywords": [
-          "AGENTS.md",
-          "konstitution",
-          "rollprompt",
-          "systemprotokoll",
-          "risk-tiers",
-          "handoff",
-          "anti-patterns"
-        ],
-        "lösning": "Skapa `AGENTS.md` i repots rot som \"konstitution\" — systemövergripande regler som alla agenter refererar till. Rollprompts behåller rollanpassad precision (t.ex. Reviewers verifieringskommandon), AGENTS.md äger systemgemensamma protokoll (risk-tiers, handoff-mall, minnesprioritetsordning, anti-patterns). Varje prompt-fil får en referensrad i toppen: \"System-wide principles are in AGENTS.md.\""
-      },
-      "created": "2026-02-27T12:13:00.919Z",
-      "updated": "2026-02-27T12:13:00.919Z",
-      "confidence": 0.5,
-      "scope": "unknown",
       "model": null
     },
     {
@@ -5176,6 +5318,53 @@
       "created": "2026-02-28T15:30:41.812Z",
       "updated": "2026-02-28T15:30:41.812Z",
       "confidence": 0.6,
+      "scope": "unknown",
+      "model": null
+    },
+    {
+      "id": "technique-065",
+      "type": "technique",
+      "title": "PARC: Self-Reflective Coding Agent for Long-Horizon Tasks",
+      "properties": {
+        "year": 2025,
+        "authors": "Yuki Orimo et al.",
+        "arxiv_id": "2512.03549",
+        "relevance": "Self-assessment from different context prevents confirmation bias; parallelizes work",
+        "key_result": "Autonomously reproduces scientific results; handles dozens of parallel tasks",
+        "provenance": {
+          "agent": "librarian",
+          "runId": "20260309-2009-neuron-hq",
+          "timestamp": "2026-03-09T20:30:58.518Z"
+        },
+        "core_technique": "Hierarchical (plan, execute, assess) with independent assessment context; coordinates parallel simulations with auto-correction"
+      },
+      "created": "2026-03-09T20:30:58.518Z",
+      "updated": "2026-03-09T20:30:58.518Z",
+      "confidence": 0.85,
+      "scope": "project-specific",
+      "model": null
+    },
+    {
+      "id": "pattern-026",
+      "type": "pattern",
+      "title": "AGENTS.md som delad systemkonstitution separerar rollprompts från systemprotokoll",
+      "properties": {
+        "effekt": "Eliminerar duplicering och inkonsekvens mellan prompts. Risk-tiers (Low/Medium/High) är nu ett delat språk — Manager kan instruera Implementer \"detta är High-risk\" och Implementer vet exakt vad det kräver. Handoff-mallen standardiserar kommunikationen Implementer→Manager och sparar 5–15 iterationer per körning.",
+        "kontext": "Session 44 — 9 promptfiler hade isolerade regler utan gemensamt protokoll. Risk-tiers, handoff-format och anti-patterns existerade bara i enskilda agenters prompts.",
+        "keywords": [
+          "AGENTS.md",
+          "konstitution",
+          "rollprompt",
+          "systemprotokoll",
+          "risk-tiers",
+          "handoff",
+          "anti-patterns"
+        ],
+        "lösning": "Skapa `AGENTS.md` i repots rot som \"konstitution\" — systemövergripande regler som alla agenter refererar till. Rollprompts behåller rollanpassad precision (t.ex. Reviewers verifieringskommandon), AGENTS.md äger systemgemensamma protokoll (risk-tiers, handoff-mall, minnesprioritetsordning, anti-patterns). Varje prompt-fil får en referensrad i toppen: \"System-wide principles are in AGENTS.md.\""
+      },
+      "created": "2026-02-27T12:13:00.919Z",
+      "updated": "2026-02-27T12:13:00.919Z",
+      "confidence": 0.5,
       "scope": "unknown",
       "model": null
     },
@@ -6370,30 +6559,66 @@
       "model": null
     },
     {
-      "id": "pattern-101",
+      "id": "pattern-105",
       "type": "pattern",
-      "title": "Retroaktiv backfill för datamigrering",
+      "title": "Batch UPDATE med unnest i PostgreSQL",
       "properties": {
-        "context": "När nya datakolumner eller tabeller introduceras måste historiska data migreras från filsystem till databas",
-        "method": "Lägg till --backfill CLI-flagga som itererar genom alla befintliga run-filer i kronologisk ordning och uppdaterar databastabeller retroaktivt",
-        "example_usage": "npx tsx src/cli.ts db-backfill --table run_beliefs --from-files runs/*/metrics.json",
-        "benefit": "Möjliggör gradvis datamigration utan att förlora historiska datapoäng. Kan köras som engångsoperation eller regelbundna jobb.",
-        "reusable_for": "Framtida kolumn-expansioner, schemaupgradering, data-normalisering",
-        "keywords": "data-migration, retroactive-update, batch-processing, file-to-db",
+        "description": "Ersätta per-nod UPDATE-loop med unnest($1::text[], $2::text[]) tabellvärdefunktion för en enda query",
+        "context": "N+1 UPDATE-mönster vid bulk-operationer",
+        "effect": "Reducerar N UPDATE-queries till 1. Vid 100 noder från 100 queries till 1",
+        "keywords": [
+          "PostgreSQL",
+          "batch-update",
+          "unnest",
+          "N+1",
+          "performance",
+          "database-optimization"
+        ],
+        "scope": "universal",
+        "confirmed_in": [
+          "TD-4 (saveAuroraGraphToDb)",
+          "TD-14 (autoEmbedAuroraNodes)"
+        ],
         "provenance": {
-          "runId": "20260312-1329-neuron-hq",
+          "runId": "20260312-2023-neuron-hq",
           "agent": "historian",
-          "timestamp": "2026-03-12T14:00:01.803Z"
+          "timestamp": "2026-03-12T20:35:46.128Z"
         }
       },
-      "created": "2026-03-12T14:00:01.803Z",
-      "updated": "2026-03-12T14:00:01.803Z",
-      "confidence": 0.8,
+      "created": "2026-03-12T20:35:46.128Z",
+      "updated": "2026-03-12T20:35:46.128Z",
+      "confidence": 0.9,
       "scope": "universal",
       "model": "claude-haiku-4-5-20251001"
     }
   ],
   "edges": [
+    {
+      "from": "pattern-027",
+      "to": "run-20260227-0656-neuron-hq",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "pattern-082",
+      "to": "run-048",
+      "type": "discovered_in",
+      "metadata": {
+        "runId": "20260310-0532-neuron-hq",
+        "agent": "historian",
+        "timestamp": "2026-03-10T05:52:15.901Z"
+      }
+    },
+    {
+      "from": "pattern-011",
+      "to": "run-008",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
     {
       "from": "run-040",
       "to": "pattern-064",
@@ -6425,49 +6650,11 @@
       }
     },
     {
-      "from": "run-053",
-      "to": "pattern-097",
-      "type": "discovered_in",
-      "metadata": {
-        "runId": "20260312-1329-neuron-hq",
-        "agent": "historian",
-        "timestamp": "2026-03-12T13:59:35.686Z"
-      }
-    },
-    {
-      "from": "run-053",
-      "to": "pattern-098",
-      "type": "discovered_in",
-      "metadata": {
-        "runId": "20260312-1329-neuron-hq",
-        "agent": "historian",
-        "timestamp": "2026-03-12T13:59:35.686Z"
-      }
-    },
-    {
-      "from": "pattern-023",
-      "to": "run-20260226-1553-aurora-swarm-lab",
+      "from": "pattern-034",
+      "to": "run-20260225-0500-neuron-hq",
       "type": "discovered_in",
       "metadata": {
         "timestamp": "2026-02-27T12:13:00.919Z"
-      }
-    },
-    {
-      "from": "pattern-027",
-      "to": "run-20260227-0656-neuron-hq",
-      "type": "discovered_in",
-      "metadata": {
-        "timestamp": "2026-02-27T12:13:00.919Z"
-      }
-    },
-    {
-      "from": "pattern-082",
-      "to": "run-048",
-      "type": "discovered_in",
-      "metadata": {
-        "runId": "20260310-0532-neuron-hq",
-        "agent": "historian",
-        "timestamp": "2026-03-10T05:52:15.901Z"
       }
     },
     {
@@ -6529,19 +6716,13 @@
       }
     },
     {
-      "from": "pattern-011",
-      "to": "run-008",
+      "from": "pattern-104",
+      "to": "run-055",
       "type": "discovered_in",
       "metadata": {
-        "timestamp": "2026-02-27T12:13:00.919Z"
-      }
-    },
-    {
-      "from": "pattern-034",
-      "to": "run-20260225-0500-neuron-hq",
-      "type": "discovered_in",
-      "metadata": {
-        "timestamp": "2026-02-27T12:13:00.919Z"
+        "runId": "20260312-2023-neuron-hq",
+        "agent": "historian",
+        "timestamp": "2026-03-12T20:35:18.253Z"
       }
     },
     {
@@ -6569,6 +6750,42 @@
       }
     },
     {
+      "from": "pattern-025",
+      "to": "run-20260227-0634-neuron-hq-resume",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
+      "from": "run-053",
+      "to": "pattern-097",
+      "type": "discovered_in",
+      "metadata": {
+        "runId": "20260312-1329-neuron-hq",
+        "agent": "historian",
+        "timestamp": "2026-03-12T13:59:35.686Z"
+      }
+    },
+    {
+      "from": "run-053",
+      "to": "pattern-098",
+      "type": "discovered_in",
+      "metadata": {
+        "runId": "20260312-1329-neuron-hq",
+        "agent": "historian",
+        "timestamp": "2026-03-12T13:59:35.686Z"
+      }
+    },
+    {
+      "from": "pattern-023",
+      "to": "run-20260226-1553-aurora-swarm-lab",
+      "type": "discovered_in",
+      "metadata": {
+        "timestamp": "2026-02-27T12:13:00.919Z"
+      }
+    },
+    {
       "from": "pattern-014",
       "to": "run-016",
       "type": "discovered_in",
@@ -6587,14 +6804,6 @@
     {
       "from": "pattern-026",
       "to": "run-Session 44",
-      "type": "discovered_in",
-      "metadata": {
-        "timestamp": "2026-02-27T12:13:00.919Z"
-      }
-    },
-    {
-      "from": "pattern-025",
-      "to": "run-20260227-0634-neuron-hq-resume",
       "type": "discovered_in",
       "metadata": {
         "timestamp": "2026-02-27T12:13:00.919Z"
@@ -7153,7 +7362,17 @@
         "agent": "historian",
         "timestamp": "2026-03-01T16:20:55.711Z"
       }
+    },
+    {
+      "from": "pattern-105",
+      "to": "run-056",
+      "type": "discovered_in",
+      "metadata": {
+        "runId": "20260312-2023-neuron-hq",
+        "agent": "historian",
+        "timestamp": "2026-03-12T20:35:46.128Z"
+      }
     }
   ],
-  "lastUpdated": "2026-03-12T14:00:01.803Z"
+  "lastUpdated": "2026-03-12T20:35:46.129Z"
 }
