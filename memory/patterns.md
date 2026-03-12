@@ -1906,3 +1906,26 @@ await pool.query(
 **Senast bekräftad:** 20260312-2023-neuron-hq
 
 ---
+
+## Batch-UPDATE med unnest för PostgreSQL N+1-optimering
+**Kontext:** Eliminering av per-nod UPDATE-loops i batch-embedding-operationer (TD-14 autoEmbedAuroraNodes, TD-15 autoEmbedNodes)
+**Lösning:** Ersätt:
+```typescript
+for (let i = 0; i < items.length; i++) {
+  await pool.query('UPDATE table SET col = $1 WHERE id = $2', [values[i], ids[i]]);
+}
+```
+Med:
+```typescript
+await pool.query(
+  'UPDATE table AS t SET col = v.val::type FROM unnest($1::text[], $2::text[]) AS v(id, val) WHERE t.id = v.id',
+  [ids, values],
+);
+```
+**Effekt:** Reducerar N queries till 1 per batch; signifikant prestandaförbättring för batch-size 20+. Identisk semantik, ingen räntingskid.
+**Keywords:** postgres, unnest, N+1, batch-update, embedding, performance
+**Relaterat:** patterns.md#TD-14, techniques.md#Batch Processing PostgreSQL
+**Körningar:** #20260312-2122-neuron-hq
+**Senast bekräftad:** 20260312-2122-neuron-hq
+
+---

@@ -79,5 +79,6 @@ Senaste handoff: [HANDOFF-2026-03-12T1945-session81-tech-debt-td4-td8-td11.md](d
 | 2026-03-12 | 09:30 | 78 | F0 🟢 Bayesisk confidence i Aurora | [länk](docs/handoffs/HANDOFF-2026-03-12T0930-session78-f0-bayesian-confidence.md) |
 | 2026-03-12 | 17:30 | 80 | F1 🟢 + SDK 0.78 + statistikfix | [länk](docs/handoffs/HANDOFF-2026-03-12T1730-session80-f1-sdk-statistikfix.md) |
 | 2026-03-12 | 19:45 | 81 | Tech debt: TD-4 + TD-8 + TD-11 | [länk](docs/handoffs/HANDOFF-2026-03-12T1945-session81-tech-debt-td4-td8-td11.md) |
+| 2026-03-12 | 22:00 | 82 | TD-13 + TD-14 + TD-15: Shared tools + batch embed | [länk](docs/handoffs/HANDOFF-2026-03-12T2200-session82-td13-td14-td15.md) |
 
 > **Not:** Session 1, 6, och 79 saknas — handoffs skapades inte vid dessa tillfällen.

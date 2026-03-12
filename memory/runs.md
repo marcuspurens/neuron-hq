@@ -2413,3 +2413,39 @@ Inga kända problem. Baseline-test innan förändring: 1742 passar. Efter förä
 - Referenspatt till TD-4 i task-beskrivningen gjorde refaktorering trivial — kopyera samma struktur, uppdatera specifika rader. Återanvändbara lösningar är kraftfulla.
 
 ---
+
+## Körning 20260312-2122-neuron-hq — neuron-hq
+**Datum:** 2026-03-12
+**Uppgift:** Refaktorera `autoEmbedNodes()` för att ersätta per-nod UPDATE-loop med batch-UPDATE med unnest-syntax, analogt till redan färdig TD-14
+**Resultat:** ✅ 5 av 5 acceptanskriterier uppfyllda — identisk mönster som TD-14 framgångsrikt applicerad på kg_nodes
+
+**Vad som fungerade:**
+Manager identifierade korrekt test-strategi från TD-14 och delegerade implementation. Implementer genomförde refaktorering av `autoEmbedNodes()` från per-nod UPDATE-loop till batch-UPDATE med `unnest($1::text[], $2::text[])`. Alla 1746 befintliga tester gröna, 8 nya/uppdaterade tester skapade för batch-scenarion (batch 1, 20, 25 noder; tom lista; felhantering).
+
+**Vad som inte fungerade:**
+Inga kända problem. Typecheck, lint och test-svit alla gröna.
+
+**Lärdomar:**
+- Batch-UPDATE med unnest är det proven mönster för att eliminera N+1-queries i denna kodbas (nu bekräftad två gånger: TD-14 och TD-15)
+- Test-täckning för batch-operationer bör inkludera gränsfall: tom lista, single-item, exactly-at-limit (20), och över-limit (25) för att verifiera splitting logic
+- Risk för denna typ av refaktorering är låg när den följer redan-testamönster från tidigare commits
+
+---
+
+## Körning 20260312-2122-neuron-hq — neuron-hq
+**Datum:** 2026-03-12
+**Uppgift:** Refaktorera `autoEmbedNodes()` för att ersätta per-nod UPDATE-loop med batch-UPDATE med unnest-syntax, analogt till redan färdig TD-14
+**Resultat:** ✅ 5 av 5 acceptanskriterier uppfyllda — identisk mönster som TD-14 framgångsrikt applicerad på kg_nodes
+
+**Vad som fungerade:**
+Manager identifierade korrekt test-strategi från TD-14 och delegerade implementation. Implementer genomförde refaktorering av `autoEmbedNodes()` från per-nod UPDATE-loop till batch-UPDATE med `unnest($1::text[], $2::text[])`. Alla 1746 befintliga tester gröna, 8 nya/uppdaterade tester skapade för batch-scenarion (batch 1, 20, 25 noder; tom lista; felhantering).
+
+**Vad som inte fungerade:**
+Inga kända problem. Typecheck, lint och test-svit alla gröna.
+
+**Lärdomar:**
+- Batch-UPDATE med unnest är det proven mönster för att eliminera N+1-queries i denna kodbas (nu bekräftad två gånger: TD-14 och TD-15)
+- Test-täckning för batch-operationer bör inkludera gränsfall: tom lista, single-item, exactly-at-limit (20), och över-limit (25) för att verifiera splitting logic
+- Risk för denna typ av refaktorering är låg när den följer redan-testamönster från tidigare commits
+
+---
