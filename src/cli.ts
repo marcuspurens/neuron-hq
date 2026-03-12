@@ -419,6 +419,19 @@ program
     await auroraConfidenceCommand(nodeId, options);
   });
 
+// neuron:statistics
+program
+  .command('neuron:statistics')
+  .description('Show Bayesian beliefs about run performance')
+  .option('--filter <prefix>', 'Filter by dimension prefix (agent, brief, model, target)')
+  .option('--history <dimension>', 'Show history for a dimension')
+  .option('--summary', 'Show summary with strongest/weakest/trends')
+  .option('--backfill', 'Backfill statistics from all existing runs')
+  .action(async (options: Record<string, unknown>) => {
+    const { neuronStatisticsCommand } = await import('./commands/neuron-statistics.js');
+    await neuronStatisticsCommand(options as any);
+  });
+
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =
   process.argv[1] &&

@@ -326,6 +326,20 @@ export class RunOrchestrator {
       // Non-fatal — task scores are informational
     }
 
+    // Collect run outcomes and update beliefs
+    try {
+      const { isDbAvailable } = await import('./db.js');
+      if (await isDbAvailable()) {
+        const { collectOutcomes, updateRunBeliefs } = await import('./run-statistics.js');
+        const outcomes = await collectOutcomes(ctx.runDir);
+        if (outcomes.length > 0) {
+          await updateRunBeliefs(outcomes, ctx.runid);
+        }
+      }
+    } catch {
+      // Non-fatal — run statistics are informational
+    }
+
     // Compute checksums for all artifacts
     const artifactPaths = ctx.artifacts.getArtifactPaths();
     const checksums: Record<string, string> = {};

@@ -35,6 +35,7 @@ import { registerAuroraDescribeImageTool } from './tools/aurora-describe-image.j
 import { registerAuroraOcrPdfTool } from './tools/aurora-ocr-pdf.js';
 import { registerAuroraIngestBookTool } from './tools/aurora-ingest-book.js';
 import { registerAuroraConfidenceTool } from './tools/aurora-confidence.js';
+import { registerRunStatisticsTool } from './tools/run-statistics.js';
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -77,6 +78,7 @@ export function createMcpServer(): McpServer {
   registerAuroraOcrPdfTool(server);
   registerAuroraIngestBookTool(server);
   registerAuroraConfidenceTool(server);
+  registerRunStatisticsTool(server);
 
   return server;
 }
