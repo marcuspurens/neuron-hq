@@ -31,6 +31,7 @@ import { registerAuroraRejectSpeakerTool } from './tools/aurora-reject-speaker.j
 import { registerAuroraSpeakerIdentitiesTool } from './tools/aurora-speaker-identities.js';
 import { registerAuroraAutoTagSpeakersTool } from './tools/aurora-auto-tag-speakers.js';
 import { registerAuroraIngestImageTool } from './tools/aurora-ingest-image.js';
+import { registerAuroraDescribeImageTool } from './tools/aurora-describe-image.js';
 import { registerAuroraOcrPdfTool } from './tools/aurora-ocr-pdf.js';
 import { registerAuroraIngestBookTool } from './tools/aurora-ingest-book.js';
 import { registerAuroraConfidenceTool } from './tools/aurora-confidence.js';
@@ -72,6 +73,7 @@ export function createMcpServer(): McpServer {
   registerAuroraSpeakerIdentitiesTool(server);
   registerAuroraAutoTagSpeakersTool(server);
   registerAuroraIngestImageTool(server);
+  registerAuroraDescribeImageTool(server);
   registerAuroraOcrPdfTool(server);
   registerAuroraIngestBookTool(server);
   registerAuroraConfidenceTool(server);

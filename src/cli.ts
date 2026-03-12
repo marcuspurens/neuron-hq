@@ -43,6 +43,7 @@ import { auroraBriefingCommand } from './commands/aurora-briefing.js';
 import { auroraIngestImageCommand } from './commands/aurora-ingest-image.js';
 import { auroraOcrPdfCommand } from './commands/aurora-ocr-pdf.js';
 import { auroraIngestBookCommand } from './commands/aurora-ingest-book.js';
+import { auroraDescribeImageCommand } from './commands/aurora-describe-image.js';
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
@@ -226,6 +227,16 @@ program
   .option('--language <lang>', 'Language hint for OCR (en, sv, de, fr, etc.)', 'en')
   .option('--scope <scope>', 'personal | shared | project', 'personal')
   .action(auroraIngestImageCommand);
+
+program
+  .command('aurora:describe-image <path>')
+  .description('Analyze an image using local Ollama vision model')
+  .option('--title <title>', 'Document title (default: filename)')
+  .option('--prompt <prompt>', 'Custom prompt for the vision model')
+  .option('--model <model>', 'Ollama model (default: qwen3-vl:8b)')
+  .option('--describe-only', 'Show description without ingesting')
+  .option('--scope <scope>', 'personal | shared | project', 'personal')
+  .action(auroraDescribeImageCommand);
 
 program
   .command('aurora:ocr-pdf <path>')
