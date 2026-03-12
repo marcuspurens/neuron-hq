@@ -327,11 +327,11 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
       const suffix = text.length > FETCH_MAX_BYTES ? `\n\n[truncated at ${FETCH_MAX_BYTES} chars]` : '';
 
       return truncated + suffix;
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
         return `Error: Request timed out after ${FETCH_TIMEOUT_MS}ms`;
       }
-      return `Error fetching URL: ${error.message}`;
+      return `Error fetching URL: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 
@@ -396,8 +396,8 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
       await fs.writeFile(filePath, updated, 'utf-8');
 
       return `Entry appended to memory/techniques.md`;
-    } catch (error: any) {
-      return `Error writing to memory/techniques.md: ${error.message}`;
+    } catch (error) {
+      return `Error writing to memory/techniques.md: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 }

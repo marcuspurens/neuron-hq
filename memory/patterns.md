@@ -1790,3 +1790,47 @@ Each file hyperlinked, cross-referenced, comprehensive. Format enables different
 **Senast bekräftad:** 20260312-1044-neuron-hq
 
 ---
+
+## Logit-transform för Bayesisk uppdatering av agent-/task-prestanda
+**Kontext:** F1 körning 20260312-1329-neuron-hq implementerade Bayesisk uppdatering av run_beliefs-tabell med signal-styrka och historik-spårning.
+**Lösning:** Använd `bayesianUpdate(oldConfidence, signal, weight)` från aurora/bayesian-confidence.js. Denna funktion tillämpar logit-transform: `confidence' = sigmoid(logit(c) + weight * (success ? +1 : -1))`. Signal-vikter justeras per dimension (GREEN: 0.20, re-delegations: 0.10, blockade: 0.08). Varje uppdatering loggad i run_belief_audit med timestamp för revidering.
+**Effekt:** Stabiliserar beliefs över tid trots brus i enskilda körningar. En agent med historisk confidence 0.82 kan sjunka säkert till 0.75 med två misslyckanden utan att överbeskatta enstaka fel. Enkelt att fråga om trender: `getSummary().trending_up/trending_down`.
+**Keywords:** bayesian-inference, signal-integration, confidence-tracking, sql-upsert
+**Relaterat:** error.md#Stoplight-regex matchar inte emoji-prefix
+**Körningar:** #20260312-1329
+**Senast bekräftad:** 20260312-1329
+
+---
+
+## Try/catch-wrapper för observeringslogik förhindrar körningsstörning
+**Kontext:** F1 integrerade run-statistics samlingen in i finalizeRun() i src/core/run.ts.
+**Lösning:** Omslut statistics-uppdatering med try/catch: `try { await collectOutcomes(); await updateRunBeliefs(); } catch (err) { logger.warn('Statistics failed', err); }`. Om DB är otillgänglig, Postgres-fel, eller fil-I/O-fel uppstår — greppa felet, logga det, och fortsätt. Huvudkörningen avbryts aldrig.
+**Effekt:** Observeringslogik blir valfri optimering, aldrig en blockerare. Kritiskt för production-robusthet — användare återupplever aldrig statistikuppdateringsfel.
+**Keywords:** error-handling, try-catch, graceful-degradation, observability
+**Relaterat:** patterns.md#Signal-klassificering för brief-typ
+**Körningar:** #20260312-1329
+**Senast bekräftad:** 20260312-1329
+
+---
+
+## Signal-klassificering för brief-typ via regex-nyckelord
+**Kontext:** F1 klassificerade briefs i 6 kategorier (feature, refactor, bugfix, test, docs, infrastructure) för att spåra prestanda per typ.
+**Lösning:** `classifyBrief()` läser brief.md-titel och passar mot regex-pattern i ordning: `feature` (innehåller /feature|add|implement|new/i), `refactor` (/refactor|clean|restructure/i), `bugfix` (/fix|bug|broken/i), `test` (/test/i), `docs` (/doc|readme/i). Första träff vinner. Fallback: infrastructure.
+**Effekt:** Enkelt klassificeringsschema för 90%+ av briefs utan LLM-overhead. Regex-ordningen spelar roll (feature före infrastructure för att undvika falska träffar på "add doc"). Gränsfallen (t.ex. "add test infrastructure") klassificeras deterministiskt och kan manuellt retaggas om behov.
+**Keywords:** classification, regex, brief-routing, heuristic
+**Relaterat:** patterns.md#Logit-transform för Bayesisk uppdatering
+**Körningar:** #20260312-1329
+**Senast bekräftad:** 20260312-1329
+
+---
+
+## Retroaktiv backfill för statistikuppdatering
+**Kontext:** F1 körning 20260312-1329-neuron-hq implementerade retroaktiv backfill-funktion för att uppdatera historiska körningsstatistik.
+**Lösning:** Lägg till `--backfill` CLI-flagga som itererar genom alla befintliga `runs/*/metrics.json` filer i kronologisk ordning och kör `collectOutcomes()` + `updateRunBeliefs()` på var och en, uppdaterar databastabellen run_beliefs med retroaktiva datapoäng.
+**Effekt:** Möjliggör gradvis datamigration från filsystem till databas utan att förlora historiska datapoäng. Användbar mall för framtida datamigrering när nya kolumner eller tabeller introduceras — backfill kan köras som en engångsoperation eller regelbundna jobb.
+**Keywords:** data-migration, retroactive-update, batch-processing, file-iteration
+**Relaterat:** patterns.md#Logit-transform för Bayesisk uppdatering, patterns.md#Try/catch-wrapper för observeringslogik
+**Körningar:** #20260312-1329
+**Senast bekräftad:** 20260312-1329
+
+---

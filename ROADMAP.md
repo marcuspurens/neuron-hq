@@ -3,7 +3,7 @@
 > Editera direkt i filen — kryssa av med `✅` eller `- [x]` när något är klart.
 > Uppdateras i slutet av varje session (eller när en brief körs klart).
 >
-> **Senast uppdaterad:** 2026-03-12 · Session 79
+> **Senast uppdaterad:** 2026-03-12 · Session 80
 
 ---
 
@@ -11,11 +11,11 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 1674 ✅ |
-| Körningar | 117 |
-| MCP-tools | 36 |
-| Sessioner | 79 |
-| Senaste commit | C4 lokal vision (`9c2344d`, körning 117) |
+| Tester | 1710 ✅ |
+| Körningar | 118 |
+| MCP-tools | 37 |
+| Sessioner | 80 |
+| Senaste commit | F1 statistikfix (`ebe76b3`, körning 118) |
 
 ### Spår-översikt
 
@@ -28,7 +28,7 @@
 | **A** | Aurora Core | ✅ 7/7 KOMPLETT | 67–69 |
 | **B** | Aurora Intelligence | ✅ 6/6 KOMPLETT | 70–73 |
 | **C** | Multimedia & Röster | ✅ 6/6 KOMPLETT | 74–78 |
-| **F** | Bayesiskt medvetande | 🟡 F0 klar, F1–F3 planerade | 78– |
+| **F** | Bayesiskt medvetande | 🟡 F0+F1 klara, F2–F3 planerade | 78–80 |
 | **E** | Autonom kunskapscykel | ⬜ Planerad | — |
 
 ---
@@ -92,7 +92,8 @@ Ge Neuron probabilistisk självkännedom — systemet bygger beliefs om sin egen
 | # | Vad | Status | Commit | Tester |
 |---|-----|--------|--------|--------|
 | F0 | Bayesisk confidence i Aurora (kunskap) | ✅ | `29e5d22` | +23 |
-| F1 | Neuron körningsstatistik (per agent/modul/brief-typ) | 📝 Brief klar | — | — |
+| F1 | Neuron körningsstatistik (per agent/modul/brief-typ) | ✅ | körning 118 | +28 |
+| F1.1 | Statistikfix (stoplight + brief classification) | ✅ | `ebe76b3` | +8 |
 | F2 | Adaptiv Manager (använder F1 för att anpassa planer) | ⬜ | — | — |
 | F3 | Självreflektion (periodisk self-assessment) | ⬜ | — | — |
 
@@ -101,7 +102,7 @@ Ge Neuron probabilistisk självkännedom — systemet bygger beliefs om sin egen
 **F0 idéer:** F0.1 retroaktiv backfill · F0.2 motsägelse-detektion · F0.3 multi-source aggregation · F0.4 confidence decay
 
 ```
-F0 ✅ → F1 (brief klar) → F2 → F3
+F0 ✅ → F1 ✅ → F1.1 ✅ → F2 → F3
 ```
 
 ---
@@ -189,7 +190,7 @@ Kartlagd session 79. Se [docs/handoffs/](docs/handoffs/) för detaljer.
 | TD-7 | `__pycache__/` inte gitignored | Low | ✅ Fixad S79 |
 | TD-8 | `catch (error: any)` x29 i agentfiler | Low | Öppen |
 | TD-9 | requirements.txt ofullständig | Low | Öppen |
-| TD-10 | Anthropic SDK 0.32.1 → 0.78.0 | High | Öppen — behöver egen körning |
+| TD-10 | Anthropic SDK 0.32.1 → 0.78.0 | High | ✅ Fixad S80 |
 | TD-11 | 4 MCP-tools utan tester | Low | Öppen |
 | TD-12 | Inga coverage-trösklar i vitest | Low | Öppen |
 

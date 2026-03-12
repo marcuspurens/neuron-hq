@@ -560,8 +560,8 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
       await fs.writeFile(filePath, updated, 'utf-8');
 
       return `Entry appended to memory/${file}.md`;
-    } catch (error: any) {
-      return `Error writing to memory/${file}.md: ${error.message}`;
+    } catch (error) {
+      return `Error writing to memory/${file}.md: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 

@@ -1,18 +1,18 @@
 # Neuron HQ — Körningshistorik & Kostnader
 
-Genererad: 2026-03-12 11:10  
-Antal körningar: 117  
+Genererad: 2026-03-12 14:01  
+Antal körningar: 118  
 Prismodell: Sonnet 4.5 — $3/MTok input, $15/MTok output
 
 ## Sammanfattning
 
 | Mått | Värde |
 |------|-------|
-| Körningar | 117 |
-| GREEN | 60 |
-| Totala tokens | 484.2M |
-| Total kostnad | $1524.54 |
-| Snitt per körning | $13.03 |
+| Körningar | 118 |
+| GREEN | 61 |
+| Totala tokens | 493.2M |
+| Total kostnad | $1552.81 |
+| Snitt per körning | $13.16 |
 | Billigaste | $0.00 |
 | Dyraste | $45.64 |
 
@@ -137,17 +137,18 @@ Prismodell: Sonnet 4.5 — $3/MTok input, $15/MTok output
 | 115 | 2026-03-11 | 19:41 | C3.1 Batch-OCR — skannad bok → mar… | GREEN | Sonnet 4.5 | 7.6M | 0.09M | 7.7M | $24.17 | 7 | 27m |
 | 116 | 2026-03-12 | 09:07 | F0 — Bayesisk confidence i Aurora | GREEN | Sonnet 4.5 | 14.3M | 0.14M | 14.4M | $44.92 | 8 | 38m |
 | 117 | 2026-03-12 | 10:44 | C4 — Lokal vision via Ollama | GREEN | Sonnet 4.5 | 9.6M | 0.09M | 9.7M | $30.27 | 7 | 26m |
+| 118 | 2026-03-12 | 13:29 | F1: Neuron körningsstatistik — Bay… | GREEN | Sonnet 4.5 | 8.9M | 0.10M | 9.0M | $28.27 | 7 | 32m |
 
 ## Kostnad per agent (genomsnitt)
 
 | Agent | Snitt tokens | Kostnad/körning | Andel |
 |-------|------------:|----------------:|------:|
-| manager | 1.31M | $4.08 | 31.0% |
-| implementer | 1.27M | $4.09 | 26.3% |
-| reviewer | 0.74M | $2.31 | 15.3% |
-| tester | 0.08M | $0.26 | 1.7% |
+| manager | 1.33M | $4.13 | 31.1% |
+| implementer | 1.28M | $4.12 | 26.3% |
+| reviewer | 0.75M | $2.34 | 15.4% |
+| tester | 0.08M | $0.27 | 1.7% |
 | merger | 0.19M | $0.63 | 4.0% |
-| researcher | 0.95M | $3.00 | 4.7% |
-| historian | 0.64M | $1.96 | 14.0% |
+| researcher | 0.93M | $2.96 | 4.8% |
+| historian | 0.64M | $1.96 | 13.9% |
 | librarian | 0.44M | $1.38 | 1.8% |
 | consolidator | 1.40M | $4.34 | 1.1% |

@@ -529,6 +529,76 @@
       "scope": "personal",
       "created": "2026-03-12T13:18:38.752Z",
       "updated": "2026-03-12T13:18:38.752Z"
+    },
+    {
+      "id": "3a658fbb-713a-48b9-8cc6-de0a46ac9a16",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-12T13:58:33.229Z",
+      "updated": "2026-03-12T13:58:33.229Z"
+    },
+    {
+      "id": "67bbfa1c-95b7-4e6b-b485-d0a80a3c2687",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-12T14:35:05.783Z",
+      "updated": "2026-03-12T14:35:05.783Z"
+    },
+    {
+      "id": "30bda9b5-54aa-40c9-989f-febb85962a27",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-12T16:18:17.489Z",
+      "updated": "2026-03-12T16:18:17.489Z"
+    },
+    {
+      "id": "4fc64ab6-1734-47c9-98ca-03a632c5a50f",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-12T18:34:41.819Z",
+      "updated": "2026-03-12T18:34:41.819Z"
+    },
+    {
+      "id": "59c9bc88-6070-4037-934d-7c7e5860ab31",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-12T18:37:07.249Z",
+      "updated": "2026-03-12T18:37:07.249Z"
     }
   ],
   "edges": [
@@ -717,5 +787,5 @@
       }
     }
   ],
-  "lastUpdated": "2026-03-12T13:18:38.752Z"
+  "lastUpdated": "2026-03-12T18:37:07.249Z"
 }

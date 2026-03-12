@@ -332,14 +332,15 @@ and write test_report.md to the run artifacts directory.
       await this.ctx.manifest.addCommand(command, 0);
       // Include stderr in output — test runners often write results to stderr
       return (stdout + (stderr ? '\n' + stderr : '')).trim();
-    } catch (error: any) {
-      await this.ctx.manifest.addCommand(command, error.status || 1);
+    } catch (error) {
+      const e = error as { status?: number; stderr?: string; stdout?: string; message?: string };
+      await this.ctx.manifest.addCommand(command, e.status || 1);
       // For test runners, exit code != 0 means tests failed — include full output
       const out = [
-        error.stdout || '',
-        error.stderr || '',
+        e.stdout || '',
+        e.stderr || '',
       ].filter(Boolean).join('\n');
-      return `Exit ${error.status || 1}:\n${out || error.message}`;
+      return `Exit ${e.status || 1}:\n${out || e.message}`;
     }
   }
 
@@ -359,8 +360,8 @@ and write test_report.md to the run artifacts directory.
         files_touched: [absolutePath],
       });
       return content;
-    } catch (error: any) {
-      return `Error reading file: ${error.message}`;
+    } catch (error) {
+      return `Error reading file: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 
@@ -389,8 +390,8 @@ and write test_report.md to the run artifacts directory.
       await fs.mkdir(path.dirname(absolutePath), { recursive: true });
       await fs.writeFile(absolutePath, content, 'utf-8');
       return `File written successfully: ${filePath}`;
-    } catch (error: any) {
-      return `Error writing file: ${error.message}`;
+    } catch (error) {
+      return `Error writing file: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 
@@ -410,8 +411,8 @@ and write test_report.md to the run artifacts directory.
         })
         .join('\n');
       return formatted || '(empty directory)';
-    } catch (error: any) {
-      return `Error listing files: ${error.message}`;
+    } catch (error) {
+      return `Error listing files: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 }

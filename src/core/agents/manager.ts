@@ -706,11 +706,12 @@ Stop when time limit approaches or when blockers are encountered.
       await this.ctx.manifest.addCommand(command, 0);
 
       return truncateToolResult(stdout);
-    } catch (error: any) {
+    } catch (error) {
       // Log failed execution
-      await this.ctx.manifest.addCommand(command, error.status || 1);
+      const e = error as { status?: number; stderr?: string; message?: string };
+      await this.ctx.manifest.addCommand(command, e.status || 1);
 
-      return `Command failed (exit ${error.status || 1}):\n${error.stderr || error.message}`;
+      return `Command failed (exit ${e.status || 1}):\n${e.stderr || e.message}`;
     }
   }
 
@@ -738,8 +739,8 @@ Stop when time limit approaches or when blockers are encountered.
       });
 
       return truncateToolResult(content);
-    } catch (error: any) {
-      return `Error reading file: ${error.message}`;
+    } catch (error) {
+      return `Error reading file: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 
@@ -785,8 +786,8 @@ Stop when time limit approaches or when blockers are encountered.
       await fs.writeFile(absolutePath, content, 'utf-8');
 
       return `File written successfully: ${filePath}`;
-    } catch (error: any) {
-      return `Error writing file: ${error.message}`;
+    } catch (error) {
+      return `Error writing file: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 
@@ -811,8 +812,8 @@ Stop when time limit approaches or when blockers are encountered.
         .join('\n');
 
       return formatted || '(empty directory)';
-    } catch (error: any) {
-      return `Error listing files: ${error.message}`;
+    } catch (error) {
+      return `Error listing files: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 

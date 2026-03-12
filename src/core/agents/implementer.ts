@@ -371,9 +371,10 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
 
       await this.ctx.manifest.addCommand(command, 0);
       return truncateToolResult(stdout);
-    } catch (error: any) {
-      await this.ctx.manifest.addCommand(command, error.status || 1);
-      return `Command failed (exit ${error.status || 1}):\n${error.stderr || error.message}`;
+    } catch (error) {
+      const e = error as { status?: number; stderr?: string; message?: string };
+      await this.ctx.manifest.addCommand(command, e.status || 1);
+      return `Command failed (exit ${e.status || 1}):\n${e.stderr || e.message}`;
     }
   }
 
@@ -395,8 +396,8 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
       });
 
       return truncateToolResult(content);
-    } catch (error: any) {
-      return `Error reading file: ${error.message}`;
+    } catch (error) {
+      return `Error reading file: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 
@@ -425,8 +426,8 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
       await fs.mkdir(path.dirname(absolutePath), { recursive: true });
       await fs.writeFile(absolutePath, content, 'utf-8');
       return `File written successfully: ${filePath}`;
-    } catch (error: any) {
-      return `Error writing file: ${error.message}`;
+    } catch (error) {
+      return `Error writing file: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 
@@ -446,8 +447,8 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
         })
         .join('\n');
       return formatted || '(empty directory)';
-    } catch (error: any) {
-      return `Error listing files: ${error.message}`;
+    } catch (error) {
+      return `Error listing files: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 }

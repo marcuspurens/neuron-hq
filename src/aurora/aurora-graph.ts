@@ -218,7 +218,7 @@ export async function loadAuroraGraphFromDb(): Promise<AuroraGraph | null> {
   }
 }
 
-/** Save Aurora graph to Postgres (upsert all nodes and edges). */
+/** Save Aurora graph to Postgres (upsert all nodes and edges). Batch operations. */
 export async function saveAuroraGraphToDb(graph: AuroraGraph): Promise<void> {
   const pool = getPool();
   const client = await pool.connect();
@@ -226,72 +226,83 @@ export async function saveAuroraGraphToDb(graph: AuroraGraph): Promise<void> {
   try {
     await client.query('BEGIN');
 
-    // Upsert nodes
-    for (const node of graph.nodes) {
-      await client.query(
-        `INSERT INTO aurora_nodes (id, type, title, properties, confidence, scope, source_url, created, updated)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-         ON CONFLICT (id) DO UPDATE SET
-           type = EXCLUDED.type,
-           title = EXCLUDED.title,
-           properties = EXCLUDED.properties,
-           confidence = EXCLUDED.confidence,
-           scope = EXCLUDED.scope,
-           source_url = EXCLUDED.source_url,
-           updated = EXCLUDED.updated`,
-        [
-          node.id,
-          node.type,
-          node.title,
-          JSON.stringify(node.properties),
-          node.confidence,
-          node.scope ?? 'personal',
-          node.sourceUrl ?? null,
-          node.created,
-          node.updated,
-        ],
-      );
-    }
-
-    // Sync edges: delete edges not in graph
-    const graphEdgeKeys = new Set(
-      graph.edges.map((e) => `${e.from}|${e.to}|${e.type}`),
-    );
-
-    const { rows: existingEdges } = await client.query(
-      'SELECT from_id, to_id, type FROM aurora_edges',
-    );
-
-    for (const row of existingEdges) {
-      const key = `${row.from_id}|${row.to_id}|${row.type}`;
-      if (!graphEdgeKeys.has(key)) {
-        await client.query(
-          'DELETE FROM aurora_edges WHERE from_id = $1 AND to_id = $2 AND type = $3',
-          [row.from_id, row.to_id, row.type],
+    // 1. Batch upsert nodes (single INSERT ... ON CONFLICT)
+    if (graph.nodes.length > 0) {
+      const COLS = 9;
+      const values: unknown[] = [];
+      const placeholders: string[] = [];
+      for (let i = 0; i < graph.nodes.length; i++) {
+        const n = graph.nodes[i];
+        const o = i * COLS;
+        placeholders.push(
+          `($${o + 1}, $${o + 2}, $${o + 3}, $${o + 4}, $${o + 5}, $${o + 6}, $${o + 7}, $${o + 8}, $${o + 9})`,
+        );
+        values.push(
+          n.id, n.type, n.title, JSON.stringify(n.properties),
+          n.confidence, n.scope ?? 'personal', n.sourceUrl ?? null,
+          n.created, n.updated,
         );
       }
-    }
-
-    // Upsert edges
-    for (const edge of graph.edges) {
       await client.query(
-        `INSERT INTO aurora_edges (from_id, to_id, type, metadata)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (from_id, to_id, type) DO UPDATE SET
-           metadata = EXCLUDED.metadata`,
-        [edge.from, edge.to, edge.type, JSON.stringify(edge.metadata)],
+        `INSERT INTO aurora_nodes (id, type, title, properties, confidence, scope, source_url, created, updated)
+         VALUES ${placeholders.join(', ')}
+         ON CONFLICT (id) DO UPDATE SET
+           type = EXCLUDED.type, title = EXCLUDED.title,
+           properties = EXCLUDED.properties, confidence = EXCLUDED.confidence,
+           scope = EXCLUDED.scope, source_url = EXCLUDED.source_url,
+           updated = EXCLUDED.updated`,
+        values,
       );
     }
 
-    // Delete nodes not in graph
-    const graphNodeIds = new Set(graph.nodes.map((n) => n.id));
-    const { rows: existingNodes } = await client.query(
-      'SELECT id FROM aurora_nodes',
-    );
-    for (const row of existingNodes) {
-      if (!graphNodeIds.has(row.id as string)) {
-        await client.query('DELETE FROM aurora_nodes WHERE id = $1', [row.id]);
+    // 2. Delete stale edges (batch, before removing nodes they reference)
+    if (graph.edges.length > 0) {
+      const fromIds = graph.edges.map((e) => e.from);
+      const toIds = graph.edges.map((e) => e.to);
+      const edgeTypes = graph.edges.map((e) => e.type);
+      await client.query(
+        `DELETE FROM aurora_edges e
+         WHERE NOT EXISTS (
+           SELECT 1 FROM unnest($1::text[], $2::text[], $3::text[]) AS v(f, t, tp)
+           WHERE e.from_id = v.f AND e.to_id = v.t AND e.type = v.tp
+         )`,
+        [fromIds, toIds, edgeTypes],
+      );
+    } else {
+      await client.query('DELETE FROM aurora_edges');
+    }
+
+    // 3. Batch upsert edges (single INSERT ... ON CONFLICT)
+    if (graph.edges.length > 0) {
+      const COLS = 4;
+      const values: unknown[] = [];
+      const placeholders: string[] = [];
+      for (let i = 0; i < graph.edges.length; i++) {
+        const e = graph.edges[i];
+        const o = i * COLS;
+        placeholders.push(
+          `($${o + 1}, $${o + 2}, $${o + 3}, $${o + 4})`,
+        );
+        values.push(e.from, e.to, e.type, JSON.stringify(e.metadata));
       }
+      await client.query(
+        `INSERT INTO aurora_edges (from_id, to_id, type, metadata)
+         VALUES ${placeholders.join(', ')}
+         ON CONFLICT (from_id, to_id, type) DO UPDATE SET
+           metadata = EXCLUDED.metadata`,
+        values,
+      );
+    }
+
+    // 4. Delete stale nodes (batch)
+    if (graph.nodes.length > 0) {
+      const nodeIds = graph.nodes.map((n) => n.id);
+      await client.query(
+        'DELETE FROM aurora_nodes WHERE id != ALL($1::text[])',
+        [nodeIds],
+      );
+    } else {
+      await client.query('DELETE FROM aurora_nodes');
     }
 
     await client.query('COMMIT');

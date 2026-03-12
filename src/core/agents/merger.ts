@@ -399,9 +399,10 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
       });
       await this.ctx.manifest.addCommand(command, 0);
       return stdout;
-    } catch (error: any) {
-      await this.ctx.manifest.addCommand(command, error.status || 1);
-      return `Command failed (exit ${error.status || 1}):\n${error.stderr || error.message}`;
+    } catch (error) {
+      const e = error as { status?: number; stderr?: string; message?: string };
+      await this.ctx.manifest.addCommand(command, e.status || 1);
+      return `Command failed (exit ${e.status || 1}):\n${e.stderr || e.message}`;
     }
   }
 
@@ -430,9 +431,10 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
       });
       await this.ctx.manifest.addCommand(command, 0);
       return stdout;
-    } catch (error: any) {
-      await this.ctx.manifest.addCommand(command, error.status || 1);
-      return `Command failed (exit ${error.status || 1}):\n${error.stderr || error.message}`;
+    } catch (error) {
+      const e = error as { status?: number; stderr?: string; message?: string };
+      await this.ctx.manifest.addCommand(command, e.status || 1);
+      return `Command failed (exit ${e.status || 1}):\n${e.stderr || e.message}`;
     }
   }
 
@@ -452,8 +454,8 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
         files_touched: [absolutePath],
       });
       return content;
-    } catch (error: any) {
-      return `Error reading file: ${error.message}`;
+    } catch (error) {
+      return `Error reading file: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 
@@ -485,8 +487,8 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
       await fs.mkdir(path.dirname(absolutePath), { recursive: true });
       await fs.writeFile(absolutePath, content, 'utf-8');
       return `File written successfully: ${filePath}`;
-    } catch (error: any) {
-      return `Error writing file: ${error.message}`;
+    } catch (error) {
+      return `Error writing file: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 
@@ -536,8 +538,8 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
       await fs.mkdir(path.dirname(normalizedDst), { recursive: true });
       await fs.copyFile(normalizedSrc, normalizedDst);
       return `Copied: ${workspace_path} → ${target_path}`;
-    } catch (error: any) {
-      return `Error copying file: ${error.message}`;
+    } catch (error) {
+      return `Error copying file: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 
@@ -575,8 +577,8 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
       await git.deleteBranch(source_branch);
 
       return `MERGE_SUCCESS: Task ${task_id} merged successfully. Commit SHA: ${sha}. Branch ${source_branch} deleted.`;
-    } catch (error: any) {
-      return `MERGE_FAILED: Task ${task_id} merge failed: ${error.message}`;
+    } catch (error) {
+      return `MERGE_FAILED: Task ${task_id} merge failed: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 }

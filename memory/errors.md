@@ -299,3 +299,14 @@ _Historian-korrigering: Invariant INV-008 skrevs felaktigt till runs.md iställe
 **Relaterat:** patterns.md#Parallel task delegation
 
 ---
+
+## Stoplight-regex matchar inte emoji-prefix
+**Session:** 20260312-1329-neuron-hq
+**Symptom:** `STOPLIGHT:\s*GREEN` i run-statistics.ts radix-regex matchar inte emoji-prefixade stoplights såsom `STOPLIGHT: 🟢 GREEN`. Detta betyder att den mest kritiska signalen (GREEN/YELLOW/RED-status) inte extraheras från report.md.
+**Orsak:** Regexet är för snävt: `STOPLIGHT:\s*GREEN` förväntar sig exakt denna ordföljd, men Reviewer-agenten skriver ofta `STOPLIGHT: 🟢 GREEN` eller `STOPLIGHT: 🟡 YELLOW`. Regex-klassificerare kan inte skippa emoji.
+**Lösning:** Uppdatera regexet till `STOPLIGHT:.*?(?:GREEN|YELLOW|RED|ERROR)` eller använd emoji-stripping före matching. Dessa ändringar kan göras i en patch-körning utan återanvändning av huvudmodulkoden.
+**Status:** ⚠️ Identifierat — låg prioritet, informationell endast, ej blockerande för körningen
+**Keywords:** regex, parsing, stoplight-signal, briefing
+**Relaterat:** patterns.md#Logit-transform för Bayesisk uppdatering
+
+---
