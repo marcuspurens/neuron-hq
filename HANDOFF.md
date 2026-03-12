@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-03-12T1730-session80-f1-sdk-statistikfix.md](docs/handoffs/HANDOFF-2026-03-12T1730-session80-f1-sdk-statistikfix.md)
+Senaste handoff: [HANDOFF-2026-03-12T1945-session81-tech-debt-td4-td8-td11.md](docs/handoffs/HANDOFF-2026-03-12T1945-session81-tech-debt-td4-td8-td11.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -78,5 +78,6 @@ Senaste handoff: [HANDOFF-2026-03-12T1730-session80-f1-sdk-statistikfix.md](docs
 | 2026-03-11 | 21:00 | 77 | C3.1 🟢 Batch-OCR + Spår F bayesiskt medvetande | [länk](docs/handoffs/HANDOFF-2026-03-11T2100-session77-c3.1-batch-ocr-bayesian.md) |
 | 2026-03-12 | 09:30 | 78 | F0 🟢 Bayesisk confidence i Aurora | [länk](docs/handoffs/HANDOFF-2026-03-12T0930-session78-f0-bayesian-confidence.md) |
 | 2026-03-12 | 17:30 | 80 | F1 🟢 + SDK 0.78 + statistikfix | [länk](docs/handoffs/HANDOFF-2026-03-12T1730-session80-f1-sdk-statistikfix.md) |
+| 2026-03-12 | 19:45 | 81 | Tech debt: TD-4 + TD-8 + TD-11 | [länk](docs/handoffs/HANDOFF-2026-03-12T1945-session81-tech-debt-td4-td8-td11.md) |
 
 > **Not:** Session 1, 6, och 79 saknas — handoffs skapades inte vid dessa tillfällen.
