@@ -81,22 +81,29 @@ async function readJsonlSafe<T>(filePath: string): Promise<T[]> {
 // ---------------------------------------------------------------------------
 
 const BRIEF_PATTERNS: Array<[RegExp, BriefType]> = [
-  [/feature|add|implement|new|launch|enable/, 'feature'],
-  [/refactor|clean|restructure|modernize|consolidate/, 'refactor'],
-  [/fix|bug|broken|issue|crash|regression/, 'bugfix'],
-  [/test|spec|coverage|validate/, 'test'],
-  [/doc|readme|guide|handbook|comment/, 'docs'],
+  [/\bfeature\b|\badd\b|\bimplement(?!er)\w*\b|\bnew\b|\blaunch\b|\benable\b/, 'feature'],
+  [/\brefactor|\bclean\b|\brestructure|\bmodernize|\bconsolidat/, 'refactor'],
+  [/\bfix\b|\bbug|\bbroken\b|\bissue\b|\bcrash|\bregression/, 'bugfix'],
+  [/\btest|\bspec\b|\bcoverage\b|\bvalidat/, 'test'],
+  [/\bdoc\b|\breadme\b|\bguide\b|\bhandbook\b|\bcomment\b/, 'docs'],
 ];
 
 /**
- * Classify a brief file into a BriefType based on its title (first line).
+ * Classify a brief file into a BriefType based on title and first few lines.
+ * Strips common prefixes like "# Brief:" before matching.
  */
 export async function classifyBrief(briefPath: string): Promise<BriefType> {
   const text = await readTextSafe(briefPath);
-  const firstLine = text.split('\n')[0]?.toLowerCase() ?? '';
+  const lines = text.split('\n').slice(0, 5);
+
+  // Build search text from first 5 lines, stripping markdown/brief prefixes
+  const searchText = lines
+    .map((l) => l.replace(/^#+\s*/, '').replace(/^brief\s*[:—–-]\s*/i, ''))
+    .join(' ')
+    .toLowerCase();
 
   for (const [pattern, briefType] of BRIEF_PATTERNS) {
-    if (pattern.test(firstLine)) {
+    if (pattern.test(searchText)) {
       return briefType;
     }
   }
@@ -181,16 +188,29 @@ export async function collectOutcomes(runDir: string): Promise<RunOutcome[]> {
 
   const signals: Signal[] = [];
 
-  // 1. Stoplight
+  // 1. Stoplight — match multiple report formats
   if (reportText) {
-    const greenMatch = /STOPLIGHT:\s*GREEN/i.test(reportText);
-    const yellowOrRedMatch = /STOPLIGHT:\s*(?:YELLOW|RED)/i.test(reportText);
-    if (greenMatch || yellowOrRedMatch) {
+    const greenPatterns = [
+      /STOPLIGHT:\s*GREEN/i,
+      /STOPLIGHT\s+GREEN/i,
+      /Verdict:\s*GREEN/i,
+      /\bAPPROVED\b/i,
+      /✅\s*(?:After[- ]change\s+verify|Baseline\s+verify):\s*PASS/i,
+    ];
+    const failPatterns = [
+      /STOPLIGHT:\s*(?:YELLOW|RED)/i,
+      /STOPLIGHT\s+(?:YELLOW|RED)/i,
+      /Verdict:\s*(?:YELLOW|RED)/i,
+      /\bREJECTED\b/i,
+    ];
+    const greenMatch = greenPatterns.some((p) => p.test(reportText));
+    const failMatch = failPatterns.some((p) => p.test(reportText));
+    if (greenMatch || failMatch) {
       signals.push({
         name: 'stoplight',
-        success: greenMatch,
+        success: greenMatch && !failMatch,
         weight: 0.20,
-        evidence: greenMatch
+        evidence: greenMatch && !failMatch
           ? 'Stoplight GREEN in report'
           : 'Stoplight YELLOW/RED in report',
       });

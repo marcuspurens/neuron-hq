@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
@@ -76,6 +76,32 @@ describe('classifyBrief', () => {
   it('first match wins (feature before test)', async () => {
     const p = await writeBrief('Add test utilities');
     expect(await classifyBrief(p)).toBe('feature');
+  });
+
+  it('does not match "Implementer" as feature (word boundary)', async () => {
+    const p = await writeBrief('Implementer-tillförlitlighet');
+    expect(await classifyBrief(p)).toBe('infrastructure');
+  });
+
+  it('strips "Brief:" prefix before matching', async () => {
+    const briefPath = path.join(tempDir, 'brief.md');
+    await fs.writeFile(briefPath, '# Brief: Refactor database layer\n\nBody.');
+    expect(await classifyBrief(briefPath)).toBe('refactor');
+  });
+
+  it('matches keywords in first 5 lines, not just first', async () => {
+    const briefPath = path.join(tempDir, 'brief.md');
+    await fs.writeFile(
+      briefPath,
+      '# S9 — Modell-specifika prompt-overlays\n\n## Mål\n\nImplement per-model prompt overlays.\n',
+    );
+    expect(await classifyBrief(briefPath)).toBe('feature');
+  });
+
+  it('classifies Swedish test brief correctly', async () => {
+    const briefPath = path.join(tempDir, 'brief.md');
+    await fs.writeFile(briefPath, '# Negativa lint-tester + prompt-täckningsrapport\n\nBody.');
+    expect(await classifyBrief(briefPath)).toBe('test');
   });
 });
 
@@ -313,6 +339,105 @@ describe('collectOutcomes', () => {
     );
     expect(testsOuts.length).toBeGreaterThan(0);
     expect(testsOuts.every((o) => !o.success)).toBe(true);
+  });
+
+  it('detects "Verdict: GREEN" format', async () => {
+    const runDir = await writeRunFiles({
+      'brief.md': '# Deploy service\n\nBody',
+      'report.md': '## Summary\n\nVerdict: GREEN\n\nAll good.',
+      'metrics.json': {
+        runid: 'verdict-run',
+        testing: { tests_added: 0 },
+        delegations: { re_delegations: 0 },
+        policy: { commands_blocked: 0 },
+        tokens: {
+          total_input: 100,
+          total_output: 100,
+          by_agent: {},
+        },
+      },
+    });
+
+    const outcomes = await collectOutcomes(runDir);
+    const stoplightOuts = outcomes.filter((o) =>
+      o.evidence.includes('Stoplight GREEN'),
+    );
+    expect(stoplightOuts.length).toBeGreaterThan(0);
+    expect(stoplightOuts[0].success).toBe(true);
+  });
+
+  it('detects "APPROVED" format', async () => {
+    const runDir = await writeRunFiles({
+      'brief.md': '# Update config\n\nBody',
+      'report.md': '## Review Result\n\nAPPROVED\n\nShip it.',
+      'metrics.json': {
+        runid: 'approved-run',
+        testing: { tests_added: 0 },
+        delegations: { re_delegations: 0 },
+        policy: { commands_blocked: 0 },
+        tokens: {
+          total_input: 100,
+          total_output: 100,
+          by_agent: {},
+        },
+      },
+    });
+
+    const outcomes = await collectOutcomes(runDir);
+    const stoplightOuts = outcomes.filter((o) =>
+      o.evidence.includes('Stoplight GREEN'),
+    );
+    expect(stoplightOuts.length).toBeGreaterThan(0);
+    expect(stoplightOuts[0].success).toBe(true);
+  });
+
+  it('detects "STOPLIGHT GREEN" without colon', async () => {
+    const runDir = await writeRunFiles({
+      'brief.md': '# Setup infra\n\nBody',
+      'report.md': '## STOPLIGHT GREEN\n\nDone.',
+      'metrics.json': {
+        runid: 'no-colon-run',
+        testing: { tests_added: 0 },
+        delegations: { re_delegations: 0 },
+        policy: { commands_blocked: 0 },
+        tokens: {
+          total_input: 100,
+          total_output: 100,
+          by_agent: {},
+        },
+      },
+    });
+
+    const outcomes = await collectOutcomes(runDir);
+    const stoplightOuts = outcomes.filter((o) =>
+      o.evidence.includes('Stoplight GREEN'),
+    );
+    expect(stoplightOuts.length).toBeGreaterThan(0);
+  });
+
+  it('REJECTED counts as failure', async () => {
+    const runDir = await writeRunFiles({
+      'brief.md': '# Fix login\n\nBody',
+      'report.md': '## Review\n\nREJECTED\n\nNeeds work.',
+      'metrics.json': {
+        runid: 'rejected-run',
+        testing: { tests_added: 0 },
+        delegations: { re_delegations: 0 },
+        policy: { commands_blocked: 0 },
+        tokens: {
+          total_input: 100,
+          total_output: 100,
+          by_agent: {},
+        },
+      },
+    });
+
+    const outcomes = await collectOutcomes(runDir);
+    const stoplightOuts = outcomes.filter((o) =>
+      o.evidence.includes('Stoplight YELLOW/RED'),
+    );
+    expect(stoplightOuts.length).toBeGreaterThan(0);
+    expect(stoplightOuts[0].success).toBe(false);
   });
 
   it('missing report.md skips stoplight but keeps other signals', async () => {
