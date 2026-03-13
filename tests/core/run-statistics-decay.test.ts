@@ -11,46 +11,46 @@ import {
 // ---------------------------------------------------------------------------
 
 describe('applyDecay', () => {
-  it('returns original confidence within grace period (default 14 days)', () => {
+  it('returns original confidence within grace period (default 10 runs)', () => {
     expect(applyDecay(0.8, 0)).toBe(0.8);
-    expect(applyDecay(0.8, 7)).toBe(0.8);
-    expect(applyDecay(0.8, 14)).toBe(0.8);
+    expect(applyDecay(0.8, 5)).toBe(0.8);
+    expect(applyDecay(0.8, 10)).toBe(0.8);
   });
 
   it('decays confidence toward 0.5 after grace period', () => {
-    const result = applyDecay(0.8, 24); // 10 days past grace
+    const result = applyDecay(0.8, 20); // 10 runs past grace
     expect(result).toBeLessThan(0.8);
     expect(result).toBeGreaterThan(0.5);
   });
 
   it('decays low confidence upward toward 0.5', () => {
-    const result = applyDecay(0.2, 24); // 10 days past grace
+    const result = applyDecay(0.2, 20); // 10 runs past grace
     expect(result).toBeGreaterThan(0.2);
     expect(result).toBeLessThan(0.5);
   });
 
-  it('returns 0.5 when fully decayed (very old)', () => {
+  it('returns 0.5 when fully decayed (very many runs)', () => {
     const result = applyDecay(0.9, 1000);
     expect(result).toBeCloseTo(0.5, 1);
   });
 
   it('respects custom grace period', () => {
-    // Within custom grace of 30 days
-    expect(applyDecay(0.8, 20, { gracePeriodDays: 30 })).toBe(0.8);
-    // Beyond custom grace of 30 days
-    const result = applyDecay(0.8, 40, { gracePeriodDays: 30 });
+    // Within custom grace of 30 runs
+    expect(applyDecay(0.8, 20, { gracePeriodRuns: 30 })).toBe(0.8);
+    // Beyond custom grace of 30 runs
+    const result = applyDecay(0.8, 40, { gracePeriodRuns: 30 });
     expect(result).toBeLessThan(0.8);
   });
 
-  it('respects custom daily rate', () => {
-    const slow = applyDecay(0.8, 24, { dailyRate: 0.001 });
-    const fast = applyDecay(0.8, 24, { dailyRate: 0.1 });
+  it('respects custom rate per run', () => {
+    const slow = applyDecay(0.8, 20, { ratePerRun: 0.001 });
+    const fast = applyDecay(0.8, 20, { ratePerRun: 0.1 });
     // Slow decay should be closer to original
     expect(slow).toBeGreaterThan(fast);
   });
 
   it('rounds to 4 decimal places', () => {
-    const result = applyDecay(0.8, 15);
+    const result = applyDecay(0.8, 11);
     const decimals = result.toString().split('.')[1] || '';
     expect(decimals.length).toBeLessThanOrEqual(4);
   });

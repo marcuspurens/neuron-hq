@@ -28,6 +28,7 @@ export interface RunBelief {
   total_runs: number;
   successes: number;
   last_updated: string;
+  last_run_number?: number;
 }
 
 export interface RunBeliefAudit {
@@ -303,31 +304,30 @@ export async function collectOutcomes(runDir: string): Promise<RunOutcome[]> {
 // ---------------------------------------------------------------------------
 
 export interface DecayOptions {
-  /** Days since last update before decay starts (default 14) */
-  gracePeriodDays?: number;
-  /** Daily decay rate toward 0.5 (default 0.01) */
-  dailyRate?: number;
+  /** Runs without update before decay starts (default 10) */
+  gracePeriodRuns?: number;
+  /** Decay rate per run toward 0.5 (default 0.02) */
+  ratePerRun?: number;
 }
 
 /**
- * Apply time-based confidence decay.
- * After grace period, confidence drifts toward 0.5 at dailyRate per day.
+ * Apply run-based confidence decay.
+ * After grace period, confidence drifts toward 0.5 at ratePerRun per run.
  * Pure function — no side effects.
  */
 export function applyDecay(
   confidence: number,
-  daysSinceUpdate: number,
+  runsSinceUpdate: number,
   options?: DecayOptions,
 ): number {
-  const grace = options?.gracePeriodDays ?? 14;
-  const rate = options?.dailyRate ?? 0.01;
+  const grace = options?.gracePeriodRuns ?? 10;
+  const rate = options?.ratePerRun ?? 0.02;
 
-  if (daysSinceUpdate <= grace) return confidence;
+  if (runsSinceUpdate <= grace) return confidence;
 
-  const decayDays = daysSinceUpdate - grace;
+  const decayRuns = runsSinceUpdate - grace;
   const neutral = 0.5;
-  // Exponential decay toward 0.5
-  const decayed = neutral + (confidence - neutral) * Math.pow(1 - rate, decayDays);
+  const decayed = neutral + (confidence - neutral) * Math.pow(1 - rate, decayRuns);
   return Math.round(decayed * 10000) / 10000;
 }
 
@@ -402,6 +402,12 @@ export async function updateRunBeliefs(
   const pool = getPool();
   const effectiveRunId = runid ?? 'unknown';
 
+  // Increment global run counter once per call
+  const { rows: counterRows } = await pool.query(
+    'UPDATE run_counter SET total_runs = total_runs + 1 RETURNING total_runs',
+  );
+  const currentRunNumber = counterRows[0].total_runs;
+
   for (const outcome of outcomes) {
     // Get current belief
     const { rows } = await pool.query(
@@ -434,11 +440,11 @@ export async function updateRunBeliefs(
 
     // Upsert belief
     await pool.query(
-      `INSERT INTO run_beliefs (dimension, confidence, total_runs, successes, last_updated)
-       VALUES ($1, $2, $3, $4, NOW())
+      `INSERT INTO run_beliefs (dimension, confidence, total_runs, successes, last_updated, last_run_number)
+       VALUES ($1, $2, $3, $4, NOW(), $5)
        ON CONFLICT (dimension) DO UPDATE
-       SET confidence = $2, total_runs = $3, successes = $4, last_updated = NOW()`,
-      [outcome.dimension, newConfidence, totalRuns, successes],
+       SET confidence = $2, total_runs = $3, successes = $4, last_updated = NOW(), last_run_number = $5`,
+      [outcome.dimension, newConfidence, totalRuns, successes, currentRunNumber],
     );
 
     // Insert audit
@@ -473,7 +479,7 @@ export async function getBeliefs(
 
   const pool = getPool();
 
-  let query = 'SELECT dimension, confidence, total_runs, successes, last_updated FROM run_beliefs';
+  let query = 'SELECT dimension, confidence, total_runs, successes, last_updated, last_run_number FROM run_beliefs';
   const params: unknown[] = [];
 
   if (filter?.prefix) {
@@ -490,14 +496,16 @@ export async function getBeliefs(
     total_runs: r.total_runs as number,
     successes: r.successes as number,
     last_updated: String(r.last_updated),
+    last_run_number: (r.last_run_number as number) ?? 0,
   }));
 
   if (filter?.applyDecay !== false) {
-    const now = new Date();
+    const { rows: counterRows } = await pool.query('SELECT total_runs FROM run_counter WHERE id = 1');
+    const globalRuns = counterRows[0]?.total_runs ?? 0;
+
     for (const belief of beliefs) {
-      const lastUpdated = new Date(belief.last_updated);
-      const daysSince = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60 * 24);
-      belief.confidence = applyDecay(belief.confidence, daysSince);
+      const runsSince = globalRuns - (belief.last_run_number ?? 0);
+      belief.confidence = applyDecay(belief.confidence, runsSince);
     }
   }
 
@@ -560,7 +568,7 @@ export async function getSummary(): Promise<RunSummary> {
 
   // Get all beliefs
   const { rows: beliefRows } = await pool.query(
-    'SELECT dimension, confidence, total_runs, successes, last_updated FROM run_beliefs ORDER BY confidence DESC',
+    'SELECT dimension, confidence, total_runs, successes, last_updated, last_run_number FROM run_beliefs ORDER BY confidence DESC',
   );
 
   const allBeliefs: RunBelief[] = beliefRows.map((r: Record<string, unknown>) => ({
@@ -569,14 +577,16 @@ export async function getSummary(): Promise<RunSummary> {
     total_runs: r.total_runs as number,
     successes: r.successes as number,
     last_updated: String(r.last_updated),
+    last_run_number: (r.last_run_number as number) ?? 0,
   }));
 
-  // Apply decay for ranking
-  const now = new Date();
+  // Apply run-based decay for ranking
+  const { rows: counterRows } = await pool.query('SELECT total_runs FROM run_counter WHERE id = 1');
+  const globalRuns = counterRows[0]?.total_runs ?? 0;
+
   for (const belief of allBeliefs) {
-    const lastUpdated = new Date(belief.last_updated);
-    const daysSince = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60 * 24);
-    belief.confidence = applyDecay(belief.confidence, daysSince);
+    const runsSince = globalRuns - (belief.last_run_number ?? 0);
+    belief.confidence = applyDecay(belief.confidence, runsSince);
   }
 
   // Re-sort after decay
