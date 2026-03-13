@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { renderDashboard } from '../../commands/dashboard-template.js';
-import { collectDashboardData } from '../../commands/dashboard.js';
+import { collectDashboardData } from '../../commands/dashboard-data.js';
 
 export function registerDashboardTool(server: McpServer): void {
   server.tool(
