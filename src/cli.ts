@@ -419,6 +419,16 @@ program
     await auroraConfidenceCommand(nodeId, options);
   });
 
+// Dashboard command
+program
+  .command('dashboard')
+  .description('Generate statistics dashboard (HTML)')
+  .option('--no-open', 'Do not open in browser')
+  .action(async (options: Record<string, unknown>) => {
+    const { dashboardCommand } = await import('./commands/dashboard.js');
+    await dashboardCommand(options as any);
+  });
+
 // neuron:statistics
 program
   .command('neuron:statistics')
