@@ -119,8 +119,8 @@ describe('briefing() freshness enrichment', () => {
 
   it('includes freshnessScore and freshnessStatus in facts', async () => {
     setupBaseMocks();
-    // DB returns last_verified = null for the node
-    mockQuery.mockResolvedValue({ rows: [{ last_verified: null }] });
+    // DB returns batch result with id + last_verified
+    mockQuery.mockResolvedValue({ rows: [{ id: 'mem-1', last_verified: null }] });
 
     const result = await briefing('TypeScript');
 
@@ -130,7 +130,7 @@ describe('briefing() freshness enrichment', () => {
 
   it('marks unverified sources with score 0 and status unverified', async () => {
     setupBaseMocks();
-    mockQuery.mockResolvedValue({ rows: [{ last_verified: null }] });
+    mockQuery.mockResolvedValue({ rows: [{ id: 'mem-1', last_verified: null }] });
 
     const result = await briefing('TypeScript');
 
@@ -141,7 +141,7 @@ describe('briefing() freshness enrichment', () => {
   it('marks recently verified sources as fresh', async () => {
     setupBaseMocks();
     mockQuery.mockResolvedValue({
-      rows: [{ last_verified: new Date().toISOString() }],
+      rows: [{ id: 'mem-1', last_verified: new Date().toISOString() }],
     });
 
     const result = await briefing('TypeScript');
@@ -162,10 +162,88 @@ describe('briefing() freshness enrichment', () => {
 
   it('does not expose nodeId in returned facts', async () => {
     setupBaseMocks();
-    mockQuery.mockResolvedValue({ rows: [{ last_verified: null }] });
+    mockQuery.mockResolvedValue({ rows: [{ id: 'mem-1', last_verified: null }] });
 
     const result = await briefing('TypeScript');
 
     expect(result.facts[0]).not.toHaveProperty('nodeId');
+  });
+
+  it('makes exactly 1 DB query for freshness regardless of fact count', async () => {
+    mockRecall.mockResolvedValue({
+      memories: [
+        { id: 'mem-1', title: 'Fact 1', type: 'fact', confidence: 0.8, similarity: 0.9, tags: [], related: [], createdAt: '2026-01-01', updatedAt: '2026-01-01' },
+        { id: 'mem-2', title: 'Fact 2', type: 'fact', confidence: 0.7, similarity: 0.8, tags: [], related: [], createdAt: '2026-01-01', updatedAt: '2026-01-01' },
+        { id: 'mem-3', title: 'Fact 3', type: 'fact', confidence: 0.6, similarity: 0.7, tags: [], related: [], createdAt: '2026-01-01', updatedAt: '2026-01-01' },
+      ],
+      totalFound: 3,
+    });
+    mockSearchAurora.mockResolvedValue([]);
+    mockGetGaps.mockResolvedValue({ gaps: [], totalUnanswered: 0 });
+    mockUnifiedSearch.mockResolvedValue({
+      neuronResults: [],
+      auroraResults: [],
+      crossRefs: [],
+    });
+    mockCheckCrossRefIntegrity.mockResolvedValue([]);
+    mockCreate.mockResolvedValue({
+      content: [{ type: 'text', text: 'Summary' }],
+    });
+    mockQuery.mockResolvedValue({
+      rows: [
+        { id: 'mem-1', last_verified: new Date().toISOString() },
+        { id: 'mem-2', last_verified: null },
+        { id: 'mem-3', last_verified: new Date(Date.now() - 60 * 86400000).toISOString() },
+      ],
+    });
+
+    await briefing('test');
+
+    // Should be exactly 1 query for freshness (batch), not 3
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining('ANY'),
+      [['mem-1', 'mem-2', 'mem-3']],
+    );
+  });
+
+  it('handles batch with mixed results (some nodes found, some not)', async () => {
+    mockRecall.mockResolvedValue({
+      memories: [
+        { id: 'mem-1', title: 'Fact 1', type: 'fact', confidence: 0.8, similarity: 0.9, tags: [], related: [], createdAt: '2026-01-01', updatedAt: '2026-01-01' },
+        { id: 'mem-2', title: 'Fact 2', type: 'fact', confidence: 0.7, similarity: 0.8, tags: [], related: [], createdAt: '2026-01-01', updatedAt: '2026-01-01' },
+        { id: 'mem-3', title: 'Fact 3', type: 'fact', confidence: 0.6, similarity: 0.7, tags: [], related: [], createdAt: '2026-01-01', updatedAt: '2026-01-01' },
+      ],
+      totalFound: 3,
+    });
+    mockSearchAurora.mockResolvedValue([]);
+    mockGetGaps.mockResolvedValue({ gaps: [], totalUnanswered: 0 });
+    mockUnifiedSearch.mockResolvedValue({
+      neuronResults: [],
+      auroraResults: [],
+      crossRefs: [],
+    });
+    mockCheckCrossRefIntegrity.mockResolvedValue([]);
+    mockCreate.mockResolvedValue({
+      content: [{ type: 'text', text: 'Summary' }],
+    });
+    // DB only returns 1 of 3 nodes — mem-2 and mem-3 are missing from DB
+    mockQuery.mockResolvedValue({
+      rows: [
+        { id: 'mem-1', last_verified: new Date().toISOString() },
+      ],
+    });
+
+    const result = await briefing('test');
+
+    // mem-1 was found with recent verification → fresh
+    expect(result.facts[0].freshnessScore).toBe(1);
+    expect(result.facts[0].freshnessStatus).toBe('fresh');
+    // mem-2 not in DB → unverified defaults
+    expect(result.facts[1].freshnessScore).toBe(0);
+    expect(result.facts[1].freshnessStatus).toBe('unverified');
+    // mem-3 not in DB → unverified defaults
+    expect(result.facts[2].freshnessScore).toBe(0);
+    expect(result.facts[2].freshnessStatus).toBe('unverified');
   });
 });

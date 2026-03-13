@@ -210,35 +210,48 @@ export async function saveGraphToDb(graph: KnowledgeGraph): Promise<void> {
       'SELECT from_id, to_id, type FROM kg_edges',
     );
 
-    // Delete edges not in graph
-    for (const row of existingEdges) {
-      const key = `${row.from_id}|${row.to_id}|${row.type}`;
-      if (!graphEdgeKeys.has(key)) {
-        await client.query(
-          'DELETE FROM kg_edges WHERE from_id = $1 AND to_id = $2 AND type = $3',
-          [row.from_id, row.to_id, row.type],
-        );
-      }
-    }
-
-    // Upsert edges
-    for (const edge of graph.edges) {
+    // Batch delete edges not in graph
+    const edgesToDelete = existingEdges.filter(
+      (row: Record<string, unknown>) => !graphEdgeKeys.has(`${row.from_id}|${row.to_id}|${row.type}`)
+    );
+    if (edgesToDelete.length > 0) {
+      const froms = edgesToDelete.map((r: Record<string, unknown>) => r.from_id as string);
+      const tos = edgesToDelete.map((r: Record<string, unknown>) => r.to_id as string);
+      const types = edgesToDelete.map((r: Record<string, unknown>) => r.type as string);
       await client.query(
-        `INSERT INTO kg_edges (from_id, to_id, type, metadata)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (from_id, to_id, type) DO UPDATE SET
-           metadata = EXCLUDED.metadata`,
-        [edge.from, edge.to, edge.type, JSON.stringify(edge.metadata)],
+        `DELETE FROM kg_edges WHERE (from_id, to_id, type) IN (
+           SELECT * FROM unnest($1::text[], $2::text[], $3::text[])
+         )`,
+        [froms, tos, types],
       );
     }
 
-    // Delete nodes not in graph
+    // Batch upsert edges
+    if (graph.edges.length > 0) {
+      const froms = graph.edges.map(e => e.from);
+      const tos = graph.edges.map(e => e.to);
+      const types = graph.edges.map(e => e.type);
+      const metas = graph.edges.map(e => JSON.stringify(e.metadata));
+      await client.query(
+        `INSERT INTO kg_edges (from_id, to_id, type, metadata)
+         SELECT * FROM unnest($1::text[], $2::text[], $3::text[], $4::jsonb[])
+         ON CONFLICT (from_id, to_id, type) DO UPDATE SET
+           metadata = EXCLUDED.metadata`,
+        [froms, tos, types, metas],
+      );
+    }
+
+    // Batch delete nodes not in graph
     const graphNodeIds = new Set(graph.nodes.map((n) => n.id));
     const { rows: existingNodes } = await client.query('SELECT id FROM kg_nodes');
-    for (const row of existingNodes) {
-      if (!graphNodeIds.has(row.id as string)) {
-        await client.query('DELETE FROM kg_nodes WHERE id = $1', [row.id]);
-      }
+    const nodesToDelete = existingNodes
+      .filter((row: Record<string, unknown>) => !graphNodeIds.has(row.id as string))
+      .map((row: Record<string, unknown>) => row.id);
+    if (nodesToDelete.length > 0) {
+      await client.query(
+        'DELETE FROM kg_nodes WHERE id = ANY($1::text[])',
+        [nodesToDelete],
+      );
     }
 
     await client.query('COMMIT');

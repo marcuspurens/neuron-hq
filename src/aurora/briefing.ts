@@ -119,25 +119,34 @@ export async function briefing(
     freshnessStatus: 'unverified' as FreshnessStatusType,
   }));
 
-  // Step 2b: Enrich facts with freshness info
+  // Step 2b: Enrich facts with freshness info (batch query)
   try {
     const pool = getPool();
-    for (const fact of facts) {
-      try {
-        const { rows } = await pool.query(
-          'SELECT last_verified FROM aurora_nodes WHERE id = $1',
-          [fact.nodeId],
-        );
-        const lastVerified = rows[0]?.last_verified
-          ? new Date(rows[0].last_verified)
-          : null;
-        fact.freshnessScore = calculateFreshnessScore(lastVerified);
-        fact.freshnessStatus = freshnessStatus(
-          fact.freshnessScore,
-          lastVerified,
-        );
-      } catch {
-        // Keep defaults (0, 'unverified') on failure
+    const nodeIds = facts.map((f) => f.nodeId);
+    if (nodeIds.length > 0) {
+      const { rows } = await pool.query(
+        'SELECT id, last_verified FROM aurora_nodes WHERE id = ANY($1::text[])',
+        [nodeIds],
+      );
+      const freshnessMap = new Map(
+        rows.map((r: Record<string, unknown>) => [
+          r.id as string,
+          r.last_verified,
+        ]),
+      );
+      for (const fact of facts) {
+        try {
+          const lastVerified = freshnessMap.get(fact.nodeId)
+            ? new Date(freshnessMap.get(fact.nodeId) as string)
+            : null;
+          fact.freshnessScore = calculateFreshnessScore(lastVerified);
+          fact.freshnessStatus = freshnessStatus(
+            fact.freshnessScore,
+            lastVerified,
+          );
+        } catch {
+          // Keep defaults (0, 'unverified') on failure
+        }
       }
     }
   } catch {

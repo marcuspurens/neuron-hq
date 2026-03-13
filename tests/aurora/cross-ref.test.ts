@@ -18,6 +18,7 @@ import {
   unifiedSearch,
   createCrossRef,
   getCrossRefs,
+  getCrossRefsBatch,
   findAuroraMatchesForNeuron,
   findNeuronMatchesForAurora,
   transferCrossRefs,
@@ -311,6 +312,61 @@ describe('getCrossRefs', () => {
     const refs = await getCrossRefs('nonexistent');
 
     expect(refs).toHaveLength(0);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  Tests: getCrossRefsBatch                                           */
+/* ------------------------------------------------------------------ */
+
+describe('getCrossRefsBatch', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('returns empty map for empty input', async () => {
+    const result = await getCrossRefsBatch([]);
+    expect(result.size).toBe(0);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('fetches cross-refs for a single node', async () => {
+    mockQuery.mockResolvedValue({
+      rows: [{
+        id: 1, neuron_node_id: 'n-1', aurora_node_id: 'a-1',
+        relationship: 'supports', similarity: 0.9, metadata: {},
+        context: null, strength: null, created_at: new Date(),
+      }],
+    });
+    const result = await getCrossRefsBatch(['n-1']);
+    expect(result.size).toBe(1);
+    expect(result.get('n-1')).toHaveLength(1);
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining('ANY'),
+      [['n-1']],
+    );
+  });
+
+  it('fetches cross-refs for multiple nodes', async () => {
+    mockQuery.mockResolvedValue({
+      rows: [
+        { id: 1, neuron_node_id: 'n-1', aurora_node_id: 'a-1', relationship: 'supports', similarity: 0.9, metadata: {}, context: null, strength: null, created_at: new Date() },
+        { id: 2, neuron_node_id: 'n-2', aurora_node_id: 'a-2', relationship: 'enriches', similarity: 0.8, metadata: {}, context: null, strength: null, created_at: new Date() },
+      ],
+    });
+    const result = await getCrossRefsBatch(['n-1', 'n-2']);
+    expect(result.size).toBe(2);
+    expect(result.get('n-1')).toHaveLength(1);
+    expect(result.get('n-2')).toHaveLength(1);
+  });
+
+  it('maps cross-refs to correct nodes when shared', async () => {
+    mockQuery.mockResolvedValue({
+      rows: [
+        { id: 1, neuron_node_id: 'n-1', aurora_node_id: 'a-1', relationship: 'supports', similarity: 0.9, metadata: {}, context: null, strength: null, created_at: new Date() },
+      ],
+    });
+    const result = await getCrossRefsBatch(['n-1', 'a-1']);
+    expect(result.get('n-1')).toHaveLength(1);
+    expect(result.get('a-1')).toHaveLength(1);
   });
 });
 

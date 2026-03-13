@@ -112,15 +112,8 @@ export async function unifiedSearch(
     ...auroraResults.map((r) => r.node.id),
   ];
 
-  const crossRefsByNode = new Map<string, CrossRef[]>();
-  const allCrossRefs: CrossRef[] = [];
-
-  for (const nodeId of allNodeIds) {
-    if (crossRefsByNode.has(nodeId)) continue;
-    const refs = await getCrossRefs(nodeId);
-    crossRefsByNode.set(nodeId, refs);
-    allCrossRefs.push(...refs);
-  }
+  const crossRefsByNode = await getCrossRefsBatch(allNodeIds);
+  const allCrossRefs = [...new Set([...crossRefsByNode.values()].flat())];
 
   // Attach existingRef to matching items
   for (const match of neuronResults) {
@@ -188,6 +181,31 @@ export async function getCrossRefs(nodeId: string): Promise<CrossRef[]> {
   );
 
   return result.rows.map((row: Record<string, unknown>) => rowToCrossRef(row));
+}
+
+/**
+ * Batch-fetch cross-references for multiple node IDs in a single query.
+ * Each node ID is checked on both neuron_node_id and aurora_node_id sides.
+ */
+export async function getCrossRefsBatch(nodeIds: string[]): Promise<Map<string, CrossRef[]>> {
+  if (nodeIds.length === 0) return new Map();
+  const pool = getPool();
+  const result = await pool.query(
+    'SELECT * FROM cross_refs WHERE neuron_node_id = ANY($1::text[]) OR aurora_node_id = ANY($1::text[])',
+    [nodeIds],
+  );
+  const map = new Map<string, CrossRef[]>();
+  for (const row of result.rows) {
+    const ref = rowToCrossRef(row as Record<string, unknown>);
+    for (const id of nodeIds) {
+      if ((row as Record<string, unknown>).neuron_node_id === id || (row as Record<string, unknown>).aurora_node_id === id) {
+        const existing = map.get(id) ?? [];
+        existing.push(ref);
+        map.set(id, existing);
+      }
+    }
+  }
+  return map;
 }
 
 /**
