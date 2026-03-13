@@ -11,13 +11,14 @@ vi.mock('../../src/core/run-statistics.js', () => ({
   getBeliefs: vi.fn(),
   getBeliefHistory: vi.fn(),
   getSummary: vi.fn(),
+  detectContradictions: vi.fn(),
 }));
 
 // DO NOT mock pricing.ts - use real calcCost/getModelShortName/getModelLabel
 
 import { collectDashboardData } from '../../src/commands/dashboard-data.js';
 import { getPool, isDbAvailable } from '../../src/core/db.js';
-import { getBeliefs, getBeliefHistory, getSummary } from '../../src/core/run-statistics.js';
+import { getBeliefs, getBeliefHistory, getSummary, detectContradictions } from '../../src/core/run-statistics.js';
 import { calcCost, getModelShortName } from '../../src/core/pricing.js';
 
 const mockGetPool = getPool as ReturnType<typeof vi.fn>;
@@ -25,6 +26,7 @@ const mockIsDbAvailable = isDbAvailable as ReturnType<typeof vi.fn>;
 const mockGetBeliefs = getBeliefs as ReturnType<typeof vi.fn>;
 const mockGetBeliefHistory = getBeliefHistory as ReturnType<typeof vi.fn>;
 const mockGetSummary = getSummary as ReturnType<typeof vi.fn>;
+const mockDetectContradictions = detectContradictions as ReturnType<typeof vi.fn>;
 
 const mockQuery = vi.fn();
 const mockPool = { query: mockQuery };
@@ -38,6 +40,7 @@ function setupV1Defaults(): void {
   mockGetSummary.mockResolvedValue({
     strongest: [], weakest: [], trending_up: [], trending_down: [],
   });
+  mockDetectContradictions.mockReturnValue([]);
 }
 
 /** Standard mock query handler returning sensible defaults for all V2 queries. */
@@ -97,6 +100,8 @@ describe('collectDashboardData', () => {
     expect(result.beliefs).toHaveLength(1);
     expect(result.summary).toBeDefined();
     expect(result.historyMap).toHaveProperty('test-dim');
+    expect(result.contradictions).toEqual([]);
+    expect(result.rawBeliefs).toHaveLength(1);
     expect(result.runOverview.totalRuns).toBe(5);
     expect(result.tokenUsage.totalInputTokens).toBe(1000);
     expect(result.modelBreakdown).toHaveLength(1);
@@ -262,6 +267,8 @@ describe('collectDashboardData', () => {
 
     // V1 should be empty due to error
     expect(result.beliefs).toEqual([]);
+    expect(result.contradictions).toEqual([]);
+    expect(result.rawBeliefs).toEqual([]);
     // V2 should still work
     expect(result.runOverview.greenCount).toBe(7);
     expect(result.runOverview.totalRuns).toBe(7);
@@ -311,5 +318,38 @@ describe('collectDashboardData', () => {
     expect(t2.runid).toBe('run-2');
     expect(t2.tokens).toBe(11000);
     expect(t2.cost).toBe(calcCost(8000, 3000, 'sonnet'));
+  });
+
+  it('contradictions are passed through from detectContradictions', async () => {
+    mockIsDbAvailable.mockResolvedValue(true);
+    setupV1Defaults();
+    const fakeContradiction = {
+      dimension1: 'agent:implementer',
+      dimension2: 'agent:reviewer',
+      confidence1: 0.9,
+      confidence2: 0.4,
+      gap: 0.5,
+      description: 'test contradiction',
+    };
+    mockDetectContradictions.mockReturnValue([fakeContradiction]);
+    setupDefaultQueryHandler();
+
+    const result = await collectDashboardData();
+
+    expect(result.contradictions).toHaveLength(1);
+    expect(result.contradictions[0]).toEqual(fakeContradiction);
+  });
+
+  it('getBeliefs called twice: with decay (default) and without decay', async () => {
+    mockIsDbAvailable.mockResolvedValue(true);
+    setupV1Defaults();
+    setupDefaultQueryHandler();
+
+    await collectDashboardData();
+
+    // First call: default (with decay), second call: applyDecay: false
+    expect(mockGetBeliefs).toHaveBeenCalledTimes(2);
+    expect(mockGetBeliefs).toHaveBeenNthCalledWith(1);
+    expect(mockGetBeliefs).toHaveBeenNthCalledWith(2, { applyDecay: false });
   });
 });

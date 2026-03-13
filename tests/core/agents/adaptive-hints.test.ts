@@ -100,4 +100,55 @@ describe('generateAdaptiveHints', () => {
     const result = generateAdaptiveHints(beliefs, 'feature');
     expect(result.promptSection).toContain('Based on 2 tracked dimensions across 35 observations');
   });
+
+  // --- Contradiction tests ---
+
+  it('detects contradictions in hints when agent beliefs have large gap', () => {
+    const beliefs = [
+      makeBelief('agent:implementer', 0.95, 20, 19),
+      makeBelief('agent:researcher', 0.3, 10, 3),
+    ];
+    const result = generateAdaptiveHints(beliefs, 'feature');
+    expect(result.contradictions).toHaveLength(1);
+    expect(result.contradictions[0].dimension1).toBe('agent:implementer');
+    expect(result.contradictions[0].dimension2).toBe('agent:researcher');
+    expect(result.contradictions[0].gap).toBeGreaterThanOrEqual(0.35);
+    expect(result.promptSection).toContain('Contradictions');
+  });
+
+  it('shows max 3 contradictions in prompt section', () => {
+    const beliefs = [
+      makeBelief('agent:a', 0.95, 10, 9),
+      makeBelief('agent:b', 0.1, 10, 1),
+      makeBelief('agent:c', 0.15, 10, 1),
+      makeBelief('agent:d', 0.2, 10, 2),
+      makeBelief('agent:e', 0.25, 10, 2),
+    ];
+    const result = generateAdaptiveHints(beliefs, 'feature');
+    // With these values, agent:a vs each of b/c/d/e all have gap >= 0.35
+    // That's at least 4 contradictions, but prompt should show max 3
+    expect(result.contradictions.length).toBeGreaterThan(3);
+    expect(result.promptSection).toContain('Contradictions');
+
+    // Count lines with ' — gap' pattern after the Contradictions header
+    const contradictionsSection = result.promptSection.split('Contradictions')[1] ?? '';
+    const gapLines = contradictionsSection.split('\n').filter(line => line.includes(' — gap'));
+    expect(gapLines.length).toBeLessThanOrEqual(3);
+  });
+
+  it('returns empty contradictions array when beliefs have no divergence', () => {
+    const beliefs = [
+      makeBelief('agent:implementer', 0.70, 10, 7),
+      makeBelief('agent:reviewer', 0.72, 10, 7),
+      makeBelief('agent:researcher', 0.68, 10, 7),
+    ];
+    const result = generateAdaptiveHints(beliefs, 'feature');
+    expect(result.contradictions).toEqual([]);
+    expect(result.promptSection).not.toContain('Contradictions');
+  });
+
+  it('returns empty contradictions for empty beliefs', () => {
+    const result = generateAdaptiveHints([], 'feature');
+    expect(result.contradictions).toEqual([]);
+  });
 });

@@ -8,6 +8,21 @@ const sampleData: DashboardData = {
     { dimension: 'agent:reviewer', confidence: 0.45, total_runs: 15, successes: 7, last_updated: '2026-03-13T00:00:00Z' },
     { dimension: 'brief:feature', confidence: 0.30, total_runs: 10, successes: 3, last_updated: '2026-03-12T00:00:00Z' },
   ],
+  rawBeliefs: [
+    { dimension: 'agent:implementer', confidence: 0.90, total_runs: 20, successes: 17, last_updated: '2026-03-13T00:00:00Z' },
+    { dimension: 'agent:reviewer', confidence: 0.45, total_runs: 15, successes: 7, last_updated: '2026-03-13T00:00:00Z' },
+    { dimension: 'brief:feature', confidence: 0.35, total_runs: 10, successes: 3, last_updated: '2026-03-12T00:00:00Z' },
+  ],
+  contradictions: [
+    {
+      dimension1: 'agent:implementer',
+      dimension2: 'agent:reviewer',
+      confidence1: 0.85,
+      confidence2: 0.45,
+      gap: 0.4,
+      description: 'agent:implementer (0.85) vs agent:reviewer (0.45) — gap 0.40',
+    },
+  ],
   summary: {
     strongest: [{ dimension: 'agent:implementer', confidence: 0.85, total_runs: 20, successes: 17, last_updated: '2026-03-13T00:00:00Z' }],
     weakest: [{ dimension: 'brief:feature', confidence: 0.30, total_runs: 10, successes: 3, last_updated: '2026-03-12T00:00:00Z' }],
@@ -58,6 +73,8 @@ const sampleData: DashboardData = {
 
 const emptyV2Data: DashboardData = {
   beliefs: [],
+  rawBeliefs: [],
+  contradictions: [],
   summary: { strongest: [], weakest: [], trending_up: [], trending_down: [] },
   historyMap: {},
   runOverview: { totalRuns: 0, greenCount: 0, yellowCount: 0, redCount: 0, unknownCount: 0, recentRuns: [] },
@@ -70,6 +87,8 @@ describe('renderDashboard', () => {
   it('renders valid HTML with empty data', () => {
     const emptyData: DashboardData = {
       beliefs: [],
+      rawBeliefs: [],
+      contradictions: [],
       summary: { strongest: [], weakest: [], trending_up: [], trending_down: [] },
       historyMap: {},
       runOverview: { totalRuns: 0, greenCount: 0, yellowCount: 0, redCount: 0, unknownCount: 0, recentRuns: [] },
@@ -197,5 +216,59 @@ describe('renderDashboard', () => {
     const html = renderDashboard(sampleData);
     // 18/25 = 72.0%
     expect(html).toContain('72.0%');
+  });
+
+  // --- Decay indicator tests ---
+
+  it('shows decay indicator when belief confidence differs from raw', () => {
+    const html = renderDashboard(sampleData);
+    // agent:implementer has 0.85 (decayed) vs 0.90 (raw) → should show ↓
+    // brief:feature has 0.30 (decayed) vs 0.35 (raw) → should show ↓
+    expect(html).toContain('\u2193'); // ↓ character
+  });
+
+  it('does not show decay indicator when confidence matches raw', () => {
+    const dataNoDecay: DashboardData = {
+      ...sampleData,
+      beliefs: [
+        { dimension: 'agent:test', confidence: 0.7, total_runs: 5, successes: 4, last_updated: '2026-01-01' },
+      ],
+      rawBeliefs: [
+        { dimension: 'agent:test', confidence: 0.7, total_runs: 5, successes: 4, last_updated: '2026-01-01' },
+      ],
+      contradictions: [],
+    };
+    const html = renderDashboard(dataNoDecay);
+    // Find the table section — the confidence cell should NOT contain ↓
+    const tableSection = html.substring(html.indexOf('Belief Table'), html.indexOf('Confidence History'));
+    expect(tableSection).not.toContain('\u2193');
+  });
+
+  // --- Contradictions tests ---
+
+  it('renders contradictions section when contradictions exist', () => {
+    const html = renderDashboard(sampleData);
+    expect(html).toContain('Contradictions');
+    expect(html).toContain('agent:implementer');
+    expect(html).toContain('agent:reviewer');
+    expect(html).toContain('0.4000');
+  });
+
+  it('does not render contradictions section when empty', () => {
+    const dataNoContra: DashboardData = {
+      ...sampleData,
+      contradictions: [],
+    };
+    const html = renderDashboard(dataNoContra);
+    expect(html).not.toContain('Contradictions');
+  });
+
+  it('contradictions section appears after Trends and before Run Overview in order', () => {
+    const html = renderDashboard(sampleData);
+    const trendsIdx = html.indexOf('Trends');
+    const contradictionsIdx = html.indexOf('Contradictions');
+    const modelBreakdownIdx = html.indexOf('Model Breakdown');
+    expect(trendsIdx).toBeLessThan(contradictionsIdx);
+    expect(contradictionsIdx).toBeLessThan(modelBreakdownIdx);
   });
 });

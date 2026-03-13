@@ -1,4 +1,4 @@
-import type { DashboardData, RunSummary, ModelBreakdown, TokenUsage, KnowledgeStats } from './dashboard-data.js';
+import type { DashboardData, RunSummary, ModelBreakdown, TokenUsage, KnowledgeStats, Contradiction } from './dashboard-data.js';
 import type { RunBelief, RunBeliefAudit } from '../core/run-statistics.js';
 
 // Re-export for backwards compatibility (tests import DashboardData from here)
@@ -65,19 +65,30 @@ function renderCards(beliefs: RunBelief[]): string {
 </div>`;
 }
 
-/** Render the filterable belief table with inline filter script. */
-function renderTable(beliefs: RunBelief[]): string {
+/** Render the filterable belief table with inline filter script and decay indicators. */
+function renderTable(beliefs: RunBelief[], rawBeliefs?: RunBelief[]): string {
   if (beliefs.length === 0) return '';
+
+  const rawMap = new Map<string, number>();
+  if (rawBeliefs) {
+    for (const rb of rawBeliefs) {
+      rawMap.set(rb.dimension, rb.confidence);
+    }
+  }
+
   const rows = beliefs
     .map(
-      (b) =>
-        `<tr>
+      (b) => {
+        const raw = rawMap.get(b.dimension);
+        const decayIndicator = raw !== undefined && raw !== b.confidence ? ' \u2193' : '';
+        return `<tr>
   <td>${esc(b.dimension)}</td>
-  <td style="color:${confColor(b.confidence)}">${b.confidence.toFixed(4)}</td>
+  <td style="color:${confColor(b.confidence)}">${b.confidence.toFixed(4)}${decayIndicator}</td>
   <td>${b.total_runs}</td>
   <td>${b.successes}</td>
   <td>${esc(b.last_updated)}</td>
-</tr>`,
+</tr>`;
+      },
     )
     .join('\n');
 
@@ -163,6 +174,33 @@ ${section('\u26A0\uFE0F', 'Weakest', summary.weakest, 5)}
 ${section('\u{1F4C8}', 'Trending Up', summary.trending_up)}
 ${section('\u{1F4C9}', 'Trending Down', summary.trending_down)}
 </div>
+</div>`;
+}
+
+/** Render contradictions section showing belief pairs with significant gaps. */
+function renderContradictions(contradictions: Contradiction[]): string {
+  if (!contradictions || contradictions.length === 0) {
+    return '';
+  }
+
+  const rows = contradictions
+    .map((c) => `<tr>
+  <td>${esc(c.dimension1)}</td>
+  <td style="color:${confColor(c.confidence1)}">${c.confidence1.toFixed(4)}</td>
+  <td>${esc(c.dimension2)}</td>
+  <td style="color:${confColor(c.confidence2)}">${c.confidence2.toFixed(4)}</td>
+  <td>${c.gap.toFixed(4)}</td>
+</tr>`)
+    .join('\n');
+
+  return `<div class="section">
+<h2>\u26A1 Contradictions</h2>
+<table>
+<thead><tr><th>Dimension 1</th><th>Confidence</th><th>Dimension 2</th><th>Confidence</th><th>Gap</th></tr></thead>
+<tbody>
+${rows}
+</tbody>
+</table>
 </div>`;
 }
 
@@ -400,9 +438,10 @@ canvas{max-height:400px}
 <h1>Neuron HQ \u2014 Statistics Dashboard</h1>
 ${renderCards(data.beliefs)}
 ${renderRunOverview(data)}
-${renderTable(data.beliefs)}
+${renderTable(data.beliefs, data.rawBeliefs)}
 ${renderChart(data.historyMap)}
 ${renderTrends(data.summary)}
+${renderContradictions(data.contradictions)}
 ${renderModelBreakdown(data.modelBreakdown)}
 ${renderAgentTokens(data.tokenUsage)}
 ${renderKnowledgeStats(data.knowledgeStats)}

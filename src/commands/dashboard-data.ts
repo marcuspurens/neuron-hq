@@ -1,10 +1,10 @@
 import { getPool, isDbAvailable } from '../core/db.js';
-import { getBeliefs, getBeliefHistory, getSummary } from '../core/run-statistics.js';
+import { getBeliefs, getBeliefHistory, getSummary, detectContradictions } from '../core/run-statistics.js';
 import { calcCost, getModelShortName, getModelLabel } from '../core/pricing.js';
-import type { RunBelief, RunBeliefAudit } from '../core/run-statistics.js';
+import type { RunBelief, RunBeliefAudit, Contradiction } from '../core/run-statistics.js';
 
 // Re-export types needed by template
-export type { RunBelief, RunBeliefAudit };
+export type { RunBelief, RunBeliefAudit, Contradiction };
 
 // ---------------------------------------------------------------------------
 // Interfaces
@@ -23,6 +23,8 @@ export interface DashboardData {
   beliefs: RunBelief[];
   summary: RunSummary;
   historyMap: Record<string, RunBeliefAudit[]>;
+  contradictions: Contradiction[];
+  rawBeliefs: RunBelief[];  // beliefs without decay, for comparison
   // V2
   runOverview: RunOverview;
   tokenUsage: TokenUsage;
@@ -282,11 +284,16 @@ export async function collectDashboardData(): Promise<DashboardData> {
   // V1 data
   let beliefs: RunBelief[] = [];
   let summary: RunSummary = { strongest: [], weakest: [], trending_up: [], trending_down: [] };
-  let historyMap: Record<string, RunBeliefAudit[]> = {};
+  const historyMap: Record<string, RunBeliefAudit[]> = {};
+  let contradictions: Contradiction[] = [];
+  let rawBeliefsResult: RunBelief[] = [];
 
   try {
     beliefs = await getBeliefs();
+    const rawBeliefs_ = await getBeliefs({ applyDecay: false });
+    rawBeliefsResult = rawBeliefs_;
     summary = await getSummary();
+    contradictions = detectContradictions(beliefs);
     for (const b of beliefs.slice(0, 10)) {
       historyMap[b.dimension] = await getBeliefHistory(b.dimension, 50);
     }
@@ -314,7 +321,7 @@ export async function collectDashboardData(): Promise<DashboardData> {
   }
 
   return {
-    beliefs, summary, historyMap,
+    beliefs, summary, historyMap, contradictions, rawBeliefs: rawBeliefsResult,
     runOverview, tokenUsage, modelBreakdown, knowledgeStats,
   };
 }

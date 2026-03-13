@@ -4,6 +4,7 @@ vi.mock('../../src/core/run-statistics.js', () => ({
   getBeliefs: vi.fn(),
   getBeliefHistory: vi.fn(),
   getSummary: vi.fn(),
+  detectContradictions: vi.fn(),
 }));
 
 vi.mock('../../src/cli.js', () => ({
@@ -23,13 +24,14 @@ vi.mock('child_process', () => ({
 }));
 
 import { dashboardCommand, collectDashboardData } from '../../src/commands/dashboard.js';
-import { getBeliefs, getBeliefHistory, getSummary } from '../../src/core/run-statistics.js';
+import { getBeliefs, getBeliefHistory, getSummary, detectContradictions } from '../../src/core/run-statistics.js';
 import fs from 'fs/promises';
 import { exec } from 'child_process';
 
 const mockGetBeliefs = getBeliefs as ReturnType<typeof vi.fn>;
 const mockGetBeliefHistory = getBeliefHistory as ReturnType<typeof vi.fn>;
 const mockGetSummary = getSummary as ReturnType<typeof vi.fn>;
+const mockDetectContradictions = detectContradictions as ReturnType<typeof vi.fn>;
 
 describe('dashboardCommand', () => {
   beforeEach(() => {
@@ -39,6 +41,7 @@ describe('dashboardCommand', () => {
     ]);
     mockGetBeliefHistory.mockResolvedValue([]);
     mockGetSummary.mockResolvedValue({ strongest: [], weakest: [], trending_up: [], trending_down: [] });
+    mockDetectContradictions.mockReturnValue([]);
   });
 
   afterEach(() => {
@@ -76,6 +79,7 @@ describe('collectDashboardData', () => {
     ]);
     mockGetBeliefHistory.mockResolvedValue([]);
     mockGetSummary.mockResolvedValue({ strongest: [], weakest: [], trending_up: [], trending_down: [] });
+    mockDetectContradictions.mockReturnValue([]);
   });
 
   it('returns beliefs, summary, and historyMap', async () => {

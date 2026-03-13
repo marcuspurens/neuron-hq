@@ -1,4 +1,4 @@
-import { type RunBelief, type BriefType } from '../run-statistics.js';
+import { type RunBelief, type BriefType, type Contradiction, detectContradictions } from '../run-statistics.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -11,6 +11,7 @@ export interface AdaptiveHints {
   warnings: Array<{ dimension: string; confidence: number; suggestion: string }>;
   /** Dimensions with confidence > 0.85 (strictly greater than) */
   strengths: string[];
+  contradictions: Contradiction[];
 }
 
 // ---------------------------------------------------------------------------
@@ -60,7 +61,7 @@ export function generateAdaptiveHints(
 ): AdaptiveHints {
   // Early return for empty beliefs
   if (beliefs.length === 0) {
-    return { promptSection: '', warnings: [], strengths: [] };
+    return { promptSection: '', warnings: [], strengths: [], contradictions: [] };
   }
 
   const warnings: AdaptiveHints['warnings'] = [];
@@ -120,5 +121,15 @@ export function generateAdaptiveHints(
     }
   }
 
-  return { promptSection, warnings, strengths };
+  // Contradiction detection
+  const contradictions = detectContradictions(beliefs);
+
+  if (contradictions.length > 0) {
+    promptSection += '\n\n### ⚡ Contradictions\n\n';
+    for (const c of contradictions.slice(0, 3)) {
+      promptSection += `- ${c.description}\n`;
+    }
+  }
+
+  return { promptSection, warnings, strengths, contradictions };
 }

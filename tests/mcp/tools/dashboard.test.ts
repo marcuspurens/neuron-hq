@@ -4,13 +4,14 @@ vi.mock('../../../src/core/run-statistics.js', () => ({
   getBeliefs: vi.fn(),
   getBeliefHistory: vi.fn(),
   getSummary: vi.fn(),
+  detectContradictions: vi.fn(),
 }));
 
 vi.mock('../../../src/cli.js', () => ({
   BASE_DIR: '/mock/base',
 }));
 
-import { getBeliefs, getBeliefHistory, getSummary } from '../../../src/core/run-statistics.js';
+import { getBeliefs, getBeliefHistory, getSummary, detectContradictions } from '../../../src/core/run-statistics.js';
 import { collectDashboardData } from '../../../src/commands/dashboard.js';
 import { renderDashboard } from '../../../src/commands/dashboard-template.js';
 
@@ -26,6 +27,7 @@ beforeEach(() => {
     trending_up: [],
     trending_down: [],
   });
+  (detectContradictions as ReturnType<typeof vi.fn>).mockReturnValue([]);
 });
 
 describe('MCP dashboard tool integration', () => {

@@ -20,7 +20,7 @@ function makeBelief(
 describe('generateAdaptiveHints', () => {
   it('returns empty result for empty beliefs', () => {
     const result = generateAdaptiveHints([], 'feature');
-    expect(result).toEqual({ promptSection: '', warnings: [], strengths: [] });
+    expect(result).toEqual({ promptSection: '', warnings: [], strengths: [], contradictions: [] });
   });
 
   it('generates agent:researcher warning when confidence < 0.5', () => {
@@ -134,5 +134,28 @@ describe('generateAdaptiveHints', () => {
     const result = generateAdaptiveHints(beliefs, 'feature');
     expect(result.warnings).toHaveLength(2); // researcher + brief:feature
     expect(result.strengths).toHaveLength(1); // implementer
+  });
+
+  it('detects contradictions and includes them in result', () => {
+    const beliefs = [
+      makeBelief('agent:researcher', 0.2),
+      makeBelief('agent:implementer', 0.95),
+    ];
+    const result = generateAdaptiveHints(beliefs, 'feature');
+    expect(result.contradictions).toHaveLength(1);
+    expect(result.contradictions[0].dimension1).toBe('agent:implementer');
+    expect(result.contradictions[0].dimension2).toBe('agent:researcher');
+    expect(result.contradictions[0].gap).toBeGreaterThanOrEqual(0.35);
+    expect(result.promptSection).toContain('### ⚡ Contradictions');
+  });
+
+  it('returns empty contradictions when no significant gaps exist', () => {
+    const beliefs = [
+      makeBelief('agent:researcher', 0.6),
+      makeBelief('agent:implementer', 0.7),
+    ];
+    const result = generateAdaptiveHints(beliefs, 'feature');
+    expect(result.contradictions).toHaveLength(0);
+    expect(result.promptSection).not.toContain('### ⚡ Contradictions');
   });
 });

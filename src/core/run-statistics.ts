@@ -297,6 +297,94 @@ export async function collectOutcomes(runDir: string): Promise<RunOutcome[]> {
   return outcomes;
 }
 
+
+// ---------------------------------------------------------------------------
+// Confidence decay
+// ---------------------------------------------------------------------------
+
+export interface DecayOptions {
+  /** Days since last update before decay starts (default 14) */
+  gracePeriodDays?: number;
+  /** Daily decay rate toward 0.5 (default 0.01) */
+  dailyRate?: number;
+}
+
+/**
+ * Apply time-based confidence decay.
+ * After grace period, confidence drifts toward 0.5 at dailyRate per day.
+ * Pure function — no side effects.
+ */
+export function applyDecay(
+  confidence: number,
+  daysSinceUpdate: number,
+  options?: DecayOptions,
+): number {
+  const grace = options?.gracePeriodDays ?? 14;
+  const rate = options?.dailyRate ?? 0.01;
+
+  if (daysSinceUpdate <= grace) return confidence;
+
+  const decayDays = daysSinceUpdate - grace;
+  const neutral = 0.5;
+  // Exponential decay toward 0.5
+  const decayed = neutral + (confidence - neutral) * Math.pow(1 - rate, decayDays);
+  return Math.round(decayed * 10000) / 10000;
+}
+
+// ---------------------------------------------------------------------------
+// Contradiction detection
+// ---------------------------------------------------------------------------
+
+export interface Contradiction {
+  dimension1: string;
+  dimension2: string;
+  confidence1: number;
+  confidence2: number;
+  gap: number;
+  description: string;
+}
+
+/**
+ * Detect contradictory beliefs — pairs where confidence diverges significantly.
+ * Pure function — operates on belief array, no I/O.
+ */
+export function detectContradictions(
+  beliefs: RunBelief[],
+  options?: { minGap?: number },
+): Contradiction[] {
+  const minGap = options?.minGap ?? 0.35;
+  const contradictions: Contradiction[] = [];
+
+  // Group by prefix type
+  const agents = beliefs.filter(b => b.dimension.startsWith('agent:'));
+  const briefs = beliefs.filter(b => b.dimension.startsWith('brief:'));
+  const models = beliefs.filter(b => b.dimension.startsWith('model:'));
+  const targets = beliefs.filter(b => b.dimension.startsWith('target:'));
+
+  // Compare within each group
+  for (const group of [agents, briefs, models, targets]) {
+    for (let i = 0; i < group.length; i++) {
+      for (let j = i + 1; j < group.length; j++) {
+        const gap = Math.abs(group[i].confidence - group[j].confidence);
+        if (gap >= minGap) {
+          const high = group[i].confidence > group[j].confidence ? group[i] : group[j];
+          const low = group[i].confidence > group[j].confidence ? group[j] : group[i];
+          contradictions.push({
+            dimension1: high.dimension,
+            dimension2: low.dimension,
+            confidence1: high.confidence,
+            confidence2: low.confidence,
+            gap: Math.round(gap * 10000) / 10000,
+            description: `${high.dimension} (${high.confidence}) vs ${low.dimension} (${low.confidence}) — gap ${gap.toFixed(2)}`,
+          });
+        }
+      }
+    }
+  }
+
+  return contradictions.sort((a, b) => b.gap - a.gap);
+}
+
 // ---------------------------------------------------------------------------
 // Belief updates
 // ---------------------------------------------------------------------------
@@ -379,7 +467,7 @@ export async function updateRunBeliefs(
  * Get all beliefs, optionally filtered by dimension prefix.
  */
 export async function getBeliefs(
-  filter?: { prefix?: string },
+  filter?: { prefix?: string; applyDecay?: boolean },
 ): Promise<RunBelief[]> {
   if (!(await isDbAvailable())) return [];
 
@@ -396,13 +484,24 @@ export async function getBeliefs(
   query += ' ORDER BY confidence DESC';
 
   const { rows } = await pool.query(query, params);
-  return rows.map((r: Record<string, unknown>) => ({
+  const beliefs = rows.map((r: Record<string, unknown>) => ({
     dimension: r.dimension as string,
     confidence: r.confidence as number,
     total_runs: r.total_runs as number,
     successes: r.successes as number,
     last_updated: String(r.last_updated),
   }));
+
+  if (filter?.applyDecay !== false) {
+    const now = new Date();
+    for (const belief of beliefs) {
+      const lastUpdated = new Date(belief.last_updated);
+      const daysSince = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60 * 24);
+      belief.confidence = applyDecay(belief.confidence, daysSince);
+    }
+  }
+
+  return beliefs;
 }
 
 /**
@@ -471,6 +570,17 @@ export async function getSummary(): Promise<RunSummary> {
     successes: r.successes as number,
     last_updated: String(r.last_updated),
   }));
+
+  // Apply decay for ranking
+  const now = new Date();
+  for (const belief of allBeliefs) {
+    const lastUpdated = new Date(belief.last_updated);
+    const daysSince = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60 * 24);
+    belief.confidence = applyDecay(belief.confidence, daysSince);
+  }
+
+  // Re-sort after decay
+  allBeliefs.sort((a, b) => b.confidence - a.confidence);
 
   const strongest = allBeliefs.slice(0, 5);
   const weakest = [...allBeliefs].sort((a, b) => a.confidence - b.confidence).slice(0, 5);
