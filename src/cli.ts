@@ -442,6 +442,18 @@ program
     await neuronStatisticsCommand(options as any);
   });
 
+// km (knowledge maintenance)
+program
+  .command('km')
+  .description('Run autonomous knowledge maintenance — fills gaps and refreshes stale sources')
+  .option('--topic <topic>', 'Focus on a specific topic')
+  .option('--max-actions <n>', 'Max research actions (default 5)')
+  .option('--no-stale', 'Skip stale source refresh')
+  .action(async (cmdOptions) => {
+    const { knowledgeManagerCommand } = await import('./commands/knowledge-manager.js');
+    await knowledgeManagerCommand(cmdOptions);
+  });
+
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =
   process.argv[1] &&
