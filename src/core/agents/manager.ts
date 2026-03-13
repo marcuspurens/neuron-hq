@@ -28,6 +28,8 @@ import {
   type ImplementerResult,
   type ReviewerResult,
 } from '../messages.js';
+import { generateAdaptiveHints } from './adaptive-hints.js';
+import { getBeliefs, classifyBrief } from '../run-statistics.js';
 
 
 /**
@@ -215,7 +217,31 @@ Stop when time limit approaches or when blockers are encountered.
       previousContext = `\n\n# Previous Run Context (Resume)\n\nThis is a resumed run. Here is context from the previous run:\n\n${this.ctx.previousRunContext}`;
     }
 
-    return `${managerPrompt}\n\n${contextInfo}${previousContext}`;
+
+    // Adaptive performance hints from run statistics
+    let adaptiveSection = '';
+    try {
+      const beliefs = await getBeliefs();
+      if (beliefs.length > 0) {
+        const briefPath = path.join(this.ctx.runDir, 'brief.md');
+        const briefType = await classifyBrief(briefPath);
+        const hints = generateAdaptiveHints(beliefs, briefType);
+        adaptiveSection = hints.promptSection;
+
+        // Log hints to audit
+        await this.ctx.audit.log({
+          ts: new Date().toISOString(),
+          role: 'manager',
+          tool: 'adaptive_hints',
+          allowed: true,
+          note: `Generated ${hints.warnings.length} warnings, ${hints.strengths.length} strengths`,
+        });
+      }
+    } catch {
+      // DB not available or other error — skip adaptive hints (graceful degradation)
+    }
+
+    return `${managerPrompt}\n\n${contextInfo}${previousContext}${adaptiveSection}`;
   }
 
   /**
