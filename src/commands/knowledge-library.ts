@@ -19,6 +19,7 @@ import {
   suggestMerges,
   type ConceptTreeNode,
 } from '../aurora/ontology.js';
+import { lookupExternalIds, backfillExternalIds } from '../aurora/external-ids.js';
 
 /**
  * List articles in the knowledge library with optional domain/tag filtering.
@@ -411,6 +412,72 @@ export async function libraryMergeSuggestionsCommand(): Promise<void> {
     for (const s of suggestions) {
       console.log(`  [${s.similarity.toFixed(2)}] ${s.suggestion}`);
     }
+    console.log('');
+  } catch (err) {
+    console.error(chalk.red(`\n  ❌ Error: ${err instanceof Error ? err.message : err}\n`));
+  }
+}
+
+/**
+ * Look up external IDs (Wikidata, ROR, ORCID) for a concept by name.
+ */
+export async function libraryLookupCommand(conceptName: string): Promise<void> {
+  console.log(chalk.bold(`\n🔍 Lookup External IDs: "${conceptName}"`));
+  console.log(chalk.bold('═══════════════════════════════════════'));
+
+  try {
+    const concepts = await listConcepts();
+    const target = concepts.find(
+      (c) => c.title.toLowerCase() === conceptName.toLowerCase(),
+    );
+
+    const facet = target ? (target.properties.facet as string) : 'topic';
+    const description = target ? (target.properties.description as string) : undefined;
+    const domain = target ? (target.properties.domain as string) : undefined;
+
+    const ids = await lookupExternalIds({
+      name: conceptName,
+      facet,
+      description,
+      domain,
+    });
+
+    if (Object.keys(ids).length === 0) {
+      console.log(chalk.dim('  No external IDs found.\n'));
+      return;
+    }
+
+    if (ids.wikidata) console.log(`  Wikidata:    ${chalk.cyan(ids.wikidata)}`);
+    if (ids.wikidataLabel) console.log(`  Label:       ${ids.wikidataLabel}`);
+    if (ids.wikidataDescription) console.log(`  Description: ${chalk.dim(ids.wikidataDescription)}`);
+    if (ids.ror) console.log(`  ROR:         ${chalk.cyan(ids.ror)}`);
+    if (ids.orcid) console.log(`  ORCID:       ${chalk.cyan(ids.orcid)}`);
+    console.log('');
+  } catch (err) {
+    console.error(chalk.red(`\n  ❌ Error: ${err instanceof Error ? err.message : err}\n`));
+  }
+}
+
+/**
+ * Backfill external IDs for all concepts missing them.
+ */
+export async function libraryBackfillIdsCommand(options: {
+  dryRun?: boolean;
+  facet?: string;
+}): Promise<void> {
+  const mode = options.dryRun ? ' (DRY RUN)' : '';
+  console.log(chalk.bold(`\n🔄 Backfill External IDs${mode}`));
+  console.log(chalk.bold('═══════════════════════════════════════'));
+
+  try {
+    const result = await backfillExternalIds({
+      dryRun: options.dryRun,
+      facet: options.facet,
+    });
+
+    console.log(`\n  ${chalk.green('Updated:')} ${result.updated}`);
+    console.log(`  ${chalk.dim('Skipped:')} ${result.skipped}`);
+    console.log(`  ${chalk.red('Failed:')}  ${result.failed}`);
     console.log('');
   } catch (err) {
     console.error(chalk.red(`\n  ❌ Error: ${err instanceof Error ? err.message : err}\n`));

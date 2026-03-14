@@ -24,6 +24,11 @@ vi.mock('../../src/core/semantic-search.js', () => ({
   semanticSearch: (...args: unknown[]) => mockSemanticSearch(...args),
 }));
 
+const mockLookupExternalIds = vi.fn();
+vi.mock('../../src/aurora/external-ids.js', () => ({
+  lookupExternalIds: (...args: unknown[]) => mockLookupExternalIds(...args),
+}));
+
 import {
   getOrCreateConcept,
   getConcept,
@@ -95,6 +100,7 @@ beforeEach(() => {
   }));
   mockAutoEmbedAuroraNodes.mockResolvedValue(undefined);
   mockSemanticSearch.mockResolvedValue([]); // Default: no matches (create new)
+  mockLookupExternalIds.mockResolvedValue({}); // Default: no external IDs
 });
 
 /* ------------------------------------------------------------------ */
@@ -625,5 +631,116 @@ describe('suggestMerges()', () => {
     expect(suggestions[0].similarity).toBe(0.82);
     expect(suggestions[0].suggestion).toContain('Agile');
     expect(suggestions[0].suggestion).toContain('Agil Metodik');
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  getOrCreateConcept — external IDs integration                      */
+/* ------------------------------------------------------------------ */
+
+describe('getOrCreateConcept — external IDs integration', () => {
+  it('calls lookupExternalIds for new concept and saves standardRefs', async () => {
+    mockLookupExternalIds.mockResolvedValue({ wikidata: 'Q123', wikidataLabel: 'Test' });
+
+    const result = await getOrCreateConcept({
+      name: 'TestConcept',
+      description: 'A test concept',
+      domain: 'tech',
+      facet: 'topic',
+    });
+
+    expect(mockLookupExternalIds).toHaveBeenCalledWith({
+      name: 'TestConcept',
+      facet: 'topic',
+      description: 'A test concept',
+      domain: 'tech',
+    });
+
+    // The saved node should have standardRefs
+    const savedGraph = currentGraph;
+    const savedNode = savedGraph.nodes.find((n) => n.id === result.id);
+    expect(savedNode).toBeDefined();
+    expect(savedNode!.properties.standardRefs).toEqual({
+      wikidata: 'Q123',
+      wikidataLabel: 'Test',
+    });
+  });
+
+  it('backfills external IDs for existing concept without standardRefs', async () => {
+    const existingNode = makeConceptNode({
+      id: 'concept_ml',
+      title: 'Machine Learning',
+      properties: {
+        description: 'ML topic',
+        domain: 'tech',
+        facet: 'topic',
+        aliases: [],
+        articleCount: 0,
+        depth: 0,
+      },
+    });
+    currentGraph = makeGraph([existingNode]);
+
+    mockSemanticSearch.mockResolvedValue([
+      { id: 'concept_ml', title: 'Machine Learning', similarity: 0.95 },
+    ]);
+    mockLookupExternalIds.mockResolvedValue({ wikidata: 'Q456' });
+
+    await getOrCreateConcept({ name: 'Machine Learning' });
+
+    expect(mockLookupExternalIds).toHaveBeenCalledWith({
+      name: 'Machine Learning',
+      facet: 'topic',
+      description: 'ML topic',
+      domain: 'tech',
+    });
+
+    const updatedNode = currentGraph.nodes.find((n) => n.id === 'concept_ml');
+    expect(updatedNode).toBeDefined();
+    expect(updatedNode!.properties.standardRefs).toEqual({ wikidata: 'Q456' });
+  });
+
+  it('does not re-lookup existing concept that already has standardRefs', async () => {
+    const existingNode = makeConceptNode({
+      id: 'concept_ts',
+      title: 'TypeScript',
+      properties: {
+        description: 'TS language',
+        domain: 'tech',
+        facet: 'entity',
+        aliases: [],
+        articleCount: 0,
+        depth: 0,
+        standardRefs: { wikidata: 'Q789' },
+      },
+    });
+    currentGraph = makeGraph([existingNode]);
+
+    mockSemanticSearch.mockResolvedValue([
+      { id: 'concept_ts', title: 'TypeScript', similarity: 0.95 },
+    ]);
+
+    await getOrCreateConcept({ name: 'TypeScript' });
+
+    expect(mockLookupExternalIds).not.toHaveBeenCalled();
+  });
+
+  it('creates concept even when external ID lookup fails', async () => {
+    mockLookupExternalIds.mockRejectedValue(new Error('API timeout'));
+
+    const result = await getOrCreateConcept({
+      name: 'FailConcept',
+      facet: 'topic',
+    });
+
+    // Concept should still be created
+    expect(result).toBeDefined();
+    expect(result.title).toBe('FailConcept');
+    expect(result.type).toBe('concept');
+
+    // No standardRefs since lookup failed
+    const savedNode = currentGraph.nodes.find((n) => n.id === result.id);
+    expect(savedNode).toBeDefined();
+    expect(savedNode!.properties.standardRefs).toBeUndefined();
   });
 });

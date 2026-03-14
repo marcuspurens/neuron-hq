@@ -17,6 +17,7 @@ import {
   suggestMerges,
   searchConcepts,
 } from '../../aurora/ontology.js';
+import { lookupExternalIds, backfillExternalIds } from '../../aurora/external-ids.js';
 
 // Re-export for external consumers so imports are not flagged as unused
 export { getConcept, searchConcepts };
@@ -25,9 +26,9 @@ export { getConcept, searchConcepts };
 export function registerKnowledgeLibraryTool(server: McpServer): void {
   server.tool(
     'neuron_knowledge_library',
-    'Manage the knowledge library — synthesized articles from Aurora knowledge base. Actions: list, search, read, history, synthesize, refresh, import, browse, concepts, ontology_stats, merge_suggestions.',
+    'Manage the knowledge library — synthesized articles from Aurora knowledge base. Actions: list, search, read, history, synthesize, refresh, import, browse, concepts, ontology_stats, merge_suggestions, lookup_external_ids, backfill_ids.',
     {
-      action: z.enum(['list', 'search', 'read', 'history', 'synthesize', 'refresh', 'import', 'browse', 'concepts', 'ontology_stats', 'merge_suggestions']),
+      action: z.enum(['list', 'search', 'read', 'history', 'synthesize', 'refresh', 'import', 'browse', 'concepts', 'ontology_stats', 'merge_suggestions', 'lookup_external_ids', 'backfill_ids']),
       query: z.string().optional().describe('Search query (for search action)'),
       articleId: z.string().optional().describe('Article ID (for read/history/refresh)'),
       topic: z.string().optional().describe('Topic to synthesize (for synthesize action)'),
@@ -39,6 +40,7 @@ export function registerKnowledgeLibraryTool(server: McpServer): void {
       conceptName: z.string().optional().describe('Concept name (for browse/concepts)'),
       facet: z.string().optional().describe('Facet filter: topic, entity, method, domain, tool'),
       maxDepth: z.number().optional().describe('Max tree depth (for browse)'),
+      dryRun: z.boolean().optional().describe('Dry run mode for backfill_ids'),
     },
     async (args) => {
       try {
@@ -121,6 +123,25 @@ export function registerKnowledgeLibraryTool(server: McpServer): void {
           case 'merge_suggestions':
             result = await suggestMerges();
             break;
+          case 'lookup_external_ids': {
+            if (!args.conceptName) throw new Error('conceptName required for lookup_external_ids');
+            const lookupResult = await lookupExternalIds({
+              name: args.conceptName,
+              facet: args.facet ?? 'topic',
+              description: undefined,
+              domain: args.domain,
+            });
+            result = lookupResult;
+            break;
+          }
+          case 'backfill_ids': {
+            const backfillResult = await backfillExternalIds({
+              dryRun: args.dryRun ?? false,
+              facet: args.facet,
+            });
+            result = backfillResult;
+            break;
+          }
         }
 
         return {

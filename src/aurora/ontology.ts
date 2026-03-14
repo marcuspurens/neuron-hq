@@ -8,6 +8,7 @@ import {
 } from './aurora-graph.js';
 import { semanticSearch } from '../core/semantic-search.js';
 import type { AuroraNode } from './aurora-schema.js';
+import { lookupExternalIds } from './external-ids.js';
 
 // ---------------------------------------------------------------------------
 //  Interfaces
@@ -125,6 +126,38 @@ export async function getOrCreateConcept(input: {
         }
       }
     }
+    // Backfill external IDs if missing
+    const refs = existingNode.properties.standardRefs;
+    if (!refs || Object.keys(refs).length === 0) {
+      try {
+        const ids = await lookupExternalIds({
+          name: existingNode.title,
+          facet: (existingNode.properties.facet as string) ?? 'topic',
+          description: existingNode.properties.description as string | undefined,
+          domain: existingNode.properties.domain as string | undefined,
+        });
+        const hasValues = Object.values(ids).some((v) => v !== undefined);
+        if (hasValues) {
+          let bGraph = await loadAuroraGraph();
+          const bIdx = bGraph.nodes.findIndex((n) => n.id === existingNode!.id);
+          if (bIdx !== -1) {
+            const bNodes = [...bGraph.nodes];
+            bNodes[bIdx] = {
+              ...bNodes[bIdx],
+              properties: {
+                ...bNodes[bIdx].properties,
+                standardRefs: ids as unknown as Record<string, string>,
+              },
+              updated: new Date().toISOString(),
+            };
+            bGraph = { ...bGraph, nodes: bNodes, lastUpdated: new Date().toISOString() };
+            await saveAuroraGraph(bGraph);
+          }
+        }
+      } catch {
+        // Non-fatal: external ID lookup may fail
+      }
+    }
     return existingNode;
   }
 
@@ -158,6 +191,38 @@ export async function getOrCreateConcept(input: {
 
   graph = addAuroraNode(graph, conceptNode);
   await saveAuroraGraph(graph);
+
+  // 2b. Auto-lookup external IDs for new concept (non-fatal)
+  if (!input.standardRefs) {
+    try {
+      const ids = await lookupExternalIds({
+        name: input.name,
+        facet: input.facet ?? 'topic',
+        description: input.description,
+        domain: input.domain,
+      });
+      const hasValues = Object.values(ids).some((v) => v !== undefined);
+      if (hasValues) {
+        graph = await loadAuroraGraph();
+        const nIdx = graph.nodes.findIndex((n) => n.id === id);
+        if (nIdx !== -1) {
+          const nNodes = [...graph.nodes];
+          nNodes[nIdx] = {
+            ...nNodes[nIdx],
+            properties: {
+              ...nNodes[nIdx].properties,
+              standardRefs: ids as unknown as Record<string, string>,
+            },
+            updated: new Date().toISOString(),
+          };
+          graph = { ...graph, nodes: nNodes, lastUpdated: new Date().toISOString() };
+          await saveAuroraGraph(graph);
+        }
+      }
+    } catch {
+      // Non-fatal: external ID lookup may fail
+    }
+  }
 
   // 3. Handle broader concept (parent)
   if (input.broaderConceptName) {

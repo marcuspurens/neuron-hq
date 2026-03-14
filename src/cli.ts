@@ -545,6 +545,24 @@ library
     await libraryMergeSuggestionsCommand();
   });
 
+library
+  .command('lookup <conceptName>')
+  .description('Look up external IDs (Wikidata, ROR, ORCID) for a concept')
+  .action(async (conceptName: string) => {
+    const { libraryLookupCommand } = await import('./commands/knowledge-library.js');
+    await libraryLookupCommand(conceptName);
+  });
+
+library
+  .command('backfill-ids')
+  .description('Backfill external IDs for all concepts missing them')
+  .option('--dry-run', 'Show what would be updated without saving')
+  .option('--facet <facet>', 'Only backfill concepts of this facet')
+  .action(async (options: { dryRun?: boolean; facet?: string }) => {
+    const { libraryBackfillIdsCommand } = await import('./commands/knowledge-library.js');
+    await libraryBackfillIdsCommand(options);
+  });
+
 // km (knowledge maintenance)
 program
   .command('km')
