@@ -55,6 +55,7 @@ export async function createSpeakerIdentity(
     title: name,
     properties: {
       name,
+      role: 'unknown',
       confirmations: 1,
       confirmedVoicePrints: [voicePrintId],
       autoTagThreshold: 0.90,

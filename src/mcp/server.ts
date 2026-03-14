@@ -39,6 +39,7 @@ import { registerRunStatisticsTool } from './tools/run-statistics.js';
 import { registerDashboardTool } from './tools/dashboard.js';
 import { registerKnowledgeManagerTool } from './tools/knowledge-manager.js';
 import { registerKnowledgeLibraryTool } from './tools/knowledge-library.js';
+import { registerAuroraEbucoreMetadataTool } from './tools/aurora-ebucore-metadata.js';
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -85,6 +86,7 @@ export function createMcpServer(): McpServer {
   registerDashboardTool(server);
   registerKnowledgeManagerTool(server);
   registerKnowledgeLibraryTool(server);
+  registerAuroraEbucoreMetadataTool(server);
 
   return server;
 }

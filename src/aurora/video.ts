@@ -248,6 +248,8 @@ export async function ingestVideo(
     overlap: 20,
   });
   const chunks = allChunks.slice(0, options?.maxChunks ?? 100);
+  const duration = extractMeta.duration as number;
+  const fullTextLength = (transcribeResult.text as string)?.length || 1;
 
   for (const chunk of chunks) {
     const chunkId = `${transcriptNodeId}_chunk_${chunk.index}`;
@@ -261,6 +263,9 @@ export async function ingestVideo(
         totalChunks: chunks.length,
         wordCount: chunk.wordCount,
         parentId: transcriptNodeId,
+        'ebucore:start': duration ? Math.round((chunk.startOffset / fullTextLength) * duration * 1000) : null,
+        'ebucore:end': duration ? Math.round((chunk.endOffset / fullTextLength) * duration * 1000) : null,
+        'ebucore:partNumber': chunk.index,
       },
       confidence: 0.9,
       scope: options?.scope ?? 'personal',

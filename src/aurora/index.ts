@@ -157,3 +157,14 @@ export {
   type ArticleSummary,
   type ArticleSearchResult,
 } from './knowledge-library.js';
+
+export {
+  EBUCORE_MAPPINGS,
+  enrichWithEbucore,
+  getEbucoreMetadata,
+  validateEbucoreCompleteness,
+  getAppliedStandards,
+  metadataCoverageReport,
+  type TypeCoverage,
+  type CoverageReport,
+} from './ebucore-metadata.js';
