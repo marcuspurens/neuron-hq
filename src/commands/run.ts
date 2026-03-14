@@ -12,7 +12,7 @@ import type { RunConfig, StoplightStatus } from '../core/types.js';
 
 export async function runCommand(
   targetName: string,
-  options: { hours: string; brief: string; scaffold?: string; model?: string }
+  options: { hours: string; brief: string; scaffold?: string; model?: string; autoKm?: boolean }
 ): Promise<void> {
   const spinner = ora('Initializing neuron run...').start();
 
@@ -154,6 +154,7 @@ export async function runCommand(
 
     // Check if consolidation trigger was injected into the brief
     const processedBrief = await ctx.artifacts.readBrief();
+    const briefContent = processedBrief;
     const consolidationAutoTrigger = processedBrief.includes('⚡ Consolidation-trigger:');
 
     if (consolidationAutoTrigger) {
@@ -250,7 +251,11 @@ export async function runCommand(
       artifacts: 'COMPLETE',
     };
 
-    await orchestrator.finalizeRun(ctx, stoplight, reportContent);
+    await orchestrator.finalizeRun(ctx, stoplight, reportContent, {
+      autoKM: options.autoKm,
+      brief: briefContent,
+      runNumber: completedRuns + 1,
+    });
 
     console.log(chalk.green('\n✓ Run completed!'));
     console.log(chalk.bold(`\nRun ID: ${runid}`));

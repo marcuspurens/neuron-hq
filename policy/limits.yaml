@@ -56,3 +56,11 @@ agent_models:
   librarian:
     provider: anthropic
     model: claude-haiku-4-5-20251001
+
+# Knowledge Manager auto-scheduling
+km_auto:
+  enabled: false
+  min_runs_between: 3
+  max_actions_per_run: 3
+  skip_on_red: true
+  topic_from_brief: true

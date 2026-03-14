@@ -78,6 +78,7 @@ program
   .option('--brief <path>', 'Path to brief file', 'briefs/today.md')
   .option('--scaffold <spec>', 'Scaffold target if missing (format: language:template)')
   .option('--model <model>', 'Override default model for all agents (e.g. claude-sonnet-4-6)')
+  .option('--auto-km', 'Enable auto-KM for this run (override limits.yaml)')
   .action(runCommand);
 
 program
@@ -452,6 +453,29 @@ program
   .action(async (cmdOptions) => {
     const { knowledgeManagerCommand } = await import('./commands/knowledge-manager.js');
     await knowledgeManagerCommand(cmdOptions);
+  });
+
+// km-log (KM run history)
+program
+  .command('km-log')
+  .description('Show Knowledge Manager run history')
+  .option('--limit <n>', 'Number of entries to show', '10')
+  .action(async (cmdOptions: { limit: string }) => {
+    const { getKMRunHistory } = await import('./aurora/km-log.js');
+    const limit = parseInt(cmdOptions.limit, 10) || 10;
+    const history = await getKMRunHistory(limit);
+    if (history.length === 0) {
+      console.log('No KM runs found.');
+      return;
+    }
+    console.log(`\nKM Run History (last ${history.length}):\n`);
+    for (const entry of history) {
+      const date = new Date(entry.createdAt).toISOString().slice(0, 19);
+      const duration = entry.durationMs ? `${(entry.durationMs / 1000).toFixed(1)}s` : '-';
+      console.log(`  ${date}  [${entry.trigger.padEnd(10)}]  topic=${entry.topic ?? '-'}  gaps=${entry.gapsFound}→${entry.gapsResearched}→${entry.gapsResolved}  urls=${entry.urlsIngested}  facts=${entry.factsLearned}  ${duration}`);
+      if (entry.runId) console.log(`    run: ${entry.runId}`);
+    }
+    console.log('');
   });
 
 // Only parse when run directly (not when imported by tests)

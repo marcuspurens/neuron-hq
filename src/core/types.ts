@@ -57,6 +57,13 @@ export const PolicyLimitsSchema = z.object({
     apiKeyEnv: z.string().optional(),
     maxTokens: z.number().positive().optional(),
   })).optional(),
+  km_auto: z.object({
+    enabled: z.boolean(),
+    min_runs_between: z.number().positive(),
+    max_actions_per_run: z.number().positive(),
+    skip_on_red: z.boolean(),
+    topic_from_brief: z.boolean(),
+  }).optional(),
 });
 export type PolicyLimits = z.infer<typeof PolicyLimitsSchema>;
 

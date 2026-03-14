@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import { KnowledgeManagerAgent, type KMOptions } from '../core/agents/knowledge-manager.js';
+import { logKMRun } from '../aurora/km-log.js';
 
 /**
  * CLI command: knowledge-manager
@@ -30,7 +31,16 @@ export async function knowledgeManagerCommand(
 
   try {
     const agent = new KnowledgeManagerAgent(audit, options);
+    const startMs = Date.now();
     const report = await agent.run();
+    const durationMs = Date.now() - startMs;
+
+    // Log KM run (non-fatal)
+    try {
+      await logKMRun({ trigger: 'manual-cli', topic: cmdOptions.topic, report, durationMs });
+    } catch {
+      // Non-fatal: logging failure should not break CLI output
+    }
 
     console.log(chalk.bold('\n🧠 Knowledge Manager Report\n'));
     console.log(`  Gaps found:        ${report.gapsFound}`);

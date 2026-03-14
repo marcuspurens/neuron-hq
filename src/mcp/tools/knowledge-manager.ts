@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { KnowledgeManagerAgent } from '../../core/agents/knowledge-manager.js';
+import { logKMRun } from '../../aurora/km-log.js';
 
 /** Register the neuron_knowledge_manager MCP tool on the given server. */
 export function registerKnowledgeManagerTool(server: McpServer): void {
@@ -26,7 +27,16 @@ export function registerKnowledgeManagerTool(server: McpServer): void {
           includeStale: args.includeStale,
         });
 
+        const startMs = Date.now();
         const report = await agent.run();
+        const durationMs = Date.now() - startMs;
+
+        // Log KM run (non-fatal)
+        try {
+          await logKMRun({ trigger: 'manual-mcp', topic: args.focusTopic, report, durationMs });
+        } catch {
+          // Non-fatal
+        }
 
         return {
           content: [

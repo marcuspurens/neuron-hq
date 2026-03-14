@@ -292,7 +292,8 @@ export class RunOrchestrator {
   async finalizeRun(
     ctx: RunContext,
     stoplight: StoplightStatus,
-    reportContent: string
+    reportContent: string,
+    options?: { autoKM?: boolean; brief?: string; runNumber?: number },
   ): Promise<void> {
     // Write report
     await ctx.artifacts.writeReport(stoplight, reportContent);
@@ -361,6 +362,59 @@ export class RunOrchestrator {
       await updateCostTracking(baseDir);
     } catch {
       // Non-fatal — cost tracking is informational
+    }
+
+    // Auto-KM post-run hook (opt-in)
+    try {
+      const { shouldRunAutoKM, runAutoKM, extractTopicFromBrief, DEFAULT_AUTO_KM_CONFIG } = await import('./auto-km.js');
+      const { logKMRun, getLastAutoKMRunNumber } = await import('../aurora/km-log.js');
+
+      // Build config from limits or defaults
+      const limitsKmAuto = ctx.policy.getLimits().km_auto;
+      const config = limitsKmAuto ? {
+        enabled: limitsKmAuto.enabled,
+        minRunsBetween: limitsKmAuto.min_runs_between,
+        maxActionsPerRun: limitsKmAuto.max_actions_per_run,
+        skipOnRed: limitsKmAuto.skip_on_red,
+        topicFromBrief: limitsKmAuto.topic_from_brief,
+      } : { ...DEFAULT_AUTO_KM_CONFIG };
+
+      // CLI --auto-km overrides enabled
+      if (options?.autoKM) {
+        config.enabled = true;
+      }
+
+      // Determine stoplight string (pick worst indicator)
+      const stoplightStr = stoplight.risk === 'HIGH' ? 'RED'
+        : (stoplight.baseline_verify === 'FAIL' || stoplight.after_change_verify === 'FAIL') ? 'RED'
+        : (stoplight.risk === 'MED' || stoplight.baseline_verify === 'SKIP') ? 'YELLOW'
+        : 'GREEN';
+
+      const currentRunNumber = options?.runNumber ?? 0;
+      const lastKMRunNumber = await getLastAutoKMRunNumber();
+
+      if (shouldRunAutoKM(stoplightStr, config, lastKMRunNumber, currentRunNumber)) {
+        const brief = options?.brief ?? '';
+        const startMs = Date.now();
+        const report = await runAutoKM(brief, config, ctx.audit as unknown as { log: (entry: unknown) => Promise<void> });
+        const durationMs = Date.now() - startMs;
+
+        const topic = config.topicFromBrief ? extractTopicFromBrief(brief) : undefined;
+        await logKMRun({
+          runId: ctx.runid,
+          runNumber: currentRunNumber,
+          trigger: 'auto',
+          topic,
+          report,
+          durationMs,
+        });
+
+        // Write KM report as artifact
+        const kmReportPath = path.join(ctx.runDir, 'km-report.json');
+        await fs.writeFile(kmReportPath, JSON.stringify(report, null, 2), 'utf-8');
+      }
+    } catch {
+      // Non-fatal: auto-KM failure should not break finalization
     }
   }
 
