@@ -88,5 +88,31 @@ export async function runAutoKM(
     focusTopic: topic,
   });
 
-  return agent.run();
+  const report = await agent.run();
+
+  // E4: Synthesize/refresh articles after research phase
+  if (topic && report.factsLearned >= 3) {
+    try {
+      const { listArticles, synthesizeArticle, refreshArticle } = await import('../aurora/knowledge-library.js');
+
+      // Check if article exists for this topic
+      const existing = await listArticles({ domain: undefined, limit: 1 });
+      const matchingArticle = existing.find(
+        (a) => a.title.toLowerCase().includes(topic.toLowerCase()),
+      );
+
+      if (matchingArticle) {
+        await refreshArticle(matchingArticle.id);
+        report.articlesUpdated = (report.articlesUpdated ?? 0) + 1;
+      } else {
+        await synthesizeArticle(topic);
+        report.articlesCreated = (report.articlesCreated ?? 0) + 1;
+      }
+    } catch (err) {
+      // Article synthesis is optional — don't fail the KM run
+      console.error('Article synthesis failed:', (err as Error).message);
+    }
+  }
+
+  return report;
 }

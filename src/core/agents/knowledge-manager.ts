@@ -44,6 +44,8 @@ export interface KMReport {
   sourcesRefreshed: number;
   newNodesCreated: number;
   factsLearned: number;
+  articlesCreated: number;
+  articlesUpdated: number;
   summary: string;
   details: ResearchResult[];
 }
@@ -382,6 +384,8 @@ export class KnowledgeManagerAgent {
       sourcesRefreshed: researchResult.sourcesRefreshed,
       newNodesCreated: researchResult.newNodesCreated,
       factsLearned: researchResult.factsLearned,
+      articlesCreated: 0,
+      articlesUpdated: 0,
       summary,
       details: researchResult.details,
     };

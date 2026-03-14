@@ -138,3 +138,22 @@ export {
   type ResearchSuggestion,
   type SuggestResearchOptions,
 } from './gap-brief.js';
+
+export {
+  createArticle,
+  getArticle,
+  listArticles,
+  searchArticles,
+  getArticleHistory,
+  updateArticle,
+  importArticle,
+  synthesizeArticle,
+  refreshArticle,
+  countWords,
+  parseJsonBlock,
+  contentDiffers,
+  type ArticleProperties,
+  type ArticleNode,
+  type ArticleSummary,
+  type ArticleSearchResult,
+} from './knowledge-library.js';

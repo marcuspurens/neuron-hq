@@ -38,6 +38,7 @@ import { registerAuroraConfidenceTool } from './tools/aurora-confidence.js';
 import { registerRunStatisticsTool } from './tools/run-statistics.js';
 import { registerDashboardTool } from './tools/dashboard.js';
 import { registerKnowledgeManagerTool } from './tools/knowledge-manager.js';
+import { registerKnowledgeLibraryTool } from './tools/knowledge-library.js';
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -83,6 +84,7 @@ export function createMcpServer(): McpServer {
   registerRunStatisticsTool(server);
   registerDashboardTool(server);
   registerKnowledgeManagerTool(server);
+  registerKnowledgeLibraryTool(server);
 
   return server;
 }

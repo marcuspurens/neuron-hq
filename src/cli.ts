@@ -443,6 +443,74 @@ program
     await neuronStatisticsCommand(options as any);
   });
 
+
+// Knowledge Library
+const library = program.command('library').description('Knowledge Library — synthesized articles');
+
+library
+  .command('list')
+  .description('List articles in the knowledge library')
+  .option('--domain <domain>', 'Filter by domain')
+  .option('--tags <tags>', 'Filter by tags (comma-separated)')
+  .action(async (options: { domain?: string; tags?: string }) => {
+    const { libraryListCommand } = await import('./commands/knowledge-library.js');
+    await libraryListCommand(options);
+  });
+
+library
+  .command('search <query>')
+  .description('Search articles semantically')
+  .option('--domain <domain>', 'Filter by domain')
+  .option('--limit <n>', 'Max results')
+  .action(async (query: string, options: { domain?: string; limit?: string }) => {
+    const { librarySearchCommand } = await import('./commands/knowledge-library.js');
+    await librarySearchCommand(query, options);
+  });
+
+library
+  .command('read <articleId>')
+  .description('Read a full article')
+  .action(async (articleId: string) => {
+    const { libraryReadCommand } = await import('./commands/knowledge-library.js');
+    await libraryReadCommand(articleId);
+  });
+
+library
+  .command('history <articleId>')
+  .description('Show version history of an article')
+  .action(async (articleId: string) => {
+    const { libraryHistoryCommand } = await import('./commands/knowledge-library.js');
+    await libraryHistoryCommand(articleId);
+  });
+
+library
+  .command('import <filePath>')
+  .description('Import a markdown file as an article')
+  .option('--domain <domain>', 'Article domain', 'general')
+  .option('--tags <tags>', 'Tags (comma-separated)')
+  .option('--title <title>', 'Article title (defaults to filename)')
+  .action(async (filePath: string, options: { domain?: string; tags?: string; title?: string }) => {
+    const { libraryImportCommand } = await import('./commands/knowledge-library.js');
+    await libraryImportCommand(filePath, options);
+  });
+
+library
+  .command('synthesize <topic>')
+  .description('Synthesize a new article from existing knowledge')
+  .option('--domain <domain>', 'Article domain')
+  .action(async (topic: string, options: { domain?: string }) => {
+    const { librarySynthesizeCommand } = await import('./commands/knowledge-library.js');
+    await librarySynthesizeCommand(topic, options);
+  });
+
+library
+  .command('refresh <articleId>')
+  .description('Refresh an article with latest knowledge')
+  .action(async (articleId: string) => {
+    const { libraryRefreshCommand } = await import('./commands/knowledge-library.js');
+    await libraryRefreshCommand(articleId);
+  });
+
 // km (knowledge maintenance)
 program
   .command('km')
