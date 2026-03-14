@@ -95,10 +95,12 @@ export {
 } from './timeline.js';
 
 export {
+  resolveGap,
   recordGap,
   getGaps,
   type KnowledgeGap,
   type GapsResult,
+  type GapOptions,
 } from './knowledge-gaps.js';
 
 export {

@@ -24,7 +24,7 @@ vi.mock('../../src/aurora/search.js', () => ({
   searchAurora: (...args: unknown[]) => mockSearchAurora(...args),
 }));
 
-import { recordGap, getGaps } from '../../src/aurora/knowledge-gaps.js';
+import { recordGap, getGaps, resolveGap } from '../../src/aurora/knowledge-gaps.js';
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -167,8 +167,11 @@ describe('getGaps()', () => {
 
     expect(result.gaps).toHaveLength(3);
     expect(result.gaps[0].frequency).toBe(5);
+    expect(result.gaps[0].id).toBe('g2');
     expect(result.gaps[1].frequency).toBe(3);
+    expect(result.gaps[1].id).toBe('g3');
     expect(result.gaps[2].frequency).toBe(1);
+    expect(result.gaps[2].id).toBe('g1');
     expect(result.totalUnanswered).toBe(3);
   });
 
@@ -228,5 +231,86 @@ describe('getGaps()', () => {
     const result = await getGaps();
 
     expect(result.gaps[0].question).toBe('My Question');
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  resolveGap() tests                                                 */
+/* ------------------------------------------------------------------ */
+
+describe('resolveGap()', () => {
+  it('updates gap properties to resolved', async () => {
+    const gapNode = makeGapNode({
+      id: 'gap-resolve-1',
+      properties: { text: 'What is X?', gapType: 'unanswered', frequency: 3 },
+    });
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph([gapNode]));
+
+    await resolveGap('gap-resolve-1', {
+      researchedBy: 'knowledge-manager',
+      urlsIngested: ['https://example.com/x'],
+      factsLearned: 2,
+    });
+
+    expect(mockUpdateAuroraNode).toHaveBeenCalledOnce();
+    const updateArgs = mockUpdateAuroraNode.mock.calls[0];
+    expect(updateArgs[1]).toBe('gap-resolve-1');
+    expect(updateArgs[2].properties.gapType).toBe('resolved');
+    expect(updateArgs[2].properties.resolvedBy).toBe('knowledge-manager');
+    expect(updateArgs[2].properties.resolvedAt).toBeDefined();
+    expect(updateArgs[2].properties.evidence).toEqual({
+      urlsIngested: ['https://example.com/x'],
+      factsLearned: 2,
+    });
+    expect(mockSaveAuroraGraph).toHaveBeenCalled();
+  });
+
+  it('does nothing for non-existent gap', async () => {
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph([]));
+    await resolveGap('nonexistent', {
+      researchedBy: 'km',
+      urlsIngested: [],
+      factsLearned: 0,
+    });
+    expect(mockUpdateAuroraNode).not.toHaveBeenCalled();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  getGaps() — resolved filtering                                     */
+/* ------------------------------------------------------------------ */
+
+describe('getGaps() — resolved filtering', () => {
+  it('excludes resolved gaps by default', async () => {
+    const nodes = [
+      makeGapNode({ id: 'g1', properties: { text: 'Q1', gapType: 'unanswered', frequency: 1 } }),
+      makeGapNode({ id: 'g2', properties: { text: 'Q2', gapType: 'resolved', frequency: 5 } }),
+    ];
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph(nodes));
+
+    const result = await getGaps();
+    expect(result.gaps).toHaveLength(1);
+    expect(result.gaps[0].question).toBe('Q1');
+  });
+
+  it('includes resolved gaps when includeResolved is true', async () => {
+    const nodes = [
+      makeGapNode({ id: 'g1', properties: { text: 'Q1', gapType: 'unanswered', frequency: 1 } }),
+      makeGapNode({ id: 'g2', properties: { text: 'Q2', gapType: 'resolved', frequency: 5 } }),
+    ];
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph(nodes));
+
+    const result = await getGaps({ includeResolved: true });
+    expect(result.gaps).toHaveLength(2);
+  });
+
+  it('backwards compatible with number argument', async () => {
+    const nodes = Array.from({ length: 5 }, (_, i) =>
+      makeGapNode({ id: `g${i}`, properties: { text: `Q${i}`, gapType: 'unanswered', frequency: i + 1 } }),
+    );
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph(nodes));
+
+    const result = await getGaps(2);
+    expect(result.gaps).toHaveLength(2);
   });
 });

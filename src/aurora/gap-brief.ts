@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { getGaps, type KnowledgeGap } from './knowledge-gaps.js';
 import { recall } from './memory.js';
 import { searchAurora } from './search.js';
@@ -288,6 +289,7 @@ export async function suggestResearch(
   // Step 2: Match primary gap
   const matchedGap = matchPrimaryGap(question, gaps);
   const primaryGap: KnowledgeGap = matchedGap ?? {
+    id: crypto.randomUUID(),
     question,
     askedAt: new Date().toISOString(),
     frequency: 0,

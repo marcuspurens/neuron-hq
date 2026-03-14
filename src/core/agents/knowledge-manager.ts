@@ -1,7 +1,24 @@
-import { getGaps, type KnowledgeGap } from '../../aurora/knowledge-gaps.js';
+import { getGaps, resolveGap, type KnowledgeGap } from '../../aurora/knowledge-gaps.js';
+import { webSearch } from '../../aurora/web-search.js';
+import { ingestUrl } from '../../aurora/intake.js';
+import { getEmbeddingProvider } from '../../core/embeddings.js';
 import { getFreshnessReport, verifySource, type FreshnessInfo } from '../../aurora/freshness.js';
 import { suggestResearch } from '../../aurora/gap-brief.js';
 import { remember } from '../../aurora/memory.js';
+
+// --- Cosine similarity helper ---
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length || a.length === 0) return 0;
+  let dot = 0, magA = 0, magB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    magA += a[i] * a[i];
+    magB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(magA) * Math.sqrt(magB);
+  return denom === 0 ? 0 : dot / denom;
+}
 
 // --- Public interfaces ---
 
@@ -11,12 +28,24 @@ export interface KMOptions {
   includeStale?: boolean;   // default true
 }
 
+export interface ResearchResult {
+  gapId: string;
+  question: string;
+  urlsIngested: number;
+  factsLearned: number;
+  resolved: boolean;
+}
+
 export interface KMReport {
   gapsFound: number;
   gapsResearched: number;
+  gapsResolved: number;
+  urlsIngested: number;
   sourcesRefreshed: number;
   newNodesCreated: number;
+  factsLearned: number;
   summary: string;
+  details: ResearchResult[];
 }
 
 // --- Internal types ---
@@ -78,6 +107,35 @@ export class KnowledgeManagerAgent {
   }
 
   /**
+   * Semantic topic filter: uses embeddings when available, falls back to string match.
+   */
+  private async filterByTopic(gaps: KnowledgeGap[], topic: string): Promise<KnowledgeGap[]> {
+    try {
+      const provider = getEmbeddingProvider();
+      const topicEmbedding = await provider.embed(topic);
+
+      const scored = await Promise.all(
+        gaps.map(async (gap) => {
+          const gapEmbedding = await provider.embed(gap.question);
+          const similarity = cosineSimilarity(topicEmbedding, gapEmbedding);
+          return { gap, similarity };
+        }),
+      );
+
+      // Filter gaps with similarity >= 0.5
+      return scored
+        .filter((s) => s.similarity >= 0.5)
+        .sort((a, b) => b.similarity - a.similarity)
+        .map((s) => s.gap);
+    } catch {
+      // Fallback to string matching
+      return gaps.filter((g) =>
+        g.question.toLowerCase().includes(topic.toLowerCase()),
+      );
+    }
+  }
+
+  /**
    * Phase 1 — Scan for knowledge gaps and stale sources.
    * Returns a prioritized list of candidates to act on, plus the total
    * number of gaps found before maxActions filtering.
@@ -88,11 +146,9 @@ export class KnowledgeManagerAgent {
     // 1. Fetch knowledge gaps
     const { gaps } = await getGaps();
 
-    // 2. Filter by focusTopic if set
+    // 2. Filter by focusTopic if set (semantic with string-match fallback)
     const filteredGaps = this.options.focusTopic
-      ? gaps.filter((g) =>
-          g.question.toLowerCase().includes(this.options.focusTopic!.toLowerCase()),
-        )
+      ? await this.filterByTopic(gaps, this.options.focusTopic)
       : gaps;
 
     // 3. Count total gaps after topic filter but BEFORE maxActions
@@ -147,37 +203,95 @@ export class KnowledgeManagerAgent {
   }
 
   /**
+   * Research a single knowledge gap: web search, ingest URLs, remember, resolve.
+   */
+  private async researchGap(gap: KnowledgeGap): Promise<ResearchResult> {
+    // 1. Get research context via suggestResearch
+    const suggestion = await suggestResearch(gap.question);
+
+    // 2. Search the web
+    const urls = await webSearch(gap.question, 3);
+
+    // 3. Ingest top URLs (max 3)
+    let urlsIngestedCount = 0;
+    const ingestedUrls: string[] = [];
+    for (const url of urls.slice(0, 3)) {
+      try {
+        await ingestUrl(url);
+        urlsIngestedCount++;
+        ingestedUrls.push(url);
+      } catch {
+        // Skip failed URLs, continue with next
+      }
+    }
+
+    // 4. Remember the research summary
+    const briefSummary = suggestion.brief.suggestions.join('; ');
+    const memoryText = `${gap.question} — ${briefSummary}`;
+    await remember(memoryText, {
+      source: 'km-agent',
+      tags: ['km-research'],
+    });
+    const factsLearnedCount = 1 + urlsIngestedCount; // 1 for the remember call + ingested docs
+
+    // 5. Resolve the gap if we ingested at least 1 URL
+    const resolved = urlsIngestedCount > 0;
+    if (resolved && gap.id) {
+      try {
+        await resolveGap(gap.id, {
+          researchedBy: 'knowledge-manager',
+          urlsIngested: ingestedUrls,
+          factsLearned: factsLearnedCount,
+        });
+      } catch {
+        // Gap resolution failure shouldn't break the flow
+      }
+    }
+
+    return {
+      gapId: gap.id,
+      question: gap.question,
+      urlsIngested: urlsIngestedCount,
+      factsLearned: factsLearnedCount,
+      resolved,
+    };
+  }
+
+  /**
    * Phase 2 — Research gaps and refresh stale sources.
    * Processes each candidate independently; failures are logged and skipped.
    */
   private async research(candidates: KMCandidate[]): Promise<{
     gapsResearched: number;
+    gapsResolved: number;
     sourcesRefreshed: number;
     newNodesCreated: number;
+    urlsIngested: number;
+    factsLearned: number;
     actions: string[];
+    details: ResearchResult[];
   }> {
     let gapsResearched = 0;
+    let gapsResolved = 0;
     let sourcesRefreshed = 0;
     let newNodesCreated = 0;
+    let urlsIngested = 0;
+    let factsLearned = 0;
     const actions: string[] = [];
+    const details: ResearchResult[] = [];
 
     for (const candidate of candidates) {
       if (candidate.type === 'gap' && candidate.gap) {
         try {
-          const suggestion = await suggestResearch(candidate.gap.question);
-
-          const briefSummary = suggestion.brief.suggestions.join('; ');
-          const memoryText = `${candidate.gap.question} — ${briefSummary}`;
-
-          await remember(memoryText, {
-            source: 'km-agent',
-            tags: ['km-research'],
-          });
-
+          const result = await this.researchGap(candidate.gap);
           gapsResearched++;
-          newNodesCreated++;
+          urlsIngested += result.urlsIngested;
+          factsLearned += result.factsLearned;
+          newNodesCreated += result.factsLearned;
+          if (result.resolved) gapsResolved++;
+          details.push(result);
 
-          const actionDesc = `Researched gap: "${candidate.gap.question}"`;
+          const actionDesc = `Researched gap: "${candidate.gap.question}" (${result.urlsIngested} URLs, ${result.factsLearned} facts${result.resolved ? ', resolved' : ''})`;
           actions.push(actionDesc);
 
           await this.audit.log({
@@ -186,6 +300,7 @@ export class KnowledgeManagerAgent {
             phase: 'research',
             action: 'gap-researched',
             question: candidate.gap.question,
+            result,
           });
         } catch (error) {
           await this.audit.log({
@@ -226,7 +341,7 @@ export class KnowledgeManagerAgent {
       }
     }
 
-    return { gapsResearched, sourcesRefreshed, newNodesCreated, actions };
+    return { gapsResearched, gapsResolved, sourcesRefreshed, newNodesCreated, urlsIngested, factsLearned, actions, details };
   }
 
   /**
@@ -236,9 +351,13 @@ export class KnowledgeManagerAgent {
     scanResult: { gapsFound: number },
     researchResult: {
       gapsResearched: number;
+      gapsResolved: number;
       sourcesRefreshed: number;
       newNodesCreated: number;
+      urlsIngested: number;
+      factsLearned: number;
       actions: string[];
+      details: ResearchResult[];
     },
   ): KMReport {
     const actionsSummary = researchResult.actions.length > 0
@@ -248,7 +367,8 @@ export class KnowledgeManagerAgent {
     const summary = [
       `Knowledge maintenance complete.`,
       `Found ${scanResult.gapsFound} gap(s).`,
-      `Researched ${researchResult.gapsResearched} gap(s), refreshed ${researchResult.sourcesRefreshed} source(s), created ${researchResult.newNodesCreated} new node(s).`,
+      `Researched ${researchResult.gapsResearched} gap(s), resolved ${researchResult.gapsResolved}, refreshed ${researchResult.sourcesRefreshed} source(s).`,
+      `Ingested ${researchResult.urlsIngested} URL(s), learned ${researchResult.factsLearned} fact(s), created ${researchResult.newNodesCreated} new node(s).`,
       ``,
       `Actions:`,
       actionsSummary,
@@ -257,9 +377,13 @@ export class KnowledgeManagerAgent {
     return {
       gapsFound: scanResult.gapsFound,
       gapsResearched: researchResult.gapsResearched,
+      gapsResolved: researchResult.gapsResolved,
+      urlsIngested: researchResult.urlsIngested,
       sourcesRefreshed: researchResult.sourcesRefreshed,
       newNodesCreated: researchResult.newNodesCreated,
+      factsLearned: researchResult.factsLearned,
       summary,
+      details: researchResult.details,
     };
   }
 }

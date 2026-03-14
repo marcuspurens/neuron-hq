@@ -10,6 +10,7 @@ import { searchAurora } from './search.js';
 import type { AuroraNode } from './aurora-schema.js';
 
 export interface KnowledgeGap {
+  id: string;
   question: string;
   askedAt: string;
   frequency: number;
@@ -18,6 +19,11 @@ export interface KnowledgeGap {
 export interface GapsResult {
   gaps: KnowledgeGap[];
   totalUnanswered: number;
+}
+
+export interface GapOptions {
+  limit?: number;
+  includeResolved?: boolean;
 }
 
 /** Generate a short title from text, truncating at word boundary if needed. */
@@ -103,23 +109,63 @@ export async function recordGap(question: string): Promise<void> {
 /**
  * Hämta kända kunskapsluckor.
  */
-export async function getGaps(limit?: number): Promise<GapsResult> {
+export async function getGaps(options?: number | GapOptions): Promise<GapsResult> {
   const graph = await loadAuroraGraph();
-  const maxResults = limit ?? 20;
 
-  const gapNodes = graph.nodes.filter(isGapNode);
+  // Support both old (number) and new (GapOptions) signatures for backwards compatibility
+  const opts: GapOptions = typeof options === 'number'
+    ? { limit: options }
+    : options ?? {};
+
+  const maxResults = opts.limit ?? 20;
+  const includeResolved = opts.includeResolved ?? false;
+
+  const gapNodes = graph.nodes.filter((node) => {
+    if (node.type !== 'research') return false;
+    if (includeResolved) {
+      return node.properties.gapType === 'unanswered' || node.properties.gapType === 'resolved';
+    }
+    return node.properties.gapType === 'unanswered';
+  });
 
   const gaps: KnowledgeGap[] = gapNodes.map((node) => ({
+    id: node.id,
     question: typeof node.properties.text === 'string' ? node.properties.text : node.title,
     askedAt: node.created,
     frequency: typeof node.properties.frequency === 'number' ? node.properties.frequency : 1,
   }));
 
-  // Sort by frequency descending
   gaps.sort((a, b) => b.frequency - a.frequency);
 
   return {
     gaps: gaps.slice(0, maxResults),
     totalUnanswered: gapNodes.length,
   };
+}
+
+/**
+ * Mark a knowledge gap as resolved.
+ */
+export async function resolveGap(gapId: string, evidence: {
+  researchedBy: string;
+  urlsIngested: string[];
+  factsLearned: number;
+}): Promise<void> {
+  let graph = await loadAuroraGraph();
+  const node = graph.nodes.find((n) => n.id === gapId);
+  if (!node) return;
+
+  graph = updateAuroraNode(graph, gapId, {
+    properties: {
+      ...node.properties,
+      gapType: 'resolved',
+      resolvedAt: new Date().toISOString(),
+      resolvedBy: evidence.researchedBy,
+      evidence: {
+        urlsIngested: evidence.urlsIngested,
+        factsLearned: evidence.factsLearned,
+      },
+    },
+  });
+  await saveAuroraGraph(graph);
 }
