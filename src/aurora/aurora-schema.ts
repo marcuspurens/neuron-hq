@@ -9,6 +9,7 @@ export const AuroraNodeTypeSchema = z.enum([
   'voice_print',
   'speaker_identity',
   'article',
+  'concept',
 ]);
 export type AuroraNodeType = z.infer<typeof AuroraNodeTypeSchema>;
 
@@ -24,6 +25,7 @@ export const AuroraEdgeTypeSchema = z.enum([
   'summarizes',
   'supersedes',
   'broader_than',
+  'about',
 ]);
 export type AuroraEdgeType = z.infer<typeof AuroraEdgeTypeSchema>;
 

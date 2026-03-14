@@ -21,14 +21,21 @@ Du är en kunskapssammanfattare. Skriv en faktabaserad artikel baserad på käll
 ```json
 {
   "abstract": "1-2 meningar som sammanfattar artikeln",
-  "concepts": ["Begrepp1", "Begrepp2", "Begrepp3"],
-  "conceptHierarchy": [
-    { "concept": "Begrepp1", "broaderConcept": "Övergripande kategori" },
-    { "concept": "Begrepp2", "broaderConcept": "Begrepp1" }
+  "concepts": [
+    { "name": "Begrepp1", "facet": "topic", "broaderConcept": "Övergripande kategori" },
+    { "name": "Begrepp2", "facet": "method", "broaderConcept": "Begrepp1" },
+    { "name": "Begrepp3", "facet": "entity", "broaderConcept": null }
   ]
 }
 ```
 
-Extrahera 3-7 nyckelbegrepp som artikeln handlar om. För varje begrepp,
-föreslå ett bredare begrepp (parent) som det hör under. Detta bygger upp en
-kunskapstaxonomi över tid. Om inget bredare begrepp passar, sätt null.
+Extrahera 3-7 nyckelbegrepp som artikeln handlar om. Klassificera varje begrepp med en facett:
+- **topic** — ämne, teori (AI, Agile)
+- **entity** — organisation, person (OpenAI, Stanford)
+- **method** — metodik, process (RLHF, Sprint Planning)
+- **domain** — tillämpningsområde (Healthcare AI)
+- **tool** — verktyg, produkt (GPT-5, TypeScript)
+
+För varje begrepp, föreslå ett bredare begrepp (parent) som det hör under.
+Detta bygger upp en kunskapstaxonomi med flera dimensioner.
+Om inget bredare begrepp passar, sätt null.

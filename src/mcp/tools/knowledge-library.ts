@@ -9,14 +9,25 @@ import {
   synthesizeArticle,
   refreshArticle,
 } from '../../aurora/knowledge-library.js';
+import {
+  getConceptTree,
+  getConcept,
+  listConcepts,
+  getOntologyStats,
+  suggestMerges,
+  searchConcepts,
+} from '../../aurora/ontology.js';
+
+// Re-export for external consumers so imports are not flagged as unused
+export { getConcept, searchConcepts };
 
 /** Register the neuron_knowledge_library MCP tool on the given server. */
 export function registerKnowledgeLibraryTool(server: McpServer): void {
   server.tool(
     'neuron_knowledge_library',
-    'Manage the knowledge library — synthesized articles from Aurora knowledge base. Actions: list, search, read, history, synthesize, refresh, import.',
+    'Manage the knowledge library — synthesized articles from Aurora knowledge base. Actions: list, search, read, history, synthesize, refresh, import, browse, concepts, ontology_stats, merge_suggestions.',
     {
-      action: z.enum(['list', 'search', 'read', 'history', 'synthesize', 'refresh', 'import']),
+      action: z.enum(['list', 'search', 'read', 'history', 'synthesize', 'refresh', 'import', 'browse', 'concepts', 'ontology_stats', 'merge_suggestions']),
       query: z.string().optional().describe('Search query (for search action)'),
       articleId: z.string().optional().describe('Article ID (for read/history/refresh)'),
       topic: z.string().optional().describe('Topic to synthesize (for synthesize action)'),
@@ -25,6 +36,9 @@ export function registerKnowledgeLibraryTool(server: McpServer): void {
       title: z.string().optional().describe('Article title (for import)'),
       content: z.string().optional().describe('Article content markdown (for import)'),
       limit: z.number().optional().describe('Max results (for list/search)'),
+      conceptName: z.string().optional().describe('Concept name (for browse/concepts)'),
+      facet: z.string().optional().describe('Facet filter: topic, entity, method, domain, tool'),
+      maxDepth: z.number().optional().describe('Max tree depth (for browse)'),
     },
     async (args) => {
       try {
@@ -71,6 +85,41 @@ export function registerKnowledgeLibraryTool(server: McpServer): void {
               domain: args.domain ?? 'general',
               tags: args.tags,
             });
+            break;
+          case 'browse': {
+            // Find concept ID if conceptName provided
+            let rootId: string | undefined;
+            if (args.conceptName) {
+              const concepts = await listConcepts();
+              const found = concepts.find(
+                (c) => c.title.toLowerCase() === args.conceptName!.toLowerCase(),
+              );
+              if (found) rootId = found.id;
+            }
+            const tree = await getConceptTree(rootId, args.maxDepth ?? 5);
+            // Filter by facet if specified
+            const filtered = args.facet
+              ? tree.filter((t) => (t.concept.properties.facet as string) === args.facet)
+              : tree;
+            result = filtered;
+            break;
+          }
+          case 'concepts': {
+            if (!args.conceptName) throw new Error('conceptName required for concepts');
+            const concepts = await listConcepts();
+            const target = concepts.find(
+              (c) => c.title.toLowerCase() === args.conceptName!.toLowerCase(),
+            );
+            if (!target) throw new Error(`Concept not found: ${args.conceptName}`);
+            const conceptTree = await getConceptTree(target.id, 1);
+            result = { concept: target, tree: conceptTree };
+            break;
+          }
+          case 'ontology_stats':
+            result = await getOntologyStats();
+            break;
+          case 'merge_suggestions':
+            result = await suggestMerges();
             break;
         }
 

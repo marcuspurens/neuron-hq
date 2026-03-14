@@ -49,6 +49,11 @@ vi.mock('../../src/core/agent-client.js', () => ({
   createAgentClient: (...args: unknown[]) => mockCreateAgentClient(...args),
 }));
 
+const mockLinkArticleToConcepts = vi.fn();
+vi.mock('../../src/aurora/ontology.js', () => ({
+  linkArticleToConcepts: (...args: unknown[]) => mockLinkArticleToConcepts(...args),
+}));
+
 vi.mock('../../src/core/model-registry.js', () => ({
   resolveModelConfig: () => ({
     provider: 'anthropic',
@@ -132,10 +137,10 @@ function makeLLMResponse(content?: string) {
     '```json',
     '{',
     '  "abstract": "An article about testing",',
-    '  "concepts": ["Testing", "Frameworks", "Methodology"],',
-    '  "conceptHierarchy": [',
-    '    { "concept": "Testing", "broaderConcept": "Software Engineering" },',
-    '    { "concept": "Frameworks", "broaderConcept": "Testing" }',
+    '  "concepts": [',
+    '    { "name": "Testing", "facet": "topic", "broaderConcept": "Software Engineering" },',
+    '    { "name": "Frameworks", "facet": "tool", "broaderConcept": "Testing" },',
+    '    { "name": "Methodology", "facet": "method", "broaderConcept": null }',
     '  ]',
     '}',
     '```',
@@ -161,6 +166,7 @@ beforeEach(() => {
   mockGetGaps.mockResolvedValue({ gaps: [], totalUnanswered: 0 });
   mockSemanticSearch.mockResolvedValue([]);
   mockCreate.mockResolvedValue(makeLLMResponse());
+  mockLinkArticleToConcepts.mockResolvedValue({ conceptsLinked: 0, conceptsCreated: 0 });
 
   // addAuroraNode / addAuroraEdge: return updated graph with the new node/edge
   mockAddAuroraNode.mockImplementation((graph: AuroraGraph, node: AuroraNode) => ({
@@ -643,16 +649,15 @@ describe('synthesizeArticle()', () => {
     );
   });
 
-  it('logs conceptHierarchy when present', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
+  it('calls linkArticleToConcepts after synthesis', async () => {
     await synthesizeArticle('Testing');
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      'Concept hierarchy:',
-      expect.stringContaining('Testing'),
+    expect(mockLinkArticleToConcepts).toHaveBeenCalledWith(
+      expect.any(String), // articleId
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'Testing' }),
+      ]),
     );
-    consoleSpy.mockRestore();
   });
 
   it('handles LLM response without JSON block', async () => {
@@ -728,7 +733,7 @@ describe('refreshArticle()', () => {
     mockCreate.mockResolvedValue({
       content: [{
         type: 'text',
-        text: '# Completely New Content\n\nThis is entirely different material about a new topic with fresh insights and perspectives that differ substantially.\n\n```json\n{"abstract": "New abstract", "concepts": ["New"], "conceptHierarchy": []}\n```',
+        text: '# Completely New Content\n\nThis is entirely different material about a new topic with fresh insights and perspectives that differ substantially.\n\n```json\n{"abstract": "New abstract", "concepts": [{"name": "New", "facet": "topic", "broaderConcept": null}]}\n```',
       }],
     });
 

@@ -20,7 +20,8 @@ describe('article-synthesis.md — critical instructions', () => {
   it('requires JSON block with abstract and concepts', () => {
     expect(prompt).toMatch(/abstract/);
     expect(prompt).toMatch(/concepts/);
-    expect(prompt).toMatch(/conceptHierarchy/);
+    expect(prompt).toMatch(/broaderConcept/);
+    expect(prompt).toMatch(/facet/);
   });
 
   it('has sources and gaps placeholders', () => {

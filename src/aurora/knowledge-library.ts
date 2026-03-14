@@ -21,6 +21,7 @@ import {
 } from '../core/model-registry.js';
 import { semanticSearch } from '../core/semantic-search.js';
 import type Anthropic from '@anthropic-ai/sdk';
+import { linkArticleToConcepts } from './ontology.js';
 
 // ---------------------------------------------------------------------------
 //  Interfaces
@@ -457,7 +458,7 @@ export async function importArticle(input: {
     }
   }
 
-  return createArticle({
+  const article = await createArticle({
     title: input.title,
     content: input.content,
     domain: input.domain,
@@ -467,6 +468,53 @@ export async function importArticle(input: {
     synthesizedBy: 'manual-import',
     synthesisModel: 'none',
   });
+
+  // Extract concepts via LLM for imported articles (non-fatal)
+  try {
+    if (!input.concepts || input.concepts.length === 0) {
+      const promptPath = path.resolve(import.meta.dirname ?? '.', '../../prompts/concept-extraction.md');
+      let extractionPrompt = await fs.readFile(promptPath, 'utf-8');
+      extractionPrompt = extractionPrompt.replace('{{text}}', input.content.slice(0, 3000));
+
+      const modelConfig = getSynthesisModelConfig();
+      const { client, model } = createAgentClient(modelConfig);
+      const response = await client.messages.create({
+        model,
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: extractionPrompt }],
+      });
+      const responseText = response.content
+        .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+        .map((block) => block.text)
+        .join('');
+      const jsonBlock = parseJsonBlock(responseText);
+      if (jsonBlock && Array.isArray(jsonBlock.concepts)) {
+        const conceptData = jsonBlock.concepts.map((c: unknown) => {
+          if (typeof c === 'string') return { name: c, facet: 'topic' as const, broaderConcept: null };
+          const obj = c as Record<string, unknown>;
+          return {
+            name: (obj.name as string) ?? String(c),
+            facet: (obj.facet as string) ?? 'topic',
+            broaderConcept: (obj.broaderConcept as string) ?? null,
+            standardRefs: obj.standardRefs as Record<string, string> | undefined,
+          };
+        });
+        await linkArticleToConcepts(article.id, conceptData);
+      }
+    } else if (input.concepts && input.concepts.length > 0) {
+      // If concepts were provided as strings, link them with default facet
+      const conceptData = input.concepts.map((name: string) => ({
+        name,
+        facet: 'topic' as const,
+        broaderConcept: null,
+      }));
+      await linkArticleToConcepts(article.id, conceptData);
+    }
+  } catch {
+    // Concept extraction is non-fatal
+  }
+
+  return article;
 }
 
 /**
@@ -537,14 +585,13 @@ export async function synthesizeArticle(
     : responseText.trim();
 
   const articleAbstract = (jsonBlock?.abstract as string) ?? markdownContent.slice(0, 200);
-  const concepts = Array.isArray(jsonBlock?.concepts)
-    ? (jsonBlock.concepts as string[])
-    : [];
-
-  // Log concept hierarchy
-  if (jsonBlock?.conceptHierarchy) {
-    console.log('Concept hierarchy:', JSON.stringify(jsonBlock.conceptHierarchy, null, 2));
-  }
+  // Extract names for backward-compatible article properties
+  const rawConcepts = Array.isArray(jsonBlock?.concepts) ? jsonBlock.concepts : [];
+  const concepts = rawConcepts.map((c: unknown) => {
+    if (typeof c === 'string') return c;
+    const obj = c as Record<string, unknown>;
+    return (obj.name as string) ?? String(c);
+  });
 
   // Create article node
   const article = await createArticle({
@@ -558,6 +605,29 @@ export async function synthesizeArticle(
     synthesisModel: model,
     abstract: articleAbstract,
   });
+
+  // Link concepts to ontology
+  try {
+    const conceptData = Array.isArray(jsonBlock?.concepts) ? jsonBlock.concepts : [];
+    // Handle both new format (objects with name/facet) and legacy (string[])
+    const conceptsForOntology = conceptData.map((c: unknown) => {
+      if (typeof c === 'string') {
+        return { name: c, facet: 'topic' as const, broaderConcept: null };
+      }
+      const obj = c as Record<string, unknown>;
+      return {
+        name: (obj.name as string) ?? String(c),
+        facet: (obj.facet as string) ?? 'topic',
+        broaderConcept: (obj.broaderConcept as string) ?? null,
+        standardRefs: obj.standardRefs as Record<string, string> | undefined,
+      };
+    });
+    if (conceptsForOntology.length > 0) {
+      await linkArticleToConcepts(article.id, conceptsForOntology);
+    }
+  } catch {
+    // Ontology linking is non-fatal
+  }
 
   return article;
 }

@@ -12,6 +12,13 @@ import {
   type ArticleSummary,
   type ArticleNode,
 } from '../aurora/knowledge-library.js';
+import {
+  getConceptTree,
+  listConcepts,
+  getOntologyStats,
+  suggestMerges,
+  type ConceptTreeNode,
+} from '../aurora/ontology.js';
 
 /**
  * List articles in the knowledge library with optional domain/tag filtering.
@@ -231,6 +238,180 @@ export async function libraryRefreshCommand(articleId: string): Promise<void> {
     console.log(`  Title:   ${article.title}`);
     console.log(`  Version: ${article.properties.version}`);
     console.log(`  Words:   ${article.properties.wordCount}\n`);
+  } catch (err) {
+    console.error(chalk.red(`\n  ❌ Error: ${err instanceof Error ? err.message : err}\n`));
+  }
+}
+
+/**
+ * Browse the ontology tree, optionally filtered by facet or rooted at a specific concept.
+ */
+export async function libraryBrowseCommand(options: {
+  facet?: string;
+  concept?: string;
+}): Promise<void> {
+  console.log(chalk.bold('\n🌳 Ontology Browser'));
+  console.log(chalk.bold('═══════════════════════════════════════'));
+
+  try {
+    if (options.concept) {
+      // Show subtree for specific concept
+      const concepts = await listConcepts();
+      const target = concepts.find(
+        (c) => c.title.toLowerCase() === options.concept!.toLowerCase(),
+      );
+      if (!target) {
+        console.log(chalk.red(`  Concept not found: "${options.concept}"\n`));
+        return;
+      }
+      const tree = await getConceptTree(target.id, 5);
+      printTree(tree, 1);
+    } else {
+      // Group by facet
+      const allConcepts = await listConcepts();
+      const tree = await getConceptTree(undefined, 5);
+
+      // Collect unique facets
+      const facetOrder = ['topic', 'entity', 'method', 'domain', 'tool'];
+      const facetLabels: Record<string, string> = {
+        topic: 'TOPICS',
+        entity: 'ENTITIES',
+        method: 'METHODS',
+        domain: 'DOMAINS',
+        tool: 'TOOLS',
+      };
+
+      const activeFacets = options.facet
+        ? [options.facet]
+        : facetOrder.filter((f) => allConcepts.some((c) => c.properties.facet === f));
+
+      for (const facet of activeFacets) {
+        const label = facetLabels[facet] ?? facet.toUpperCase();
+        console.log(chalk.bold(`\n── ${label} ──`));
+        const facetTree = tree.filter(
+          (t) => (t.concept.properties.facet as string) === facet,
+        );
+        if (facetTree.length === 0) {
+          console.log(chalk.dim('  (empty)'));
+        } else {
+          printTree(facetTree, 1);
+        }
+      }
+    }
+    console.log('');
+  } catch (err) {
+    console.error(chalk.red(`\n  ❌ Error: ${err instanceof Error ? err.message : err}\n`));
+  }
+}
+
+function printTree(nodes: ConceptTreeNode[], indent: number): void {
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    const isLast = i === nodes.length - 1;
+    const prefix = indent === 1 ? '' : (isLast ? '└── ' : '├── ');
+    const padStr = '  '.repeat(indent);
+    const count = (node.concept.properties.articleCount as number) ?? 0;
+    const countStr = count > 0 ? ` (${count} artiklar)` : '';
+    console.log(`${padStr}${prefix}${chalk.cyan(node.concept.title)}${chalk.dim(countStr)}`);
+    if (node.children.length > 0) {
+      printTree(node.children, indent + 1);
+    }
+  }
+}
+
+/**
+ * Show details and articles for a specific concept.
+ */
+export async function libraryConceptsCommand(conceptName: string): Promise<void> {
+  console.log(chalk.bold(`\n📖 Concept: "${conceptName}"`));
+  console.log(chalk.bold('═══════════════════════════════════════'));
+
+  try {
+    const concepts = await listConcepts();
+    const target = concepts.find(
+      (c) => c.title.toLowerCase() === conceptName.toLowerCase(),
+    );
+    if (!target) {
+      console.log(chalk.red(`  Concept not found: "${conceptName}"\n`));
+      return;
+    }
+
+    const tree = await getConceptTree(target.id, 1);
+    const treeNode = tree[0];
+    const count = (target.properties.articleCount as number) ?? 0;
+    const childCount = treeNode ? treeNode.children.length : 0;
+
+    console.log(`  ${chalk.cyan(target.title)} (${count} artiklar, ${childCount} sub-begrepp)`);
+    console.log(`  Facet: ${target.properties.facet}  |  Domain: ${target.properties.domain}`);
+    if (target.properties.description) {
+      console.log(`  ${chalk.dim(target.properties.description as string)}`);
+    }
+
+    if (treeNode && treeNode.articles.length > 0) {
+      console.log(chalk.bold('\n  Artiklar:'));
+      for (const art of treeNode.articles) {
+        console.log(`    - ${chalk.cyan(art.title)} (${chalk.dim(art.id)})`);
+      }
+    }
+
+    if (treeNode && treeNode.children.length > 0) {
+      console.log(chalk.bold('\n  Sub-begrepp:'));
+      const names = treeNode.children.map((c) => c.concept.title);
+      console.log(`    ${names.join(', ')}`);
+    }
+    console.log('');
+  } catch (err) {
+    console.error(chalk.red(`\n  ❌ Error: ${err instanceof Error ? err.message : err}\n`));
+  }
+}
+
+/**
+ * Show ontology statistics.
+ */
+export async function libraryStatsCommand(): Promise<void> {
+  console.log(chalk.bold('\n📊 Ontology Stats'));
+  console.log(chalk.bold('═══════════════════════════════════════'));
+
+  try {
+    const stats = await getOntologyStats();
+    console.log(`  Concepts: ${stats.totalConcepts} | Max depth: ${stats.maxDepth} | Orphans: ${stats.orphanConcepts}`);
+
+    const domainStr = Object.entries(stats.domains)
+      .map(([k, v]) => `${k}(${v})`)
+      .join(', ');
+    console.log(`  Domains: ${domainStr || 'none'}`);
+
+    const facetStr = Object.entries(stats.facets)
+      .map(([k, v]) => `${k}(${v})`)
+      .join(', ');
+    console.log(`  Facets: ${facetStr || 'none'}`);
+
+    if (stats.topConcepts.length > 0) {
+      console.log(`  Top: ${stats.topConcepts.map((c) => `"${c.title}" (${c.articleCount})`).join(', ')}`);
+    }
+    console.log('');
+  } catch (err) {
+    console.error(chalk.red(`\n  ❌ Error: ${err instanceof Error ? err.message : err}\n`));
+  }
+}
+
+/**
+ * Show merge suggestions for similar concepts.
+ */
+export async function libraryMergeSuggestionsCommand(): Promise<void> {
+  console.log(chalk.bold('\n🔄 Merge Suggestions'));
+  console.log(chalk.bold('═══════════════════════════════════════'));
+
+  try {
+    const suggestions = await suggestMerges();
+    if (suggestions.length === 0) {
+      console.log(chalk.dim('  No merge suggestions.\n'));
+      return;
+    }
+    for (const s of suggestions) {
+      console.log(`  [${s.similarity.toFixed(2)}] ${s.suggestion}`);
+    }
+    console.log('');
   } catch (err) {
     console.error(chalk.red(`\n  ❌ Error: ${err instanceof Error ? err.message : err}\n`));
   }

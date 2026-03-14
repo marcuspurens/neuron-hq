@@ -511,6 +511,40 @@ library
     await libraryRefreshCommand(articleId);
   });
 
+library
+  .command('browse')
+  .description('Browse the ontology tree')
+  .option('--facet <facet>', 'Filter by facet (topic/entity/method/domain/tool)')
+  .option('--concept <concept>', 'Show subtree for a specific concept')
+  .action(async (options: { facet?: string; concept?: string }) => {
+    const { libraryBrowseCommand } = await import('./commands/knowledge-library.js');
+    await libraryBrowseCommand(options);
+  });
+
+library
+  .command('concepts <conceptName>')
+  .description('Show articles and details for a concept')
+  .action(async (conceptName: string) => {
+    const { libraryConceptsCommand } = await import('./commands/knowledge-library.js');
+    await libraryConceptsCommand(conceptName);
+  });
+
+library
+  .command('stats')
+  .description('Show ontology statistics')
+  .action(async () => {
+    const { libraryStatsCommand } = await import('./commands/knowledge-library.js');
+    await libraryStatsCommand();
+  });
+
+library
+  .command('merge-suggestions')
+  .description('Show suggested concept merges')
+  .action(async () => {
+    const { libraryMergeSuggestionsCommand } = await import('./commands/knowledge-library.js');
+    await libraryMergeSuggestionsCommand();
+  });
+
 // km (knowledge maintenance)
 program
   .command('km')
