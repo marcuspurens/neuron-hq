@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { isWorkerAvailable } from '../aurora/worker-bridge.js';
 import { ingestVideo } from '../aurora/video.js';
-import type { VideoIngestOptions } from '../aurora/video.js';
+import type { VideoIngestOptions, ProgressUpdate } from '../aurora/video.js';
 
 /**
  * CLI command: aurora:ingest-video <url>
@@ -29,16 +29,31 @@ export async function auroraIngestVideoCommand(
     return;
   }
 
+  const stepEmojis: Record<string, string> = {
+    downloading: '⬇️ ',
+    transcribing: '🎤',
+    diarizing: '🗣️ ',
+    chunking: '✂️ ',
+    embedding: '🧠',
+  };
+
   const options: VideoIngestOptions = {
     diarize: cmdOptions.diarize ?? false,
     scope: (cmdOptions.scope as VideoIngestOptions['scope']) ?? 'personal',
     maxChunks: cmdOptions.maxChunks ? parseInt(cmdOptions.maxChunks, 10) : undefined,
     whisperModel: cmdOptions.whisperModel,
     language: cmdOptions.language,
+    onProgress: (update: ProgressUpdate) => {
+      const emoji = stepEmojis[update.step] ?? '▶️';
+      if (update.progress === 0) {
+        console.log(`  ${emoji} ${update.step}...`);
+      } else if (update.progress >= 1.0) {
+        console.log(`  ${emoji} ${update.step} done (${(update.stepElapsedMs / 1000).toFixed(1)}s)`);
+      }
+    },
   };
 
   try {
-    console.log('  ⬇️  Extracting audio...');
     const result = await ingestVideo(url, options);
 
     console.log(chalk.green(`  done`));

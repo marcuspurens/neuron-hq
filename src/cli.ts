@@ -8,7 +8,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Load .env from project root before anything else
-config({ path: path.resolve(__dirname, '..', '.env') });
+// quiet: true prevents dotenv from writing to stdout, which breaks MCP JSON-RPC
+config({ path: path.resolve(__dirname, '..', '.env'), quiet: true });
 
 import {
   targetAddCommand,
@@ -44,6 +45,8 @@ import { auroraIngestImageCommand } from './commands/aurora-ingest-image.js';
 import { auroraOcrPdfCommand } from './commands/aurora-ocr-pdf.js';
 import { auroraIngestBookCommand } from './commands/aurora-ingest-book.js';
 import { auroraDescribeImageCommand } from './commands/aurora-describe-image.js';
+import { jobsCommand } from './commands/jobs.js';
+import { jobStatsCommand } from './commands/job-stats.js';
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
@@ -255,6 +258,18 @@ program
   .option('--output <path>', 'Save combined markdown to this path')
   .option('--scope <scope>', 'personal | shared | project', 'personal')
   .action(auroraIngestBookCommand);
+
+program
+  .command('jobs')
+  .description('List recent video ingest jobs')
+  .option('--status <status>', 'Filter by status: queued, running, done, error, cancelled')
+  .option('--limit <n>', 'Max number of jobs to show', '10')
+  .action(jobsCommand);
+
+program
+  .command('job-stats')
+  .description('Show aggregate video ingest job statistics')
+  .action(jobStatsCommand);
 
 program
   .command('aurora:timeline')

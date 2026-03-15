@@ -4,9 +4,10 @@
  * with progress updates to the aurora_jobs table.
  */
 
+import { stat, unlink } from 'fs/promises';
 import { getPool, closePool } from '../core/db.js';
 import { ingestVideo } from './video.js';
-import type { VideoIngestOptions } from './video.js';
+import type { VideoIngestOptions, ProgressUpdate } from './video.js';
 
 const jobId = process.argv[2];
 if (!jobId) {
@@ -14,8 +15,38 @@ if (!jobId) {
   process.exit(1);
 }
 
+/**
+ * Clean up temporary files and record bytes cleaned in the DB.
+ * Silently ignores files that don't exist or are already deleted.
+ */
+async function cleanupTempFiles(
+  paths: string[],
+  pool: ReturnType<typeof getPool>,
+): Promise<void> {
+  let bytesCleaned = 0;
+  const tempPaths = paths.filter(Boolean);
+  for (const p of tempPaths) {
+    try {
+      const s = await stat(p);
+      await unlink(p);
+      bytesCleaned += s.size;
+    } catch {
+      // File may not exist or already deleted
+    }
+  }
+  if (bytesCleaned > 0) {
+    const mb = (bytesCleaned / (1024 * 1024)).toFixed(1);
+    console.error(`Cleaned up ${mb} MB temp files`);
+    await pool.query(
+      'UPDATE aurora_jobs SET temp_bytes_cleaned = $2 WHERE id = $1',
+      [jobId, bytesCleaned],
+    ).catch(() => {});
+  }
+}
+
 async function run(): Promise<void> {
   const pool = getPool();
+  let knownTempPaths: string[] = [];
 
   try {
     // Fetch job from DB
@@ -34,41 +65,6 @@ async function run(): Promise<void> {
       ['running', jobId],
     );
 
-    const stepTimings: Record<string, number> = {};
-    let currentStepStart = Date.now();
-
-    // Helper to update progress
-    const updateStep = async (
-      step: string,
-      progress: number,
-      extras?: Record<string, unknown>,
-    ): Promise<void> => {
-      const now = Date.now();
-      if (currentStepStart > 0) {
-        stepTimings[`${step}_start`] = now - currentStepStart;
-      }
-      currentStepStart = now;
-      const updateParts = ['step = $2', 'progress = $3'];
-      const params: unknown[] = [jobId, step, progress];
-      let paramIdx = 4;
-
-      if (extras) {
-        for (const [key, value] of Object.entries(extras)) {
-          updateParts.push(`${key} = $${paramIdx}`);
-          params.push(value);
-          paramIdx++;
-        }
-      }
-
-      await pool.query(
-        `UPDATE aurora_jobs SET ${updateParts.join(', ')} WHERE id = $1`,
-        params,
-      );
-    };
-
-    // Run the ingest pipeline
-    await updateStep('downloading', 0.1);
-
     const options: VideoIngestOptions = {
       diarize: (input.diarize as boolean) ?? false,
       scope: (input.scope as VideoIngestOptions['scope']) ?? 'personal',
@@ -76,17 +72,38 @@ async function run(): Promise<void> {
       language: input.language as string | undefined,
     };
 
-    // Run the full pipeline (this is blocking within this process, which is fine)
-    const startTime = Date.now();
-    const result = await ingestVideo(url, options);
-    const totalMs = Date.now() - startTime;
+    // Track real step timings via onProgress callback
+    const realStepTimings: Record<string, number> = {};
+    let lastStepName: string | null = null;
+    let lastStepStart = Date.now();
 
-    // Estimate step timings based on typical distribution
-    stepTimings.download_ms = Math.round(totalMs * 0.1);
-    stepTimings.transcribe_ms = Math.round(totalMs * 0.6);
-    stepTimings.diarize_ms = options.diarize ? Math.round(totalMs * 0.15) : 0;
-    stepTimings.chunk_ms = Math.round(totalMs * 0.05);
-    stepTimings.embed_ms = Math.round(totalMs * 0.1);
+    const result = await ingestVideo(url, {
+      ...options,
+      onProgress: (update: ProgressUpdate) => {
+        // Track real step timing
+        if (lastStepName && update.step !== lastStepName) {
+          realStepTimings[`${lastStepName}_ms`] = Date.now() - lastStepStart;
+          lastStepStart = Date.now();
+        }
+        if (update.step !== lastStepName) {
+          lastStepName = update.step;
+        }
+
+        // Fire-and-forget DB update
+        void pool.query(
+          'UPDATE aurora_jobs SET step = $1, progress = $2 WHERE id = $3',
+          [update.step, update.progress, jobId],
+        ).catch(() => {});
+      },
+    });
+
+    // Record final step timing
+    if (lastStepName) {
+      realStepTimings[`${lastStepName}_ms`] = Date.now() - lastStepStart;
+    }
+
+    // Collect temp paths for cleanup
+    knownTempPaths = [result.audioPath, result.videoPath].filter(Boolean) as string[];
 
     // Update job as done
     await pool.query(
@@ -99,10 +116,13 @@ async function run(): Promise<void> {
         backend = $4,
         completed_at = NOW()
       WHERE id = $1`,
-      [jobId, JSON.stringify(result), JSON.stringify(stepTimings), result.modelUsed ?? null],
+      [jobId, JSON.stringify(result), JSON.stringify(realStepTimings), result.modelUsed ?? null],
     );
 
     console.error(`Job ${jobId} completed successfully`);
+
+    // Clean up temp files after successful ingest
+    await cleanupTempFiles(knownTempPaths, pool);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`Job ${jobId} failed: ${message}`);
@@ -113,6 +133,9 @@ async function run(): Promise<void> {
         [jobId, message],
       )
       .catch(() => {});
+
+    // Attempt to clean up any known temp files even on error
+    await cleanupTempFiles(knownTempPaths, pool);
   } finally {
     // Trigger next job in queue
     try {

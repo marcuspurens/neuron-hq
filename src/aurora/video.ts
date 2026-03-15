@@ -23,6 +23,14 @@ import { renameSpeaker } from './voiceprint.js';
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
+/** Progress update emitted at the start and end of each pipeline step. */
+export interface ProgressUpdate {
+  step: 'downloading' | 'transcribing' | 'diarizing' | 'chunking' | 'embedding';
+  progress: number; // 0.0 to 1.0
+  stepElapsedMs: number;
+  backend?: string;
+}
+
 export interface VideoIngestOptions {
   scope?: 'personal' | 'shared' | 'project';
   maxChunks?: number;
@@ -30,6 +38,8 @@ export interface VideoIngestOptions {
   whisperModel?: string;
   /** Language code (e.g. "sv", "en") — skips auto-detection when set. */
   language?: string;
+  /** Optional callback invoked at the start and end of each pipeline step. */
+  onProgress?: (update: ProgressUpdate) => void;
 }
 
 export interface VideoIngestResult {
@@ -51,6 +61,10 @@ export interface VideoIngestResult {
   }>;
   /** The Whisper model that was actually used for transcription. */
   modelUsed?: string;
+  /** Path to the temporary audio file (for cleanup). */
+  audioPath?: string;
+  /** Path to the temporary video file (for cleanup). */
+  videoPath?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -163,12 +177,15 @@ export async function ingestVideo(
   }
 
   // 2. Extract audio via yt-dlp
+  let stepStart = Date.now();
+  options?.onProgress?.({ step: 'downloading', progress: 0, stepElapsedMs: 0 });
+
   const extractResult = await runWorker(
     {
       action: 'extract_video',
       source: url,
     },
-    { timeout: 300_000 },
+    { timeout: 600_000 },
   );
   if (!extractResult.ok) {
     throw new Error(extractResult.error);
@@ -176,7 +193,12 @@ export async function ingestVideo(
   const extractMeta = extractResult.metadata as Record<string, unknown>;
   const platform = (extractMeta.extractor as string) ?? 'unknown';
 
-  // 3. Transcribe audio (may take several minutes on CPU)
+  options?.onProgress?.({ step: 'downloading', progress: 1.0, stepElapsedMs: Date.now() - stepStart });
+
+  // 3. Transcribe audio (may take 20-30 min for long videos on CPU)
+  stepStart = Date.now();
+  options?.onProgress?.({ step: 'transcribing', progress: 0, stepElapsedMs: 0 });
+
   const transcribeOptions: Record<string, unknown> = {};
   if (options?.whisperModel) {
     transcribeOptions.whisper_model = options.whisperModel;
@@ -191,7 +213,7 @@ export async function ingestVideo(
       source: extractMeta.audioPath as string,
       ...(Object.keys(transcribeOptions).length > 0 ? { options: transcribeOptions } : {}),
     },
-    { timeout: 600_000 },
+    { timeout: 1_800_000 },
   );
   if (!transcribeResult.ok) {
     throw new Error(transcribeResult.error);
@@ -199,21 +221,28 @@ export async function ingestVideo(
   const transcribeMeta = transcribeResult.metadata as Record<string, unknown>;
   const modelUsed = (transcribeMeta.model_used as string) ?? undefined;
 
+  options?.onProgress?.({ step: 'transcribing', progress: 1.0, stepElapsedMs: Date.now() - stepStart, backend: modelUsed });
+
   // 4. Optional diarization
   let speakers: Array<{ speaker: string; start_ms: number; end_ms: number }> = [];
   if (options?.diarize) {
+    stepStart = Date.now();
+    options?.onProgress?.({ step: 'diarizing', progress: 0, stepElapsedMs: 0 });
+
     const diarizeResult = await runWorker(
       {
         action: 'diarize_audio',
         source: extractMeta.audioPath as string,
       },
-      { timeout: 600_000 },
+      { timeout: 1_200_000 },
     );
     if (!diarizeResult.ok) {
       throw new Error(diarizeResult.error);
     }
     const diarizeMeta = diarizeResult.metadata as Record<string, unknown>;
     speakers = (diarizeMeta.speakers as typeof speakers) ?? [];
+
+    options?.onProgress?.({ step: 'diarizing', progress: 1.0, stepElapsedMs: Date.now() - stepStart });
   }
 
   // 5. Create transcript node
@@ -243,6 +272,9 @@ export async function ingestVideo(
   const allNodeIds: string[] = [transcriptNodeId];
 
   // 6. Chunk transcript text
+  stepStart = Date.now();
+  options?.onProgress?.({ step: 'chunking', progress: 0, stepElapsedMs: 0 });
+
   const allChunks = chunkText(transcribeResult.text, {
     maxWords: 200,
     overlap: 20,
@@ -283,6 +315,8 @@ export async function ingestVideo(
       metadata: { createdBy: 'video-intake' },
     });
   }
+
+  options?.onProgress?.({ step: 'chunking', progress: 1.0, stepElapsedMs: Date.now() - stepStart });
 
   // 7. Voice print nodes (if diarized)
   let voicePrintsCreated = 0;
@@ -328,8 +362,13 @@ export async function ingestVideo(
   }
 
   // 8. Save & embed
+  stepStart = Date.now();
+  options?.onProgress?.({ step: 'embedding', progress: 0, stepElapsedMs: 0 });
+
   await saveAuroraGraph(graph);
   await autoEmbedAuroraNodes(allNodeIds);
+
+  options?.onProgress?.({ step: 'embedding', progress: 1.0, stepElapsedMs: Date.now() - stepStart });
 
   // 8b. Auto-tag speakers with known identities
   if (newVoicePrintIds.length > 0) {
@@ -338,9 +377,9 @@ export async function ingestVideo(
       for (const result of autoTagResults) {
         if (result.action === 'auto_tagged') {
           await renameSpeaker(result.voicePrintId, result.identityName);
-          console.log(`  🏷️  Auto-tagged: ${result.identityName} (confidence: ${result.confidence.toFixed(2)})`);
+          console.error(`  🏷️  Auto-tagged: ${result.identityName} (confidence: ${result.confidence.toFixed(2)})`);
         } else if (result.action === 'suggestion') {
-          console.log(`  💡 Suggestion: ${result.identityName}? (confidence: ${result.confidence.toFixed(2)})`);
+          console.error(`  💡 Suggestion: ${result.identityName}? (confidence: ${result.confidence.toFixed(2)})`);
         }
       }
     } catch {
@@ -392,5 +431,7 @@ export async function ingestVideo(
     crossRefsCreated,
     crossRefMatches,
     modelUsed,
+    audioPath: extractMeta.audioPath as string | undefined,
+    videoPath: extractMeta.videoPath as string | undefined,
   };
 }

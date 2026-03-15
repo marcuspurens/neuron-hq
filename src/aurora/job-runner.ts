@@ -50,6 +50,7 @@ export interface JobStats {
   errorRate: number;
   cancelRate: number;
   avgDurationByStep: Record<string, number>;
+  totalTempBytesCleaned: number;
 }
 
 export interface StartJobResult {
@@ -436,19 +437,28 @@ export async function checkCompletedJobs(): Promise<AuroraJob[]> {
     );
     const jobs = (rows as Record<string, unknown>[]).map(mapRow);
 
-    if (jobs.length > 0) {
-      const ids = jobs.map((j) => j.id);
-      const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
-      await pool.query(
-        `UPDATE aurora_jobs SET notified = true WHERE id IN (${placeholders})`,
-        ids,
-      );
-    }
-
     return jobs;
   } catch (err) {
     console.error('Failed to check completed jobs:', err);
     return [];
+  }
+}
+
+
+/* ------------------------------------------------------------------ */
+/*  markJobNotified                                                    */
+/* ------------------------------------------------------------------ */
+
+/** Mark a single job as notified. Called after notification is sent. */
+export async function markJobNotified(jobId: string): Promise<void> {
+  try {
+    const pool = getPool();
+    await pool.query(
+      'UPDATE aurora_jobs SET notified = true WHERE id = $1',
+      [jobId],
+    );
+  } catch (err) {
+    console.error('Failed to mark job notified:', err);
   }
 }
 
@@ -489,6 +499,7 @@ export async function getJobStats(): Promise<JobStats> {
     errorRate: 0,
     cancelRate: 0,
     avgDurationByStep: {},
+    totalTempBytesCleaned: 0,
   };
 
   try {
@@ -504,7 +515,8 @@ export async function getJobStats(): Promise<JobStats> {
         COALESCE(SUM(video_duration_sec) FILTER (WHERE status = 'done'), 0) AS total_duration_sec,
         COALESCE(SUM(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000)
           FILTER (WHERE status = 'done' AND started_at IS NOT NULL AND completed_at IS NOT NULL), 0
-        ) AS total_compute_ms
+        ) AS total_compute_ms,
+        COALESCE(SUM(temp_bytes_cleaned), 0) AS total_temp_bytes_cleaned
       FROM aurora_jobs
     `);
     const counts = countRows[0] as Record<string, unknown>;
@@ -514,6 +526,7 @@ export async function getJobStats(): Promise<JobStats> {
     const cancelled = counts.cancelled as number;
     const totalDurationSec = Number(counts.total_duration_sec);
     const totalComputeMs = Number(counts.total_compute_ms);
+    const totalTempBytesCleaned = Number(counts.total_temp_bytes_cleaned);
 
     // Backend distribution
     const { rows: backendRows } = await pool.query(`
@@ -562,6 +575,7 @@ export async function getJobStats(): Promise<JobStats> {
       errorRate: total > 0 ? errors / total : 0,
       cancelRate: total > 0 ? cancelled / total : 0,
       avgDurationByStep,
+      totalTempBytesCleaned,
     };
   } catch (err) {
     console.error('Failed to get job stats:', err);

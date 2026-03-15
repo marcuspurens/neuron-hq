@@ -36,6 +36,7 @@ import {
   cancelJob,
   processQueue,
   checkCompletedJobs,
+  markJobNotified,
   cleanupOldJobs,
   getJobStats,
   estimateTime,
@@ -139,6 +140,7 @@ describe('type exports', () => {
       totalVideos: 0, totalVideoHours: 0, totalComputeMs: 0,
       avgRealtimeFactor: 0, backendDistribution: {}, successRate: 0,
       errorRate: 0, cancelRate: 0, avgDurationByStep: {},
+      totalTempBytesCleaned: 0,
     };
     expect(s.totalVideos).toBe(0);
   });
@@ -371,22 +373,46 @@ describe('checkCompletedJobs', () => {
     expect(jobs).toEqual([]);
   });
 
-  it('marks returned jobs as notified', async () => {
-    mockQuery
-      .mockResolvedValueOnce({
-        rows: [makeDbRow({ id: 'j1', status: 'done', notified: false })],
-      })
-      .mockResolvedValueOnce({ rows: [] });
+  it("does not mark jobs as notified (caller uses markJobNotified)", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [makeDbRow({ id: "j1", status: "done", notified: false })],
+    });
 
     const jobs = await checkCompletedJobs();
     expect(jobs).toHaveLength(1);
-    expect(jobs[0].id).toBe('j1');
+    expect(jobs[0].id).toBe("j1");
+    // Should only call SELECT, not UPDATE
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain("SELECT");
+    expect(sql).not.toContain("UPDATE");
   });
 
   it('does not update when no completed jobs', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     const jobs = await checkCompletedJobs();
     expect(jobs).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  markJobNotified                                                    */
+/* ------------------------------------------------------------------ */
+
+describe("markJobNotified", () => {
+  it("calls UPDATE with notified = true for the given jobId", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await markJobNotified("j42");
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain("UPDATE aurora_jobs");
+    expect(sql).toContain("notified = true");
+    expect(mockQuery.mock.calls[0][1]).toEqual(["j42"]);
+  });
+
+  it("does not throw on DB error", async () => {
+    mockQuery.mockRejectedValueOnce(new Error("db down"));
+    await expect(markJobNotified("j1")).resolves.toBeUndefined();
   });
 });
 
@@ -470,6 +496,7 @@ describe('getJobStats', () => {
         rows: [{
           total: 10, done: 7, errors: 2, cancelled: 1,
           total_duration_sec: 3600, total_compute_ms: 7200000,
+          total_temp_bytes_cleaned: 5242880,
         }],
       })
       .mockResolvedValueOnce({
@@ -492,5 +519,6 @@ describe('getJobStats', () => {
     expect(stats.avgDurationByStep.chunking).toBe(250);
     expect(stats.totalVideoHours).toBe(1);
     expect(stats.avgRealtimeFactor).toBe(2);
+    expect(stats.totalTempBytesCleaned).toBe(5242880);
   });
 });
