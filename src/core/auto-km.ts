@@ -9,6 +9,8 @@ export interface AutoKMConfig {
   maxActionsPerRun: number;
   skipOnRed: boolean;
   topicFromBrief: boolean;
+  chainEnabled?: boolean;     // default false
+  chainMaxCycles?: number;    // default 2 (conservative for auto mode)
 }
 
 /**
@@ -20,6 +22,8 @@ export const DEFAULT_AUTO_KM_CONFIG: AutoKMConfig = {
   maxActionsPerRun: 3,
   skipOnRed: true,
   topicFromBrief: true,
+  chainEnabled: false,
+  chainMaxCycles: 2,
 };
 
 /**
@@ -86,6 +90,8 @@ export async function runAutoKM(
   const agent = new KnowledgeManagerAgent(audit, {
     maxActions: config.maxActionsPerRun,
     focusTopic: topic,
+    chain: config.chainEnabled,
+    maxCycles: config.chainMaxCycles,
   });
 
   const report = await agent.run();

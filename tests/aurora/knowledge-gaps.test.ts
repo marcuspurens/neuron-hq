@@ -24,7 +24,40 @@ vi.mock('../../src/aurora/search.js', () => ({
   searchAurora: (...args: unknown[]) => mockSearchAurora(...args),
 }));
 
-import { recordGap, getGaps, resolveGap } from '../../src/aurora/knowledge-gaps.js';
+const mockCreate = vi.fn();
+const mockCreateAgentClient = vi.fn(() => ({
+  client: { messages: { create: mockCreate } },
+  model: 'claude-haiku-4-5-20251001',
+  maxTokens: 1024,
+}));
+vi.mock('../../src/core/agent-client.js', () => ({
+  createAgentClient: (...args: unknown[]) => mockCreateAgentClient(...args),
+}));
+
+vi.mock('../../src/core/model-registry.js', () => ({
+  resolveModelConfig: () => ({
+    provider: 'anthropic',
+    model: 'claude-haiku-4-5-20251001',
+    maxTokens: 8192,
+  }),
+  DEFAULT_MODEL_CONFIG: {
+    provider: 'anthropic',
+    model: 'claude-opus-4-6',
+    maxTokens: 8192,
+  },
+}));
+
+const mockReadFile = vi.fn();
+vi.mock('fs/promises', () => ({
+  default: { readFile: (...args: unknown[]) => mockReadFile(...args) },
+}));
+
+import {
+  recordGap,
+  getGaps,
+  resolveGap,
+  extractEmergentGaps,
+} from '../../src/aurora/knowledge-gaps.js';
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -44,6 +77,20 @@ function makeGapNode(overrides: Partial<AuroraNode> = {}): AuroraNode {
   };
 }
 
+function makeDocNode(overrides: Partial<AuroraNode> = {}): AuroraNode {
+  return {
+    id: 'doc-1',
+    type: 'document',
+    title: 'Test Document',
+    properties: { text: 'Some ingested text about quantum computing.' },
+    confidence: 0.8,
+    scope: 'personal',
+    created: '2026-03-09T12:00:00.000Z',
+    updated: '2026-03-09T12:00:00.000Z',
+    ...overrides,
+  };
+}
+
 function makeGraph(nodes: AuroraNode[] = []): AuroraGraph {
   return {
     nodes,
@@ -51,6 +98,17 @@ function makeGraph(nodes: AuroraNode[] = []): AuroraGraph {
     lastUpdated: new Date().toISOString(),
   };
 }
+
+function makeLLMResponse(questions: string[]) {
+  return {
+    content: [{
+      type: 'text',
+      text: JSON.stringify({ questions }),
+    }],
+  };
+}
+
+const PROMPT_TEMPLATE = 'Analyze this text:\n\n{{text}}\n\nReturn JSON with questions.';
 
 /* ------------------------------------------------------------------ */
 /*  Setup                                                              */
@@ -65,6 +123,7 @@ beforeEach(() => {
   mockFindAuroraNodes.mockReturnValue([]);
   mockAddAuroraNode.mockImplementation((graph: AuroraGraph) => graph);
   mockUpdateAuroraNode.mockImplementation((graph: AuroraGraph) => graph);
+  mockReadFile.mockResolvedValue(PROMPT_TEMPLATE);
 });
 
 /* ------------------------------------------------------------------ */
@@ -312,5 +371,125 @@ describe('getGaps() — resolved filtering', () => {
 
     const result = await getGaps(2);
     expect(result.gaps).toHaveLength(2);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  extractEmergentGaps() tests                                        */
+/* ------------------------------------------------------------------ */
+
+describe('extractEmergentGaps()', () => {
+  it('returns empty array when no ingestedNodeIds match graph nodes', async () => {
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph([]));
+
+    const result = await extractEmergentGaps({
+      ingestedNodeIds: ['nonexistent-id'],
+      existingGapIds: [],
+      chainedFromGapId: 'gap-1',
+    });
+
+    expect(result).toEqual([]);
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('returns empty array when LLM call fails', async () => {
+    const node = makeDocNode({ id: 'ingested-1' });
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph([node]));
+    mockCreate.mockRejectedValue(new Error('API rate limit'));
+
+    const result = await extractEmergentGaps({
+      ingestedNodeIds: ['ingested-1'],
+      existingGapIds: [],
+      chainedFromGapId: 'gap-1',
+    });
+
+    expect(result).toEqual([]);
+  });
+
+  it('extracts questions from LLM response', async () => {
+    const node = makeDocNode({ id: 'ingested-1' });
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph([node]));
+    mockCreate.mockResolvedValue(makeLLMResponse([
+      'How does quantum error correction work?',
+      'What are the practical applications?',
+    ]));
+
+    const result = await extractEmergentGaps({
+      ingestedNodeIds: ['ingested-1'],
+      existingGapIds: [],
+      chainedFromGapId: 'gap-origin-1',
+    });
+
+    expect(result).toHaveLength(2);
+    expect(result[0].question).toBe('How does quantum error correction work?');
+    expect(result[1].question).toBe('What are the practical applications?');
+  });
+
+  it('filters out questions matching existing gaps (>0.85 similarity)', async () => {
+    const node = makeDocNode({ id: 'ingested-1' });
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph([node]));
+    mockCreate.mockResolvedValue(makeLLMResponse([
+      'What is quantum entanglement?',
+      'How fast are quantum computers?',
+    ]));
+
+    // First question matches existing gap; second does not
+    mockSearchAurora
+      .mockResolvedValueOnce([{
+        id: 'existing-gap-1',
+        title: 'What is quantum entanglement?',
+        type: 'research',
+        similarity: 0.92,
+        confidence: 0.5,
+        scope: 'personal',
+        source: 'semantic',
+      }])
+      .mockResolvedValueOnce([]);
+
+    const result = await extractEmergentGaps({
+      ingestedNodeIds: ['ingested-1'],
+      existingGapIds: ['existing-gap-1'],
+      chainedFromGapId: 'gap-origin-1',
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].question).toBe('How fast are quantum computers?');
+  });
+
+  it('respects maxGaps limit', async () => {
+    const node = makeDocNode({ id: 'ingested-1' });
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph([node]));
+    mockCreate.mockResolvedValue(makeLLMResponse([
+      'Q1?', 'Q2?', 'Q3?', 'Q4?', 'Q5?', 'Q6?',
+    ]));
+
+    const result = await extractEmergentGaps({
+      ingestedNodeIds: ['ingested-1'],
+      existingGapIds: [],
+      chainedFromGapId: 'gap-1',
+      maxGaps: 3,
+    });
+
+    expect(result).toHaveLength(3);
+  });
+
+  it('returns EmergentGap with correct source and chainedFrom', async () => {
+    const node = makeDocNode({ id: 'ingested-1' });
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph([node]));
+    mockCreate.mockResolvedValue(makeLLMResponse(['Follow-up Q?']));
+
+    const result = await extractEmergentGaps({
+      ingestedNodeIds: ['ingested-1'],
+      existingGapIds: [],
+      chainedFromGapId: 'chain-origin-42',
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({
+      question: 'Follow-up Q?',
+      source: 'emergent',
+      chainedFrom: 'chain-origin-42',
+      confidence: 0.7,
+    });
   });
 });

@@ -64,3 +64,11 @@ km_auto:
   max_actions_per_run: 3
   skip_on_red: true
   topic_from_brief: true
+
+# Knowledge Manager chaining (topic chaining)
+km_chaining:
+  enabled: true
+  maxCycles: 3
+  maxTimeMinutes: 15
+  convergenceThreshold: 2    # stop if < 2 new gaps per cycle
+  emergentGapsPerCycle: 5    # max new gaps extracted per cycle

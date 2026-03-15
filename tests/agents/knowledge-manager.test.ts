@@ -5,6 +5,8 @@ import { KnowledgeManagerAgent, type KMReport } from '../../src/core/agents/know
 vi.mock('../../src/aurora/knowledge-gaps.js', () => ({
   getGaps: vi.fn(),
   resolveGap: vi.fn(),
+  extractEmergentGaps: vi.fn(),
+  recordGap: vi.fn(),
 }));
 
 vi.mock('../../src/aurora/freshness.js', () => ({
@@ -33,7 +35,7 @@ vi.mock('../../src/core/embeddings.js', () => ({
 }));
 
 // Import mocked modules
-import { getGaps, resolveGap } from '../../src/aurora/knowledge-gaps.js';
+import { getGaps, resolveGap, extractEmergentGaps, recordGap } from '../../src/aurora/knowledge-gaps.js';
 import { getFreshnessReport, verifySource } from '../../src/aurora/freshness.js';
 import { suggestResearch } from '../../src/aurora/gap-brief.js';
 import { remember } from '../../src/aurora/memory.js';
@@ -49,6 +51,8 @@ const mockRemember = vi.mocked(remember);
 const mockWebSearch = vi.mocked(webSearch);
 const mockIngestUrl = vi.mocked(ingestUrl);
 const mockResolveGap = vi.mocked(resolveGap);
+const mockExtractEmergentGaps = vi.mocked(extractEmergentGaps);
+const mockRecordGap = vi.mocked(recordGap);
 const mockGetEmbeddingProvider = vi.mocked(getEmbeddingProvider);
 
 function createMockAudit(): { log: ReturnType<typeof vi.fn>; entries: unknown[] } {
@@ -113,6 +117,9 @@ function setupDefaultMocks(): void {
   });
 
   mockResolveGap.mockResolvedValue(undefined);
+
+  mockExtractEmergentGaps.mockResolvedValue([]);
+  mockRecordGap.mockResolvedValue(undefined as unknown as void);
 
   mockGetEmbeddingProvider.mockReturnValue({
     embed: vi.fn().mockRejectedValue(new Error('Embedding not available')),
@@ -477,6 +484,385 @@ describe('KnowledgeManagerAgent', () => {
         expect(detail).toHaveProperty('factsLearned');
         expect(detail).toHaveProperty('resolved');
       }
+    });
+  });
+
+  describe('chaining', () => {
+    describe('constructor defaults', () => {
+      it('sets chaining defaults', () => {
+        const agent = new KnowledgeManagerAgent(audit);
+        const opts = (agent as unknown as { options: Record<string, unknown> }).options;
+        expect(opts.chain).toBe(false);
+        expect(opts.maxCycles).toBe(3);
+        expect(opts.maxTimeMinutes).toBe(15);
+        expect(opts.convergenceThreshold).toBe(2);
+        expect(opts.emergentGapsPerCycle).toBe(5);
+      });
+
+      it('accepts custom chaining options', () => {
+        const agent = new KnowledgeManagerAgent(audit, {
+          chain: true,
+          maxCycles: 5,
+          maxTimeMinutes: 30,
+          convergenceThreshold: 3,
+          emergentGapsPerCycle: 10,
+        });
+        const opts = (agent as unknown as { options: Record<string, unknown> }).options;
+        expect(opts.chain).toBe(true);
+        expect(opts.maxCycles).toBe(5);
+        expect(opts.maxTimeMinutes).toBe(30);
+        expect(opts.convergenceThreshold).toBe(3);
+        expect(opts.emergentGapsPerCycle).toBe(10);
+      });
+    });
+
+    describe('chain=false (default)', () => {
+      it('does not include chainId in report', async () => {
+        const agent = new KnowledgeManagerAgent(audit, { includeStale: false });
+        const report = await agent.run();
+        expect(report.chainId).toBeUndefined();
+        expect(report.totalCycles).toBeUndefined();
+        expect(report.stoppedBy).toBeUndefined();
+      });
+
+      it('produces identical report to pre-chaining behavior', async () => {
+        const agent = new KnowledgeManagerAgent(audit, { maxActions: 10 });
+        const report = await agent.run();
+        expect(report.gapsFound).toBe(2);
+        expect(report.gapsResearched).toBe(2);
+        expect(report.sourcesRefreshed).toBe(1);
+        // No chaining fields
+        expect(report.chainId).toBeUndefined();
+        expect(report.emergentGapsFound).toBeUndefined();
+      });
+    });
+
+    describe('chain=true', () => {
+      it('includes chainId and cycle info in report', async () => {
+        const agent = new KnowledgeManagerAgent(audit, {
+          chain: true,
+          includeStale: false,
+          maxActions: 10,
+        });
+        const report = await agent.run();
+
+        expect(report.chainId).toBeDefined();
+        expect(typeof report.chainId).toBe('string');
+        expect(report.totalCycles).toBeGreaterThanOrEqual(1);
+        expect(report.stoppedBy).toBeDefined();
+      });
+
+      it('stops with noNewGaps when no resolved gaps', async () => {
+        // No URLs ingested => no resolved gaps => noNewGaps
+        mockWebSearch.mockResolvedValue([]);
+
+        const agent = new KnowledgeManagerAgent(audit, {
+          chain: true,
+          includeStale: false,
+          maxActions: 10,
+        });
+        const report = await agent.run();
+
+        expect(report.stoppedBy).toBe('noNewGaps');
+        expect(report.totalCycles).toBe(1);
+      });
+
+      it('stops with convergence when emergent gaps < threshold', async () => {
+        // Return 1 emergent gap, threshold is 2 => convergence
+        mockExtractEmergentGaps.mockResolvedValue([
+          { question: 'Follow-up Q?', source: 'emergent', chainedFrom: 'gap-1', confidence: 0.8 },
+        ]);
+
+        const agent = new KnowledgeManagerAgent(audit, {
+          chain: true,
+          includeStale: false,
+          maxActions: 10,
+          convergenceThreshold: 2,
+        });
+        const report = await agent.run();
+
+        expect(report.stoppedBy).toBe('convergence');
+        expect(report.totalCycles).toBe(1);
+        expect(report.emergentGapsFound).toBe(1);
+      });
+
+      it('runs multiple cycles when emergent gaps meet threshold', async () => {
+        // Cycle 1: returns 2 emergent gaps (>= threshold of 2)
+        // Cycle 2: getGaps returns the new gaps, but no URLs ingested => noNewGaps
+        let callCount = 0;
+        mockExtractEmergentGaps.mockImplementation(async () => {
+          callCount++;
+          if (callCount === 1) {
+            return [
+              { question: 'Follow-up Q1?', source: 'emergent' as const, chainedFrom: 'gap-1', confidence: 0.9 },
+              { question: 'Follow-up Q2?', source: 'emergent' as const, chainedFrom: 'gap-1', confidence: 0.8 },
+            ];
+          }
+          return [];
+        });
+
+        // On second cycle, return the new gaps
+        let gapCallCount = 0;
+        mockGetGaps.mockImplementation(async () => {
+          gapCallCount++;
+          if (gapCallCount === 1) {
+            return {
+              gaps: [
+                { id: 'gap-1', question: 'What is quantum computing?', askedAt: '2026-01-01T00:00:00Z', frequency: 3 },
+              ],
+              totalUnanswered: 1,
+            };
+          }
+          // Second cycle: return the emergent gaps (with no URLs => they won't resolve)
+          return {
+            gaps: [
+              { id: 'gap-3', question: 'Follow-up Q1?', askedAt: '2026-03-15T00:00:00Z', frequency: 1 },
+              { id: 'gap-4', question: 'Follow-up Q2?', askedAt: '2026-03-15T00:00:00Z', frequency: 1 },
+            ],
+            totalUnanswered: 2,
+          };
+        });
+
+        const agent = new KnowledgeManagerAgent(audit, {
+          chain: true,
+          includeStale: false,
+          maxActions: 10,
+          convergenceThreshold: 2,
+        });
+        const report = await agent.run();
+
+        expect(report.totalCycles).toBe(2);
+        expect(mockRecordGap).toHaveBeenCalledWith('Follow-up Q1?');
+        expect(mockRecordGap).toHaveBeenCalledWith('Follow-up Q2?');
+        // Details should contain results from both cycles
+        expect(report.details.length).toBeGreaterThanOrEqual(1);
+      });
+
+      it('stops at maxCycles', async () => {
+        // Always return enough emergent gaps to continue
+        mockExtractEmergentGaps.mockResolvedValue([
+          { question: 'Q1?', source: 'emergent' as const, chainedFrom: 'gap-1', confidence: 0.9 },
+          { question: 'Q2?', source: 'emergent' as const, chainedFrom: 'gap-1', confidence: 0.8 },
+          { question: 'Q3?', source: 'emergent' as const, chainedFrom: 'gap-1', confidence: 0.7 },
+        ]);
+
+        const agent = new KnowledgeManagerAgent(audit, {
+          chain: true,
+          includeStale: false,
+          maxActions: 10,
+          maxCycles: 2,
+          convergenceThreshold: 2,
+        });
+        const report = await agent.run();
+
+        expect(report.stoppedBy).toBe('maxCycles');
+        expect(report.totalCycles).toBe(2);
+      });
+
+      it('appends chain summary to report summary', async () => {
+        const agent = new KnowledgeManagerAgent(audit, {
+          chain: true,
+          includeStale: false,
+          maxActions: 10,
+        });
+        const report = await agent.run();
+
+        expect(report.summary).toContain('Chain');
+        expect(report.summary).toContain('cycle(s)');
+        expect(report.summary).toContain('stopped by');
+      });
+
+      it('accumulates gapsResearched across cycles', async () => {
+        // Cycle 1: 1 gap researched and resolved
+        // Cycle 2: 2 more gaps researched
+        let gapCallCount = 0;
+        mockGetGaps.mockImplementation(async () => {
+          gapCallCount++;
+          if (gapCallCount === 1) {
+            return {
+              gaps: [{ id: 'gap-1', question: 'Q1?', askedAt: '2026-01-01T00:00:00Z', frequency: 3 }],
+              totalUnanswered: 1,
+            };
+          }
+          return {
+            gaps: [
+              { id: 'gap-3', question: 'Q3?', askedAt: '2026-03-15T00:00:00Z', frequency: 1 },
+              { id: 'gap-4', question: 'Q4?', askedAt: '2026-03-15T00:00:00Z', frequency: 1 },
+            ],
+            totalUnanswered: 2,
+          };
+        });
+
+        let emCallCount = 0;
+        mockExtractEmergentGaps.mockImplementation(async () => {
+          emCallCount++;
+          if (emCallCount === 1) {
+            return [
+              { question: 'Q3?', source: 'emergent' as const, chainedFrom: 'gap-1', confidence: 0.9 },
+              { question: 'Q4?', source: 'emergent' as const, chainedFrom: 'gap-1', confidence: 0.8 },
+            ];
+          }
+          return [];
+        });
+
+        const agent = new KnowledgeManagerAgent(audit, {
+          chain: true,
+          includeStale: false,
+          maxActions: 10,
+          convergenceThreshold: 2,
+          maxCycles: 3,
+        });
+        const report = await agent.run();
+
+        // Cycle 1: 1 gap, Cycle 2: 2 gaps = 3 total
+        expect(report.gapsResearched).toBe(3);
+        expect(report.totalCycles).toBe(2);
+      });
+
+      it('logs cycle-complete events', async () => {
+        const agent = new KnowledgeManagerAgent(audit, {
+          chain: true,
+          includeStale: false,
+          maxActions: 10,
+        });
+        await agent.run();
+
+        const cycleEntries = (audit.entries as Array<{ phase?: string; chainId?: string }>)
+          .filter((e) => e.phase === 'cycle-complete');
+        expect(cycleEntries.length).toBeGreaterThanOrEqual(1);
+        expect(cycleEntries[0].chainId).toBeDefined();
+      });
+
+      it('stops on timeout when maxTimeMinutes is very small', async () => {
+        // Make cycle 1 return enough emergent gaps to continue to cycle 2
+        let emCallCount = 0;
+        mockExtractEmergentGaps.mockImplementation(async () => {
+          emCallCount++;
+          return [
+            { question: 'EQ1?', source: 'emergent' as const, chainedFrom: 'gap-1', confidence: 0.9 },
+            { question: 'EQ2?', source: 'emergent' as const, chainedFrom: 'gap-1', confidence: 0.8 },
+          ];
+        });
+
+        // Mock Date.now: start time 0, then after first cycle jump way past the limit
+        const origNow = Date.now;
+        let nowCallCount = 0;
+        vi.spyOn(Date, 'now').mockImplementation(() => {
+          nowCallCount++;
+          // First call: startTime = 0
+          // Second call: cycle 1 timeout check = 0 (not past yet)
+          // Third+ calls: well past the time limit
+          if (nowCallCount <= 2) return 0;
+          return 999_999_999;
+        });
+
+        const agent = new KnowledgeManagerAgent(audit, {
+          chain: true,
+          includeStale: false,
+          maxActions: 10,
+          maxTimeMinutes: 1,
+          convergenceThreshold: 2,
+        });
+        const report = await agent.run();
+
+        vi.spyOn(Date, 'now').mockRestore();
+
+        expect(report.stoppedBy).toBe('timeout');
+        expect(report.chainId).toBeDefined();
+      });
+
+      it('records emergent gaps via recordGap', async () => {
+        let emCallCount = 0;
+        mockExtractEmergentGaps.mockImplementation(async () => {
+          emCallCount++;
+          if (emCallCount === 1) {
+            return [
+              { question: 'Emergent Q1?', source: 'emergent' as const, chainedFrom: 'gap-1', confidence: 0.9 },
+              { question: 'Emergent Q2?', source: 'emergent' as const, chainedFrom: 'gap-1', confidence: 0.8 },
+              { question: 'Emergent Q3?', source: 'emergent' as const, chainedFrom: 'gap-1', confidence: 0.7 },
+            ];
+          }
+          return [];
+        });
+
+        const agent = new KnowledgeManagerAgent(audit, {
+          chain: true,
+          includeStale: false,
+          maxActions: 10,
+          convergenceThreshold: 2,
+          maxCycles: 3,
+        });
+        await agent.run();
+
+        expect(mockRecordGap).toHaveBeenCalledTimes(3);
+        expect(mockRecordGap).toHaveBeenCalledWith('Emergent Q1?');
+        expect(mockRecordGap).toHaveBeenCalledWith('Emergent Q2?');
+        expect(mockRecordGap).toHaveBeenCalledWith('Emergent Q3?');
+      });
+
+      it('accumulates details across multiple cycles', async () => {
+        let emCallCount = 0;
+        mockExtractEmergentGaps.mockImplementation(async () => {
+          emCallCount++;
+          if (emCallCount === 1) {
+            return [
+              { question: 'Q1?', source: 'emergent' as const, chainedFrom: 'gap-1', confidence: 0.9 },
+              { question: 'Q2?', source: 'emergent' as const, chainedFrom: 'gap-1', confidence: 0.8 },
+            ];
+          }
+          return [];
+        });
+
+        const agent = new KnowledgeManagerAgent(audit, {
+          chain: true,
+          includeStale: false,
+          maxActions: 10,
+          convergenceThreshold: 2,
+          maxCycles: 3,
+        });
+        const report = await agent.run();
+
+        // Cycle 1 researches 2 default gaps, cycle 2 researches 2 more
+        expect(report.details.length).toBeGreaterThanOrEqual(4);
+        expect(report.totalCycles).toBe(2);
+      });
+
+      it('emergentGapsFound tracks gaps from the chain', async () => {
+        // Only 1 cycle: return 2 emergent gaps then convergence
+        mockExtractEmergentGaps.mockResolvedValueOnce([
+          { question: 'A?', source: 'emergent' as const, chainedFrom: 'gap-1', confidence: 0.9 },
+          { question: 'B?', source: 'emergent' as const, chainedFrom: 'gap-1', confidence: 0.8 },
+        ]);
+
+        const agent = new KnowledgeManagerAgent(audit, {
+          chain: true,
+          includeStale: false,
+          maxActions: 10,
+          convergenceThreshold: 3,
+          maxCycles: 5,
+        });
+        const report = await agent.run();
+
+        expect(report.emergentGapsFound).toBe(2);
+        expect(report.stoppedBy).toBe('convergence');
+      });
+
+      it('stoppedBy is convergence when emergent gaps are below threshold', async () => {
+        mockExtractEmergentGaps.mockResolvedValueOnce([
+          { question: 'Solo Q?', source: 'emergent' as const, chainedFrom: 'gap-1', confidence: 0.9 },
+        ]);
+
+        const agent = new KnowledgeManagerAgent(audit, {
+          chain: true,
+          includeStale: false,
+          maxActions: 10,
+          convergenceThreshold: 3,
+        });
+        const report = await agent.run();
+
+        expect(report.stoppedBy).toBe('convergence');
+        expect(report.emergentGapsFound).toBe(1);
+      });
     });
   });
 });

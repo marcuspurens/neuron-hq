@@ -12,6 +12,8 @@ export function registerKnowledgeManagerTool(server: McpServer): void {
       maxActions: z.number().min(1).max(50).optional().default(5).describe('Maximum actions to take'),
       focusTopic: z.string().optional().describe('Optional topic to focus on'),
       includeStale: z.boolean().optional().default(true).describe('Include stale source refresh'),
+      chain: z.boolean().optional().default(false).describe('Enable topic chaining for multi-cycle research'),
+      maxCycles: z.number().min(1).max(10).optional().default(3).describe('Maximum chaining cycles (only used when chain=true)'),
     },
     async (args) => {
       try {
@@ -25,6 +27,8 @@ export function registerKnowledgeManagerTool(server: McpServer): void {
           maxActions: args.maxActions,
           focusTopic: args.focusTopic,
           includeStale: args.includeStale,
+          chain: args.chain,
+          maxCycles: args.maxCycles,
         });
 
         const startMs = Date.now();
@@ -33,7 +37,15 @@ export function registerKnowledgeManagerTool(server: McpServer): void {
 
         // Log KM run (non-fatal)
         try {
-          await logKMRun({ trigger: 'manual-mcp', topic: args.focusTopic, report, durationMs });
+          await logKMRun({
+            trigger: 'manual-mcp',
+            topic: args.focusTopic,
+            report,
+            durationMs,
+            chainId: report.chainId,
+            cycleNumber: report.cycleNumber,
+            stoppedBy: report.stoppedBy,
+          });
         } catch {
           // Non-fatal
         }
@@ -51,6 +63,35 @@ export function registerKnowledgeManagerTool(server: McpServer): void {
               text: `Error: ${(err as Error).message}`,
             },
           ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  server.tool(
+    'neuron_km_chain_status',
+    'Get the status of a Knowledge Manager chain — shows all cycles in a chaining run.',
+    {
+      chainId: z.string().uuid().describe('UUID of the chain to look up'),
+    },
+    async (args) => {
+      try {
+        const { getChainStatus } = await import('../../aurora/km-log.js');
+        const entries = await getChainStatus(args.chainId);
+
+        if (entries.length === 0) {
+          return {
+            content: [{ type: 'text' as const, text: `No chain found with ID: ${args.chainId}` }],
+          };
+        }
+
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(entries, null, 2) }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${(err as Error).message}` }],
           isError: true,
         };
       }

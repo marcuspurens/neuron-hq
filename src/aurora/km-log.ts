@@ -14,6 +14,18 @@ export interface KMRunEntry {
   factsLearned: number;
   sourcesRefreshed: number;
   durationMs: number | null;
+  chainId: string | null;
+  cycleNumber: number | null;
+  stoppedBy: string | null;
+  createdAt: Date;
+}
+
+export interface ChainStatusEntry {
+  cycleNumber: number;
+  gapsFound: number;
+  gapsResearched: number;
+  gapsResolved: number;
+  stoppedBy: string | null;
   createdAt: Date;
 }
 
@@ -24,12 +36,15 @@ export async function logKMRun(entry: {
   topic?: string;
   report: KMReport;
   durationMs: number;
+  chainId?: string;
+  cycleNumber?: number;
+  stoppedBy?: string;
 }): Promise<number> {
   if (!(await isDbAvailable())) return -1;
   const pool = getPool();
   const { rows } = await pool.query(
-    `INSERT INTO km_runs (run_id, run_number, trigger, topic, gaps_found, gaps_researched, gaps_resolved, urls_ingested, facts_learned, sources_refreshed, duration_ms)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    `INSERT INTO km_runs (run_id, run_number, trigger, topic, gaps_found, gaps_researched, gaps_resolved, urls_ingested, facts_learned, sources_refreshed, duration_ms, chain_id, cycle_number, stopped_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
      RETURNING id`,
     [
       entry.runId ?? null,
@@ -43,6 +58,9 @@ export async function logKMRun(entry: {
       entry.report.factsLearned,
       entry.report.sourcesRefreshed,
       entry.durationMs,
+      entry.chainId ?? null,
+      entry.cycleNumber ?? null,
+      entry.stoppedBy ?? null,
     ],
   );
   return rows[0].id;
@@ -61,7 +79,7 @@ export async function getKMRunHistory(limit: number = 10): Promise<KMRunEntry[]>
   if (!(await isDbAvailable())) return [];
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT id, run_id, run_number, trigger, topic, gaps_found, gaps_researched, gaps_resolved, urls_ingested, facts_learned, sources_refreshed, duration_ms, created_at
+    `SELECT id, run_id, run_number, trigger, topic, gaps_found, gaps_researched, gaps_resolved, urls_ingested, facts_learned, sources_refreshed, duration_ms, chain_id, cycle_number, stopped_by, created_at
      FROM km_runs ORDER BY created_at DESC LIMIT $1`,
     [limit],
   );
@@ -78,6 +96,27 @@ export async function getKMRunHistory(limit: number = 10): Promise<KMRunEntry[]>
     factsLearned: r.facts_learned,
     sourcesRefreshed: r.sources_refreshed,
     durationMs: r.duration_ms,
+    chainId: r.chain_id,
+    cycleNumber: r.cycle_number,
+    stoppedBy: r.stopped_by,
+    createdAt: r.created_at,
+  }));
+}
+
+export async function getChainStatus(chainId: string): Promise<ChainStatusEntry[]> {
+  if (!(await isDbAvailable())) return [];
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT cycle_number, gaps_found, gaps_researched, gaps_resolved, stopped_by, created_at
+     FROM km_runs WHERE chain_id = $1 ORDER BY cycle_number`,
+    [chainId],
+  );
+  return rows.map((r: any) => ({
+    cycleNumber: r.cycle_number,
+    gapsFound: r.gaps_found,
+    gapsResearched: r.gaps_researched,
+    gapsResolved: r.gaps_resolved,
+    stoppedBy: r.stopped_by,
     createdAt: r.created_at,
   }));
 }

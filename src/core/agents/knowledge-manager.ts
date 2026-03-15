@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { getGaps, resolveGap, type KnowledgeGap } from '../../aurora/knowledge-gaps.js';
 import { webSearch } from '../../aurora/web-search.js';
 import { ingestUrl } from '../../aurora/intake.js';
@@ -26,6 +27,12 @@ export interface KMOptions {
   maxActions?: number;      // default 5
   focusTopic?: string;      // optional — filter to topic
   includeStale?: boolean;   // default true
+  // Chaining options
+  chain?: boolean;          // default false — enable topic chaining
+  maxCycles?: number;       // default 3
+  maxTimeMinutes?: number;  // default 15
+  convergenceThreshold?: number;  // default 2 — stop if < N new gaps
+  emergentGapsPerCycle?: number;  // default 5
 }
 
 export interface ResearchResult {
@@ -48,6 +55,12 @@ export interface KMReport {
   articlesUpdated: number;
   summary: string;
   details: ResearchResult[];
+  // Chaining fields (only present when chain=true)
+  chainId?: string;
+  cycleNumber?: number;
+  totalCycles?: number;
+  stoppedBy?: 'convergence' | 'maxCycles' | 'timeout' | 'noNewGaps';
+  emergentGapsFound?: number;
 }
 
 // --- Internal types ---
@@ -59,6 +72,9 @@ interface KMCandidate {
   staleNode?: FreshnessInfo;
 }
 
+/** Resolved options type: all required except focusTopic which stays optional. */
+type ResolvedKMOptions = Required<Omit<KMOptions, 'focusTopic'>> & Pick<KMOptions, 'focusTopic'>;
+
 /**
  * KnowledgeManagerAgent — a programmatic orchestrator that maintains
  * knowledge quality by scanning for gaps and stale sources, then
@@ -68,7 +84,7 @@ interface KMCandidate {
  * calls existing Aurora functions, making it simpler and more testable.
  */
 export class KnowledgeManagerAgent {
-  private options: Required<Omit<KMOptions, 'focusTopic'>> & Pick<KMOptions, 'focusTopic'>;
+  private options: ResolvedKMOptions;
 
   constructor(
     private audit: { log: (entry: unknown) => Promise<void> },
@@ -78,34 +94,151 @@ export class KnowledgeManagerAgent {
       maxActions: options.maxActions ?? 5,
       focusTopic: options.focusTopic,
       includeStale: options.includeStale ?? true,
+      chain: options.chain ?? false,
+      maxCycles: options.maxCycles ?? 3,
+      maxTimeMinutes: options.maxTimeMinutes ?? 15,
+      convergenceThreshold: options.convergenceThreshold ?? 2,
+      emergentGapsPerCycle: options.emergentGapsPerCycle ?? 5,
     };
   }
 
   /** Run the full knowledge maintenance pipeline: scan → research → report. */
   async run(): Promise<KMReport> {
+    const chainId = this.options.chain ? crypto.randomUUID() : undefined;
+    const startTime = Date.now();
+    const maxTimeMs = this.options.maxTimeMinutes * 60 * 1000;
+
+    let cycleNumber = 0;
+    let totalCycles = 0;
+    let stoppedBy: KMReport['stoppedBy'] = undefined;
+    let accumulatedReport: KMReport | null = null;
+    const allResearchedGapIds: string[] = [];
+
     await this.audit.log({
       ts: new Date().toISOString(),
       role: 'knowledge-manager',
       phase: 'start',
       options: this.options,
+      chainId,
     });
 
-    const { candidates, totalGapsFound } = await this.scan();
-    const researchResult = await this.research(candidates);
+    do {
+      cycleNumber++;
 
-    const report = this.buildReport(
-      { gapsFound: totalGapsFound },
-      researchResult,
+      // Check timeout
+      if (this.options.chain && (Date.now() - startTime) > maxTimeMs) {
+        stoppedBy = 'timeout';
+        break;
+      }
+
+      // Check maxCycles
+      if (this.options.chain && cycleNumber > this.options.maxCycles) {
+        stoppedBy = 'maxCycles';
+        break;
+      }
+
+      const { candidates, totalGapsFound } = await this.scan();
+      const researchResult = await this.research(candidates);
+
+      // Track researched gap IDs
+      for (const detail of researchResult.details) {
+        allResearchedGapIds.push(detail.gapId);
+      }
+
+      const cycleReport = this.buildReport(
+        { gapsFound: totalGapsFound },
+        researchResult,
+      );
+
+      // Accumulate into the total report
+      accumulatedReport = this.mergeReports(accumulatedReport, cycleReport);
+      totalCycles = cycleNumber;
+
+      await this.audit.log({
+        ts: new Date().toISOString(),
+        role: 'knowledge-manager',
+        phase: 'cycle-complete',
+        chainId,
+        cycleNumber,
+        gapsResearched: researchResult.gapsResearched,
+      });
+
+      // If not chaining, stop after first cycle
+      if (!this.options.chain) {
+        break;
+      }
+
+      // Extract emergent gaps from ingested content
+      const ingestedNodeIds = researchResult.details
+        .filter((d) => d.resolved)
+        .map((d) => d.gapId);
+
+      if (ingestedNodeIds.length === 0) {
+        stoppedBy = 'noNewGaps';
+        break;
+      }
+
+      const { extractEmergentGaps, recordGap } = await import('../../aurora/knowledge-gaps.js');
+
+      const emergentGaps = await extractEmergentGaps({
+        ingestedNodeIds,
+        existingGapIds: allResearchedGapIds,
+        chainedFromGapId: ingestedNodeIds[0],
+        maxGaps: this.options.emergentGapsPerCycle,
+      });
+
+      accumulatedReport.emergentGapsFound =
+        (accumulatedReport.emergentGapsFound ?? 0) + emergentGaps.length;
+
+      // Convergence check
+      if (emergentGaps.length < this.options.convergenceThreshold) {
+        stoppedBy = 'convergence';
+        break;
+      }
+
+      // Record new gaps so they appear in next cycle's scan
+      for (const gap of emergentGaps) {
+        await recordGap(gap.question);
+      }
+    } while (true);
+
+    // Finalize report with chain info
+    if (this.options.chain && accumulatedReport) {
+      accumulatedReport.chainId = chainId;
+      accumulatedReport.cycleNumber = totalCycles;
+      accumulatedReport.totalCycles = totalCycles;
+      accumulatedReport.stoppedBy = stoppedBy ?? 'noNewGaps';
+
+      // Update summary with chain info
+      accumulatedReport.summary +=
+        `\nChain ${chainId!.slice(0, 8)}: ${totalCycles} cycle(s), stopped by ${accumulatedReport.stoppedBy}.`;
+    }
+
+    const finalReport = accumulatedReport ?? this.buildReport(
+      { gapsFound: 0 },
+      {
+        gapsResearched: 0,
+        gapsResolved: 0,
+        sourcesRefreshed: 0,
+        newNodesCreated: 0,
+        urlsIngested: 0,
+        factsLearned: 0,
+        actions: [],
+        details: [],
+      },
     );
 
     await this.audit.log({
       ts: new Date().toISOString(),
       role: 'knowledge-manager',
       phase: 'complete',
-      report,
+      report: finalReport,
+      chainId,
+      totalCycles,
+      stoppedBy,
     });
 
-    return report;
+    return finalReport;
   }
 
   /**
@@ -344,6 +477,27 @@ export class KnowledgeManagerAgent {
     }
 
     return { gapsResearched, gapsResolved, sourcesRefreshed, newNodesCreated, urlsIngested, factsLearned, actions, details };
+  }
+
+  /**
+   * Merge two KMReports, accumulating numeric fields and concatenating details.
+   * Used during chaining to combine results across cycles.
+   */
+  private mergeReports(accumulated: KMReport | null, cycle: KMReport): KMReport {
+    if (!accumulated) return { ...cycle };
+    return {
+      gapsFound: accumulated.gapsFound + cycle.gapsFound,
+      gapsResearched: accumulated.gapsResearched + cycle.gapsResearched,
+      gapsResolved: accumulated.gapsResolved + cycle.gapsResolved,
+      urlsIngested: accumulated.urlsIngested + cycle.urlsIngested,
+      sourcesRefreshed: accumulated.sourcesRefreshed + cycle.sourcesRefreshed,
+      newNodesCreated: accumulated.newNodesCreated + cycle.newNodesCreated,
+      factsLearned: accumulated.factsLearned + cycle.factsLearned,
+      articlesCreated: (accumulated.articlesCreated ?? 0) + (cycle.articlesCreated ?? 0),
+      articlesUpdated: (accumulated.articlesUpdated ?? 0) + (cycle.articlesUpdated ?? 0),
+      summary: cycle.summary,  // Use latest cycle's summary as base
+      details: [...accumulated.details, ...cycle.details],
+    };
   }
 
   /**

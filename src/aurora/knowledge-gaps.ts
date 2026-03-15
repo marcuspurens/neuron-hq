@@ -1,4 +1,6 @@
 import crypto from 'crypto';
+import fs from 'fs/promises';
+import path from 'path';
 import {
   loadAuroraGraph,
   saveAuroraGraph,
@@ -8,6 +10,13 @@ import {
 } from './aurora-graph.js';
 import { searchAurora } from './search.js';
 import type { AuroraNode } from './aurora-schema.js';
+import { createAgentClient } from '../core/agent-client.js';
+import {
+  resolveModelConfig,
+  DEFAULT_MODEL_CONFIG,
+  type ModelConfig,
+} from '../core/model-registry.js';
+import type Anthropic from '@anthropic-ai/sdk';
 
 export interface KnowledgeGap {
   id: string;
@@ -24,6 +33,13 @@ export interface GapsResult {
 export interface GapOptions {
   limit?: number;
   includeResolved?: boolean;
+}
+
+export interface EmergentGap {
+  question: string;
+  source: 'emergent';
+  chainedFrom: string;  // original gap ID that led to this
+  confidence: number;    // 0-1, how relevant the follow-up is
 }
 
 /** Generate a short title from text, truncating at word boundary if needed. */
@@ -168,4 +184,127 @@ export async function resolveGap(gapId: string, evidence: {
     },
   });
   await saveAuroraGraph(graph);
+}
+
+// ---------------------------------------------------------------------------
+//  extractEmergentGaps
+// ---------------------------------------------------------------------------
+
+/** Get a cheap Haiku model config for emergent gap extraction. */
+function getEmergentModelConfig(): ModelConfig {
+  try {
+    return resolveModelConfig('researcher');
+  } catch {
+    return {
+      ...DEFAULT_MODEL_CONFIG,
+      model: 'claude-haiku-4-5-20251001',
+    };
+  }
+}
+
+/**
+ * Extract new knowledge gaps that emerge from recently ingested text.
+ * Uses LLM to identify follow-up questions, then deduplicates against existing gaps.
+ */
+export async function extractEmergentGaps(input: {
+  ingestedNodeIds: string[];
+  existingGapIds: string[];
+  chainedFromGapId: string;
+  maxGaps?: number;
+}): Promise<EmergentGap[]> {
+  try {
+    const maxGaps = input.maxGaps ?? 5;
+
+    // Step 1: Load graph and find ingested nodes
+    const graph = await loadAuroraGraph();
+    const ingestedNodes = graph.nodes.filter((n) =>
+      input.ingestedNodeIds.includes(n.id),
+    );
+
+    if (ingestedNodes.length === 0) {
+      return [];
+    }
+
+    // Extract text from ingested nodes
+    const texts = ingestedNodes.map((node) => {
+      const text = typeof node.properties.text === 'string'
+        ? node.properties.text
+        : node.title;
+      return text;
+    });
+    const concatenatedText = texts.join('\n\n');
+
+    // Step 2: Read prompt template and replace placeholder
+    const promptPath = path.resolve(
+      import.meta.dirname ?? '.',
+      '../../prompts/emergent-gaps.md',
+    );
+    let promptTemplate = await fs.readFile(promptPath, 'utf-8');
+    promptTemplate = promptTemplate.replace('{{text}}', concatenatedText);
+
+    // Step 3: Call LLM
+    const config = getEmergentModelConfig();
+    const { client, model } = createAgentClient(config);
+
+    const response = await client.messages.create({
+      model,
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: promptTemplate }],
+    });
+
+    // Step 4: Parse response — extract JSON with questions
+    const responseText = response.content
+      .filter(
+        (block): block is Anthropic.TextBlock => block.type === 'text',
+      )
+      .map((block) => block.text)
+      .join('');
+
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return [];
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]) as { questions?: unknown };
+    if (!Array.isArray(parsed.questions)) {
+      return [];
+    }
+
+    const rawQuestions = parsed.questions.filter(
+      (q): q is string => typeof q === 'string' && q.trim().length > 0,
+    );
+
+    // Step 5: Semantic dedup against existing gaps
+    const dedupedQuestions: string[] = [];
+    for (const question of rawQuestions) {
+      let isDuplicate = false;
+      try {
+        const similar = await searchAurora(question, {
+          type: 'research',
+          limit: 3,
+          minSimilarity: 0.85,
+        });
+        if (similar.length > 0) {
+          isDuplicate = true;
+        }
+      } catch {
+        // If search fails, keep the question (no dedup)
+      }
+
+      if (!isDuplicate) {
+        dedupedQuestions.push(question);
+      }
+    }
+
+    // Step 6 & 7: Map to EmergentGap[] and apply limit
+    return dedupedQuestions.slice(0, maxGaps).map((question) => ({
+      question,
+      source: 'emergent' as const,
+      chainedFrom: input.chainedFromGapId,
+      confidence: 0.7,
+    }));
+  } catch {
+    // Step 8: Error handling — never throw
+    return [];
+  }
 }
