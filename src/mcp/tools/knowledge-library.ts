@@ -18,6 +18,7 @@ import {
   searchConcepts,
 } from '../../aurora/ontology.js';
 import { lookupExternalIds, backfillExternalIds } from '../../aurora/external-ids.js';
+import type { AuroraNode } from '../../aurora/aurora-schema.js';
 
 // Re-export for external consumers so imports are not flagged as unused
 export { getConcept, searchConcepts };
@@ -26,9 +27,9 @@ export { getConcept, searchConcepts };
 export function registerKnowledgeLibraryTool(server: McpServer): void {
   server.tool(
     'neuron_knowledge_library',
-    'Manage the knowledge library — synthesized articles from Aurora knowledge base. Actions: list, search, read, history, synthesize, refresh, import, browse, concepts, ontology_stats, merge_suggestions, lookup_external_ids, backfill_ids.',
+    'Manage the knowledge library — synthesized articles from Aurora knowledge base. Actions: list, search, read, history, synthesize, refresh, import, browse, concepts, ontology_stats, merge_suggestions, lookup_external_ids, backfill_ids, export_jsonld.',
     {
-      action: z.enum(['list', 'search', 'read', 'history', 'synthesize', 'refresh', 'import', 'browse', 'concepts', 'ontology_stats', 'merge_suggestions', 'lookup_external_ids', 'backfill_ids']),
+      action: z.enum(['list', 'search', 'read', 'history', 'synthesize', 'refresh', 'import', 'browse', 'concepts', 'ontology_stats', 'merge_suggestions', 'lookup_external_ids', 'backfill_ids', 'export_jsonld']),
       query: z.string().optional().describe('Search query (for search action)'),
       articleId: z.string().optional().describe('Article ID (for read/history/refresh)'),
       topic: z.string().optional().describe('Topic to synthesize (for synthesize action)'),
@@ -41,6 +42,9 @@ export function registerKnowledgeLibraryTool(server: McpServer): void {
       facet: z.string().optional().describe('Facet filter: topic, entity, method, domain, tool'),
       maxDepth: z.number().optional().describe('Max tree depth (for browse)'),
       dryRun: z.boolean().optional().describe('Dry run mode for backfill_ids'),
+      nodeId: z.string().optional().describe('Node ID for single node export (export_jsonld)'),
+      scope: z.string().optional().describe('Export scope: ontology, articles, all (for export_jsonld)'),
+      includeEbucore: z.boolean().optional().describe('Include EBUCore fields in export (default true)'),
     },
     async (args) => {
       try {
@@ -140,6 +144,37 @@ export function registerKnowledgeLibraryTool(server: McpServer): void {
               facet: args.facet,
             });
             result = backfillResult;
+            break;
+          }
+          case 'export_jsonld': {
+            const { nodeToJsonLd, ontologyToJsonLd, JSONLD_CONTEXT } = await import('../../aurora/jsonld-export.js');
+            const { loadAuroraGraph } = await import('../../aurora/aurora-graph.js');
+
+            const exportOptions = {
+              includeEbucore: args.includeEbucore ?? true,
+            };
+
+            if (args.nodeId) {
+              const graph = await loadAuroraGraph();
+              const node = graph.nodes.find((n: { id: string }) => n.id === args.nodeId);
+              if (!node) throw new Error(`Node not found: ${args.nodeId}`);
+              result = nodeToJsonLd(node, exportOptions);
+            } else {
+              const exportScope = (args.scope ?? 'ontology') as 'ontology' | 'articles' | 'all';
+              if (exportScope === 'ontology') {
+                result = await ontologyToJsonLd(exportOptions);
+              } else {
+                const graph = await loadAuroraGraph();
+                let nodes = graph.nodes;
+                if (exportScope === 'articles') {
+                  nodes = nodes.filter((n: { type: string }) => n.type === 'article');
+                }
+                const items = nodes.map((n: AuroraNode) =>
+                  nodeToJsonLd(n, { includeContext: false, ...exportOptions }),
+                );
+                result = { '@context': JSONLD_CONTEXT, '@graph': items };
+              }
+            }
             break;
           }
         }

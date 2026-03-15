@@ -168,3 +168,16 @@ export {
   type TypeCoverage,
   type CoverageReport,
 } from './ebucore-metadata.js';
+
+export {
+  JSONLD_CONTEXT,
+  nodeToJsonLd,
+  buildSameAs,
+  validateJsonLd,
+  articleToJsonLd,
+  conceptTreeToJsonLd,
+  ontologyToJsonLd,
+  exportToFile,
+  type JsonLdExportOptions,
+  type JsonLdValidationResult,
+} from './jsonld-export.js';

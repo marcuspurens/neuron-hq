@@ -483,3 +483,80 @@ export async function libraryBackfillIdsCommand(options: {
     console.error(chalk.red(`\n  ❌ Error: ${err instanceof Error ? err.message : err}\n`));
   }
 }
+
+
+/**
+ * Export nodes as JSON-LD.
+ *
+ * Supports:
+ * - `library export --format jsonld` → entire ontology to stdout
+ * - `library export --format jsonld --file out.jsonld` → to file
+ * - `library export --format jsonld --scope articles` → only articles
+ * - `library export --format jsonld --scope concepts` → only concepts (same as ontology)
+ * - `library export <id> --format jsonld` → single node
+ */
+export async function libraryExportCommand(
+  nodeId: string | undefined,
+  options: { format?: string; file?: string; scope?: string },
+): Promise<void> {
+  if (options.format !== 'jsonld') {
+    console.error('Only --format jsonld is supported currently.');
+    process.exitCode = 1;
+    return;
+  }
+
+  const {
+    nodeToJsonLd,
+    ontologyToJsonLd,
+    exportToFile,
+    JSONLD_CONTEXT,
+  } = await import('../aurora/jsonld-export.js');
+  const { loadAuroraGraph } = await import('../aurora/aurora-graph.js');
+
+  // Single node export
+  if (nodeId) {
+    const graph = await loadAuroraGraph();
+    const node = graph.nodes.find((n) => n.id === nodeId);
+    if (!node) {
+      console.error(`Node not found: ${nodeId}`);
+      process.exitCode = 1;
+      return;
+    }
+    const jsonld = nodeToJsonLd(node);
+    console.log(JSON.stringify(jsonld, null, 2));
+    return;
+  }
+
+  // Bulk export
+  const scope = (options.scope ?? 'ontology') as 'ontology' | 'articles' | 'concepts' | 'all';
+  const validScopes = ['ontology', 'articles', 'concepts', 'all'];
+  if (!validScopes.includes(scope)) {
+    console.error(`Invalid scope: ${scope}. Valid: ${validScopes.join(', ')}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  // 'concepts' is an alias for 'ontology'
+  const effectiveScope = scope === 'concepts' ? 'ontology' : scope;
+
+  if (options.file) {
+    const stats = await exportToFile(options.file, effectiveScope as 'ontology' | 'articles' | 'all');
+    console.log(`Exported ${stats.nodeCount} nodes, ${stats.edgeCount} edges to ${options.file} (${stats.fileSize} bytes)`);
+    return;
+  }
+
+  // To stdout
+  if (effectiveScope === 'ontology') {
+    const data = await ontologyToJsonLd();
+    console.log(JSON.stringify(data, null, 2));
+  } else {
+    const graph = await loadAuroraGraph();
+    let nodes = graph.nodes;
+    if (effectiveScope === 'articles') {
+      nodes = nodes.filter((n) => n.type === 'article');
+    }
+    const items = nodes.map((n) => nodeToJsonLd(n, { includeContext: false }));
+    const data = { '@context': JSONLD_CONTEXT, '@graph': items };
+    console.log(JSON.stringify(data, null, 2));
+  }
+}

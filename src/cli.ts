@@ -563,6 +563,18 @@ library
     await libraryBackfillIdsCommand(options);
   });
 
+
+library
+  .command('export [nodeId]')
+  .description('Export as JSON-LD')
+  .option('--format <format>', 'Output format', 'jsonld')
+  .option('--file <path>', 'Write to file instead of stdout')
+  .option('--scope <scope>', 'Export scope: ontology, articles, concepts, all', 'ontology')
+  .action(async (nodeId: string | undefined, options: { format?: string; file?: string; scope?: string }) => {
+    const { libraryExportCommand } = await import('./commands/knowledge-library.js');
+    await libraryExportCommand(nodeId, options);
+  });
+
 // km (knowledge maintenance)
 program
   .command('km')
