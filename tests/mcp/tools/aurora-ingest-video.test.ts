@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockIngestVideo = vi.fn();
-vi.mock('../../../src/aurora/video.js', () => ({
-  ingestVideo: (...args: unknown[]) => mockIngestVideo(...args),
+const mockStartVideoIngestJob = vi.fn();
+vi.mock('../../../src/aurora/job-runner.js', () => ({
+  startVideoIngestJob: (...args: unknown[]) => mockStartVideoIngestJob(...args),
 }));
 
 import { registerAuroraIngestVideoTool } from '../../../src/mcp/tools/aurora-ingest-video.js';
@@ -25,7 +25,7 @@ const mockServer = {
 
 describe('aurora_ingest_video MCP tool', () => {
   beforeEach(() => {
-    mockIngestVideo.mockReset();
+    mockStartVideoIngestJob.mockReset();
     mockServer.tool.mockClear();
     registerAuroraIngestVideoTool(mockServer);
   });
@@ -35,15 +35,14 @@ describe('aurora_ingest_video MCP tool', () => {
     expect(toolHandlers).toHaveProperty('aurora_ingest_video');
   });
 
-  it('returns VideoIngestResult on success', async () => {
-    mockIngestVideo.mockResolvedValue({
-      transcriptNodeId: 'yt-abc123',
-      chunksCreated: 5,
-      voicePrintsCreated: 0,
-      title: 'Test Video',
-      duration: 120,
-      videoId: 'abc123',
-      platform: 'youtube',
+  it('returns queued job info on success', async () => {
+    mockStartVideoIngestJob.mockResolvedValue({
+      jobId: '550e8400-e29b-41d4-a716-446655440000',
+      status: 'queued',
+      videoTitle: 'Test Video',
+      videoDurationSec: 120,
+      estimatedTimeMs: 60000,
+      queuePosition: null,
     });
 
     const result = await toolHandlers['aurora_ingest_video']({
@@ -52,86 +51,96 @@ describe('aurora_ingest_video MCP tool', () => {
       scope: 'personal',
       whisper_model: 'small',
     });
-    const data = JSON.parse(result.content[0].text);
-    expect(data.transcriptNodeId).toBe('yt-abc123');
-    expect(data.title).toBe('Test Video');
+    expect(result.content[0].text).toContain('Queued!');
+    expect(result.content[0].text).toContain('Test Video');
+    expect(result.content[0].text).toContain('550e8400');
     expect(result.isError).not.toBe(true);
   });
 
-  it('handles ingest errors', async () => {
-    mockIngestVideo.mockRejectedValue(new Error('download failed'));
+  it('handles already_ingested status', async () => {
+    mockStartVideoIngestJob.mockResolvedValue({
+      jobId: '',
+      status: 'already_ingested',
+      videoTitle: 'Old Video',
+      videoDurationSec: 60,
+      estimatedTimeMs: null,
+      queuePosition: null,
+      existingResult: { transcriptNodeId: 'yt-old123', chunksCreated: 3 },
+    });
+
+    const result = await toolHandlers['aurora_ingest_video']({
+      url: 'https://www.youtube.com/watch?v=old123',
+    });
+    expect(result.content[0].text).toContain('already ingested');
+    expect(result.content[0].text).toContain('yt-old123');
+  });
+
+  it('handles duplicate status', async () => {
+    mockStartVideoIngestJob.mockResolvedValue({
+      jobId: 'new-id',
+      status: 'duplicate',
+      videoTitle: 'Duplicate Video',
+      videoDurationSec: 300,
+      estimatedTimeMs: null,
+      queuePosition: 2,
+      existingJobId: 'existing-id',
+    });
+
+    const result = await toolHandlers['aurora_ingest_video']({
+      url: 'https://www.youtube.com/watch?v=abc123',
+    });
+    expect(result.content[0].text).toContain('Already queued/running');
+    expect(result.content[0].text).toContain('existing-id');
+  });
+
+  it('handles errors gracefully', async () => {
+    mockStartVideoIngestJob.mockRejectedValue(new Error('DB connection failed'));
     const result = await toolHandlers['aurora_ingest_video']({
       url: 'https://www.youtube.com/watch?v=abc123',
     });
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain('download failed');
+    expect(result.content[0].text).toContain('DB connection failed');
   });
 
-  it('passes all options to ingestVideo', async () => {
-    mockIngestVideo.mockResolvedValue({
-      transcriptNodeId: 'yt-abc123',
-      chunksCreated: 5,
-      voicePrintsCreated: 2,
-      title: 'Test',
-      duration: 60,
-      videoId: 'abc123',
-      platform: 'youtube',
+  it('passes all options to startVideoIngestJob', async () => {
+    mockStartVideoIngestJob.mockResolvedValue({
+      jobId: 'test-id',
+      status: 'queued',
+      videoTitle: 'Test',
+      videoDurationSec: 60,
+      estimatedTimeMs: 30000,
+      queuePosition: null,
     });
     await toolHandlers['aurora_ingest_video']({
       url: 'https://www.youtube.com/watch?v=abc123',
       diarize: true,
       scope: 'shared',
       whisper_model: 'large',
+      language: 'sv',
     });
-    expect(mockIngestVideo).toHaveBeenCalledWith(
+    expect(mockStartVideoIngestJob).toHaveBeenCalledWith(
       'https://www.youtube.com/watch?v=abc123',
       expect.objectContaining({
         diarize: true,
         scope: 'shared',
         whisperModel: 'large',
+        language: 'sv',
       }),
     );
   });
 
-  it('accepts non-YouTube URLs', async () => {
-    mockIngestVideo.mockResolvedValue({
-      transcriptNodeId: 'vid-abc123456789',
-      chunksCreated: 3,
-      voicePrintsCreated: 0,
-      title: 'SVT Video',
-      duration: 180,
-      videoId: null,
-      platform: 'svtplay',
+  it('shows queue position when present', async () => {
+    mockStartVideoIngestJob.mockResolvedValue({
+      jobId: 'queued-id',
+      status: 'queued',
+      videoTitle: 'Queued Video',
+      videoDurationSec: 180,
+      estimatedTimeMs: 120000,
+      queuePosition: 3,
     });
-
     const result = await toolHandlers['aurora_ingest_video']({
       url: 'https://www.svt.se/nyheter/test',
     });
-    const data = JSON.parse(result.content[0].text);
-    expect(data.transcriptNodeId).toMatch(/^vid-/);
-    expect(data.platform).toBe('svtplay');
-    expect(result.isError).not.toBe(true);
-  });
-
-  it('passes language option to ingestVideo', async () => {
-    mockIngestVideo.mockResolvedValue({
-      transcriptNodeId: 'yt-abc123',
-      chunksCreated: 5,
-      voicePrintsCreated: 0,
-      title: 'Test Video',
-      duration: 120,
-      videoId: 'abc123',
-      platform: 'youtube',
-    });
-
-    await toolHandlers['aurora_ingest_video']({
-      url: 'https://www.youtube.com/watch?v=abc123',
-      language: 'sv',
-    });
-
-    expect(mockIngestVideo).toHaveBeenCalledWith(
-      'https://www.youtube.com/watch?v=abc123',
-      expect.objectContaining({ language: 'sv' }),
-    );
+    expect(result.content[0].text).toContain('Position 3 in queue');
   });
 });

@@ -181,3 +181,22 @@ export {
   type JsonLdExportOptions,
   type JsonLdValidationResult,
 } from './jsonld-export.js';
+
+export {
+  startVideoIngestJob,
+  getJob,
+  getJobs,
+  updateJobProgress,
+  cancelJob,
+  processQueue,
+  checkCompletedJobs,
+  cleanupOldJobs,
+  getJobStats,
+  estimateTime,
+  type JobStatus,
+  type JobStep,
+  type AuroraJob,
+  type JobStats,
+  type StartJobResult,
+  type StartJobOptions,
+} from './job-runner.js';

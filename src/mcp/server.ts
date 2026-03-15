@@ -41,6 +41,10 @@ import { registerKnowledgeManagerTool } from './tools/knowledge-manager.js';
 import { registerKnowledgeLibraryTool } from './tools/knowledge-library.js';
 import { registerAuroraEbucoreMetadataTool } from './tools/aurora-ebucore-metadata.js';
 import { registerCrossRefLookupTool } from './tools/crossref-lookup.js';
+import { registerAuroraJobStatusTool } from './tools/aurora-job-status.js';
+import { registerAuroraJobsTool } from './tools/aurora-jobs.js';
+import { registerAuroraJobStatsTool } from './tools/aurora-job-stats.js';
+import { registerAuroraCancelJobTool } from './tools/aurora-cancel-job.js';
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -89,6 +93,10 @@ export function createMcpServer(): McpServer {
   registerKnowledgeLibraryTool(server);
   registerAuroraEbucoreMetadataTool(server);
   registerCrossRefLookupTool(server);
+  registerAuroraJobStatusTool(server);
+  registerAuroraJobsTool(server);
+  registerAuroraJobStatsTool(server);
+  registerAuroraCancelJobTool(server);
 
   return server;
 }

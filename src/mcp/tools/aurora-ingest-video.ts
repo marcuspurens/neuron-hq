@@ -1,13 +1,12 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { ingestVideo } from '../../aurora/video.js';
-import type { VideoIngestOptions } from '../../aurora/video.js';
+import { startVideoIngestJob } from '../../aurora/job-runner.js';
 
-/** Register aurora_ingest_video MCP tool. */
+/** Register aurora_ingest_video MCP tool (async — returns job ID immediately). */
 export function registerAuroraIngestVideoTool(server: McpServer): void {
   server.tool(
     'aurora_ingest_video',
-    'Ingest a video (YouTube, SVT, Vimeo, TV4, TikTok, etc.): extract audio, transcribe, optionally identify speakers, and store in Aurora knowledge base.',
+    'Queue a video for ingestion (YouTube, SVT, Vimeo, TV4, TikTok, etc.): returns immediately with a job ID. Use aurora_job_status to track progress.',
     {
       url: z.string().url().describe('Video URL (any yt-dlp supported site)'),
       diarize: z
@@ -33,18 +32,55 @@ export function registerAuroraIngestVideoTool(server: McpServer): void {
     },
     async (args) => {
       try {
-        const options: VideoIngestOptions = {
+        const result = await startVideoIngestJob(args.url, {
           diarize: args.diarize,
           scope: args.scope,
           whisperModel: args.whisper_model,
           language: args.language,
-        };
+        });
 
-        const result = await ingestVideo(args.url, options);
+        if (result.status === 'already_ingested') {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: `Video already ingested. Existing result:\n${JSON.stringify(result.existingResult, null, 2)}`,
+              },
+            ],
+          };
+        }
+
+        if (result.status === 'duplicate') {
+          const durationStr = result.videoDurationSec
+            ? `${Math.round(result.videoDurationSec / 60)} min`
+            : 'unknown duration';
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: `Already queued/running: "${result.videoTitle ?? 'Unknown'}" (${durationStr})\nExisting job ID: ${result.existingJobId}\nQueue position: ${result.queuePosition ?? 'N/A'}`,
+              },
+            ],
+          };
+        }
+
+        // New job queued
+        const durationStr = result.videoDurationSec
+          ? `${Math.round(result.videoDurationSec / 60)} min`
+          : 'unknown duration';
+        const etaStr = result.estimatedTimeMs
+          ? `~${Math.round(result.estimatedTimeMs / 60000)} min`
+          : 'unknown';
+        const queueStr = result.queuePosition
+          ? `Position ${result.queuePosition} in queue`
+          : '';
 
         return {
           content: [
-            { type: 'text' as const, text: JSON.stringify(result, null, 2) },
+            {
+              type: 'text' as const,
+              text: `Queued! 🎬\n"${result.videoTitle ?? 'Unknown'}" (${durationStr})\nEstimated time: ${etaStr}\nJob ID: ${result.jobId}${queueStr ? '\n' + queueStr : ''}`,
+            },
           ],
         };
       } catch (err) {

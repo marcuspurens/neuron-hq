@@ -52,6 +52,37 @@ def lazy_batch_ocr(source, options=None):
     return _batch_ocr(source, options)
 
 
+def extract_video_metadata(source: str) -> dict:
+    """Fetch video metadata without downloading using yt-dlp --dump-json --no-download."""
+    import subprocess
+    import json
+    try:
+        result = subprocess.run(
+            ["yt-dlp", "--dump-json", "--no-download", source],
+            capture_output=True, text=True, timeout=10,
+        )
+    except FileNotFoundError:
+        raise ValueError("yt-dlp is not installed or not in PATH")
+    except subprocess.TimeoutExpired:
+        raise ValueError(f"yt-dlp metadata fetch timed out: {source}")
+    if result.returncode != 0:
+        raise ValueError(f"yt-dlp metadata failed: {result.stderr.strip()}")
+    try:
+        info = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        raise ValueError("Could not parse yt-dlp JSON output")
+    return {
+        "title": info.get("title", "Unknown"),
+        "text": "",
+        "metadata": {
+            "duration": info.get("duration", 0),
+            "uploader": info.get("uploader", ""),
+            "upload_date": info.get("upload_date", ""),
+            "source_type": "video_metadata",
+        },
+    }
+
+
 HANDLERS: dict[str, callable] = {
     "extract_url": extract_url,
     "extract_pdf": extract_pdf,
@@ -64,6 +95,7 @@ HANDLERS: dict[str, callable] = {
     "extract_ocr": lazy_extract_ocr,
     "ocr_pdf": lazy_ocr_pdf,
     "batch_ocr": lazy_batch_ocr,
+    "extract_video_metadata": extract_video_metadata,
 }
 
 
