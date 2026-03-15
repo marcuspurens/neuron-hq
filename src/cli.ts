@@ -565,6 +565,33 @@ library
 
 
 library
+  .command('lookup-doi <doi>')
+  .description('Look up metadata for a DOI via CrossRef')
+  .action(async (doi: string) => {
+    const { lookupDoiCommand } = await import('./commands/crossref-commands.js');
+    await lookupDoiCommand(doi);
+  });
+
+library
+  .command('search-papers <query>')
+  .description('Search for academic papers via CrossRef')
+  .option('--author <name>', 'Filter by author name')
+  .option('--limit <n>', 'Max results (default: 5)', '5')
+  .action(async (query: string, options: { author?: string; limit?: string }) => {
+    const { searchPapersCommand } = await import('./commands/crossref-commands.js');
+    await searchPapersCommand(query, { author: options.author, limit: parseInt(options.limit ?? '5', 10) });
+  });
+
+library
+  .command('ingest-doi <doi>')
+  .description('Import a paper as an Aurora node via its DOI')
+  .action(async (doi: string) => {
+    const { ingestDoiCommand } = await import('./commands/crossref-commands.js');
+    await ingestDoiCommand(doi);
+  });
+
+
+library
   .command('export [nodeId]')
   .description('Export as JSON-LD')
   .option('--format <format>', 'Output format', 'jsonld')

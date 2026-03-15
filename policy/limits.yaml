@@ -72,3 +72,11 @@ km_chaining:
   maxTimeMinutes: 15
   convergenceThreshold: 2    # stop if < 2 new gaps per cycle
   emergentGapsPerCycle: 5    # max new gaps extracted per cycle
+
+# CrossRef DOI lookup configuration
+crossref:
+  enabled: true
+  userAgent: "NeuronHQ/1.0"
+  maxRequestsPerSecond: 1
+  timeout: 10000
+  minDisambiguationScore: 0.5

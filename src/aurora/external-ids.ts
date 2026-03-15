@@ -1,12 +1,18 @@
 /**
  * External ID lookup module for Aurora concepts.
  *
- * Resolves concept names to external identifiers (Wikidata, ROR, ORCID)
+ * Resolves concept names to external identifiers (Wikidata, ROR, ORCID, DOI)
  * using public APIs. All API calls are non-fatal — errors return {}.
  */
 
 import { loadAuroraGraph, saveAuroraGraph } from './aurora-graph.js';
 import type { AuroraNode } from './aurora-schema.js';
+import { findRelatedWorks, searchCrossRef } from './crossref.js';
+import type { CrossRefWork } from './crossref.js';
+
+// Re-export CrossRef utilities for downstream consumers
+export { searchCrossRef };
+export type { CrossRefWork };
 
 // ---------------------------------------------------------------------------
 //  Interfaces
@@ -256,6 +262,29 @@ export async function lookupORCID(name: string): Promise<ExternalIds> {
   }, {});
 }
 
+/**
+ * Look up a CrossRef DOI for a concept by searching for related works.
+ * Returns the DOI of the best-matching work, or {} if none found.
+ */
+export async function lookupCrossRefDOI(
+  name: string,
+  facet?: string,
+  description?: string,
+  _domain?: string,
+): Promise<ExternalIds> {
+  return withRetry(async () => {
+    const results = await findRelatedWorks({
+      title: name,
+      description,
+      facet,
+      maxResults: 3,
+    });
+    if (results.length === 0) return {};
+    // Best match is first (already sorted by score in findRelatedWorks)
+    return { doi: results[0].doi };
+  }, {});
+}
+
 // ---------------------------------------------------------------------------
 //  Main Router
 // ---------------------------------------------------------------------------
@@ -265,6 +294,7 @@ export async function lookupORCID(name: string): Promise<ExternalIds> {
  *
  * Entity facet uses heuristics to decide between person (ORCID) and
  * organisation (ROR) lookups, with Wikidata as fallback.
+ * Topic and method facets get Wikidata + CrossRef DOI lookup.
  * All other facets go directly to Wikidata.
  */
 export async function lookupExternalIds(input: {
@@ -289,7 +319,14 @@ export async function lookupExternalIds(input: {
     return lookupWikidata(name, facet, description, domain);
   }
 
-  return lookupWikidata(name, facet, description, domain);
+  const result = await lookupWikidata(name, facet, description, domain);
+
+  if (facet === 'topic' || facet === 'method') {
+    const doiResult = await lookupCrossRefDOI(name, facet, description, domain);
+    return { ...result, ...doiResult };
+  }
+
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -352,6 +389,35 @@ export async function backfillExternalIds(
       failed++;
     }
 
+    await sleep(1000);
+  }
+
+  // Second pass: CrossRef DOI for concepts without doi
+  for (const concept of concepts) {
+    const refs = concept.properties.standardRefs as Record<string, string> | undefined;
+    if (refs?.doi) continue; // Already has DOI
+    const facet = concept.properties.facet as string;
+    if (facet !== 'topic' && facet !== 'method') continue; // Only topic/method
+
+    try {
+      const doiResult = await lookupCrossRefDOI(
+        concept.title,
+        facet,
+        concept.properties.description as string | undefined,
+        concept.properties.domain as string | undefined,
+      );
+      if (doiResult.doi) {
+        if (options?.dryRun) {
+          console.error(`[dry-run] Would add DOI for ${concept.title}: ${doiResult.doi}`);
+        } else {
+          concept.properties.standardRefs = { ...refs, doi: doiResult.doi } as unknown as Record<string, string>;
+          concept.updated = new Date().toISOString();
+        }
+        updated++;
+      }
+    } catch {
+      failed++;
+    }
     await sleep(1000);
   }
 

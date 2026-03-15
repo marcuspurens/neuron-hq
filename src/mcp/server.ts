@@ -40,6 +40,7 @@ import { registerDashboardTool } from './tools/dashboard.js';
 import { registerKnowledgeManagerTool } from './tools/knowledge-manager.js';
 import { registerKnowledgeLibraryTool } from './tools/knowledge-library.js';
 import { registerAuroraEbucoreMetadataTool } from './tools/aurora-ebucore-metadata.js';
+import { registerCrossRefLookupTool } from './tools/crossref-lookup.js';
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -87,6 +88,7 @@ export function createMcpServer(): McpServer {
   registerKnowledgeManagerTool(server);
   registerKnowledgeLibraryTool(server);
   registerAuroraEbucoreMetadataTool(server);
+  registerCrossRefLookupTool(server);
 
   return server;
 }

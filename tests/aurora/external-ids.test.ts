@@ -321,12 +321,18 @@ describe('lookupExternalIds()', () => {
     expect(result.ror).toBe('https://ror.org/123');
   });
 
-  it('routes non-entity facets to Wikidata only', async () => {
+  it('routes method facet to Wikidata and CrossRef', async () => {
     const calls: string[] = [];
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation((url: string) => {
         calls.push(url);
+        if (url.includes('crossref.org')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ status: 'ok', message: { items: [], 'total-results': 0 } }),
+          });
+        }
         return Promise.resolve({
           ok: true,
           json: async () => ({ search: [] }),
@@ -335,7 +341,8 @@ describe('lookupExternalIds()', () => {
     );
 
     await lookupExternalIds({ name: 'Bayesian Inference', facet: 'method' });
-    expect(calls.every((u) => u.includes('wikidata.org'))).toBe(true);
+    expect(calls.some((u) => u.includes('wikidata.org'))).toBe(true);
+    expect(calls.some((u) => u.includes('crossref.org'))).toBe(true);
   });
 
   it('routes tool facet to Wikidata', async () => {
