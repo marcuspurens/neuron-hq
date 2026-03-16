@@ -1,7 +1,9 @@
 /**
  * Pure module that translates EventBus events to Swedish natural language.
- * No imports from event-bus.ts — just string processing.
+ * Includes decision narration and automation bias warnings.
  */
+
+import type { Decision } from './decision-extractor.js';
 
 /** Events that only update header/panels and should NOT appear in the narrative log. */
 const NON_LOG_EVENTS = new Set(['tokens', 'time', 'iteration', 'agent:text']);
@@ -12,6 +14,14 @@ const NON_LOG_EVENTS = new Set(['tokens', 'time', 'iteration', 'agent:text']);
 function capitalize(name: unknown): string {
   if (typeof name !== 'string' || name.length === 0) return 'Unknown';
   return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+/**
+ * Truncate a string to maxLen characters, appending '...' if truncated.
+ */
+function truncate(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen - 3) + '...';
 }
 
 /**
@@ -74,6 +84,12 @@ export function narrateEvent(event: string, data: Record<string, unknown>): stri
     case 'audit':
       return narrateAudit(data);
 
+    case 'decision':
+      if (data.decision && typeof data.decision === 'object') {
+        return narrateDecision(data.decision as Decision);
+      }
+      return '📊 Beslut fattat';
+
     default:
       return `⚡ ${event}: ${JSON.stringify(data)}`;
   }
@@ -127,4 +143,85 @@ function narrateAudit(data: Record<string, unknown>): string | null {
   }
 
   return null;
+}
+
+/**
+ * Narrate a Decision in Swedish with confidence-based emoji and language.
+ *
+ * - high confidence:   "✅ {Agent} {what} (säkert beslut)"
+ * - medium confidence: "⚠️ {Agent} {what} (viss osäkerhet)"
+ * - low confidence:    "🔴 {Agent} {what} (osäkert beslut)"
+ *
+ * If decision.why exists, appends " — {why}".
+ */
+export function narrateDecision(decision: Decision): string {
+  const agent = capitalize(decision.agent);
+  const what = decision.what;
+
+  let result: string;
+  switch (decision.confidence) {
+    case 'high':
+      result = `✅ ${agent} ${what} (säkert beslut)`;
+      break;
+    case 'medium':
+      result = `⚠️ ${agent} ${what} (viss osäkerhet)`;
+      break;
+    case 'low':
+      result = `🔴 ${agent} ${what} (osäkert beslut)`;
+      break;
+  }
+
+  if (decision.why) {
+    result += ` — ${decision.why}`;
+  }
+
+  return result;
+}
+
+/**
+ * Return an automation bias warning in Swedish, or null if no warning applies.
+ *
+ * Checks:
+ * 1. Low confidence + non-pending outcome → agent acted despite uncertainty
+ * 2. Fix type without explanation → strategy change without reason
+ * 3. Plan type without alternatives → no alternatives considered
+ */
+export function automationBiasWarning(decision: Decision): string | null {
+  if (decision.confidence === 'low' && decision.outcome && decision.outcome !== 'pending') {
+    return 'OBS: Agenten agerade trots låg säkerhet';
+  }
+
+  if (decision.type === 'fix' && !decision.why) {
+    return 'OBS: Agenten ändrade strategi utan förklaring';
+  }
+
+  if (
+    decision.type === 'plan' &&
+    (!decision.alternatives || decision.alternatives.length === 0)
+  ) {
+    return '⚠️ Inga alternativ övervägdes för detta planeringsbeslut';
+  }
+
+  return null;
+}
+
+/**
+ * Simplified decision narration for non-technical users.
+ *
+ * Uses truncated 'what' (max 60 chars) and simpler confidence language:
+ * - high:   "Agenten {what} (lyckas oftast)"
+ * - medium: "Agenten {what} (går oftast bra)"
+ * - low:    "Agenten {what} (osäkert — kan misslyckas)"
+ */
+export function narrateDecisionSimple(decision: Decision): string {
+  const simplifiedWhat = truncate(decision.what, 60);
+
+  switch (decision.confidence) {
+    case 'high':
+      return `Agenten ${simplifiedWhat} (lyckas oftast)`;
+    case 'medium':
+      return `Agenten ${simplifiedWhat} (går oftast bra)`;
+    case 'low':
+      return `Agenten ${simplifiedWhat} (osäkert — kan misslyckas)`;
+  }
 }

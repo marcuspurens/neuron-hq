@@ -1,6 +1,10 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { calcCost } from './pricing.js';
+import { extractDecisions } from './decision-extractor.js';
+import type { Decision, AuditEntry as DecisionAuditEntry, EventData } from './decision-extractor.js';
+import { captureFieldOfView, summarizeFieldOfView } from './field-of-view.js';
+import type { AuditEntry as FovAuditEntry } from './field-of-view.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -304,6 +308,45 @@ function parseTaskScores(scores: TaskScoreLine[]): TaskResult[] {
   }));
 }
 
+/**
+ * Build the Beslut (decisions) section of the digest markdown.
+ */
+function buildDecisionsSection(decisions: Decision[], fovSummary: string): string {
+  if (decisions.length === 0) return '';
+
+  const lines: string[] = [];
+  lines.push('');
+  lines.push('## Beslut');
+  lines.push('');
+
+  const agentDecisions = new Map<string, Decision[]>();
+  for (const d of decisions) {
+    const agent = d.agent || 'unknown';
+    if (!agentDecisions.has(agent)) agentDecisions.set(agent, []);
+    agentDecisions.get(agent)!.push(d);
+  }
+
+  for (const [agent, decs] of agentDecisions) {
+    const capitalized = agent.charAt(0).toUpperCase() + agent.slice(1);
+    lines.push(`${capitalized} fattade ${decs.length} beslut:`);
+    for (const d of decs) {
+      const emoji = d.confidence === 'high' ? '✅' : d.confidence === 'medium' ? '⚠️' : '🔴';
+      const confText = d.confidence === 'high' ? 'hög säkerhet' : d.confidence === 'medium' ? 'viss osäkerhet' : 'låg säkerhet';
+      lines.push(`- ${emoji} ${d.what} (${confText})`);
+    }
+    lines.push('');
+  }
+
+  if (fovSummary) {
+    lines.push('### Synfält');
+    lines.push('');
+    lines.push(fovSummary);
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
 // ---------------------------------------------------------------------------
 // Main: generateDigest
 // ---------------------------------------------------------------------------
@@ -348,6 +391,29 @@ export async function generateDigest(runDir: string): Promise<string> {
   const events = extractHighlights(auditLines);
   const learnings = extractLearnings(knowledgeText);
   const stoplight = extractStoplight(reportText);
+
+  // Parse decisions from audit
+  const parsedAuditEntries: DecisionAuditEntry[] = auditLines
+    .map(line => { try { return JSON.parse(line) as DecisionAuditEntry; } catch { return null; } })
+    .filter((e): e is DecisionAuditEntry => e !== null);
+
+  const agentEvents: EventData[] = parsedAuditEntries.map(e => ({
+    event: (e.tool ?? 'unknown') as string,
+    data: e as unknown as Record<string, unknown>,
+    timestamp: e.ts ?? '',
+  }));
+
+  // Extract thinking from audit entries
+  const thinkingTexts = parsedAuditEntries
+    .filter(e => e.tool === 'agent:thinking' || (e as Record<string, unknown>).event === 'agent:thinking')
+    .map(e => ((e as Record<string, unknown>).text ?? e.note ?? '') as string);
+  const thinkingText = thinkingTexts.join('\n\n');
+
+  const decisions = extractDecisions(thinkingText, parsedAuditEntries, agentEvents, runid);
+
+  // Capture field of view for primary agent (manager)
+  const fov = captureFieldOfView('manager', parsedAuditEntries as FovAuditEntry[]);
+  const fovSummary = summarizeFieldOfView(fov);
 
   // Timing
   const startedAt = metrics?.timing?.started_at ?? '';
@@ -406,6 +472,7 @@ export async function generateDigest(runDir: string): Promise<string> {
     totalInput,
     totalOutput,
     learnings,
+    decisionsSection: buildDecisionsSection(decisions, fovSummary),
   });
 
   // Write digest.md
@@ -440,6 +507,7 @@ interface MarkdownParams {
   totalInput: number;
   totalOutput: number;
   learnings: string[];
+  decisionsSection: string;
 }
 
 function buildMarkdown(p: MarkdownParams): string {
@@ -519,6 +587,11 @@ function buildMarkdown(p: MarkdownParams): string {
     lines.push('Inga dokumenterade lärdomar.');
   }
   lines.push('');
+
+  // Beslut (decisions section)
+  if (p.decisionsSection) {
+    lines.push(p.decisionsSection);
+  }
 
   return lines.join('\n');
 }

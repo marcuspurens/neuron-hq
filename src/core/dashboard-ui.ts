@@ -95,7 +95,25 @@ h2{font-size:1rem;color:#94a3b8;margin-bottom:8px;text-transform:uppercase;lette
 .run-dropdown .run-item{padding:8px 16px;cursor:pointer;display:flex;justify-content:space-between;font-size:0.85rem;border-bottom:1px solid #0f172a}
 .run-dropdown .run-item:hover{background:#334155}
 .run-dropdown .run-item .stoplight-badge{font-size:0.75rem}
-.digest-view{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:16px;margin-bottom:24px;font-size:0.9rem;white-space:pre-wrap;display:none}`;
+.digest-view{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:16px;margin-bottom:24px;font-size:0.9rem;white-space:pre-wrap;display:none}
+.decision-detail{background:#1a2332;border-left:3px solid #38bdf8;margin:2px 0;padding:8px 12px;font-size:0.75rem;cursor:pointer}
+.decision-detail .detail-expand{display:none;margin-top:8px;padding:8px;background:#0f172a;border-radius:4px}
+.decision-detail.expanded .detail-expand{display:block}
+.decision-detail .detail-row{padding:2px 0;color:#94a3b8}
+.decision-detail .detail-row .label{color:#38bdf8;margin-right:6px}
+.decision-detail .confidence-high{color:#22c55e}
+.decision-detail .confidence-medium{color:#eab308}
+.decision-detail .confidence-low{color:#ef4444}
+.agent-dialog{background:#1e293b;border-left:3px solid #a78bfa;margin:2px 0;padding:6px 12px;font-size:0.75rem}
+.agent-dialog .dialog-from{color:#38bdf8;font-weight:600}
+.agent-dialog .dialog-to{color:#a78bfa;font-weight:600}
+.agent-dialog .dialog-msg{color:#cbd5e1;margin-left:8px}
+.explanation-toggle{background:#334155;border:1px solid #475569;color:#e2e8f0;border-radius:4px;padding:4px 12px;cursor:pointer;font-size:0.75rem;margin-left:auto}
+.explanation-toggle:hover{background:#475569}
+.explanation-toggle.simple .tech-text{display:none}
+.explanation-toggle.simple .simple-text{display:inline}
+.explanation-toggle.technical .simple-text{display:none}
+.explanation-toggle.technical .tech-text{display:inline}`;
 }
 
 function renderHeaderHTML(safeRunid: string): string {
@@ -107,6 +125,7 @@ function renderHeaderHTML(safeRunid: string): string {
 <span id="tokens">\uD83D\uDCCA in:0 out:0</span>
 <span id="cost">\uD83D\uDCB0 $0.00</span>
 </div>
+<button id="explanation-toggle" class="explanation-toggle" onclick="toggleExplanation()">F\u00F6renklat l\u00E4ge \u2713</button>
 </div>
 <div class="container">`;
 }
@@ -163,6 +182,9 @@ var logPaused=false;
 var logEl=document.getElementById('event-log');
 var runDropdownOpen=false;
 var showingDigest=false;
+var explanationMode='simple';
+
+function cap(n){return n?n.charAt(0).toUpperCase()+n.slice(1):'Unknown';}
 
 logEl.addEventListener('click',function(){logPaused=!logPaused;
 document.getElementById('log-pause-hint').textContent=logPaused?'(pausad)':'(klicka for att pausa auto-scroll)';});
@@ -170,7 +192,6 @@ document.getElementById('log-pause-hint').textContent=logPaused?'(pausad)':'(kli
 function fmtK(n){return n>=1000?(n/1000).toFixed(1)+'k':String(n);}
 
 function narrateEvent(event,data){
-var cap=function(n){return n?n.charAt(0).toUpperCase()+n.slice(1):'Unknown';};
 switch(event){
 case 'run:start':return '\\uD83D\\uDE80 K\\u00F6rning startad: '+(data.target||'ok\\u00E4nt')+' ('+(data.hours||'?')+' timme)';
 case 'run:end':return '\\uD83C\\uDFC1 K\\u00F6rning avslutad ('+(data.duration||'?')+'s)';
@@ -196,9 +217,50 @@ default:return null;}}
 function addLogEntry(event,data,ts){
 var text=narrateEvent(event,data);
 if(text===null)return;
-var d=document.createElement('div');d.className='entry';
-d.innerHTML='<span class="ts">'+ts.substring(11,19)+'</span>'+esc(text);
-logEl.appendChild(d);
+
+if(event==='decision' && data.decision){
+  var dec=data.decision;
+  var d=document.createElement('div');d.className='decision-detail';
+  var confClass=dec.confidence==='high'?'confidence-high':dec.confidence==='medium'?'confidence-medium':'confidence-low';
+  var confEmoji=dec.confidence==='high'?'\u2705':dec.confidence==='medium'?'\u26A0\uFE0F':'\uD83D\uDD34';
+  var confLabel=dec.confidence==='high'?'S\u00E4kert beslut':dec.confidence==='medium'?'Viss os\u00E4kerhet':'Os\u00E4kert beslut';
+  var techWhat=esc(dec.what||'');
+  var simpleWhat=techWhat.length>60?techWhat.substring(0,60)+'\u2026':techWhat;
+  d.innerHTML='<span class="ts">'+ts.substring(11,19)+'</span> '
+    +confEmoji+' <span class="'+confClass+'">'
+    +(explanationMode==='simple'?simpleWhat:techWhat)+'</span>'
+    +'<div class="detail-expand">'
+    +'<div class="detail-row"><span class="label">Varf\u00F6r:</span> '+esc(dec.why||'Ingen f\u00F6rklaring')+'</div>'
+    +(dec.alternatives&&dec.alternatives.length?'<div class="detail-row"><span class="label">Alternativ:</span> '+dec.alternatives.map(function(a){return esc(a);}).join(', ')+'</div>':'')
+    +'<div class="detail-row"><span class="label">Confidence:</span> <span class="'+confClass+'">'+confLabel+'</span></div>'
+    +(dec.outcome?'<div class="detail-row"><span class="label">Utfall:</span> '+(dec.outcome==='success'?'\u2705 Lyckades':dec.outcome==='failure'?'\u274C Misslyckades':dec.outcome==='partial'?'\u26A0\uFE0F Delvis':'\u23F3 P\u00E5g\u00E5r')+'</div>':'')
+    +(dec.thinkingSnippet?'<div class="detail-row"><span class="label">Resonemang:</span> <em>'+esc(dec.thinkingSnippet.substring(0,200))+'</em></div>':'')
+    +'</div>';
+  d.addEventListener('click',function(){d.classList.toggle('expanded');});
+  logEl.appendChild(d);
+  while(logEl.children.length>50)logEl.removeChild(logEl.firstChild);
+  if(!logPaused)logEl.scrollTop=logEl.scrollHeight;
+  return;
+}
+
+if(event==='audit' && data.tool && String(data.tool).startsWith('delegate_to_')){
+  var target=String(data.tool).slice(12);
+  var from=data.role||data.agent||'unknown';
+  var d2=document.createElement('div');d2.className='agent-dialog';
+  var taskNote=data.task||data.note||'delegering';
+  d2.innerHTML='<span class="ts">'+ts.substring(11,19)+'</span> '
+    +'\uD83D\uDCE4 <span class="dialog-from">'+esc(cap(from))+'</span>'
+    +' \u2192 <span class="dialog-to">'+esc(cap(target))+'</span>: '
+    +'<span class="dialog-msg">'+esc(taskNote)+'</span>';
+  logEl.appendChild(d2);
+  while(logEl.children.length>50)logEl.removeChild(logEl.firstChild);
+  if(!logPaused)logEl.scrollTop=logEl.scrollHeight;
+  return;
+}
+
+var d3=document.createElement('div');d3.className='entry';
+d3.innerHTML='<span class="ts">'+ts.substring(11,19)+'</span>'+esc(text);
+logEl.appendChild(d3);
 while(logEl.children.length>50)logEl.removeChild(logEl.firstChild);
 if(!logPaused)logEl.scrollTop=logEl.scrollHeight;}
 
@@ -307,7 +369,10 @@ document.getElementById('timer').textContent='\\u23F1 '+String(em).padStart(2,'0
 else if(event==='iteration'){
 var ai=agents[data.agent];
 if(ai){ai.el.querySelector('.agent-iter').textContent='Iter '+(data.current||0)+'/'+(data.max||0);}
-document.getElementById('iterations').textContent='\\uD83D\\uDD04 '+(data.current||0)+'/'+(data.max||0);}}
+document.getElementById('iterations').textContent='\\uD83D\\uDD04 '+(data.current||0)+'/'+(data.max||0);}
+else if(event==='decision'){
+// Decision events handled by addLogEntry decision rendering
+}}
 
 function toggleRunDropdown(){
 runDropdownOpen=!runDropdownOpen;
@@ -359,6 +424,13 @@ document.querySelector('.live-dot').style.animation='pulse 2s infinite';
 document.querySelector('.live-dot').style.background='#22c55e';
 runDropdownOpen=false;
 document.getElementById('run-dropdown').style.display='none';}
+
+function toggleExplanation(){
+  explanationMode=explanationMode==='simple'?'technical':'simple';
+  var btn=document.getElementById('explanation-toggle');
+  btn.textContent=explanationMode==='simple'?'F\\u00F6renklat l\\u00E4ge \\u2713':'Tekniskt l\\u00E4ge';
+}
+window.toggleExplanation=toggleExplanation;
 
 window.toggleRunDropdown=toggleRunDropdown;
 

@@ -5,6 +5,8 @@ import { exec } from 'node:child_process';
 import { eventBus } from './event-bus.js';
 import { renderLiveDashboard } from './dashboard-ui.js';
 import { calcCost } from './pricing.js';
+import { extractDecisions } from './decision-extractor.js';
+import type { AuditEntry, EventData } from './decision-extractor.js';
 
 const MAX_SSE_CLIENTS = 5;
 const DASHBOARD_PORT = 4200;
@@ -203,6 +205,52 @@ export function startDashboardServer(
         } catch {
           res.writeHead(404, { 'Content-Type': 'text/plain' });
           res.end('Digest not found');
+        }
+        return;
+      }
+
+      // GET /decisions/:runid — extract decisions from a run's audit log
+      if (req.method === 'GET' && url.startsWith('/decisions/')) {
+        const reqRunid = decodeURIComponent(url.slice('/decisions/'.length));
+        if (!runsDir || !reqRunid) {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Not found');
+          return;
+        }
+
+        try {
+          const auditPath = path.join(runsDir, reqRunid, 'audit.jsonl');
+          const auditContent = await fsp.readFile(auditPath, 'utf-8');
+          const auditEntries: AuditEntry[] = auditContent
+            .trim()
+            .split('\n')
+            .filter(Boolean)
+            .map(line => { try { return JSON.parse(line); } catch { return null; } })
+            .filter((e): e is AuditEntry => e !== null);
+
+          // Extract thinking text from agent:thinking events in audit
+          const thinkingEntries = auditEntries.filter(
+            (e) => e.tool === 'agent:thinking' || (e as Record<string,unknown>).event === 'agent:thinking'
+          );
+          const thinkingText = thinkingEntries.map(e => (e as Record<string,unknown>).text ?? e.note ?? '').join('\n\n');
+
+          // Build event data from audit
+          const agentEvents: EventData[] = auditEntries.map(e => ({
+            event: (e.tool ?? 'unknown') as string,
+            data: e as Record<string, unknown>,
+            timestamp: e.ts ?? new Date().toISOString(),
+          }));
+
+          const decisions = extractDecisions(thinkingText, auditEntries, agentEvents, reqRunid);
+
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          });
+          res.end(JSON.stringify(decisions, null, 2));
+        } catch {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Decisions not found');
         }
         return;
       }

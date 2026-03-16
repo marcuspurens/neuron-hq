@@ -21,6 +21,11 @@ export interface EventMap {
   'tokens': { runid: string; agent: string; input: number; output: number };
   'time': { runid: string; elapsed: number; remaining: number; percent: number };
   'audit': Record<string, unknown>;
+  'decision': {
+    runid: string;
+    agent: string;
+    decision: import('./decision-extractor.js').Decision;
+  };
 }
 
 /** Single history entry stored in the circular buffer. */

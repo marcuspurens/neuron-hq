@@ -459,3 +459,150 @@ describe('SSE reconnect / history replay', () => {
     }
   });
 });
+
+// =====================================================
+// RT-3: GET /decisions/:runid endpoint
+// =====================================================
+describe('GET /decisions/:runid', () => {
+  let runsDir: string;
+
+  async function createRunsDir(): Promise<string> {
+    const fsp = await import('node:fs/promises');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'dashboard-decisions-'));
+    return dir;
+  }
+
+  async function cleanupRunsDir(dir: string): Promise<void> {
+    const fsp = await import('node:fs/promises');
+    await fsp.rm(dir, { recursive: true, force: true });
+  }
+
+  async function startWithRunsDir(rid: string, port: number, dir: string): Promise<DashboardServer> {
+    const s = startDashboardServer(rid, port, dir);
+    if (!s) throw new Error('startDashboardServer returned null');
+    await wait(200);
+    return s;
+  }
+
+  afterEach(async () => {
+    if (runsDir) {
+      await cleanupRunsDir(runsDir);
+    }
+  });
+
+  it('returns 404 when no runsDir configured', async () => {
+    const port = getPort();
+    server = await startAndWait('test-run', port);
+    const { status } = await httpGet('/decisions/test-run', port);
+    expect(status).toBe(404);
+  });
+
+  it('returns 404 for nonexistent run', async () => {
+    runsDir = await createRunsDir();
+    const port = getPort();
+    server = await startWithRunsDir('test-run', port, runsDir);
+    const { status } = await httpGet('/decisions/nonexistent-run', port);
+    expect(status).toBe(404);
+  });
+
+  it('returns JSON array for valid run with audit.jsonl', async () => {
+    runsDir = await createRunsDir();
+    const fsp = await import('node:fs/promises');
+    const path = await import('node:path');
+
+    // Create a run directory with audit.jsonl
+    const runPath = path.join(runsDir, 'my-test-run');
+    await fsp.mkdir(runPath, { recursive: true });
+    const auditLines = [
+      JSON.stringify({
+        ts: '2026-01-01T00:00:00Z',
+        tool: 'delegate_to_implementer',
+        role: 'manager',
+        allowed: true,
+      }),
+    ];
+    await fsp.writeFile(path.join(runPath, 'audit.jsonl'), auditLines.join('\n'));
+
+    const port = getPort();
+    server = await startWithRunsDir('test-run', port, runsDir);
+    const { status, headers, body } = await httpGet('/decisions/my-test-run', port);
+
+    expect(status).toBe(200);
+    expect(headers['content-type']).toContain('application/json');
+    const parsed = JSON.parse(body);
+    expect(Array.isArray(parsed)).toBe(true);
+  });
+
+  it('extracts delegation decisions from audit', async () => {
+    runsDir = await createRunsDir();
+    const fsp = await import('node:fs/promises');
+    const path = await import('node:path');
+
+    const runPath = path.join(runsDir, 'delegation-run');
+    await fsp.mkdir(runPath, { recursive: true });
+    const auditLines = [
+      JSON.stringify({
+        ts: '2026-01-01T00:00:00Z',
+        tool: 'delegate_to_implementer',
+        role: 'manager',
+        allowed: true,
+      }),
+      JSON.stringify({
+        ts: '2026-01-01T00:01:00Z',
+        tool: 'delegate_to_reviewer',
+        role: 'manager',
+        allowed: true,
+      }),
+    ];
+    await fsp.writeFile(path.join(runPath, 'audit.jsonl'), auditLines.join('\n'));
+
+    const port = getPort();
+    server = await startWithRunsDir('test-run', port, runsDir);
+    const { body } = await httpGet('/decisions/delegation-run', port);
+    const decisions = JSON.parse(body);
+
+    expect(decisions.length).toBeGreaterThanOrEqual(2);
+    const types = decisions.map((d: { type: string }) => d.type);
+    expect(types).toContain('delegation');
+  });
+
+  it('returns CORS header', async () => {
+    runsDir = await createRunsDir();
+    const fsp = await import('node:fs/promises');
+    const path = await import('node:path');
+
+    const runPath = path.join(runsDir, 'cors-run');
+    await fsp.mkdir(runPath, { recursive: true });
+    await fsp.writeFile(path.join(runPath, 'audit.jsonl'), JSON.stringify({
+      ts: '2026-01-01T00:00:00Z',
+      tool: 'delegate_to_implementer',
+      role: 'manager',
+      allowed: true,
+    }));
+
+    const port = getPort();
+    server = await startWithRunsDir('test-run', port, runsDir);
+    const { headers } = await httpGet('/decisions/cors-run', port);
+    expect(headers['access-control-allow-origin']).toBe('*');
+  });
+
+  it('returns empty array for run with empty audit.jsonl', async () => {
+    runsDir = await createRunsDir();
+    const fsp = await import('node:fs/promises');
+    const path = await import('node:path');
+
+    const runPath = path.join(runsDir, 'empty-audit-run');
+    await fsp.mkdir(runPath, { recursive: true });
+    await fsp.writeFile(path.join(runPath, 'audit.jsonl'), '');
+
+    const port = getPort();
+    server = await startWithRunsDir('test-run', port, runsDir);
+    const { status, body } = await httpGet('/decisions/empty-audit-run', port);
+    expect(status).toBe(200);
+    const decisions = JSON.parse(body);
+    expect(Array.isArray(decisions)).toBe(true);
+    expect(decisions).toHaveLength(0);
+  });
+});

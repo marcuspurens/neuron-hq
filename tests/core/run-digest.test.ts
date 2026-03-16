@@ -483,3 +483,252 @@ describe('formatDuration', () => {
     expect(formatDuration(150)).toBe('3 min');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Beslut section in generateDigest
+// ---------------------------------------------------------------------------
+
+describe('generateDigest - Beslut section', () => {
+  let tempDir: string;
+
+  afterEach(async () => {
+    if (tempDir) {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('includes Beslut section when audit has delegation events', async () => {
+    tempDir = await createRunDir(standardMockFiles());
+    const md = await generateDigest(tempDir);
+    expect(md).toContain('## Beslut');
+  });
+
+  it('Beslut section lists delegation decisions', async () => {
+    tempDir = await createRunDir(standardMockFiles());
+    const md = await generateDigest(tempDir);
+    expect(md).toContain('Delegated to implementer');
+    expect(md).toContain('Delegated to reviewer');
+  });
+
+  it('Beslut section groups decisions by agent', async () => {
+    tempDir = await createRunDir(standardMockFiles());
+    const md = await generateDigest(tempDir);
+    // Manager made delegation decisions
+    expect(md).toContain('Manager fattade');
+    expect(md).toContain('beslut:');
+  });
+
+  it('Beslut section includes confidence indicators', async () => {
+    tempDir = await createRunDir(standardMockFiles());
+    const md = await generateDigest(tempDir);
+    // Delegation decisions get medium confidence by default
+    expect(md).toMatch(/viss osäkerhet/);
+  });
+
+  it('Beslut section includes Synfält subsection', async () => {
+    tempDir = await createRunDir(standardMockFiles());
+    const md = await generateDigest(tempDir);
+    expect(md).toContain('### Synfält');
+    expect(md).toContain('Manager');
+  });
+
+  it('omits Beslut section when no audit events exist', async () => {
+    const emptyDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'run-digest-no-beslut-'),
+    );
+    tempDir = emptyDir;
+    const md = await generateDigest(emptyDir);
+    expect(md).not.toContain('## Beslut');
+  });
+
+  it('Beslut section appears after Lärdomar', async () => {
+    tempDir = await createRunDir(standardMockFiles());
+    const md = await generateDigest(tempDir);
+    const lardomarIndex = md.indexOf('## Lärdomar');
+    const beslutIndex = md.indexOf('## Beslut');
+    expect(lardomarIndex).toBeGreaterThan(-1);
+    expect(beslutIndex).toBeGreaterThan(-1);
+    expect(beslutIndex).toBeGreaterThan(lardomarIndex);
+  });
+
+  it('includes fix decisions when a blocked tool is retried', async () => {
+    tempDir = await createRunDir({
+      ...standardMockFiles(),
+      'audit.jsonl': [
+        {
+          ts: '2026-03-01T12:01:00.000Z',
+          role: 'manager',
+          tool: 'delegate_to_implementer',
+          allowed: true,
+        },
+        {
+          ts: '2026-03-01T12:10:00.000Z',
+          role: 'implementer',
+          tool: 'bash_exec',
+          allowed: false,
+          policy_event: 'BLOCKED: pattern',
+        },
+        {
+          ts: '2026-03-01T12:11:00.000Z',
+          role: 'implementer',
+          tool: 'bash_exec',
+          allowed: true,
+          note: 'Retried command',
+        },
+      ],
+    });
+    const md = await generateDigest(tempDir);
+    expect(md).toContain('## Beslut');
+    expect(md).toContain('Retried bash_exec');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RT-3 additional Beslut tests
+// ---------------------------------------------------------------------------
+
+describe('generateDigest - Beslut section RT-3 extras', () => {
+  let tempDir: string;
+
+  afterEach(async () => {
+    if (tempDir) {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('includes Beslut section when audit has thinking entries with intents', async () => {
+    tempDir = await createRunDir({
+      'brief.md': '# Test Brief',
+      'report.md': 'STOPLIGHT: GREEN',
+      'audit.jsonl': [
+        {
+          ts: '2026-01-01T00:00:00Z',
+          tool: 'delegate_to_implementer',
+          role: 'manager',
+          allowed: true,
+          note: 'Delegerar T1',
+        },
+        {
+          ts: '2026-01-01T00:01:00Z',
+          event: 'agent:thinking',
+          agent: 'manager',
+          text: "I'll split the brief into 3 tasks because they are independent.",
+        },
+      ],
+    });
+    const digest = await generateDigest(tempDir);
+    expect(digest).toContain('## Beslut');
+  });
+
+  it('extracts decisions from thinking text with I-should pattern', async () => {
+    tempDir = await createRunDir({
+      'brief.md': '# Test Brief',
+      'report.md': 'STOPLIGHT: GREEN',
+      'audit.jsonl': [
+        {
+          ts: '2026-01-01T00:00:00Z',
+          event: 'agent:thinking',
+          agent: 'implementer',
+          text: "I should run the tests before committing.",
+        },
+        {
+          ts: '2026-01-01T00:01:00Z',
+          tool: 'delegate_to_implementer',
+          role: 'manager',
+          allowed: true,
+        },
+      ],
+    });
+    const digest = await generateDigest(tempDir);
+    expect(digest).toContain('## Beslut');
+    expect(digest).toContain('run the tests before committing');
+  });
+
+  it('includes confidence from high-confidence thinking keywords', async () => {
+    tempDir = await createRunDir({
+      'brief.md': '# Test Brief',
+      'report.md': 'STOPLIGHT: GREEN',
+      'audit.jsonl': [
+        {
+          ts: '2026-01-01T00:00:00Z',
+          event: 'agent:thinking',
+          agent: 'manager',
+          text: "Clearly the right approach. I'll delegate to implementer.",
+        },
+        {
+          ts: '2026-01-01T00:01:00Z',
+          tool: 'delegate_to_implementer',
+          role: 'manager',
+          allowed: true,
+        },
+      ],
+    });
+    const digest = await generateDigest(tempDir);
+    expect(digest).toContain('hög säkerhet');
+  });
+
+  it('includes confidence from low-confidence thinking keywords', async () => {
+    tempDir = await createRunDir({
+      'brief.md': '# Test Brief',
+      'report.md': 'STOPLIGHT: GREEN',
+      'audit.jsonl': [
+        {
+          ts: '2026-01-01T00:00:00Z',
+          event: 'agent:thinking',
+          agent: 'manager',
+          text: "Unsure about this. I'll try parsing with regex.",
+        },
+        {
+          ts: '2026-01-01T00:01:00Z',
+          tool: 'delegate_to_implementer',
+          role: 'manager',
+          allowed: true,
+        },
+      ],
+    });
+    const digest = await generateDigest(tempDir);
+    expect(digest).toContain('låg säkerhet');
+  });
+
+  it('handles audit.jsonl with only empty lines gracefully', async () => {
+    const emptyAuditDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'run-digest-empty-audit-'),
+    );
+    tempDir = emptyAuditDir;
+    await fs.writeFile(path.join(emptyAuditDir, 'audit.jsonl'), '\n\n');
+    await fs.writeFile(path.join(emptyAuditDir, 'report.md'), 'STOPLIGHT: GREEN');
+    await fs.writeFile(path.join(emptyAuditDir, 'brief.md'), '# Test');
+    const digest = await generateDigest(emptyAuditDir);
+    expect(digest).not.toContain('## Beslut');
+  });
+
+  it('counts multiple agents decisions separately', async () => {
+    tempDir = await createRunDir({
+      'brief.md': '# Test Brief',
+      'report.md': 'STOPLIGHT: GREEN',
+      'audit.jsonl': [
+        {
+          ts: '2026-01-01T00:00:00Z',
+          tool: 'delegate_to_implementer',
+          role: 'manager',
+          allowed: true,
+        },
+        {
+          ts: '2026-01-01T00:01:00Z',
+          tool: 'delegate_to_reviewer',
+          role: 'manager',
+          allowed: true,
+        },
+        {
+          ts: '2026-01-01T00:02:00Z',
+          role: 'reviewer',
+          tool: 'approve_change',
+          allowed: true,
+        },
+      ],
+    });
+    const digest = await generateDigest(tempDir);
+    expect(digest).toContain('Manager fattade');
+    expect(digest).toContain('Reviewer fattade');
+  });
+});
