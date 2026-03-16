@@ -44,7 +44,7 @@ export function graphToolDefinitions(): Anthropic.Tool[] {
         properties: {
           type: {
             type: 'string',
-            enum: ['pattern', 'error', 'technique', 'run', 'agent'],
+            enum: ['pattern', 'error', 'technique', 'run', 'agent', 'idea'],
             description: 'Filter on node type',
           },
           query: {
@@ -73,7 +73,7 @@ export function graphToolDefinitions(): Anthropic.Tool[] {
           node_id: { type: 'string', description: 'Start node id' },
           edge_type: {
             type: 'string',
-            enum: ['solves', 'discovered_in', 'related_to', 'causes', 'used_by'],
+            enum: ['solves', 'discovered_in', 'related_to', 'causes', 'used_by', 'inspired_by'],
             description: 'Filter on edge type',
           },
           depth: {
@@ -97,7 +97,7 @@ export function graphToolDefinitions(): Anthropic.Tool[] {
             properties: {
               type: {
                 type: 'string',
-                enum: ['pattern', 'error', 'technique', 'run'],
+                enum: ['pattern', 'error', 'technique', 'run', 'idea'],
               },
               title: { type: 'string' },
               properties: {
@@ -130,6 +130,7 @@ export function graphToolDefinitions(): Anthropic.Tool[] {
                     'related_to',
                     'causes',
                     'used_by',
+                    'inspired_by',
                   ],
                 },
               },
@@ -174,7 +175,7 @@ export function graphToolDefinitions(): Anthropic.Tool[] {
           },
           type: {
             type: 'string',
-            enum: ['pattern', 'error', 'technique', 'run', 'agent'],
+            enum: ['pattern', 'error', 'technique', 'run', 'agent', 'idea'],
             description: 'Filter on node type',
           },
           limit: {

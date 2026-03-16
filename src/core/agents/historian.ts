@@ -7,9 +7,10 @@ import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
-import { loadGraph, saveGraph, applyConfidenceDecay } from '../knowledge-graph.js';
+import { loadGraph, saveGraph, applyConfidenceDecay, addNode, addEdge, findNodes, type KGNode } from '../knowledge-graph.js';
 import { semanticSearch } from '../semantic-search.js';
 import { isEmbeddingAvailable } from '../embeddings.js';
+import { parseIdeasMd } from '../ideas-parser.js';
 
 type MemoryFile = 'runs' | 'patterns' | 'errors';
 
@@ -86,6 +87,14 @@ export class HistorianAgent {
       };
       const decayedGraph = applyConfidenceDecay(currentGraph);
       await saveGraph(decayedGraph, graphPath);
+
+      // Process ideas.md → idea nodes in KG
+      try {
+        await this.processIdeas();
+      } catch (error) {
+        // Non-fatal: ideas processing should never block Historian
+        console.warn('Historian: ideas processing failed (non-fatal):', error);
+      }
 
       console.log('Historian agent completed.');
     } catch (error) {
@@ -465,6 +474,165 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
       // Non-fatal: if semantic search fails, proceed without dedup check
       return null;
     }
+  }
+
+
+  /**
+   * Parse ideas.md from the run directory and create idea nodes in the knowledge graph.
+   * Non-fatal: if anything fails, we log and continue.
+   */
+  private async processIdeas(): Promise<void> {
+    const ideasPath = path.join(this.ctx.runDir, 'ideas.md');
+
+    let content: string;
+    try {
+      content = await fs.readFile(ideasPath, 'utf-8');
+    } catch {
+      // No ideas.md — common, not an error
+      return;
+    }
+
+    const ideas = parseIdeasMd(content);
+    if (ideas.length === 0) return;
+
+    const graphPath = path.join(this.memoryDir, 'graph.json');
+    let graph = await loadGraph(graphPath);
+
+    // Find the run node for discovered_in edges
+    const runNode = graph.nodes.find(
+      n => n.type === 'run' && (n.id.includes(this.ctx.runid) || n.properties.runId === this.ctx.runid)
+    );
+
+    // Generate next idea ID
+    const existingIdeaIds = graph.nodes
+      .filter(n => n.type === 'idea')
+      .map(n => {
+        const match = n.id.match(/-(\d+)$/);
+        return match ? parseInt(match[1], 10) : 0;
+      });
+    let nextIdNum = existingIdeaIds.length > 0 ? Math.max(...existingIdeaIds) + 1 : 1;
+
+    let created = 0;
+    let updated = 0;
+
+    for (const idea of ideas) {
+      const now = new Date().toISOString();
+
+      // Semantic dedup check
+      let duplicateNode: KGNode | null = null;
+      try {
+        if (await isEmbeddingAvailable()) {
+          const results = await semanticSearch(idea.title, {
+            type: 'idea',
+            limit: 3,
+            minSimilarity: 0.85,
+          });
+          if (results.length > 0 && results[0].similarity >= 0.85) {
+            // Found a duplicate — update it instead
+            const existingNode = graph.nodes.find(n => n.id === results[0].id);
+            if (existingNode) {
+              duplicateNode = existingNode;
+            }
+          }
+        }
+      } catch {
+        // Semantic search not available — proceed without dedup
+      }
+
+      if (duplicateNode) {
+        // Update existing node: bump confidence, add reference to this run
+        const newConfidence = Math.min(duplicateNode.confidence + 0.1, 1.0);
+        const updatedProps = {
+          ...duplicateNode.properties,
+          last_seen_run: this.ctx.runid,
+          mention_count: ((duplicateNode.properties.mention_count as number) || 1) + 1,
+        };
+        const idx = graph.nodes.findIndex(n => n.id === duplicateNode!.id);
+        graph = {
+          ...graph,
+          nodes: graph.nodes.map((n, i) =>
+            i === idx ? { ...n, confidence: newConfidence, properties: updatedProps, updated: now } : n
+          ),
+          lastUpdated: now,
+        };
+        updated++;
+      } else {
+        // Create new idea node
+        const nodeId = `idea-${String(nextIdNum).padStart(3, '0')}`;
+        nextIdNum++;
+
+        const newNode: KGNode = {
+          id: nodeId,
+          type: 'idea',
+          title: idea.title,
+          properties: {
+            impact: idea.impact,
+            effort: idea.effort,
+            status: 'proposed',
+            source_run: this.ctx.runid,
+            description: idea.description,
+            group: idea.group,
+            provenance: {
+              agent: 'historian',
+              runId: this.ctx.runid,
+              timestamp: now,
+            },
+          },
+          created: now,
+          updated: now,
+          confidence: 0.5,
+          scope: 'project-specific',
+          model: this.model,
+        };
+
+        graph = addNode(graph, newNode);
+        created++;
+
+        // Create discovered_in edge to run node
+        if (runNode) {
+          graph = addEdge(graph, {
+            from: nodeId,
+            to: runNode.id,
+            type: 'discovered_in',
+            metadata: {
+              runId: this.ctx.runid,
+              agent: 'historian',
+              timestamp: now,
+            },
+          });
+        }
+
+        // Check for inspired_by connections to existing pattern/error nodes
+        const matchingNodes = findNodes(graph, { query: idea.title.split(' ').slice(0, 3).join(' ') });
+        for (const match of matchingNodes) {
+          if ((match.type === 'pattern' || match.type === 'error') && match.id !== nodeId) {
+            graph = addEdge(graph, {
+              from: nodeId,
+              to: match.id,
+              type: 'inspired_by',
+              metadata: {
+                runId: this.ctx.runid,
+                agent: 'historian',
+                timestamp: now,
+              },
+            });
+            break; // Only link to the first matching pattern/error
+          }
+        }
+      }
+    }
+
+    await saveGraph(graph, graphPath);
+
+    console.log(`Historian: processed ${ideas.length} ideas — ${created} created, ${updated} updated (dedup).`);
+
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'historian',
+      tool: 'process_ideas',
+      allowed: true,
+      note: `Processed ${ideas.length} ideas from ideas.md: ${created} created, ${updated} updated`,
+    });
   }
 
   private async executeReadFile(input: { path: string }): Promise<string> {

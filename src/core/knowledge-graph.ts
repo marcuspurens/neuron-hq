@@ -13,6 +13,7 @@ export const NodeTypeSchema = z.enum([
   'technique',
   'run',
   'agent',
+  'idea',
 ]);
 export type NodeType = z.infer<typeof NodeTypeSchema>;
 
@@ -27,6 +28,7 @@ export const EdgeTypeSchema = z.enum([
   'related_to',
   'causes',
   'used_by',
+  'inspired_by',
 ]);
 export type EdgeType = z.infer<typeof EdgeTypeSchema>;
 
