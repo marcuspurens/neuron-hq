@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
 
 /* ---- aurora-search ---- */
 import { registerAuroraSearchTool } from './tools/aurora-search.js';
@@ -65,6 +66,22 @@ export interface ServerScope {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
+/** Build a single-message user prompt result. */
+function userPrompt(text: string) {
+  return {
+    messages: [
+      {
+        role: 'user' as const,
+        content: { type: 'text' as const, text },
+      },
+    ],
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /*  Scope registry                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -77,6 +94,26 @@ export const SCOPES: Record<string, ServerScope> = {
       registerAuroraSearchTool(server);
       registerAuroraAskTool(server);
       registerAuroraStatusTool(server);
+
+      server.prompt(
+        'sok-och-svara',
+        'Sök i Aurora och ge ett syntetiserat svar med källor',
+        { topic: z.string().describe('Ämne att söka efter') },
+        (args) =>
+          userPrompt(
+            `Sök i Aurora efter "${args.topic}" med aurora_search, och ge mig sedan ett syntetiserat svar med aurora_ask. Inkludera källor och confidence-nivåer.`,
+          ),
+      );
+
+      server.prompt(
+        'vad-vet-vi',
+        'Visa Aurora-status, sök efter ämne och sammanfatta kunskapsläget',
+        { topic: z.string().describe('Ämne att undersöka') },
+        (args) =>
+          userPrompt(
+            `Börja med att visa Aurora-status med aurora_status. Sök sedan efter "${args.topic}" med aurora_search och sammanfatta vad vi vet. Ange eventuella kunskapsluckor.`,
+          ),
+      );
     },
   },
 
@@ -88,6 +125,26 @@ export const SCOPES: Record<string, ServerScope> = {
       registerAuroraTimelineTool(server);
       registerAuroraBriefingTool(server);
       registerAuroraSuggestResearchTool(server);
+
+      server.prompt(
+        'full-briefing',
+        'Skapa tidslinje, briefing och forskningsförslag för ett ämne',
+        { topic: z.string().describe('Ämne för briefing') },
+        (args) =>
+          userPrompt(
+            `Skapa en tidslinje för "${args.topic}" med aurora_timeline, generera en briefing med aurora_briefing, och föreslå vidare forskning med aurora_suggest_research.`,
+          ),
+      );
+
+      server.prompt(
+        'forskningsforslag',
+        'Analysera kunskapsluckor och generera forskningsförslag',
+        { topic: z.string().describe('Ämne att analysera') },
+        (args) =>
+          userPrompt(
+            `Analysera kunskapsluckor kring "${args.topic}" och generera forskningsförslag med aurora_suggest_research. Inkludera prioritering och motivering.`,
+          ),
+      );
     },
   },
 
@@ -99,6 +156,26 @@ export const SCOPES: Record<string, ServerScope> = {
       registerAuroraMemoryConsolidatedTool(server);
       registerAuroraLearnConversationTool(server);
       registerAuroraGapsTool(server);
+
+      server.prompt(
+        'vad-sa-vi',
+        'Hämta minnen om ett ämne och visa kunskapsluckor',
+        { topic: z.string().describe('Ämne att minnas') },
+        (args) =>
+          userPrompt(
+            `Hämta relevanta minnen om "${args.topic}" med aurora_memory (action: recall). Lista sedan eventuella kunskapsluckor med aurora_gaps.`,
+          ),
+      );
+
+      server.prompt(
+        'lar-fran-samtal',
+        'Extrahera fakta från en konversation och spara till minnet',
+        { conversation: z.string().describe('Konversationstext att lära från') },
+        (args) =>
+          userPrompt(
+            `Extrahera fakta och preferenser från följande konversation och spara till minnet med aurora_learn_conversation:\n\n${args.conversation}`,
+          ),
+      );
     },
   },
 
@@ -109,6 +186,16 @@ export const SCOPES: Record<string, ServerScope> = {
     registerTools(server: McpServer): void {
       registerAuroraIngestUrlTool(server);
       registerAuroraIngestDocTool(server);
+
+      server.prompt(
+        'indexera-lank',
+        'Indexera en URL i Aurora och visa extraherat innehåll',
+        { url: z.string().describe('URL att indexera') },
+        (args) =>
+          userPrompt(
+            `Indexera innehållet från ${args.url} i Aurora med aurora_ingest_url. Visa vad som extraherades och bekräfta att det sparades korrekt.`,
+          ),
+      );
     },
   },
 
@@ -121,6 +208,26 @@ export const SCOPES: Record<string, ServerScope> = {
       registerAuroraIngestImageTool(server);
       registerAuroraIngestBookTool(server);
       registerAuroraOcrPdfTool(server);
+
+      server.prompt(
+        'indexera-video',
+        'Köa en video för indexering och förklara processen',
+        { url: z.string().describe('Video-URL att indexera') },
+        (args) =>
+          userPrompt(
+            `Köa ${args.url} för videoindexering med aurora_ingest_video. Förklara vad som kommer att hända: nedladdning, transkription, chunkning och korsreferering.`,
+          ),
+      );
+
+      server.prompt(
+        'indexera-bilder',
+        'Indexera bilder med OCR och beskriv extraherat innehåll',
+        { path: z.string().describe('Sökväg till bild(er)') },
+        (args) =>
+          userPrompt(
+            `Indexera bild(er) från ${args.path} med aurora_ingest_image. Använd OCR om tillämpligt och beskriv vad som extraherades.`,
+          ),
+      );
     },
   },
 
@@ -132,6 +239,24 @@ export const SCOPES: Record<string, ServerScope> = {
       registerAuroraSpeakersTool(server);
       registerAuroraJobsConsolidatedTool(server);
       registerAuroraEbucoreMetadataTool(server);
+
+      server.prompt(
+        'speaker-review',
+        'Lista röstavtryck och föreslå matchningar mellan speakers',
+        () =>
+          userPrompt(
+            'Lista alla röstavtryck med aurora_speakers (action: list). Föreslå matchningar mellan speakers och visa vilka som behöver bekräftelse.',
+          ),
+      );
+
+      server.prompt(
+        'jobb-oversikt',
+        'Visa alla senaste jobb med status och statistik',
+        () =>
+          userPrompt(
+            'Visa alla senaste jobb med aurora_jobs (action: list). Inkludera status, statistik och eventuella färdiga notifikationer.',
+          ),
+      );
     },
   },
 
@@ -142,6 +267,25 @@ export const SCOPES: Record<string, ServerScope> = {
     registerTools(server: McpServer): void {
       registerKnowledgeLibraryTool(server);
       registerKnowledgeManagerTool(server);
+
+      server.prompt(
+        'ny-artikel',
+        'Syntetisera en ny artikel från Aurora-kunskapsbasen',
+        { topic: z.string().describe('Ämne för artikeln') },
+        (args) =>
+          userPrompt(
+            `Syntetisera en ny artikel om "${args.topic}" från Aurora-kunskapsbasen med knowledge_manager (action: create). Basera på befintlig kunskap och ange källor.`,
+          ),
+      );
+
+      server.prompt(
+        'kunskapsbibliotek',
+        'Lista alla artiklar med ontologi-statistik och föreslå sammanslagningar',
+        () =>
+          userPrompt(
+            'Lista alla artiklar med knowledge_library (action: list). Visa ontologi-statistik och föreslå eventuella konceptsammanslagningar.',
+          ),
+      );
     },
   },
 
@@ -154,6 +298,25 @@ export const SCOPES: Record<string, ServerScope> = {
       registerAuroraCrossRefConsolidatedTool(server);
       registerAuroraConfidenceTool(server);
       registerAuroraCheckDepsTool(server);
+
+      server.prompt(
+        'kvalitetsrapport',
+        'Kör färskhetsrapport, kontrollera korsreferenser och visa låg-confidence-noder',
+        () =>
+          userPrompt(
+            'Kör en färskhetsrapport med aurora_freshness (action: report). Kontrollera korsreferensintegritet med aurora_cross_ref (action: check). Visa noder med låg confidence via aurora_confidence.',
+          ),
+      );
+
+      server.prompt(
+        'verifiera-kallor',
+        'Hitta och verifiera källors färskhetsstatus för ett ämne',
+        { topic: z.string().describe('Ämne att verifiera') },
+        (args) =>
+          userPrompt(
+            `Hitta källor om "${args.topic}" med aurora_freshness (action: check). Kontrollera deras färskhetsstatus och rapportera eventuella problem.`,
+          ),
+      );
     },
   },
 
@@ -165,6 +328,29 @@ export const SCOPES: Record<string, ServerScope> = {
       registerRunsTool(server);
       registerStartTool(server);
       registerCostsTool(server);
+
+      server.prompt(
+        'senaste-korningar',
+        'Visa de senaste körningarna med status, kostnader och testresultat',
+        { count: z.number().default(5).describe('Antal körningar att visa') },
+        (args) =>
+          userPrompt(
+            `Visa de senaste ${args.count} körningarna med neuron_runs. Inkludera status, kostnader och testresultat. Sammanfatta med neuron_costs.`,
+          ),
+      );
+
+      server.prompt(
+        'starta-korning',
+        'Förbered och starta en körning med kostnadsuppskattning',
+        {
+          target: z.string().describe('Mål-repo'),
+          brief: z.string().describe('Brief-beskrivning'),
+        },
+        (args) =>
+          userPrompt(
+            `Förbered att starta en körning för ${args.target} med briefen: "${args.brief}". Visa en kostnadsuppskattning med neuron_costs innan start med neuron_start.`,
+          ),
+      );
     },
   },
 
@@ -177,6 +363,25 @@ export const SCOPES: Record<string, ServerScope> = {
       registerRunStatisticsTool(server);
       registerKnowledgeTool(server);
       registerCrossRefLookupTool(server);
+
+      server.prompt(
+        'dashboard',
+        'Generera fullständig dashboard med beliefs, körningsstatistik och kunskapsöversikt',
+        () =>
+          userPrompt(
+            'Generera den fullständiga dashboarden med neuron_dashboard. Inkludera beliefs, körningsstatistik och kunskapsöversikt via neuron_run_statistics och neuron_knowledge.',
+          ),
+      );
+
+      server.prompt(
+        'beliefs',
+        'Visa Bayesianska beliefs och statistik för ett ämne',
+        { topic: z.string().describe('Ämne för beliefs') },
+        (args) =>
+          userPrompt(
+            `Visa Bayesianska beliefs och statistik relaterade till "${args.topic}" med neuron_knowledge. Inkludera confidence-nivåer och eventuella motsägelser.`,
+          ),
+      );
     },
   },
 };

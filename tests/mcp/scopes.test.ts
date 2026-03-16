@@ -148,7 +148,7 @@ describe('SCOPES registry', () => {
   });
 
   it('aurora-search scope registers 3 tools', () => {
-    const fakeServer = {} as Parameters<ServerScope['registerTools']>[0];
+    const fakeServer = { prompt: vi.fn() } as unknown as Parameters<ServerScope['registerTools']>[0];
     SCOPES['aurora-search'].registerTools(fakeServer);
 
     expect(registerAuroraSearchTool).toHaveBeenCalledOnce();
@@ -160,7 +160,7 @@ describe('SCOPES registry', () => {
   });
 
   it('neuron-runs scope registers runs tool', () => {
-    const fakeServer = {} as Parameters<ServerScope['registerTools']>[0];
+    const fakeServer = { prompt: vi.fn() } as unknown as Parameters<ServerScope['registerTools']>[0];
     SCOPES['neuron-runs'].registerTools(fakeServer);
 
     expect(registerRunsTool).toHaveBeenCalledOnce();
@@ -168,7 +168,7 @@ describe('SCOPES registry', () => {
   });
 
   it('all scopes register tools without errors', () => {
-    const fakeServer = {} as Parameters<ServerScope['registerTools']>[0];
+    const fakeServer = { prompt: vi.fn() } as unknown as Parameters<ServerScope['registerTools']>[0];
     expect(() => {
       for (const scope of Object.values(SCOPES)) {
         scope.registerTools(fakeServer);
