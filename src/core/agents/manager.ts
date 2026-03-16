@@ -32,6 +32,7 @@ import { generateAdaptiveHints } from './adaptive-hints.js';
 import { getBeliefs, classifyBrief } from '../run-statistics.js';
 import { eventBus } from '../event-bus.js';
 import { extractThinking } from '../thinking-extractor.js';
+import { extractDecisions } from '../decision-extractor.js';
 import { emergencySave } from '../emergency-save.js';
 
 
@@ -50,6 +51,8 @@ export class ManagerAgent {
   private librarianAutoTrigger: boolean;
   private consolidationAutoTrigger: boolean;
   private testStatus: { testsExist: boolean; testFramework: string | null } | null = null;
+  private _emittedDecisionIds = new Set<string>();
+  private _accumulatedThinking = '';
 
   constructor(private ctx: RunContext, baseDir: string, librarianAutoTrigger = false, consolidationAutoTrigger = false) {
     this.baseDir = baseDir;
@@ -323,6 +326,12 @@ Stop when time limit approaches or when blockers are encountered.
             });
           }
 
+          // Live decision extraction from thinking
+          if (thinking) {
+            this._accumulatedThinking += '\n' + thinking.text;
+            this._emitLiveDecisions();
+          }
+
           return msg;
         });
 
@@ -393,6 +402,34 @@ Stop when time limit approaches or when blockers are encountered.
       });
     }
     this.ctx.usage.recordIterations('manager', iteration, this.maxIterations);
+  }
+
+  /**
+   * Extract decisions from accumulated thinking text and emit new ones.
+   * Uses a Set to avoid emitting duplicates.
+   */
+  private _emitLiveDecisions(): void {
+    try {
+      const decisions = extractDecisions(
+        this._accumulatedThinking,
+        [], // audit entries not needed for thinking-based extraction
+        [], // agent events not needed here
+        this.ctx.runid,
+        'manager',
+      );
+      for (const d of decisions) {
+        if (!this._emittedDecisionIds.has(d.id)) {
+          this._emittedDecisionIds.add(d.id);
+          eventBus.safeEmit('decision', {
+            runid: this.ctx.runid,
+            agent: d.agent,
+            decision: d,
+          });
+        }
+      }
+    } catch {
+      // Non-fatal - decision extraction failure should never break the run
+    }
   }
 
   /**
@@ -721,6 +758,11 @@ Stop when time limit approaches or when blockers are encountered.
       note: `Task plan written with ${plan.tasks.length} tasks`,
     });
 
+
+    eventBus.safeEmit('task:plan', {
+      runid: this.ctx.runid,
+      tasks: plan.tasks.map(t => ({ id: t.id, description: t.description })),
+    });
     return `Task plan written to task_plan.md with ${plan.tasks.length} tasks:\n${plan.tasks.map(t => `- ${t.id}: ${t.description}`).join('\n')}`;
   }
 
@@ -826,6 +868,7 @@ Stop when time limit approaches or when blockers are encountered.
       }
       
       eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'implementer' });
+      this._emitLiveDecisions();
       return result;
     } catch {
       if (structuredResult) {
@@ -880,7 +923,7 @@ Stop when time limit approaches or when blockers are encountered.
         // Create isolated worktree with its own branch
         await git.addWorktree(worktreePath, branchName);
         status.status = 'running';
-        eventBus.safeEmit('task:status', { runid: this.ctx.runid, taskId: task.id, status: 'running', branch: branchName });
+        eventBus.safeEmit('task:status', { runid: this.ctx.runid, taskId: task.id, status: 'running', description: task.description, branch: branchName });
 
         // Create per-task context with isolated workspace
         const taskCtx: RunContext = { ...this.ctx, workspaceDir: worktreePath };
@@ -890,7 +933,7 @@ Stop when time limit approaches or when blockers are encountered.
         await implementer.run(task.description, { taskId: task.id, branchName });
 
         status.status = 'completed';
-        eventBus.safeEmit('task:status', { runid: this.ctx.runid, taskId: task.id, status: 'completed', branch: branchName });
+        eventBus.safeEmit('task:status', { runid: this.ctx.runid, taskId: task.id, status: 'completed', description: task.description, branch: branchName });
         status.testsPassing = true;
 
         // Read handoff if exists
@@ -903,7 +946,7 @@ Stop when time limit approaches or when blockers are encountered.
         }
       } catch (error: unknown) {
         status.status = 'failed';
-        eventBus.safeEmit('task:status', { runid: this.ctx.runid, taskId: task.id, status: 'failed', branch: branchName });
+        eventBus.safeEmit('task:status', { runid: this.ctx.runid, taskId: task.id, status: 'failed', description: task.description, branch: branchName });
         status.error = error instanceof Error ? error.message : String(error);
       }
 
@@ -1021,6 +1064,7 @@ Stop when time limit approaches or when blockers are encountered.
         }
       }
       eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'reviewer' });
+      this._emitLiveDecisions();
       return result;
     } catch {
       if (structuredResult) {
@@ -1046,6 +1090,7 @@ Stop when time limit approaches or when blockers are encountered.
     const researcher = new ResearcherAgent(this.ctx, this.baseDir);
     await researcher.run();
     eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'researcher' });
+    this._emitLiveDecisions();
     return 'Researcher agent completed successfully.';
   }
 

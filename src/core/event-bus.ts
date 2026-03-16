@@ -11,10 +11,16 @@ export interface EventMap {
   'agent:text': { runid: string; agent: string; text: string };
   'agent:thinking': { runid: string; agent: string; text: string };
   'iteration': { runid: string; agent: string; current: number; max: number };
+  'task:plan': {
+    runid: string;
+    tasks: Array<{ id: string; description: string }>;
+  };
   'task:status': {
     runid: string;
     taskId: string;
     status: 'pending' | 'running' | 'completed' | 'failed';
+    description?: string;
+    agent?: string;
     branch?: string;
   };
   'stoplight': { runid: string; status: 'GREEN' | 'YELLOW' | 'RED' };

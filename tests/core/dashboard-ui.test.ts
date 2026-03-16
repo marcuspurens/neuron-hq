@@ -89,7 +89,7 @@ describe('renderLiveDashboard', () => {
     expect(html).toContain('1200px');
   });
 
-  it('keeps last 5 lines for agent reasoning', () => {
+  it('status-line uses sentence length threshold >5', () => {
     expect(html).toContain('>5');
   });
 
@@ -310,5 +310,41 @@ describe('renderLiveDashboard', () => {
 
   it('agent panels show Arbetar status', () => {
     expect(html).toContain('Arbetar');
+  });
+
+  // ===== T1: Status line replaces reasoning section =====
+
+  it('output contains .status-line CSS class', () => {
+    expect(html).toContain('.status-line');
+  });
+
+  it('output does NOT contain .reasoning CSS class', () => {
+    // .reasoning should be completely removed from CSS and templates
+    expect(html).not.toContain('.reasoning');
+  });
+
+  it('output does NOT contain toggle element with Resonemang text in template', () => {
+    // The toggle for Resonemang should be removed; only thinking-toggle remains
+    expect(html).not.toContain('\u25B6 Resonemang');
+  });
+
+  it('lines:[] is NOT initialized in getOrCreateTile', () => {
+    expect(html).not.toContain('lines:[]');
+  });
+
+  it('agent:text handler uses textBuf for sentence extraction', () => {
+    expect(html).toContain('textBuf');
+    expect(html).toContain('sentences');
+  });
+
+  it('status-line CSS has ellipsis overflow', () => {
+    expect(html).toContain('text-overflow:ellipsis');
+    expect(html).toContain('max-width:230px');
+  });
+
+  it('thinking-toggle and thinking-content are preserved', () => {
+    expect(html).toContain('.thinking-toggle');
+    expect(html).toContain('.thinking-content');
+    expect(html).toContain('Thinking');
   });
 });

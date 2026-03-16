@@ -285,3 +285,44 @@ describe('Isolation', () => {
     errorSpy.mockRestore();
   });
 });
+
+// =====================================================
+// 8. task:plan event type tests
+// =====================================================
+describe('task:plan event', () => {
+  it('emits task:plan with tasks array', () => {
+    const received: EventMap['task:plan'][] = [];
+    eventBus.on('task:plan', (d: EventMap['task:plan']) => received.push(d));
+
+    eventBus.safeEmit('task:plan', {
+      runid: 'r1',
+      tasks: [
+        { id: 'T1', description: 'Fix the widget' },
+        { id: 'T2', description: 'Add tests' },
+      ],
+    });
+
+    expect(received).toHaveLength(1);
+    expect(received[0].tasks).toHaveLength(2);
+    expect(received[0].tasks[0].id).toBe('T1');
+    expect(received[0].tasks[0].description).toBe('Fix the widget');
+  });
+
+  it('task:status accepts optional description and agent fields', () => {
+    const received: EventMap['task:status'][] = [];
+    eventBus.on('task:status', (d: EventMap['task:status']) => received.push(d));
+
+    eventBus.safeEmit('task:status', {
+      runid: 'r1',
+      taskId: 'T1',
+      status: 'running',
+      description: 'Fix the widget',
+      agent: 'implementer',
+      branch: 'task-T1',
+    });
+
+    expect(received).toHaveLength(1);
+    expect(received[0].description).toBe('Fix the widget');
+    expect(received[0].agent).toBe('implementer');
+  });
+});

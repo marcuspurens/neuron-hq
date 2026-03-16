@@ -71,9 +71,7 @@ h2{font-size:1rem;color:#94a3b8;margin-bottom:8px;text-transform:uppercase;lette
 .agent-tile .status{font-size:0.8rem;margin-bottom:4px}
 .agent-tile .task-info{font-size:0.75rem;color:#94a3b8;margin-bottom:4px}
 .agent-tile .agent-stats{font-size:0.75rem;color:#94a3b8;margin-bottom:4px}
-.agent-tile .reasoning{max-height:0;overflow:hidden;transition:max-height 0.3s;font-family:'Menlo','Consolas',monospace;font-size:0.7rem;color:#94a3b8;white-space:pre-wrap;word-break:break-all}
-.agent-tile .reasoning.open{max-height:200px;overflow-y:auto}
-.agent-tile .toggle{cursor:pointer;font-size:0.75rem;color:#38bdf8;user-select:none}
+.agent-tile .status-line{font-size:0.75rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px;min-height:1.2em;transition:opacity 0.3s}
 .agent-tile .thinking-toggle{cursor:pointer;font-size:0.75rem;color:#a78bfa;user-select:none;display:none}
 .agent-tile .thinking-content{max-height:0;overflow:hidden;transition:max-height 0.3s;font-family:'Menlo','Consolas',monospace;font-size:0.7rem;color:#cbd5e1;font-style:italic;background:#1a2332;border-radius:4px;padding:0 8px;white-space:pre-wrap;word-break:break-all}
 .agent-tile .thinking-content.open{max-height:200px;overflow-y:auto;padding:8px}
@@ -276,6 +274,7 @@ if(t==='copy_to_target')return '\\uD83D\\uDCC1 '+ag+' kopierar fil till target-r
 if(t==='adaptive_hints'){var w=data.warnings||0;var s=data.strengths||0;return '\\uD83D\\uDCA1 '+ag+' f\\u00E5r '+w+' varningar, '+s+' styrkor';}
 if(t==='agent_message'){var msg2=data.note||'';return '\\uD83D\\uDCAC '+ag+': \"'+(msg2.length>60?msg2.substring(0,57)+'...':msg2)+'\"';}
 return null;
+case 'task:plan':return '\\uD83D\\uDCCB Plan skapad med '+(data.tasks?data.tasks.length:'?')+' uppgifter';
 case 'warning':return '\\u26A0\\uFE0F VARNING: '+(data.message||'Ok\\u00E4nd varning');
 default:return null;}}
 
@@ -412,18 +411,14 @@ t.innerHTML='<div class="name">'+esc(name)+'</div>'
 +'<div class="status"><span class="status-dot green">\\u25CF</span> <span class="status-text">Arbetar</span></div>'
 +'<div class="task-info"></div>'
 +'<div class="agent-stats"><span class="agent-iter"></span> <span class="agent-tokens"></span></div>'
-+'<div class="toggle">\\u25B6 Resonemang</div>'
-+'<div class="reasoning"></div>'
++'<div class="status-line"></div>'
 +'<div class="thinking-toggle">\\u25B6 Thinking</div>'
 +'<div class="thinking-content"></div>';
-t.querySelector('.toggle').addEventListener('click',function(){
-var r=t.querySelector('.reasoning');r.classList.toggle('open');
-this.textContent=r.classList.contains('open')?'\\u25BC Resonemang':'\\u25B6 Resonemang';});
 t.querySelector('.thinking-toggle').addEventListener('click',function(){
 var tc=t.querySelector('.thinking-content');tc.classList.toggle('open');
 this.textContent=tc.classList.contains('open')?'\\u25BC Thinking':'\\u25B6 Thinking';});
 document.getElementById('agent-tiles').appendChild(t);
-agents[name]={el:t,lines:[]};
+agents[name]={el:t};
 return agents[name];}
 
 function updateTask(taskId,status,description,agent){
@@ -518,11 +513,23 @@ var statusText2=a.el.querySelector('.status-text');
 if(statusText2) statusText2.textContent='Klar';}
 else if(event==='agent:text'){
 var a2=agents[data.agent];if(!a2)a2=getOrCreateTile(data.agent||'unknown');
-a2.lines.push(data.text||'');
-if(a2.lines.length>5)a2.lines=a2.lines.slice(-5);
-var rEl=a2.el.querySelector('.reasoning');
-rEl.textContent=a2.lines.join('\\n');
-rEl.scrollTop=rEl.scrollHeight;}
+var txt=data.text||'';
+if(!a2.textBuf)a2.textBuf='';
+a2.textBuf+=txt;
+if(a2.textBuf.length>2000)a2.textBuf=a2.textBuf.slice(-2000);
+var sentences=a2.textBuf.split(/(?<=[.!?\\n])\\s+/);
+var last='';
+for(var si=sentences.length-1;si>=0;si--){
+  var s=sentences[si].trim();
+  if(s.length>5){last=s;break;}
+}
+if(last){
+  if(last.length>80)last=last.substring(0,77)+'...';
+  var slEl=a2.el.querySelector('.status-line');
+  slEl.textContent=last;
+  slEl.style.opacity='0';
+  setTimeout(function(){slEl.style.opacity='1';},50);
+}}
 else if(event==='agent:thinking'){
 var at=agents[data.agent];if(!at)at=getOrCreateTile(data.agent||'unknown');
 if(!at.thinkingLines)at.thinkingLines=[];
@@ -534,6 +541,14 @@ if(display.length>2000)display=display.slice(-2000);
 tcEl.textContent=display;
 tcEl.scrollTop=tcEl.scrollHeight;
 at.el.querySelector('.thinking-toggle').style.display='block';}
+else if(event==='task:plan'){
+var planTasks=data.tasks||[];
+for(var pi=0;pi<planTasks.length;pi++){
+  if(planTasks[pi].id && planTasks[pi].description){
+    taskDescriptions[planTasks[pi].id]=planTasks[pi].description;
+  }
+}
+renderTasks();}
 else if(event==='task:status'){
 updateTask(data.taskId||'?',data.status||'pending',data.description,data.agent);
 if(data.status==='running' && !taskStartTimes[data.taskId]){
@@ -588,8 +603,8 @@ if(data.tool==='delegate_parallel_wave'){
   }
 }}
 else if(event==='decision'){
-// Decision events handled by addLogEntry decision rendering
-}}
+addLogEntry(event,data,ts);}
+}
 
 function toggleRunDropdown(){
 runDropdownOpen=!runDropdownOpen;
@@ -598,7 +613,10 @@ dd.style.display=runDropdownOpen?'block':'none';
 if(runDropdownOpen)loadRuns();}
 
 function loadRuns(){
-fetch('/runs').then(function(r){return r.json();}).then(function(runs){
+fetch('/runs').then(function(r){
+if(!r.ok)throw new Error('HTTP '+r.status);
+return r.json();
+}).then(function(runs){
 var dd=document.getElementById('run-dropdown');
 dd.innerHTML='';
 var liveItem=document.createElement('div');liveItem.className='run-item';
@@ -613,7 +631,15 @@ item.innerHTML='<span>'+sl+' '+esc(run.runid)+' \\u2014 '+esc(run.briefTitle).su
 item.onclick=function(){loadDigest(run.runid,run.briefTitle);};
 dd.appendChild(item);
 })(runs[i]);}
-}).catch(function(){});}
+}).catch(function(err){
+console.error('Failed to load runs:',err);
+var dd=document.getElementById('run-dropdown');
+dd.innerHTML='<div class="run-item" style="color:#ef4444;flex-direction:column;align-items:flex-start">'
++'<span>\\u26A0\\uFE0F Kunde inte ladda k\\u00F6rningar</span>'
++'<button class="retry-btn" onclick="event.stopPropagation();loadRuns();" style="margin-top:6px;background:#334155;border:1px solid #475569;color:#e2e8f0;border-radius:4px;padding:4px 12px;cursor:pointer;font-size:0.75rem">F\\u00F6rs\\u00F6k igen</button>'
++'</div>';
+});}
+window.loadRuns=loadRuns;
 
 function loadDigest(runid,title){
 fetch('/digest/'+runid).then(function(r){
