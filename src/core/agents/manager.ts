@@ -30,6 +30,7 @@ import {
 } from '../messages.js';
 import { generateAdaptiveHints } from './adaptive-hints.js';
 import { getBeliefs, classifyBrief } from '../run-statistics.js';
+import { eventBus } from '../event-bus.js';
 
 
 /**
@@ -263,6 +264,14 @@ Stop when time limit approaches or when blockers are encountered.
       // Check time limit
       if (new Date() > this.ctx.endTime) {
         console.log('Time limit reached. Stopping agent loop.');
+        const elapsed = Date.now() - this.ctx.startTime.getTime();
+        const total = this.ctx.endTime.getTime() - this.ctx.startTime.getTime();
+        eventBus.safeEmit('time', {
+          runid: this.ctx.runid,
+          elapsed,
+          remaining: Math.max(0, total - elapsed),
+          percent: Math.min(100, Math.round((elapsed / total) * 100)),
+        });
         break;
       }
 
@@ -271,6 +280,12 @@ Stop when time limit approaches or when blockers are encountered.
       await checkEstop(this.baseDir, this.ctx.audit);
 
       console.log(`\n=== Manager iteration ${iteration}/${this.maxIterations} ===`);
+      eventBus.safeEmit('iteration', {
+        runid: this.ctx.runid,
+        agent: 'manager',
+        current: iteration,
+        max: this.maxIterations,
+      });
 
       try {
         const trimmedMessages = trimMessages(messages);
@@ -290,6 +305,7 @@ Stop when time limit approaches or when blockers are encountered.
               prefixPrinted = true;
             }
             process.stdout.write(text);
+            eventBus.safeEmit('agent:text', { runid: this.ctx.runid, agent: 'manager', text });
           });
 
           const msg = await stream.finalMessage();
@@ -303,6 +319,12 @@ Stop when time limit approaches or when blockers are encountered.
           response.usage.input_tokens,
           response.usage.output_tokens
         );
+        eventBus.safeEmit('tokens', {
+          runid: this.ctx.runid,
+          agent: 'manager',
+          input: response.usage.input_tokens,
+          output: response.usage.output_tokens,
+        });
 
         // Add assistant response to messages
         messages.push({
@@ -732,6 +754,7 @@ Stop when time limit approaches or when blockers are encountered.
       allowed: true,
       note: `Delegating task: ${input.task.slice(0, 120)}`,
     });
+    eventBus.safeEmit('agent:start', { runid: this.ctx.runid, agent: 'implementer', task: input.task.slice(0, 200) });
     const implementer = new ImplementerAgent(this.ctx, this.baseDir);
     await implementer.run(input.task);
 
@@ -779,6 +802,7 @@ Stop when time limit approaches or when blockers are encountered.
         result += `\n\n--- STRUCTURED RESULT ---\nConfidence: ${structuredResult.confidence}\nFiles modified: ${structuredResult.filesModified.length}\nRisks: ${structuredResult.risks.length}\nTests passing: ${structuredResult.testsPassing}`;
       }
       
+      eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'implementer' });
       return result;
     } catch {
       if (structuredResult) {
@@ -833,6 +857,7 @@ Stop when time limit approaches or when blockers are encountered.
         // Create isolated worktree with its own branch
         await git.addWorktree(worktreePath, branchName);
         status.status = 'running';
+        eventBus.safeEmit('task:status', { runid: this.ctx.runid, taskId: task.id, status: 'running', branch: branchName });
 
         // Create per-task context with isolated workspace
         const taskCtx: RunContext = { ...this.ctx, workspaceDir: worktreePath };
@@ -842,6 +867,7 @@ Stop when time limit approaches or when blockers are encountered.
         await implementer.run(task.description, { taskId: task.id, branchName });
 
         status.status = 'completed';
+        eventBus.safeEmit('task:status', { runid: this.ctx.runid, taskId: task.id, status: 'completed', branch: branchName });
         status.testsPassing = true;
 
         // Read handoff if exists
@@ -854,6 +880,7 @@ Stop when time limit approaches or when blockers are encountered.
         }
       } catch (error: unknown) {
         status.status = 'failed';
+        eventBus.safeEmit('task:status', { runid: this.ctx.runid, taskId: task.id, status: 'failed', branch: branchName });
         status.error = error instanceof Error ? error.message : String(error);
       }
 
@@ -916,6 +943,7 @@ Stop when time limit approaches or when blockers are encountered.
       allowed: true,
       note: 'Delegating review to Reviewer agent',
     });
+    eventBus.safeEmit('agent:start', { runid: this.ctx.runid, agent: 'reviewer' });
     const reviewer = new ReviewerAgent(this.ctx, this.baseDir);
     await reviewer.run();
 
@@ -963,6 +991,13 @@ Stop when time limit approaches or when blockers are encountered.
         result += `\n\n--- STRUCTURED RESULT ---\nVerdict: ${structuredResult.verdict}\nTests: ${structuredResult.testsPassing}/${structuredResult.testsRun}\nBlockers: ${structuredResult.blockers.length}\nSuggestions: ${structuredResult.suggestions.length}`;
       }
       
+      if (structuredResult?.verdict) {
+        const stoplightMap: Record<string, 'GREEN' | 'YELLOW' | 'RED'> = { GREEN: 'GREEN', YELLOW: 'YELLOW', RED: 'RED' };
+        if (stoplightMap[structuredResult.verdict]) {
+          eventBus.safeEmit('stoplight', { runid: this.ctx.runid, status: stoplightMap[structuredResult.verdict] });
+        }
+      }
+      eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'reviewer' });
       return result;
     } catch {
       if (structuredResult) {
@@ -984,8 +1019,10 @@ Stop when time limit approaches or when blockers are encountered.
       allowed: true,
       note: 'Delegating research to Researcher agent',
     });
+    eventBus.safeEmit('agent:start', { runid: this.ctx.runid, agent: 'researcher' });
     const researcher = new ResearcherAgent(this.ctx, this.baseDir);
     await researcher.run();
+    eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'researcher' });
     return 'Researcher agent completed successfully.';
   }
 
@@ -1001,8 +1038,10 @@ Stop when time limit approaches or when blockers are encountered.
       allowed: true,
       note: 'Delegating research to Librarian agent',
     });
+    eventBus.safeEmit('agent:start', { runid: this.ctx.runid, agent: 'librarian' });
     const librarian = new LibrarianAgent(this.ctx, this.baseDir);
     await librarian.run();
+    eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'librarian' });
     return 'Librarian agent completed. New techniques may have been added to memory/techniques.md.';
   }
 
@@ -1015,8 +1054,10 @@ Stop when time limit approaches or when blockers are encountered.
       allowed: true,
       note: 'Delegating graph consolidation to Consolidator agent',
     });
+    eventBus.safeEmit('agent:start', { runid: this.ctx.runid, agent: 'consolidator' });
     const consolidator = new ConsolidatorAgent(this.ctx, this.baseDir);
     await consolidator.run();
+    eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'consolidator' });
     return 'Consolidator agent completed. Check consolidation_report.md for details.';
   }
 
@@ -1029,8 +1070,10 @@ Stop when time limit approaches or when blockers are encountered.
       allowed: true,
       note: 'Delegating run summary to Historian agent',
     });
+    eventBus.safeEmit('agent:start', { runid: this.ctx.runid, agent: 'historian' });
     const historian = new HistorianAgent(this.ctx, this.baseDir);
     await historian.run();
+    eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'historian' });
     return 'Historian agent completed successfully.';
   }
 
@@ -1046,9 +1089,12 @@ Stop when time limit approaches or when blockers are encountered.
       allowed: true,
       note: 'Delegating test execution to Tester agent',
     });
+    eventBus.safeEmit('agent:start', { runid: this.ctx.runid, agent: 'tester' });
     const tester = new TesterAgent(this.ctx, this.baseDir);
     try {
-      return await tester.run();
+      const testerResult = await tester.run();
+      eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'tester' });
+      return testerResult;
     } catch (error) {
       const msg =
         `TESTER ERROR: ${error}. ` +
@@ -1071,8 +1117,11 @@ Stop when time limit approaches or when blockers are encountered.
       allowed: true,
       note: 'Delegating merge to Merger agent',
     });
+    eventBus.safeEmit('agent:start', { runid: this.ctx.runid, agent: 'merger' });
     const merger = new MergerAgent(this.ctx, this.baseDir);
-    return await merger.run();
+    const mergerResult = await merger.run();
+    eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'merger' });
+    return mergerResult;
   }
 
   /**

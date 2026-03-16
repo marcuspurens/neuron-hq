@@ -13,6 +13,7 @@ import { computeRunMetrics } from './run-metrics.js';
 import { computeAllTaskScores } from './task-rewards.js';
 import { updateCostTracking } from '../commands/costs.js';
 import type { AgentModelMap } from './model-registry.js';
+import { eventBus } from './event-bus.js';
 
 export interface RunContext {
   runid: RunId;
@@ -230,6 +231,13 @@ export class RunOrchestrator {
     const endTime = new Date();
     endTime.setHours(endTime.getHours() + hours);
 
+
+    eventBus.safeEmit('run:start', {
+      runid,
+      target: target.name,
+      hours,
+      startTime: new Date().toISOString(),
+    });
     return {
       runid,
       target,
@@ -416,6 +424,12 @@ export class RunOrchestrator {
     } catch {
       // Non-fatal: auto-KM failure should not break finalization
     }
+
+    eventBus.safeEmit('run:end', {
+      runid: ctx.runid,
+      duration: Date.now() - ctx.startTime.getTime(),
+      status: stoplight.risk,
+    });
   }
 
   /**

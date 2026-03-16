@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import crypto from 'crypto';
 import { type AuditEntry } from './types.js';
 import { getPool, isDbAvailable } from './db.js';
+import { eventBus } from './event-bus.js';
 
 export class AuditLogger {
   constructor(private auditFilePath: string) {}
@@ -14,6 +15,9 @@ export class AuditLogger {
     // Always write to JSONL file
     const line = JSON.stringify(entry) + '\n';
     await fs.appendFile(this.auditFilePath, line, 'utf-8');
+
+    // Emit audit event for real-time observability
+    eventBus.safeEmit('audit', entry as unknown as Record<string, unknown>);
 
     // Also write to DB if available (non-fatal on failure)
     try {
