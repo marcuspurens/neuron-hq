@@ -88,8 +88,8 @@ describe('renderLiveDashboard', () => {
     expect(html).toContain('1200px');
   });
 
-  it('keeps last 30 lines for agent reasoning', () => {
-    expect(html).toContain('30');
+  it('keeps last 10 lines for agent reasoning', () => {
+    expect(html).toContain('>10');
   });
 
   it('keeps last 50 events in log', () => {
@@ -111,5 +111,53 @@ describe('renderLiveDashboard', () => {
 
   it('HTML contains thinking-content CSS class', () => {
     expect(html).toContain('.thinking-content');
+  });
+
+  // New tests for narrative dashboard features
+
+  it('HTML contains narrateEvent function', () => {
+    expect(html).toContain('narrateEvent');
+  });
+
+  it('HTML contains run-library section', () => {
+    expect(html).toContain('run-library');
+  });
+
+  it('HTML contains run-selector element', () => {
+    expect(html).toContain('id="run-selector"');
+  });
+
+  it('HTML contains digest-view element', () => {
+    expect(html).toContain('id="digest-view"');
+  });
+
+  it('HTML contains live-content wrapper', () => {
+    expect(html).toContain('id="live-content"');
+  });
+
+  it('HTML contains fmtK number formatting function', () => {
+    expect(html).toContain('fmtK');
+  });
+
+  it('HTML contains cost calculation logic (3.0 and 15.0 pricing)', () => {
+    expect(html).toContain('3.0');
+    expect(html).toContain('15.0');
+  });
+
+  it('HTML contains agent-stats section', () => {
+    expect(html).toContain('agent-stats');
+  });
+
+  it('HTML contains fetch /runs call', () => {
+    expect(html).toContain("fetch('/runs')");
+  });
+
+  it('HTML contains fetch /digest/ call', () => {
+    expect(html).toContain("fetch('/digest/'");
+  });
+
+  it('HTML contains pulse animation for live dot', () => {
+    expect(html).toContain('@keyframes pulse');
+    expect(html).toContain('animation:pulse');
   });
 });

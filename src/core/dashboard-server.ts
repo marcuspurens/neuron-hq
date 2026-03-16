@@ -1,7 +1,10 @@
 import http from 'node:http';
+import fsp from 'node:fs/promises';
+import path from 'node:path';
 import { exec } from 'node:child_process';
 import { eventBus } from './event-bus.js';
 import { renderLiveDashboard } from './dashboard-ui.js';
+import { calcCost } from './pricing.js';
 
 const MAX_SSE_CLIENTS = 5;
 const DASHBOARD_PORT = 4200;
@@ -15,6 +18,20 @@ export interface DashboardServer {
 }
 
 /**
+ * Summary of a single run, returned by GET /runs.
+ */
+export interface RunSummary {
+  runid: string;
+  briefTitle: string;
+  date: string;
+  durationMin: number;
+  stoplight: 'GREEN' | 'YELLOW' | 'RED' | 'unknown';
+  testsAdded: number;
+  costUsd: number;
+  hasDigest: boolean;
+}
+
+/**
  * Start a minimal HTTP server for the live SSE-powered dashboard.
  *
  * Serves the rendered dashboard HTML on `/` and an SSE stream on `/events`.
@@ -22,9 +39,14 @@ export interface DashboardServer {
  *
  * @param runid - The run identifier to display in the dashboard.
  * @param port - The port to listen on (defaults to DASHBOARD_PORT).
+ * @param runsDir - Optional path to the runs directory for the /runs endpoint.
  * @returns A DashboardServer handle, or null if startup fails entirely.
  */
-export function startDashboardServer(runid: string, port: number = DASHBOARD_PORT): DashboardServer | null {
+export function startDashboardServer(
+  runid: string,
+  port: number = DASHBOARD_PORT,
+  runsDir?: string,
+): DashboardServer | null {
   try {
     const sseClients = new Set<http.ServerResponse>();
 
@@ -41,7 +63,7 @@ export function startDashboardServer(runid: string, port: number = DASHBOARD_POR
 
     eventBus.onAny(onAnyCallback);
 
-    const server = http.createServer((req, res) => {
+    const server = http.createServer(async (req, res) => {
       const url = req.url ?? '/';
 
       if (req.method === 'GET' && url === '/') {
@@ -79,6 +101,109 @@ export function startDashboardServer(runid: string, port: number = DASHBOARD_POR
         req.on('close', () => {
           sseClients.delete(res);
         });
+        return;
+      }
+
+      // GET /runs — list all run summaries
+      if (req.method === 'GET' && url === '/runs') {
+        if (!runsDir) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end('[]');
+          return;
+        }
+
+        try {
+          const entries = await fsp.readdir(runsDir, { withFileTypes: true });
+          const summaries: RunSummary[] = [];
+
+          for (const entry of entries) {
+            if (!entry.isDirectory()) continue;
+            const metricsPath = path.join(runsDir, entry.name, 'metrics.json');
+            const digestPath = path.join(runsDir, entry.name, 'digest.md');
+
+            try {
+              const metricsRaw = await fsp.readFile(metricsPath, 'utf-8');
+              const metrics = JSON.parse(metricsRaw);
+
+              let hasDigest = false;
+              try { await fsp.access(digestPath); hasDigest = true; } catch { /* noop */ }
+
+              // Read brief title
+              let briefTitle = entry.name;
+              try {
+                const briefRaw = await fsp.readFile(path.join(runsDir, entry.name, 'brief.md'), 'utf-8');
+                const m = briefRaw.match(/^#\s+(.+)/m);
+                if (m) briefTitle = m[1].trim();
+              } catch { /* noop */ }
+
+              // Read stoplight
+              let stoplight: string = 'unknown';
+              try {
+                const reportRaw = await fsp.readFile(path.join(runsDir, entry.name, 'report.md'), 'utf-8');
+                const sm = reportRaw.match(/STOPLIGHT.*?(GREEN|YELLOW|RED)/i);
+                if (sm) stoplight = sm[1].toUpperCase();
+              } catch { /* noop */ }
+
+              const durationMin = metrics.timing?.duration_seconds
+                ? Math.round(metrics.timing.duration_seconds / 60)
+                : 0;
+              const costUsd = calcCost(
+                metrics.tokens?.total_input ?? 0,
+                metrics.tokens?.total_output ?? 0,
+                'sonnet'
+              );
+
+              summaries.push({
+                runid: entry.name,
+                briefTitle,
+                date: metrics.timing?.started_at?.substring(0, 10) ?? '',
+                durationMin,
+                stoplight: stoplight as RunSummary['stoplight'],
+                testsAdded: metrics.testing?.tests_added ?? 0,
+                costUsd: Math.round(costUsd * 100) / 100,
+                hasDigest,
+              });
+            } catch {
+              // Skip runs without valid metrics.json
+            }
+          }
+
+          // Sort newest first
+          summaries.sort((a, b) => b.runid.localeCompare(a.runid));
+
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          });
+          res.end(JSON.stringify(summaries));
+        } catch {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end('[]');
+        }
+        return;
+      }
+
+      // GET /digest/:runid — fetch digest content for a specific run
+      if (req.method === 'GET' && url.startsWith('/digest/')) {
+        const reqRunid = url.slice('/digest/'.length);
+        if (!runsDir || !reqRunid || reqRunid.includes('..')) {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Not Found');
+          return;
+        }
+        try {
+          const digestContent = await fsp.readFile(
+            path.join(runsDir, reqRunid, 'digest.md'), 'utf-8'
+          );
+          res.writeHead(200, {
+            'Content-Type': 'text/markdown; charset=utf-8',
+            'Access-Control-Allow-Origin': '*',
+          });
+          res.end(digestContent);
+        } catch {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Digest not found');
+        }
         return;
       }
 

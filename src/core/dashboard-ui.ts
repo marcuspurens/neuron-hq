@@ -36,10 +36,14 @@ ${renderCSS()}
 <body>
 <div id="reconnect-banner" class="reconnect-banner">&Aring;teransluten &mdash; visar historik</div>
 ${renderHeaderHTML(safeRunid)}
+${renderRunLibraryHTML(safeRunid)}
+<div id="digest-view" class="digest-view"></div>
+<div id="live-content">
 ${renderAgentTilesHTML()}
 ${renderTaskListHTML()}
 ${renderStoplightHTML()}
 ${renderEventLogHTML()}
+</div>
 <script>
 ${renderJS()}
 </script>
@@ -65,6 +69,7 @@ h2{font-size:1rem;color:#94a3b8;margin-bottom:8px;text-transform:uppercase;lette
 .agent-tile .name{font-weight:600;font-size:0.95rem;margin-bottom:4px}
 .agent-tile .status{font-size:0.8rem;margin-bottom:4px}
 .agent-tile .task-info{font-size:0.75rem;color:#94a3b8;margin-bottom:4px}
+.agent-tile .agent-stats{font-size:0.75rem;color:#94a3b8;margin-bottom:4px}
 .agent-tile .reasoning{max-height:0;overflow:hidden;transition:max-height 0.3s;font-family:'Menlo','Consolas',monospace;font-size:0.7rem;color:#94a3b8;white-space:pre-wrap;word-break:break-all}
 .agent-tile .reasoning.open{max-height:200px;overflow-y:auto}
 .agent-tile .toggle{cursor:pointer;font-size:0.75rem;color:#38bdf8;user-select:none}
@@ -79,7 +84,18 @@ h2{font-size:1rem;color:#94a3b8;margin-bottom:8px;text-transform:uppercase;lette
 .event-log{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px;max-height:300px;overflow-y:auto;font-family:'Menlo','Consolas',monospace;font-size:0.75rem}
 .event-log .entry{padding:2px 0;border-bottom:1px solid #0f172a}
 .event-log .ts{color:#64748b;margin-right:8px}
-.green{color:#22c55e}.yellow{color:#eab308}.red{color:#ef4444}`;
+.green{color:#22c55e}.yellow{color:#eab308}.red{color:#ef4444}
+.run-library{position:relative;margin-bottom:16px}
+.run-selector{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none}
+.run-selector:hover{border-color:#38bdf8}
+.live-dot{width:8px;height:8px;background:#22c55e;border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.dropdown-arrow{margin-left:auto;color:#64748b;font-size:0.8rem}
+.run-dropdown{position:absolute;top:100%;left:0;right:0;background:#1e293b;border:1px solid #334155;border-radius:0 0 8px 8px;max-height:400px;overflow-y:auto;z-index:20}
+.run-dropdown .run-item{padding:8px 16px;cursor:pointer;display:flex;justify-content:space-between;font-size:0.85rem;border-bottom:1px solid #0f172a}
+.run-dropdown .run-item:hover{background:#334155}
+.run-dropdown .run-item .stoplight-badge{font-size:0.75rem}
+.digest-view{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:16px;margin-bottom:24px;font-size:0.9rem;white-space:pre-wrap;display:none}`;
 }
 
 function renderHeaderHTML(safeRunid: string): string {
@@ -93,6 +109,17 @@ function renderHeaderHTML(safeRunid: string): string {
 </div>
 </div>
 <div class="container">`;
+}
+
+function renderRunLibraryHTML(safeRunid: string): string {
+  return `<div id="run-library" class="run-library">
+<div id="run-selector" class="run-selector" onclick="toggleRunDropdown()">
+<span class="live-dot"></span>
+<span id="run-selector-text">Current (live) &mdash; ${safeRunid}</span>
+<span class="dropdown-arrow">&#9660;</span>
+</div>
+<div id="run-dropdown" class="run-dropdown" style="display:none"></div>
+</div>`;
 }
 
 function renderAgentTilesHTML(): string {
@@ -130,16 +157,47 @@ function renderJS(): string {
 var totalIn=0,totalOut=0,totalCost=0;
 var agents={};
 var tasks={};
+var taskDescriptions={};
+var taskAgents={};
 var logPaused=false;
 var logEl=document.getElementById('event-log');
+var runDropdownOpen=false;
+var showingDigest=false;
 
 logEl.addEventListener('click',function(){logPaused=!logPaused;
 document.getElementById('log-pause-hint').textContent=logPaused?'(pausad)':'(klicka for att pausa auto-scroll)';});
 
+function fmtK(n){return n>=1000?(n/1000).toFixed(1)+'k':String(n);}
+
+function narrateEvent(event,data){
+var cap=function(n){return n?n.charAt(0).toUpperCase()+n.slice(1):'Unknown';};
+switch(event){
+case 'run:start':return '\\uD83D\\uDE80 K\\u00F6rning startad: '+(data.target||'ok\\u00E4nt')+' ('+(data.hours||'?')+' timme)';
+case 'run:end':return '\\uD83C\\uDFC1 K\\u00F6rning avslutad ('+(data.duration||'?')+'s)';
+case 'agent:start':return data.taskId?'\\uD83D\\uDC77 '+cap(data.agent)+' tar uppgift '+data.taskId:'\\uD83D\\uDCCB '+cap(data.agent)+' b\\u00F6rjar arbeta';
+case 'agent:end':return data.error?'\\u274C '+cap(data.agent)+' avslutad med fel: '+data.error:'\\u2705 '+cap(data.agent)+' klar';
+case 'agent:thinking':return '\\uD83E\\uDDE0 '+cap(data.agent)+' resonerar...';
+case 'task:status':
+if(data.status==='running')return '\\uD83D\\uDD04 Uppgift '+(data.taskId||'?')+' startar';
+if(data.status==='completed')return '\\u2705 Uppgift '+(data.taskId||'?')+' klar';
+if(data.status==='failed')return '\\u274C Uppgift '+(data.taskId||'?')+' misslyckades';
+return '\\uD83D\\uDCCC Uppgift '+(data.taskId||'?')+': '+(data.status||'pending');
+case 'stoplight':
+if(data.status==='GREEN')return '\\uD83D\\uDFE2 STOPLIGHT: GREEN \\u2014 k\\u00F6rningen godk\\u00E4nd';
+if(data.status==='YELLOW')return '\\uD83D\\uDFE1 STOPLIGHT: YELLOW \\u2014 delvis godk\\u00E4nd';
+if(data.status==='RED')return '\\uD83D\\uDD34 STOPLIGHT: RED \\u2014 underk\\u00E4nd';
+return '\\uD83D\\uDEA6 STOPLIGHT: '+(data.status||'UNKNOWN');
+case 'audit':
+if(data.allowed===false)return '\\uD83D\\uDEAB Policy blockerade: '+(data.reason||data.policy_event||'ok\\u00E4nd');
+if(data.tool&&String(data.tool).startsWith('delegate_to_'))return '\\uD83D\\uDCE4 '+cap(data.role)+'\\u2192'+cap(String(data.tool).slice(12))+': delegering';
+return null;
+default:return null;}}
+
 function addLogEntry(event,data,ts){
+var text=narrateEvent(event,data);
+if(text===null)return;
 var d=document.createElement('div');d.className='entry';
-var short=JSON.stringify(data);if(short.length>120)short=short.substring(0,120)+'...';
-d.innerHTML='<span class="ts">'+ts.substring(11,19)+'</span><b>'+esc(event)+'</b> '+esc(short);
+d.innerHTML='<span class="ts">'+ts.substring(11,19)+'</span>'+esc(text);
 logEl.appendChild(d);
 while(logEl.children.length>50)logEl.removeChild(logEl.firstChild);
 if(!logPaused)logEl.scrollTop=logEl.scrollHeight;}
@@ -152,6 +210,7 @@ var t=document.createElement('div');t.className='agent-tile aktiv';
 t.innerHTML='<div class="name">'+esc(name)+'</div>'
 +'<div class="status"><span class="status-dot green">\\u25CF</span> aktiv</div>'
 +'<div class="task-info"></div>'
++'<div class="agent-stats"><span class="agent-iter"></span> <span class="agent-tokens"></span></div>'
 +'<div class="toggle">\\u25B6 Resonemang</div>'
 +'<div class="reasoning"></div>'
 +'<div class="thinking-toggle">\\u25B6 Thinking</div>'
@@ -166,24 +225,26 @@ document.getElementById('agent-tiles').appendChild(t);
 agents[name]={el:t,lines:[]};
 return agents[name];}
 
-function updateTask(taskId,status){
-var icon='\\u23F3';
-if(status==='completed')icon='\\u2705';
-else if(status==='running')icon='\\uD83D\\uDD04';
-else if(status==='failed')icon='\\u274C';
+function updateTask(taskId,status,description,agent){
 tasks[taskId]=status;
+if(description)taskDescriptions[taskId]=description;
+if(agent)taskAgents[taskId]=agent;
 renderTasks();}
 
 function renderTasks(){
 var el=document.getElementById('task-list');el.innerHTML='';
 var ids=Object.keys(tasks);
-if(ids.length===0){el.innerHTML='<div class="task-item" style="color:#64748b">Vantar pa uppgifter...</div>';return;}
+if(ids.length===0){el.innerHTML='<div class="task-item" style="color:#64748b">V\\u00E4ntar p\\u00E5 uppgifter\\u2026</div>';return;}
 for(var i=0;i<ids.length;i++){
 var s=tasks[ids[i]];
 var icon='\\u23F3';
 if(s==='completed')icon='\\u2705';else if(s==='running')icon='\\uD83D\\uDD04';else if(s==='failed')icon='\\u274C';
 var d=document.createElement('div');d.className='task-item';
-d.textContent=icon+' '+ids[i]+' — '+s;el.appendChild(d);}}
+var line=icon+' '+ids[i]+' \\u2014 '+s;
+if(taskDescriptions[ids[i]])line+=' \\u2014 '+taskDescriptions[ids[i]];
+if(taskAgents[ids[i]]&&s==='running')line+=' (\\uD83D\\uDC77 '+taskAgents[ids[i]]+')';
+d.textContent=line;
+el.appendChild(d);}}
 
 function handleEvent(event,data,ts){
 addLogEntry(event,data,ts);
@@ -192,8 +253,11 @@ document.querySelector('.header h1').innerHTML='NEURON HQ &mdash; K\\u00F6rning 
 else if(event==='agent:start'){
 var tile=getOrCreateTile(data.agent||'unknown');
 tile.el.className='agent-tile aktiv';
-tile.el.querySelector('.status').innerHTML='<span class="green">\\u25CF</span> aktiv';
-if(data.taskId)tile.el.querySelector('.task-info').textContent='Task: '+data.taskId;}
+var statusText='aktiv';
+if(data.taskId)statusText='Arbetar med '+data.taskId;
+if(data.task)statusText+=': '+data.task;
+tile.el.querySelector('.status').innerHTML='<span class="green">\\u25CF</span> '+esc(statusText);
+if(data.taskId){tile.el.querySelector('.task-info').textContent='Task: '+data.taskId;taskAgents[data.taskId]=data.agent;}}
 else if(event==='agent:end'){
 var a=agents[data.agent];if(!a)return;
 a.el.className='agent-tile klar';
@@ -201,7 +265,7 @@ a.el.querySelector('.status').innerHTML='<span style="color:#64748b">\\u25CF</sp
 else if(event==='agent:text'){
 var a2=agents[data.agent];if(!a2)a2=getOrCreateTile(data.agent||'unknown');
 a2.lines.push(data.text||'');
-if(a2.lines.length>30)a2.lines=a2.lines.slice(-30);
+if(a2.lines.length>10)a2.lines=a2.lines.slice(-10);
 var rEl=a2.el.querySelector('.reasoning');
 rEl.textContent=a2.lines.join('\\n');
 rEl.scrollTop=rEl.scrollHeight;}
@@ -217,7 +281,7 @@ tcEl.textContent=display;
 tcEl.scrollTop=tcEl.scrollHeight;
 at.el.querySelector('.thinking-toggle').style.display='block';}
 else if(event==='task:status'){
-updateTask(data.taskId||'?',data.status||'pending');}
+updateTask(data.taskId||'?',data.status||'pending',data.description,data.agent);}
 else if(event==='stoplight'){
 var sl=document.getElementById('stoplight');
 var color={'GREEN':'#22c55e','YELLOW':'#eab308','RED':'#ef4444'}[data.status]||'#334155';
@@ -226,17 +290,77 @@ sl.style.backgroundColor=color;
 sl.style.color='#0f172a';
 setTimeout(function(){sl.style.backgroundColor='#1e293b';sl.style.color='#e2e8f0';},2000);}
 else if(event==='tokens'){
+var at2=agents[data.agent];
+if(at2){
+if(!at2.tokIn)at2.tokIn=0;if(!at2.tokOut)at2.tokOut=0;
+at2.tokIn+=(data.input||0);at2.tokOut+=(data.output||0);
+at2.el.querySelector('.agent-tokens').textContent=fmtK(at2.tokIn)+' in/'+fmtK(at2.tokOut)+' ut';}
 totalIn+=(data.input||0);totalOut+=(data.output||0);
-document.getElementById('tokens').textContent='\\uD83D\\uDCCA in:'+totalIn+' out:'+totalOut;}
+totalCost=(totalIn*3.0+totalOut*15.0)/1000000;
+document.getElementById('tokens').textContent='\\uD83D\\uDCCA in:'+fmtK(totalIn)+' out:'+fmtK(totalOut);
+document.getElementById('cost').textContent='\\uD83D\\uDCB0 $'+totalCost.toFixed(2);}
 else if(event==='time'){
 var e=data.elapsed||0,r=data.remaining||0;
-var em=Math.floor(e/60),es2=Math.floor(e%60);
-var tm=Math.floor((e+r)/60),ts2=Math.floor((e+r)%60);
-document.getElementById('timer').textContent='\\u23F1 '
-+String(em).padStart(2,'0')+':'+String(es2).padStart(2,'0')+' / '
-+String(tm).padStart(2,'0')+':'+String(ts2).padStart(2,'0');}
+var em=Math.floor(e/60),es2=String(Math.floor(e%60)).padStart(2,'0');
+var tm=Math.floor((e+r)/60),ts2=String(Math.floor((e+r)%60)).padStart(2,'0');
+document.getElementById('timer').textContent='\\u23F1 '+String(em).padStart(2,'0')+':'+es2+' / '+String(tm).padStart(2,'0')+':'+ts2;}
 else if(event==='iteration'){
+var ai=agents[data.agent];
+if(ai){ai.el.querySelector('.agent-iter').textContent='Iter '+(data.current||0)+'/'+(data.max||0);}
 document.getElementById('iterations').textContent='\\uD83D\\uDD04 '+(data.current||0)+'/'+(data.max||0);}}
+
+function toggleRunDropdown(){
+runDropdownOpen=!runDropdownOpen;
+var dd=document.getElementById('run-dropdown');
+dd.style.display=runDropdownOpen?'block':'none';
+if(runDropdownOpen)loadRuns();}
+
+function loadRuns(){
+fetch('/runs').then(function(r){return r.json();}).then(function(runs){
+var dd=document.getElementById('run-dropdown');
+dd.innerHTML='';
+var liveItem=document.createElement('div');liveItem.className='run-item';
+liveItem.innerHTML='<span><span class="live-dot" style="display:inline-block;width:6px;height:6px;margin-right:4px"></span>Current (live)</span>';
+liveItem.onclick=function(){showLive();};
+dd.appendChild(liveItem);
+for(var i=0;i<runs.length;i++){
+(function(run){
+var item=document.createElement('div');item.className='run-item';
+var sl={'GREEN':'\\uD83D\\uDFE2','YELLOW':'\\uD83D\\uDFE1','RED':'\\uD83D\\uDD34'}[run.stoplight]||'\\u2796';
+item.innerHTML='<span>'+sl+' '+esc(run.runid)+' \\u2014 '+esc(run.briefTitle).substring(0,40)+'</span><span class="stoplight-badge">'+run.durationMin+'min | $'+run.costUsd+'</span>';
+item.onclick=function(){loadDigest(run.runid,run.briefTitle);};
+dd.appendChild(item);
+})(runs[i]);}
+}).catch(function(){});}
+
+function loadDigest(runid,title){
+fetch('/digest/'+runid).then(function(r){
+if(!r.ok)throw new Error('not found');
+return r.text();
+}).then(function(md){
+showingDigest=true;
+var dv=document.getElementById('digest-view');
+dv.style.display='block';
+dv.textContent=md;
+document.getElementById('live-content').style.display='none';
+document.getElementById('run-selector-text').textContent=runid+' \\u2014 '+title;
+document.querySelector('.live-dot').style.animation='none';
+document.querySelector('.live-dot').style.background='#64748b';
+runDropdownOpen=false;
+document.getElementById('run-dropdown').style.display='none';
+}).catch(function(){alert('Ingen digest tillg\\u00E4nglig f\\u00F6r denna k\\u00F6rning');});}
+
+function showLive(){
+showingDigest=false;
+document.getElementById('digest-view').style.display='none';
+document.getElementById('live-content').style.display='block';
+document.getElementById('run-selector-text').textContent='Current (live)';
+document.querySelector('.live-dot').style.animation='pulse 2s infinite';
+document.querySelector('.live-dot').style.background='#22c55e';
+runDropdownOpen=false;
+document.getElementById('run-dropdown').style.display='none';}
+
+window.toggleRunDropdown=toggleRunDropdown;
 
 var es=new EventSource('/events');
 var reconnected=false;

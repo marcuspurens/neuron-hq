@@ -244,7 +244,7 @@ export class RunOrchestrator {
     // Start live dashboard (non-fatal — dashboard issues must never affect the run)
     let dashboardServer: DashboardServer | null = null;
     try {
-      dashboardServer = startDashboardServer(runid);
+      dashboardServer = startDashboardServer(runid, undefined, runsDir);
     } catch {
       // Dashboard startup failure is non-fatal
     }
@@ -345,6 +345,14 @@ export class RunOrchestrator {
       await computeAllTaskScores(ctx.runDir);
     } catch {
       // Non-fatal — task scores are informational
+    }
+
+    // Generate run digest
+    try {
+      const { generateDigest } = await import('./run-digest.js');
+      await generateDigest(ctx.runDir);
+    } catch {
+      // Non-fatal: digest generation failure should not break finalization
     }
 
     // Collect run outcomes and update beliefs
