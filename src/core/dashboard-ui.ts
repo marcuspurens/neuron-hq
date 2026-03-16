@@ -35,6 +35,7 @@ ${renderCSS()}
 </head>
 <body>
 <div id="reconnect-banner" class="reconnect-banner">&Aring;teransluten &mdash; visar historik</div>
+<div id="warning-banner" class="warning-banner"></div>
 ${renderHeaderHTML(safeRunid)}
 ${renderRunLibraryHTML(safeRunid)}
 <div id="digest-view" class="digest-view"></div>
@@ -78,6 +79,8 @@ h2{font-size:1rem;color:#94a3b8;margin-bottom:8px;text-transform:uppercase;lette
 .agent-tile .thinking-content.open{max-height:200px;overflow-y:auto;padding:8px}
 .reconnect-banner{position:fixed;top:0;left:0;right:0;background:#7c3aed;color:white;text-align:center;padding:8px;font-size:0.85rem;z-index:100;transition:opacity 0.5s;opacity:0;pointer-events:none}
 .reconnect-banner.visible{opacity:1}
+.warning-banner{position:fixed;top:0;left:0;right:0;background:#f59e0b;color:#0f172a;text-align:center;padding:12px 20px;font-size:0.9rem;font-weight:600;z-index:101;display:none;box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+.warning-banner.visible{display:block}
 .task-list{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:24px}
 .task-list .task-item{padding:4px 0;font-size:0.85rem;border-bottom:1px solid #1e293b}
 .stoplight-section{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:24px;text-align:center;font-size:1.1rem;font-weight:600;transition:background-color 0.5s}
@@ -273,6 +276,7 @@ if(t==='copy_to_target')return '\\uD83D\\uDCC1 '+ag+' kopierar fil till target-r
 if(t==='adaptive_hints'){var w=data.warnings||0;var s=data.strengths||0;return '\\uD83D\\uDCA1 '+ag+' f\\u00E5r '+w+' varningar, '+s+' styrkor';}
 if(t==='agent_message'){var msg2=data.note||'';return '\\uD83D\\uDCAC '+ag+': \"'+(msg2.length>60?msg2.substring(0,57)+'...':msg2)+'\"';}
 return null;
+case 'warning':return '\\u26A0\\uFE0F VARNING: '+(data.message||'Ok\\u00E4nd varning');
 default:return null;}}
 
 function getCategory(event,data){
@@ -545,6 +549,10 @@ sl.textContent='STOPLIGHT: '+esc(data.status||'---');
 sl.style.backgroundColor=color;
 sl.style.color='#0f172a';
 setTimeout(function(){sl.style.backgroundColor='#1e293b';sl.style.color='#e2e8f0';},2000);}
+else if(event==='warning'){
+var wb=document.getElementById('warning-banner');
+wb.textContent='\u26A0\uFE0F '+esc(data.message||'Varning fr\u00E5n agent');
+wb.classList.add('visible');}
 else if(event==='tokens'){
 var at2=agents[data.agent];
 if(at2){

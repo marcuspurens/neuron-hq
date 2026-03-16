@@ -26,6 +26,13 @@ export interface EventMap {
     agent: string;
     decision: import('./decision-extractor.js').Decision;
   };
+  'warning': {
+    runid: string;
+    type: 'max_iterations' | 'merge_failed' | 'test_timeout';
+    message: string;
+    agent: string;
+    recoveryPath?: string;
+  };
 }
 
 /** Single history entry stored in the circular buffer. */

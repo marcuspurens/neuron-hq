@@ -36,6 +36,7 @@ export interface RunContext {
   agentModelMap?: AgentModelMap;
   defaultModelOverride?: string;  // CLI --model override
   dashboardServer?: DashboardServer | null;
+  maxIterationsReached?: boolean;
 }
 
 /** Directories to skip when copying a target repo to workspace. */
@@ -450,6 +451,21 @@ export class RunOrchestrator {
       ctx.dashboardServer?.close();
     } catch {
       // Non-fatal
+    }
+
+
+    // Check if workspace should be preserved (emergency save occurred)
+    try {
+      const preservedPath = path.join(ctx.workspaceDir, '.preserved');
+      const preservedExists = await fs.access(preservedPath).then(() => true).catch(() => false);
+      if (preservedExists || ctx.maxIterationsReached) {
+        console.warn(`\u26a0\ufe0f Workspace preserved: ${ctx.workspaceDir} (emergency save or max iterations)`);
+        // Write a note about preservation in the run dir
+        const preserveNote = `Workspace preserved at: ${ctx.workspaceDir}\nReason: ${ctx.maxIterationsReached ? 'Max iterations reached' : 'Emergency save detected'}\n`;
+        await fs.appendFile(path.join(ctx.runDir, 'WARNING.md'), `\n---\n\n## Workspace Bevarad\n\n${preserveNote}`, 'utf-8').catch(() => {});
+      }
+    } catch {
+      // Non-fatal — workspace preservation check should not break finalization
     }
 
     eventBus.safeEmit('run:end', {

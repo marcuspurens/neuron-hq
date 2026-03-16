@@ -8,6 +8,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
+import { emergencySave } from '../emergency-save.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -222,6 +223,15 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
 
     if (iteration >= this.maxIterations) {
       console.log('Implementer: max iterations reached.');
+      await emergencySave({
+        agentName: 'implementer',
+        iteration,
+        maxIterations: this.maxIterations,
+        workspaceDir: this.ctx.workspaceDir,
+        runDir: this.ctx.runDir,
+        runid: this.ctx.runid,
+        audit: this.ctx.audit,
+      });
     }
     this.ctx.usage.recordIterations('implementer', iteration, this.maxIterations);
   }

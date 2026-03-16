@@ -8,6 +8,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
+import { emergencySave } from '../emergency-save.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -211,6 +212,15 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
 
     if (iteration >= this.maxIterations) {
       console.log('Merger: max iterations reached.');
+      await emergencySave({
+        agentName: 'merger',
+        iteration,
+        maxIterations: this.maxIterations,
+        workspaceDir: this.ctx.workspaceDir,
+        runDir: this.ctx.runDir,
+        runid: this.ctx.runid,
+        audit: this.ctx.audit,
+      });
     }
 
     this.ctx.usage.recordIterations('merger', iteration, this.maxIterations);

@@ -32,6 +32,7 @@ import { generateAdaptiveHints } from './adaptive-hints.js';
 import { getBeliefs, classifyBrief } from '../run-statistics.js';
 import { eventBus } from '../event-bus.js';
 import { extractThinking } from '../thinking-extractor.js';
+import { emergencySave } from '../emergency-save.js';
 
 
 /**
@@ -380,6 +381,16 @@ Stop when time limit approaches or when blockers are encountered.
 
     if (iteration >= this.maxIterations) {
       console.log('Max iterations reached.');
+      // Emergency save: preserve uncommitted work
+      await emergencySave({
+        agentName: 'manager',
+        iteration,
+        maxIterations: this.maxIterations,
+        workspaceDir: this.ctx.workspaceDir,
+        runDir: this.ctx.runDir,
+        runid: this.ctx.runid,
+        audit: this.ctx.audit,
+      });
     }
     this.ctx.usage.recordIterations('manager', iteration, this.maxIterations);
   }
