@@ -221,6 +221,26 @@ export function startDashboardServer(
         return;
       }
 
+      // GET /brief/:runid — fetch brief content for a specific run
+      if (req.method === 'GET' && url.startsWith('/brief/')) {
+        const briefRunid = decodeURIComponent(url.slice('/brief/'.length));
+        if (!runsDir) {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('No runs directory configured');
+          return;
+        }
+        const briefPath = path.join(runsDir, briefRunid, 'brief.md');
+        try {
+          const content = await fsp.readFile(briefPath, 'utf-8');
+          res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+          res.end(content);
+        } catch {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Brief not found');
+        }
+        return;
+      }
+
       // GET /digest/:runid — fetch digest content for a specific run
       if (req.method === 'GET' && url.startsWith('/digest/')) {
         const reqRunid = url.slice('/digest/'.length);

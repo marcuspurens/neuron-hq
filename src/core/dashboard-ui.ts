@@ -37,6 +37,7 @@ ${renderCSS()}
 <div id="reconnect-banner" class="reconnect-banner">&Aring;teransluten &mdash; visar historik</div>
 <div id="warning-banner" class="warning-banner"></div>
 ${renderHeaderHTML(safeRunid)}
+${renderBriefPanelHTML()}
 ${renderRunLibraryHTML(safeRunid)}
 <div id="digest-view" class="digest-view"></div>
 <div id="live-content">
@@ -132,7 +133,13 @@ h2{font-size:1rem;color:#94a3b8;margin-bottom:8px;text-transform:uppercase;lette
 .event-log[data-filter="handlingar"] .log-entry:not([data-category="handling"]),.event-log[data-filter="handlingar"] .log-detail:not([data-category="handling"]),.event-log[data-filter="handlingar"] .log-group:not([data-category="handling"]),.event-log[data-filter="handlingar"] .decision-detail:not([data-category="handling"]),.event-log[data-filter="handlingar"] .agent-dialog:not([data-category="handling"]){display:none}
 .event-log[data-filter="filer"] .log-entry:not([data-category="fil"]),.event-log[data-filter="filer"] .log-detail:not([data-category="fil"]),.event-log[data-filter="filer"] .log-group:not([data-category="fil"]),.event-log[data-filter="filer"] .decision-detail:not([data-category="fil"]),.event-log[data-filter="filer"] .agent-dialog:not([data-category="fil"]){display:none}
 .event-log[data-filter="tester"] .log-entry:not([data-category="test"]),.event-log[data-filter="tester"] .log-detail:not([data-category="test"]),.event-log[data-filter="tester"] .log-group:not([data-category="test"]),.event-log[data-filter="tester"] .decision-detail:not([data-category="test"]),.event-log[data-filter="tester"] .agent-dialog:not([data-category="test"]){display:none}
-.event-log[data-filter="beslut"] .log-entry:not([data-category="beslut"]),.event-log[data-filter="beslut"] .log-detail:not([data-category="beslut"]),.event-log[data-filter="beslut"] .decision-detail:not([data-category="beslut"]),.event-log[data-filter="beslut"] .agent-dialog:not([data-category="beslut"]){display:none}`;
+.event-log[data-filter="beslut"] .log-entry:not([data-category="beslut"]),.event-log[data-filter="beslut"] .log-detail:not([data-category="beslut"]),.event-log[data-filter="beslut"] .decision-detail:not([data-category="beslut"]),.event-log[data-filter="beslut"] .agent-dialog:not([data-category="beslut"]){display:none}
+.brief-panel{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:16px;margin-bottom:16px;cursor:pointer}
+.brief-panel h3{color:#38bdf8;margin-bottom:8px;font-size:1rem}
+.brief-panel .brief-summary{color:#94a3b8;font-size:0.9rem}
+.brief-panel .brief-full{display:none;color:#cbd5e1;font-size:0.85rem;margin-top:12px;white-space:pre-wrap;max-height:400px;overflow-y:auto;border-top:1px solid #334155;padding-top:12px}
+.brief-panel .brief-toggle{color:#38bdf8;font-size:0.8rem;margin-top:8px}
+.brief-panel.expanded .brief-full{display:block}`;
 }
 
 function renderHeaderHTML(safeRunid: string): string {
@@ -144,11 +151,22 @@ function renderHeaderHTML(safeRunid: string): string {
 <span id="tokens">\uD83D\uDCCA 0 in \u00B7 0 ut</span>
 <span id="cost">\uD83D\uDCB0 $0.00</span>
 <span id="latency">\u26A1 \u2014 tok/s</span>
+<span id="eta"></span>
 </div>
 <button id="explanation-toggle" class="explanation-toggle" onclick="toggleExplanation()">F\u00F6renklat l\u00E4ge \u2713</button>
 </div>
 <div class="container">`;
 }
+
+function renderBriefPanelHTML(): string {
+  return `<div id="brief-panel" class="brief-panel" style="display:none" onclick="toggleBrief()">
+<h3 id="brief-title"></h3>
+<div id="brief-summary" class="brief-summary"></div>
+<div id="brief-full" class="brief-full"></div>
+<div class="brief-toggle" id="brief-toggle">&#9660; Visa hela briefen</div>
+</div>`;
+}
+
 
 function renderRunLibraryHTML(safeRunid: string): string {
   return `<div id="run-library" class="run-library">
@@ -200,6 +218,7 @@ function renderEventLogHTML(): string {
 
 function renderJS(): string {
   return `(function(){
+var PRICE_IN=3.0,PRICE_OUT=15.0;
 var totalIn=0,totalOut=0,totalCost=0;
 var agents={};
 var tasks={};
@@ -207,6 +226,8 @@ var taskDescriptions={};
 var taskAgents={};
 var taskWaves={};
 var taskStartTimes={};
+var taskDurations={};
+var etaText='';
 var logPaused=false;
 var logEl=document.getElementById('event-log');
 var runDropdownOpen=false;
@@ -489,6 +510,12 @@ addLogEntry(event,data,ts);
 if(event==='run:start'){
 timerRunning=true;
 document.querySelector('.header h1').innerHTML='NEURON HQ &mdash; K\\u00F6rning '+esc(data.runid||'');}
+else if(event==='brief'){
+var bp=document.getElementById('brief-panel');
+bp.style.display='block';
+document.getElementById('brief-title').textContent=esc(data.title||'Brief');
+document.getElementById('brief-summary').textContent=esc(data.summary||'');
+document.getElementById('brief-full').textContent=data.fullContent||'';}
 else if(event==='agent:start'){
 var tile=getOrCreateTile(data.agent||'unknown');
 tile.el.className='agent-tile aktiv';
@@ -554,6 +581,9 @@ updateTask(data.taskId||'?',data.status||'pending',data.description,data.agent);
 if(data.status==='running' && !taskStartTimes[data.taskId]){
   taskStartTimes[data.taskId]=Date.now();
 }
+if(data.status==='completed' && taskStartTimes[data.taskId]){
+  taskDurations[data.taskId]=(Date.now()-taskStartTimes[data.taskId])/1000;
+}
 var completed=0,total=Object.keys(tasks).length;
 for(var k in tasks){if(tasks[k]==='completed')completed++;}
 document.getElementById('task-count').textContent='\\uD83D\\uDCCB '+completed+'/'+total+' uppgifter';}
@@ -573,9 +603,11 @@ var at2=agents[data.agent];
 if(at2){
 if(!at2.tokIn)at2.tokIn=0;if(!at2.tokOut)at2.tokOut=0;
 at2.tokIn+=(data.input||0);at2.tokOut+=(data.output||0);
-at2.el.querySelector('.agent-tokens').textContent=fmtK(at2.tokIn)+' in \u00B7 '+fmtK(at2.tokOut)+' ut';}
+if(!at2.cost)at2.cost=0;
+at2.cost=(at2.tokIn*PRICE_IN+at2.tokOut*PRICE_OUT)/1000000;
+at2.el.querySelector('.agent-tokens').textContent=fmtK(at2.tokIn)+' in \u00B7 '+fmtK(at2.tokOut)+' ut \u00B7 $'+at2.cost.toFixed(2);}
 totalIn+=(data.input||0);totalOut+=(data.output||0);
-totalCost=(totalIn*3.0+totalOut*15.0)/1000000;
+totalCost=(totalIn*PRICE_IN+totalOut*PRICE_OUT)/1000000;
 document.getElementById('tokens').textContent='\\uD83D\\uDCCA '+fmtK(totalIn)+' in \\u00B7 '+fmtK(totalOut)+' ut';
 var now=Date.now();
 if(lastTokenTime>0){
@@ -675,7 +707,33 @@ function toggleExplanation(){
 }
 window.toggleExplanation=toggleExplanation;
 
+function toggleBrief(){
+  var bp=document.getElementById('brief-panel');
+  bp.classList.toggle('expanded');
+  document.getElementById('brief-toggle').innerHTML=bp.classList.contains('expanded')?'&#9650; D\u00F6lj briefen':'&#9660; Visa hela briefen';
+}
+window.toggleBrief=toggleBrief;
+
 window.toggleRunDropdown=toggleRunDropdown;
+
+function updateETA(){
+  var durs=[];
+  for(var k in taskDurations)durs.push(taskDurations[k]);
+  var completed=0,total=Object.keys(tasks).length;
+  for(var k2 in tasks){if(tasks[k2]==='completed')completed++;}
+  var remaining=total-completed;
+  var etaEl=document.getElementById('eta');
+  if(!etaEl)return;
+  if(completed>=total && total>0){etaEl.textContent='\uD83C\uDFC1 Klar!';return;}
+  if(durs.length<3){etaEl.textContent='';return;}
+  durs.sort(function(a,b){return a-b;});
+  var mid=Math.floor(durs.length/2);
+  var median=durs.length%2===0?(durs[mid-1]+durs[mid])/2:durs[mid];
+  var etaSec=median*remaining;
+  var etaMin=Math.round(etaSec/60);
+  etaEl.textContent='\uD83C\uDFC1 ~'+etaMin+' min kvar';
+}
+setInterval(updateETA,10000);
 
 var es=new EventSource('/events');
 var reconnected=false;

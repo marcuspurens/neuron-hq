@@ -326,3 +326,57 @@ describe('task:plan event', () => {
     expect(received[0].agent).toBe('implementer');
   });
 });
+
+// =====================================================
+// 9. brief event type tests
+// =====================================================
+describe('brief event', () => {
+  it('emits brief with all required fields', () => {
+    const received: EventMap['brief'][] = [];
+    eventBus.on('brief', (d: EventMap['brief']) => received.push(d));
+
+    eventBus.safeEmit('brief', {
+      runid: 'r1',
+      title: 'My Task Brief',
+      summary: 'This is the summary of the brief.',
+      fullContent: '# My Task Brief\n\nThis is the summary of the brief.\n\n## Details\n\nMore info here.',
+    });
+
+    expect(received).toHaveLength(1);
+    expect(received[0].runid).toBe('r1');
+    expect(received[0].title).toBe('My Task Brief');
+    expect(received[0].summary).toBe('This is the summary of the brief.');
+    expect(received[0].fullContent).toContain('# My Task Brief');
+  });
+
+  it('records brief event in history', () => {
+    eventBus.safeEmit('brief', {
+      runid: 'r1',
+      title: 'Test Brief',
+      summary: 'Summary text',
+      fullContent: '# Test Brief\n\nSummary text',
+    });
+
+    expect(eventBus.history).toHaveLength(1);
+    expect(eventBus.history[0].event).toBe('brief');
+    const data = eventBus.history[0].data as EventMap['brief'];
+    expect(data.title).toBe('Test Brief');
+  });
+
+  it('increments event counter for brief', () => {
+    eventBus.safeEmit('brief', {
+      runid: 'r1',
+      title: 'B1',
+      summary: 'S1',
+      fullContent: 'C1',
+    });
+    eventBus.safeEmit('brief', {
+      runid: 'r2',
+      title: 'B2',
+      summary: 'S2',
+      fullContent: 'C2',
+    });
+
+    expect(eventBus.eventCounts.get('brief')).toBe(2);
+  });
+});

@@ -39,6 +39,12 @@ export interface EventMap {
     agent: string;
     recoveryPath?: string;
   };
+  'brief': {
+    runid: string;
+    title: string;
+    summary: string;
+    fullContent: string;
+  };
 }
 
 /** Single history entry stored in the circular buffer. */

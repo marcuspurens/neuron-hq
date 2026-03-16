@@ -283,6 +283,58 @@ describe('GET /digest/:runid', () => {
 });
 
 // =====================================================
+// GET /brief/:runid
+// =====================================================
+describe('GET /brief/:runid', () => {
+  it('returns 404 when runsDir is not provided', async () => {
+    const port = getPort();
+    server = await startAndWait('test-run', port);
+    const { status, body } = await httpGet('/brief/some-run', port);
+    expect(status).toBe(404);
+    expect(body).toBe('No runs directory configured');
+  });
+
+  it('returns 404 when brief does not exist', async () => {
+    const runsDir = await makeTmpDir();
+    await fsp.mkdir(path.join(runsDir, 'some-run'));
+    const port = getPort();
+    server = await startAndWait('test-run', port, runsDir);
+    const { status, body } = await httpGet('/brief/some-run', port);
+    expect(status).toBe(404);
+    expect(body).toBe('Brief not found');
+  });
+
+  it('returns brief content when it exists', async () => {
+    const runsDir = await makeTmpDir();
+    const runName = '20260315-1700-brief-test';
+    await fsp.mkdir(path.join(runsDir, runName));
+    const briefContent = '# My Brief\n\n## Goal\nDo something useful.';
+    await fsp.writeFile(path.join(runsDir, runName, 'brief.md'), briefContent);
+
+    const port = getPort();
+    server = await startAndWait('test-run', port, runsDir);
+    const { status, headers, body } = await httpGet(`/brief/${runName}`, port);
+    expect(status).toBe(200);
+    expect(headers['content-type']).toContain('text/plain');
+    expect(headers['access-control-allow-origin']).toBe('*');
+    expect(body).toBe(briefContent);
+  });
+
+  it('handles URL-encoded runid', async () => {
+    const runsDir = await makeTmpDir();
+    const runName = '20260315-1800-brief-special';
+    await fsp.mkdir(path.join(runsDir, runName));
+    await fsp.writeFile(path.join(runsDir, runName, 'brief.md'), '# Encoded Brief');
+
+    const port = getPort();
+    server = await startAndWait('test-run', port, runsDir);
+    const { status, body } = await httpGet(`/brief/${encodeURIComponent(runName)}`, port);
+    expect(status).toBe(200);
+    expect(body).toBe('# Encoded Brief');
+  });
+});
+
+// =====================================================
 // Backwards compatibility
 // =====================================================
 describe('Backwards compatibility', () => {

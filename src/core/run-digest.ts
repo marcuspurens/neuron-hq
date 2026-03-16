@@ -308,6 +308,37 @@ function parseTaskScores(scores: TaskScoreLine[]): TaskResult[] {
   }));
 }
 
+
+/**
+ * Build an ASCII confidence histogram from all decisions.
+ * Returns empty string if fewer than 3 decisions.
+ */
+export function buildConfidenceHistogram(decisions: Decision[]): string {
+  const total = decisions.length;
+  if (total < 3) return '';
+
+  let high = 0;
+  let medium = 0;
+  let low = 0;
+  for (const d of decisions) {
+    if (d.confidence === 'high') high++;
+    else if (d.confidence === 'medium') medium++;
+    else low++;
+  }
+
+  const bar = (count: number): string => '\u2588'.repeat(Math.round(count / total * 10));
+  const pct = (count: number): number => Math.round(count / total * 100);
+
+  const lines: string[] = [];
+  lines.push('## Beslutsf\u00F6rdelning');
+  lines.push('');
+  lines.push(`H\u00F6g    ${bar(high)} ${high} (${pct(high)}%)`);
+  lines.push(`Medel  ${bar(medium)} ${medium} (${pct(medium)}%)`);
+  lines.push(`L\u00E5g    ${bar(low)} ${low} (${pct(low)}%)`);
+  lines.push('');
+  return lines.join('\n');
+}
+
 /**
  * Build the Beslut (decisions) section of the digest markdown.
  */
@@ -321,6 +352,12 @@ function buildDecisionsSection(decisions: Decision[], fovSummary: string): strin
   lines.push('');
   lines.push('## Beslut');
   lines.push('');
+
+  // Insert confidence histogram (uses ALL decisions, not filtered)
+  const histogram = buildConfidenceHistogram(decisions);
+  if (histogram) {
+    lines.push(histogram);
+  }
 
   // Count totals per agent before filtering
   const totalByAgent = new Map<string, number>();

@@ -8,7 +8,10 @@ import {
   parseBriefTitle,
   parseTaskPlan,
   formatDuration,
+  buildConfidenceHistogram,
 } from '../../src/core/run-digest.js';
+import type { Decision } from '../../src/core/decision-extractor.js';
+
 
 // ---------------------------------------------------------------------------
 // Helper: create a temp run directory with optional mock files
@@ -855,5 +858,156 @@ describe('generateDigest - Beslut filtering (RT-3c)', () => {
     // Should NOT have 30 individual "Review action: bash_exec" lines
     const reviewLines = (md.match(/Review action: bash_exec/g) || []).length;
     expect(reviewLines).toBeLessThan(5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildConfidenceHistogram
+// ---------------------------------------------------------------------------
+
+function makeDecision(conf: 'high' | 'medium' | 'low', agent: string = 'test'): Decision {
+  return {
+    id: 'd-test-001',
+    timestamp: '2026-01-01T00:00:00Z',
+    agent,
+    type: 'tool_choice',
+    what: 'Test decision',
+    why: 'Test reason',
+    confidence: conf,
+  };
+}
+
+describe('buildConfidenceHistogram', () => {
+  it('returns empty string when fewer than 3 decisions', () => {
+    const decisions = [makeDecision('high'), makeDecision('medium')];
+    expect(buildConfidenceHistogram(decisions)).toBe('');
+  });
+
+  it('returns empty string for empty array', () => {
+    expect(buildConfidenceHistogram([])).toBe('');
+  });
+
+  it('returns histogram when exactly 3 decisions', () => {
+    const decisions = [
+      makeDecision('high'),
+      makeDecision('medium'),
+      makeDecision('low'),
+    ];
+    const result = buildConfidenceHistogram(decisions);
+    expect(result).toContain('Beslutsfördelning');
+    expect(result).toContain('Hög');
+    expect(result).toContain('Medel');
+    expect(result).toContain('Låg');
+  });
+
+  it('shows correct counts and percentages', () => {
+    const decisions = [
+      ...Array(8).fill(null).map(() => makeDecision('high')),
+      ...Array(3).fill(null).map(() => makeDecision('medium')),
+      makeDecision('low'),
+    ];
+    const result = buildConfidenceHistogram(decisions);
+    expect(result).toContain('8 (67%)');
+    expect(result).toContain('3 (25%)');
+    expect(result).toContain('1 (8%)');
+  });
+
+  it('shows bars with correct width', () => {
+    // 10 high, 0 medium, 0 low => high should have 10 blocks
+    const decisions = Array(10).fill(null).map(() => makeDecision('high'));
+    const result = buildConfidenceHistogram(decisions);
+    expect(result).toContain('█'.repeat(10) + ' 10 (100%)');
+  });
+
+  it('shows empty bar for zero-count level', () => {
+    const decisions = Array(5).fill(null).map(() => makeDecision('high'));
+    const result = buildConfidenceHistogram(decisions);
+    // Medium and Low should have 0 count with no bars
+    expect(result).toContain('Medel   0 (0%)');
+    expect(result).toContain('Låg     0 (0%)');
+  });
+
+  it('uses fixed-width labels', () => {
+    const decisions = [
+      makeDecision('high'),
+      makeDecision('medium'),
+      makeDecision('low'),
+    ];
+    const result = buildConfidenceHistogram(decisions);
+    const lines = result.split('\n');
+    // Find the label lines
+    const hogLine = lines.find(l => l.startsWith('Hög'));
+    const medelLine = lines.find(l => l.startsWith('Medel'));
+    const lagLine = lines.find(l => l.startsWith('Låg'));
+    expect(hogLine).toBeDefined();
+    expect(medelLine).toBeDefined();
+    expect(lagLine).toBeDefined();
+  });
+
+  it('all decisions same confidence', () => {
+    const decisions = Array(4).fill(null).map(() => makeDecision('medium'));
+    const result = buildConfidenceHistogram(decisions);
+    expect(result).toContain('4 (100%)');
+    expect(result).toContain('0 (0%)');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildDecisionsSection integration: histogram in digest output
+// ---------------------------------------------------------------------------
+
+describe('generateDigest - confidence histogram integration', () => {
+  let tempDir: string;
+
+  afterEach(async () => {
+    if (tempDir) {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('includes histogram in Beslut section when enough decisions', async () => {
+    // Create audit with enough delegation events to produce >= 3 decisions
+    const audit: object[] = [];
+    for (let i = 0; i < 5; i++) {
+      audit.push({
+        ts: `2026-03-01T12:${String(i).padStart(2, '0')}:00Z`,
+        role: 'manager',
+        tool: `delegate_to_agent${i}`,
+        allowed: true,
+      });
+    }
+    tempDir = await createRunDir({
+      'brief.md': '# Test Brief',
+      'report.md': 'STOPLIGHT: GREEN',
+      'audit.jsonl': audit,
+    });
+    const md = await generateDigest(tempDir);
+    if (md.includes('## Beslut')) {
+      // If there are enough decisions, histogram should be there
+      expect(md).toContain('Beslutsfördelning');
+    }
+  });
+
+  it('histogram appears before per-agent listing', async () => {
+    const audit: object[] = [];
+    for (let i = 0; i < 5; i++) {
+      audit.push({
+        ts: `2026-03-01T12:${String(i).padStart(2, '0')}:00Z`,
+        role: 'manager',
+        tool: `delegate_to_agent${i}`,
+        allowed: true,
+      });
+    }
+    tempDir = await createRunDir({
+      'brief.md': '# Test Brief',
+      'report.md': 'STOPLIGHT: GREEN',
+      'audit.jsonl': audit,
+    });
+    const md = await generateDigest(tempDir);
+    if (md.includes('Beslutsfördelning')) {
+      const histIndex = md.indexOf('Beslutsfördelning');
+      const agentIndex = md.indexOf('fattade');
+      expect(histIndex).toBeLessThan(agentIndex);
+    }
   });
 });

@@ -231,6 +231,20 @@ export class RunOrchestrator {
     processedBrief = maybeInjectConsolidationTrigger(processedBrief, runCount, consolidationFreq);
     await artifacts.writeBrief(processedBrief);
 
+    // Parse brief for event emission
+    const briefTitleMatch = processedBrief.match(/^# (.+)/m);
+    const briefTitle = briefTitleMatch ? briefTitleMatch[1].trim() : 'Brief';
+    const briefLines = processedBrief.split('\n');
+    const titleIdx = briefLines.findIndex((l) => /^# /.test(l));
+    const linesAfterTitle = briefLines.slice(titleIdx >= 0 ? titleIdx + 1 : 0);
+    // Skip leading blank lines after title, then collect until next blank line or heading
+    const firstNonEmpty = linesAfterTitle.findIndex((l) => l.trim() !== '');
+    const paraLines = linesAfterTitle.slice(firstNonEmpty >= 0 ? firstNonEmpty : 0);
+    const paraEnd = paraLines.findIndex((l, i) => i > 0 && (l.trim() === '' || /^#/.test(l)));
+    const summaryLines = paraEnd > 0 ? paraLines.slice(0, paraEnd) : paraLines;
+    const briefSummary = summaryLines.join(' ').trim().slice(0, 300) || processedBrief.slice(0, 300);
+    eventBus.safeEmit('brief', { runid, title: briefTitle, summary: briefSummary, fullContent: processedBrief });
+
     const endTime = new Date();
     endTime.setHours(endTime.getHours() + hours);
 
