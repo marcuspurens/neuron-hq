@@ -176,6 +176,53 @@ Enable all 10 scopes for unrestricted access. Or use `--scope all` on a single s
 
 ---
 
+## Skills — Cross-Server Workflows
+
+While MCP scopes organize tools by domain, **Skills** provide cross-server workflow orchestration. Skills are `.claude/skills/<name>/SKILL.md` files that give Claude step-by-step instructions for complex tasks that span multiple MCP servers.
+
+### What Are Skills?
+
+Skills are Anthropic's solution for multi-tool workflows. Each skill is a markdown file with:
+- **YAML frontmatter** — name and description for Claude to match against user intent
+- **Step-by-step instructions** — which tools to call, in what order, with what parameters
+- **Cross-server coordination** — a single skill can reference tools from multiple MCP scopes
+
+Skills are loaded on-demand by Claude when the user's request matches the skill's description.
+
+### Available Skills
+
+| Skill | Pattern | Scopes Used | Description |
+|-------|---------|-------------|-------------|
+| `researcha-amne` | Sequential + Multi-MCP | aurora-search, aurora-memory, aurora-insights, aurora-library | Djupforska ett ämne genom sökning, luckanalys och briefing |
+| `indexera-youtube` | Sequential | aurora-ingest-media, aurora-media, aurora-insights | Indexera YouTube-video och generera briefing |
+| `syntesartikel` | Sequential | aurora-insights, aurora-library | Skapa syntesartikel från befintlig kunskap |
+| `kvalitetsrapport` | Iterative Refinement | aurora-quality | Kvalitetsrapport med freshness, cross-ref och confidence |
+| `korningsoversikt` | Sequential | neuron-runs, neuron-analytics | Översikt av senaste körningar med kostnader och statistik |
+| `identifiera-talare` | Iterative Refinement | aurora-media | Interaktiv talaridentifiering med bekräftelse |
+| `kunskapscykel` | Multi-MCP + Domain-specific | aurora-search, aurora-memory, aurora-insights, aurora-library, aurora-quality | Full autonom kunskapscykel |
+| `indexera-och-lar` | Sequential | aurora-ingest-text, aurora-search, aurora-memory | Indexera URL och lär dig nyckelinsikter |
+
+### Anthropic Design Patterns
+
+Each skill follows one or more of Anthropic's 5 design patterns:
+
+1. **Sequential Workflow** — Fixed step order, data flows between steps
+2. **Multi-MCP Coordination** — Orchestrates tools across multiple servers
+3. **Iterative Refinement** — Validates, fixes, re-validates until quality is met
+4. **Context-aware Routing** — Routes execution based on input type
+5. **Domain-specific Intelligence** — Applies domain rules before tool execution
+
+### Adding a New Skill
+
+1. Create a directory: `.claude/skills/<skill-name>/`
+2. Create `SKILL.md` with YAML frontmatter (`name`, `description`) and markdown instructions
+3. Define steps referencing specific MCP tools
+4. Note which Anthropic pattern the skill follows
+5. List required MCP scopes
+6. Update this table above
+
+---
+
 ## Adding Tools to a Scope
 
 To add a new MCP tool:
