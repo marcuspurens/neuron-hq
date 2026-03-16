@@ -60,6 +60,9 @@ vi.mock('../../src/mcp/tools/aurora-ingest-book.js', () => ({
 vi.mock('../../src/mcp/tools/aurora-ocr-pdf.js', () => ({
   registerAuroraOcrPdfTool: vi.fn(),
 }));
+vi.mock('../../src/mcp/tools/aurora-describe-image.js', () => ({
+  registerAuroraDescribeImageTool: vi.fn(),
+}));
 vi.mock('../../src/mcp/tools/aurora-ebucore-metadata.js', () => ({
   registerAuroraEbucoreMetadataTool: vi.fn(),
 }));
