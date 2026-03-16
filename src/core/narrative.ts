@@ -25,6 +25,26 @@ function truncate(text: string, maxLen: number): string {
 }
 
 /**
+ * Strip everything up to and including '/neuron-hq/' from a filepath.
+ * E.g. '/Users/x/workspaces/123/neuron-hq/src/core/foo.ts' → 'src/core/foo.ts'.
+ * If no '/neuron-hq/' is found, returns the original path.
+ */
+export function stripWorkspacePath(filepath: string): string {
+  const marker = '/neuron-hq/';
+  const idx = filepath.lastIndexOf(marker);
+  if (idx === -1) return filepath;
+  return filepath.slice(idx + marker.length);
+}
+
+/** Structured audit narration with two detail levels. */
+export interface AuditNarration {
+  /** Always-visible summary line. */
+  level1: string;
+  /** Expanded detail key-value pairs. */
+  level2: Record<string, string>;
+}
+
+/**
  * Check if an event type should be displayed in the narrative event log.
  * Some events (tokens, time, iteration, agent:text) only update header/panels.
  */
@@ -129,20 +149,219 @@ function narrateStoplight(data: Record<string, unknown>): string {
 }
 
 /**
- * Translate audit events to Swedish. Only delegation and blocked events are log-worthy.
+ * Translate audit events to Swedish.
+ * Delegation and blocked events keep their existing behavior.
+ * All other audit tool types now get narrated via narrateAuditEvent().
  */
 function narrateAudit(data: Record<string, unknown>): string | null {
+  // Existing behavior: delegation events
   if (data.delegation || data.target) {
     const role = capitalize(data.role ?? data.agent);
     const target = capitalize(data.target);
     return `📤 ${role} → ${target}: delegering`;
   }
 
+  // Existing behavior: blocked events
   if (data.allowed === false) {
     return `🚫 Policy blockerade: ${data.reason ?? 'okänd anledning'}`;
   }
 
+  // New: try structured narration and return level1 summary
+  const narration = narrateAuditEvent(data);
+  if (narration) {
+    return narration.level1;
+  }
+
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers for narrateAuditEvent
+// ---------------------------------------------------------------------------
+
+/** Extract the agent display name from audit data. */
+function agentName(data: Record<string, unknown>): string {
+  return capitalize(data.role ?? data.agent);
+}
+
+/** Get the first file path from display_files or files_touched, stripped. */
+function firstFile(data: Record<string, unknown>): string {
+  const displayFiles = data.display_files;
+  if (Array.isArray(displayFiles) && displayFiles.length > 0) {
+    return String(displayFiles[0]);
+  }
+  const files = data.files_touched;
+  if (Array.isArray(files) && files.length > 0) {
+    return stripWorkspacePath(String(files[0]));
+  }
+  return 'okänd fil';
+}
+
+/** Get the bash command from display_command or note. */
+function bashCommand(data: Record<string, unknown>): string {
+  if (typeof data.display_command === 'string') return data.display_command;
+  if (typeof data.note === 'string') return data.note;
+  return 'okänt kommando';
+}
+
+/** Extract just the filename from a path. */
+function filename(path: string): string {
+  const parts = path.split('/');
+  return parts[parts.length - 1] || path;
+}
+
+/** Format diff stats as a string. */
+function formatDiffStats(data: Record<string, unknown>): string {
+  const stats = data.diff_stats as { additions?: number; deletions?: number } | undefined;
+  if (!stats) return 'inga ändringar';
+  const parts: string[] = [];
+  if (stats.additions) parts.push(`+${stats.additions}`);
+  if (stats.deletions) parts.push(`-${stats.deletions}`);
+  return parts.length > 0 ? parts.join(', ') : 'inga ändringar';
+}
+
+/** Format timestamp from audit data. */
+function formatTime(data: Record<string, unknown>): string {
+  if (typeof data.ts === 'string') {
+    // Extract HH:MM:SS from ISO timestamp
+    const match = data.ts.match(/T(\d{2}:\d{2}:\d{2})/);
+    if (match) return match[1];
+    return data.ts;
+  }
+  return 'okänd tid';
+}
+
+// ---------------------------------------------------------------------------
+// narrateAuditEvent — structured narration for all audit tool types
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate structured narration for an audit event.
+ * Returns AuditNarration with level1 (summary) and level2 (details), or null
+ * if the tool type is not recognized.
+ */
+export function narrateAuditEvent(data: Record<string, unknown>): AuditNarration | null {
+  const tool = typeof data.tool === 'string' ? data.tool : '';
+  const agent = agentName(data);
+
+  switch (tool) {
+    case 'read_file': {
+      const file = firstFile(data);
+      return {
+        level1: `📖 ${agent} läser ${filename(file)}`,
+        level2: { fil: file, agent, tid: formatTime(data) },
+      };
+    }
+
+    case 'write_file': {
+      const file = firstFile(data);
+      const stats = data.diff_stats as { additions?: number } | undefined;
+      const additions = stats?.additions ?? 0;
+      return {
+        level1: `✏️ ${agent} skriver ${filename(file)} (+${additions} rader)`,
+        level2: { fil: file, diff_stats: formatDiffStats(data), agent },
+      };
+    }
+
+    case 'bash_exec': {
+      const cmd = bashCommand(data);
+      const exitCode = typeof data.exit_code === 'number' ? String(data.exit_code) : 'okänd';
+      return {
+        level1: `⚡ ${agent} kör: ${truncate(cmd, 60)}`,
+        level2: { kommando: cmd, exit_code: exitCode, agent },
+      };
+    }
+
+    case 'graph_query': {
+      const query = typeof data.note === 'string' ? data.note : '';
+      const count = typeof data.count === 'number' ? String(data.count) : '0';
+      return {
+        level1: `🔍 ${agent} söker i kunskapsgrafen`,
+        level2: { sökfråga: query, antal: count },
+      };
+    }
+
+    case 'search_memory': {
+      const query = typeof data.note === 'string' ? data.note : '';
+      const count = typeof data.count === 'number' ? String(data.count) : '0';
+      return {
+        level1: `🧠 ${agent} söker minnet: "${truncate(query, 60)}"`,
+        level2: { sökterm: query, antal: count },
+      };
+    }
+
+    case 'write_task_plan': {
+      const note = typeof data.note === 'string' ? data.note : '';
+      const taskCount = typeof data.task_count === 'number'
+        ? data.task_count
+        : (note.match(/(\d+)/) ? Number(note.match(/(\d+)/)![1]) : 0);
+      return {
+        level1: `📋 ${agent} skapar plan med ${taskCount} uppgifter`,
+        level2: { uppgiftslista: note },
+      };
+    }
+
+    case 'delegate_parallel_wave': {
+      const waveNum = typeof data.wave === 'number' ? data.wave : '?';
+      const tasks = typeof data.note === 'string' ? data.note : '';
+      return {
+        level1: `🌊 ${agent} startar Wave ${waveNum}: ${truncate(tasks, 60)}`,
+        level2: { uppgiftsdetaljer: tasks },
+      };
+    }
+
+    case 'copy_to_target': {
+      const file = firstFile(data);
+      const dest = typeof data.destination === 'string'
+        ? stripWorkspacePath(data.destination)
+        : file;
+      return {
+        level1: `📁 ${agent} kopierar fil till target-repo`,
+        level2: { källsökväg: file, målsökväg: dest },
+      };
+    }
+
+    case 'adaptive_hints': {
+      const warnings = typeof data.warnings === 'number' ? data.warnings : 0;
+      const strengths = typeof data.strengths === 'number' ? data.strengths : 0;
+      const note = typeof data.note === 'string' ? data.note : '';
+      return {
+        level1: `💡 ${agent} får ${warnings} varningar, ${strengths} styrkor`,
+        level2: { lista: note },
+      };
+    }
+
+    case 'agent_message': {
+      const message = typeof data.note === 'string' ? data.note : '';
+      return {
+        level1: `💬 ${agent}: "${truncate(message, 60)}"`,
+        level2: { meddelande: message },
+      };
+    }
+
+    default: {
+      // Handle delegate_to_* pattern
+      if (tool.startsWith('delegate_to_')) {
+        const target = capitalize(tool.replace('delegate_to_', ''));
+        const desc = typeof data.note === 'string' ? data.note : '';
+        return {
+          level1: `📤 ${agent} → ${target}: "${truncate(desc, 60)}"`,
+          level2: { 'fullständig beskrivning': desc },
+        };
+      }
+
+      // Handle 'run' tool with phase === 'start'
+      if (tool === 'run' && data.phase === 'start') {
+        const desc = typeof data.note === 'string' ? data.note : '';
+        return {
+          level1: `🚀 ${agent} startar — "${truncate(desc, 60)}"`,
+          level2: { 'fullständig text': desc },
+        };
+      }
+
+      return null;
+    }
+  }
 }
 
 /**

@@ -34,6 +34,37 @@ export interface RunSummary {
 }
 
 /**
+ * Enrich an audit event with display-friendly fields.
+ *
+ * Creates a shallow copy — the original data object is never mutated.
+ * - `display_files`: workspace-prefix-stripped version of `files_touched`
+ * - `display_command`: cleaned bash command from `note`
+ */
+export function enrichAuditEvent(data: Record<string, unknown>): Record<string, unknown> {
+  const enriched = { ...data };
+
+  // Strip workspace prefix from files_touched → display_files
+  if (Array.isArray(enriched.files_touched)) {
+    enriched.display_files = (enriched.files_touched as string[]).map((f) => {
+      const wsIdx = f.indexOf('/neuron-hq/');
+      return wsIdx >= 0 ? f.slice(wsIdx + '/neuron-hq/'.length) : f;
+    });
+  }
+
+  // Clean bash command → display_command
+  if (enriched.tool === 'bash_exec' && typeof enriched.note === 'string') {
+    let cmd = (enriched.note as string).replace(/^Command:\s*/, '');
+    const andIdx = cmd.indexOf(' && ');
+    if (andIdx >= 0 && cmd.substring(0, andIdx).startsWith('cd ')) {
+      cmd = cmd.slice(andIdx + 4);
+    }
+    enriched.display_command = cmd;
+  }
+
+  return enriched;
+}
+
+/**
  * Start a minimal HTTP server for the live SSE-powered dashboard.
  *
  * Serves the rendered dashboard HTML on `/` and an SSE stream on `/events`.
@@ -53,7 +84,12 @@ export function startDashboardServer(
     const sseClients = new Set<http.ServerResponse>();
 
     const onAnyCallback = (event: string, data: unknown): void => {
-      const payload = `data: ${JSON.stringify({ event, data, timestamp: new Date().toISOString() })}\n\n`;
+      // Enrich audit events with display-friendly fields (shallow copy)
+      const enrichedData = (event === 'audit' && data && typeof data === 'object')
+        ? enrichAuditEvent(data as Record<string, unknown>)
+        : data;
+
+      const payload = `data: ${JSON.stringify({ event, data: enrichedData, timestamp: new Date().toISOString() })}\n\n`;
       for (const client of sseClients) {
         try {
           client.write(payload);

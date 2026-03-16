@@ -92,8 +92,8 @@ describe('renderLiveDashboard', () => {
     expect(html).toContain('>10');
   });
 
-  it('keeps last 50 events in log', () => {
-    expect(html).toContain('50');
+  it('keeps last 200 events in log buffer', () => {
+    expect(html).toContain('>200');
   });
 
   it('HTML handles agent:thinking event', () => {
@@ -159,5 +159,79 @@ describe('renderLiveDashboard', () => {
   it('HTML contains pulse animation for live dot', () => {
     expect(html).toContain('@keyframes pulse');
     expect(html).toContain('animation:pulse');
+  });
+
+  // Rich event log tests
+
+  it('HTML contains filter-btn CSS class', () => {
+    expect(html).toContain('.filter-btn');
+  });
+
+  it('HTML contains log-entry CSS class', () => {
+    expect(html).toContain('.log-entry');
+  });
+
+  it('HTML contains log-detail CSS class', () => {
+    expect(html).toContain('.log-detail');
+  });
+
+  it('HTML contains expand-arrow CSS class', () => {
+    expect(html).toContain('.expand-arrow');
+  });
+
+  it('HTML contains data-filter attribute on event-log', () => {
+    expect(html).toContain('data-filter="alla"');
+  });
+
+  it('HTML contains data-category attributes', () => {
+    expect(html).toContain('data-category');
+  });
+
+  it('HTML contains setLogFilter function', () => {
+    expect(html).toContain('setLogFilter');
+  });
+
+  it('HTML contains getCategory function', () => {
+    expect(html).toContain('getCategory');
+  });
+
+  it('HTML contains filter buttons for all categories', () => {
+    expect(html).toContain("setLogFilter('alla')");
+    expect(html).toContain("setLogFilter('handlingar')");
+    expect(html).toContain("setLogFilter('filer')");
+    expect(html).toContain("setLogFilter('tester')");
+    expect(html).toContain("setLogFilter('beslut')");
+  });
+
+  it('HTML contains all audit tool types in narrateEvent', () => {
+    expect(html).toContain("'read_file'");
+    expect(html).toContain("'write_file'");
+    expect(html).toContain("'bash_exec'");
+    expect(html).toContain("'graph_query'");
+    expect(html).toContain("'search_memory'");
+    expect(html).toContain("'write_task_plan'");
+    expect(html).toContain("'delegate_parallel_wave'");
+    expect(html).toContain("'copy_to_target'");
+    expect(html).toContain("'adaptive_hints'");
+    expect(html).toContain("'agent_message'");
+  });
+
+  it('HTML contains log-group CSS class for smart grouping', () => {
+    expect(html).toContain('.log-group');
+  });
+
+  it('HTML contains lastReadGroup variable for smart grouping', () => {
+    expect(html).toContain('lastReadGroup');
+  });
+
+  it('HTML contains CSS filter rules for data-filter categories', () => {
+    expect(html).toContain('data-filter="handlingar"');
+    expect(html).toContain('data-filter="filer"');
+    expect(html).toContain('data-filter="tester"');
+    expect(html).toContain('data-filter="beslut"');
+  });
+
+  it('pause handler is on log-pause-hint not logEl', () => {
+    expect(html).toContain("getElementById('log-pause-hint').addEventListener");
   });
 });
