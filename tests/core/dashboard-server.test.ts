@@ -370,3 +370,92 @@ describe('Return type', () => {
     expect(result).toBeNull();
   });
 });
+
+// =====================================================
+// 13-14. SSE reconnect / history replay
+// =====================================================
+describe('SSE reconnect / history replay', () => {
+  it('SSE reconnect sends history events', async () => {
+    const port = getPort();
+    server = await startAndWait('test-run', port);
+
+    // Emit events BEFORE connecting the SSE client so they exist in history
+    eventBus.safeEmit('tokens', {
+      runid: 'test-run',
+      agent: 'impl',
+      input: 100,
+      output: 50,
+    });
+    eventBus.safeEmit('iteration', {
+      runid: 'test-run',
+      agent: 'impl',
+      current: 3,
+      max: 70,
+    });
+
+    // Now connect SSE — history replay will flush the response headers
+    // so openSSERaw is sufficient (no need for the flush trick)
+    const { res, req } = await openSSERaw(port);
+
+    const chunks: string[] = [];
+    res.on('data', (chunk: Buffer) => {
+      chunks.push(chunk.toString());
+    });
+
+    // Wait for replayed data to arrive
+    await wait(200);
+    req.destroy();
+
+    const combined = chunks.join('');
+    // Should contain the replayed tokens event
+    expect(combined).toContain('"tokens"');
+    // Should contain the replayed iteration event
+    expect(combined).toContain('"iteration"');
+  });
+
+  it('history replay events are valid JSON with event, data, timestamp', async () => {
+    const port = getPort();
+    server = await startAndWait('test-run', port);
+
+    // Emit events before connecting
+    eventBus.safeEmit('stoplight', {
+      runid: 'test-run',
+      status: 'GREEN',
+    });
+    eventBus.safeEmit('tokens', {
+      runid: 'test-run',
+      agent: 'reviewer',
+      input: 300,
+      output: 150,
+    });
+
+    // Connect SSE — history replay flushes immediately
+    const { res, req } = await openSSERaw(port);
+
+    const chunks: string[] = [];
+    res.on('data', (chunk: Buffer) => {
+      chunks.push(chunk.toString());
+    });
+
+    await wait(200);
+    req.destroy();
+
+    const combined = chunks.join('');
+    const lines = combined.split('\n');
+    const dataLines = lines.filter((l) => l.startsWith('data: '));
+
+    // Should have at least the 2 replayed events
+    expect(dataLines.length).toBeGreaterThanOrEqual(2);
+
+    // Every data line should be valid JSON with the required fields
+    for (const line of dataLines) {
+      const json = line.replace('data: ', '');
+      const parsed = JSON.parse(json) as Record<string, unknown>;
+      expect(parsed).toHaveProperty('event');
+      expect(parsed).toHaveProperty('data');
+      expect(parsed).toHaveProperty('timestamp');
+      expect(typeof parsed.event).toBe('string');
+      expect(typeof parsed.timestamp).toBe('string');
+    }
+  });
+});

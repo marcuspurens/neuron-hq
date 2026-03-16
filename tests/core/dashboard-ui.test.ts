@@ -95,4 +95,21 @@ describe('renderLiveDashboard', () => {
   it('keeps last 50 events in log', () => {
     expect(html).toContain('50');
   });
+
+  it('HTML handles agent:thinking event', () => {
+    expect(html).toContain("'agent:thinking'");
+  });
+
+  it('HTML contains reconnect banner', () => {
+    expect(html).toContain('reconnect-banner');
+    expect(html).toContain('id="reconnect-banner"');
+  });
+
+  it('HTML contains thinking-toggle CSS class', () => {
+    expect(html).toContain('.thinking-toggle');
+  });
+
+  it('HTML contains thinking-content CSS class', () => {
+    expect(html).toContain('.thinking-content');
+  });
 });

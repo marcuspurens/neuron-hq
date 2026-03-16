@@ -34,6 +34,7 @@ ${renderCSS()}
 </style>
 </head>
 <body>
+<div id="reconnect-banner" class="reconnect-banner">&Aring;teransluten &mdash; visar historik</div>
 ${renderHeaderHTML(safeRunid)}
 ${renderAgentTilesHTML()}
 ${renderTaskListHTML()}
@@ -67,6 +68,11 @@ h2{font-size:1rem;color:#94a3b8;margin-bottom:8px;text-transform:uppercase;lette
 .agent-tile .reasoning{max-height:0;overflow:hidden;transition:max-height 0.3s;font-family:'Menlo','Consolas',monospace;font-size:0.7rem;color:#94a3b8;white-space:pre-wrap;word-break:break-all}
 .agent-tile .reasoning.open{max-height:200px;overflow-y:auto}
 .agent-tile .toggle{cursor:pointer;font-size:0.75rem;color:#38bdf8;user-select:none}
+.agent-tile .thinking-toggle{cursor:pointer;font-size:0.75rem;color:#a78bfa;user-select:none;display:none}
+.agent-tile .thinking-content{max-height:0;overflow:hidden;transition:max-height 0.3s;font-family:'Menlo','Consolas',monospace;font-size:0.7rem;color:#cbd5e1;font-style:italic;background:#1a2332;border-radius:4px;padding:0 8px;white-space:pre-wrap;word-break:break-all}
+.agent-tile .thinking-content.open{max-height:200px;overflow-y:auto;padding:8px}
+.reconnect-banner{position:fixed;top:0;left:0;right:0;background:#7c3aed;color:white;text-align:center;padding:8px;font-size:0.85rem;z-index:100;transition:opacity 0.5s;opacity:0;pointer-events:none}
+.reconnect-banner.visible{opacity:1}
 .task-list{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:24px}
 .task-list .task-item{padding:4px 0;font-size:0.85rem;border-bottom:1px solid #1e293b}
 .stoplight-section{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:24px;text-align:center;font-size:1.1rem;font-weight:600;transition:background-color 0.5s}
@@ -147,10 +153,15 @@ t.innerHTML='<div class="name">'+esc(name)+'</div>'
 +'<div class="status"><span class="status-dot green">\\u25CF</span> aktiv</div>'
 +'<div class="task-info"></div>'
 +'<div class="toggle">\\u25B6 Resonemang</div>'
-+'<div class="reasoning"></div>';
++'<div class="reasoning"></div>'
++'<div class="thinking-toggle">\\u25B6 Thinking</div>'
++'<div class="thinking-content"></div>';
 t.querySelector('.toggle').addEventListener('click',function(){
 var r=t.querySelector('.reasoning');r.classList.toggle('open');
 this.textContent=r.classList.contains('open')?'\\u25BC Resonemang':'\\u25B6 Resonemang';});
+t.querySelector('.thinking-toggle').addEventListener('click',function(){
+var tc=t.querySelector('.thinking-content');tc.classList.toggle('open');
+this.textContent=tc.classList.contains('open')?'\\u25BC Thinking':'\\u25B6 Thinking';});
 document.getElementById('agent-tiles').appendChild(t);
 agents[name]={el:t,lines:[]};
 return agents[name];}
@@ -194,6 +205,17 @@ if(a2.lines.length>30)a2.lines=a2.lines.slice(-30);
 var rEl=a2.el.querySelector('.reasoning');
 rEl.textContent=a2.lines.join('\\n');
 rEl.scrollTop=rEl.scrollHeight;}
+else if(event==='agent:thinking'){
+var at=agents[data.agent];if(!at)at=getOrCreateTile(data.agent||'unknown');
+if(!at.thinkingLines)at.thinkingLines=[];
+at.thinkingLines.push(data.text||'');
+if(at.thinkingLines.length>30)at.thinkingLines=at.thinkingLines.slice(-30);
+var tcEl=at.el.querySelector('.thinking-content');
+var display=at.thinkingLines.join('\\n');
+if(display.length>2000)display=display.slice(-2000);
+tcEl.textContent=display;
+tcEl.scrollTop=tcEl.scrollHeight;
+at.el.querySelector('.thinking-toggle').style.display='block';}
 else if(event==='task:status'){
 updateTask(data.taskId||'?',data.status||'pending');}
 else if(event==='stoplight'){
@@ -217,6 +239,13 @@ else if(event==='iteration'){
 document.getElementById('iterations').textContent='\\uD83D\\uDD04 '+(data.current||0)+'/'+(data.max||0);}}
 
 var es=new EventSource('/events');
+var reconnected=false;
+es.onopen=function(){
+if(reconnected){
+var banner=document.getElementById('reconnect-banner');
+banner.classList.add('visible');
+setTimeout(function(){banner.classList.remove('visible');},3000);}
+reconnected=true;};
 es.onmessage=function(e){
 try{var msg=JSON.parse(e.data);handleEvent(msg.event,msg.data,msg.timestamp||new Date().toISOString());}catch(err){console.error('SSE parse error',err);}};
 es.onerror=function(){

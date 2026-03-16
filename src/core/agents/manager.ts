@@ -31,6 +31,7 @@ import {
 import { generateAdaptiveHints } from './adaptive-hints.js';
 import { getBeliefs, classifyBrief } from '../run-statistics.js';
 import { eventBus } from '../event-bus.js';
+import { extractThinking } from '../thinking-extractor.js';
 
 
 /**
@@ -310,6 +311,17 @@ Stop when time limit approaches or when blockers are encountered.
 
           const msg = await stream.finalMessage();
           if (prefixPrinted) process.stdout.write('\n');
+
+          // Extract thinking (extended thinking / reasoning) if available
+          const thinking = extractThinking(msg, 'anthropic');
+          if (thinking) {
+            eventBus.safeEmit('agent:thinking', {
+              runid: this.ctx.runid,
+              agent: 'manager',
+              text: thinking.text,
+            });
+          }
+
           return msg;
         });
 

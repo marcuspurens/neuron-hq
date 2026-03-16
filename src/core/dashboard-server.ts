@@ -65,6 +65,17 @@ export function startDashboardServer(runid: string, port: number = DASHBOARD_POR
         });
 
         sseClients.add(res);
+
+        // Replay history for reconnect state
+        for (const entry of eventBus.history) {
+          try {
+            const payload = `data: ${JSON.stringify({ event: entry.event, data: entry.data, timestamp: entry.timestamp })}\n\n`;
+            res.write(payload);
+          } catch {
+            // ignore — client may have disconnected during replay
+          }
+        }
+
         req.on('close', () => {
           sseClients.delete(res);
         });
