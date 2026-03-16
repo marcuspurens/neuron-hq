@@ -1,51 +1,60 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock all tool registration functions so createMcpServer doesn't fail
-vi.mock('../../src/mcp/tools/runs.js', () => ({ registerRunsTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/knowledge.js', () => ({ registerKnowledgeTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/costs.js', () => ({ registerCostsTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/start.js', () => ({ registerStartTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-status.js', () => ({ registerAuroraStatusTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-search.js', () => ({ registerAuroraSearchTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-ingest.js', () => ({ registerAuroraIngestTools: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-ask.js', () => ({ registerAuroraAskTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-remember.js', () => ({ registerAuroraRememberTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-recall.js', () => ({ registerAuroraRecallTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-memory-stats.js', () => ({ registerAuroraMemoryStatsTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-ingest-video.js', () => ({ registerAuroraIngestVideoTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-learn-conversation.js', () => ({ registerAuroraLearnConversationTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-voice-gallery.js', () => ({ registerAuroraVoiceGalleryTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-timeline.js', () => ({ registerAuroraTimelineTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-gaps.js', () => ({ registerAuroraGapsTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/cross-ref.js', () => ({ registerCrossRefTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-briefing.js', () => ({ registerAuroraBriefingTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-verify.js', () => ({ registerAuroraVerifyTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-freshness.js', () => ({ registerAuroraFreshnessTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/cross-ref-integrity.js', () => ({ registerCrossRefIntegrityTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-suggest-research.js', () => ({ registerAuroraSuggestResearchTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-check-deps.js', () => ({ registerAuroraCheckDepsTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-rename-speaker.js', () => ({ registerAuroraRenameSpeakerTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-merge-speakers.js', () => ({ registerAuroraMergeSpeakersTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-suggest-speakers.js', () => ({ registerAuroraSuggestSpeakersTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-confirm-speaker.js', () => ({ registerAuroraConfirmSpeakerTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-reject-speaker.js', () => ({ registerAuroraRejectSpeakerTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-speaker-identities.js', () => ({ registerAuroraSpeakerIdentitiesTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-auto-tag-speakers.js', () => ({ registerAuroraAutoTagSpeakersTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-ingest-image.js', () => ({ registerAuroraIngestImageTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-describe-image.js', () => ({ registerAuroraDescribeImageTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-ocr-pdf.js', () => ({ registerAuroraOcrPdfTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-ingest-book.js', () => ({ registerAuroraIngestBookTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-confidence.js', () => ({ registerAuroraConfidenceTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/run-statistics.js', () => ({ registerRunStatisticsTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/dashboard.js', () => ({ registerDashboardTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/knowledge-manager.js', () => ({ registerKnowledgeManagerTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/knowledge-library.js', () => ({ registerKnowledgeLibraryTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-ebucore-metadata.js', () => ({ registerAuroraEbucoreMetadataTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/crossref-lookup.js', () => ({ registerCrossRefLookupTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-job-status.js', () => ({ registerAuroraJobStatusTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-jobs.js', () => ({ registerAuroraJobsTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-job-stats.js', () => ({ registerAuroraJobStatsTool: vi.fn() }));
-vi.mock('../../src/mcp/tools/aurora-cancel-job.js', () => ({ registerAuroraCancelJobTool: vi.fn() }));
+// Mock the scopes module so createMcpServer doesn't try to load real tool implementations
+vi.mock('../../src/mcp/scopes.js', () => ({
+  SCOPES: {
+    'aurora-search': {
+      name: 'aurora-search',
+      description: 'Search',
+      registerTools: vi.fn(),
+    },
+    'aurora-insights': {
+      name: 'aurora-insights',
+      description: 'Insights',
+      registerTools: vi.fn(),
+    },
+    'aurora-memory': {
+      name: 'aurora-memory',
+      description: 'Memory',
+      registerTools: vi.fn(),
+    },
+    'aurora-ingest-text': {
+      name: 'aurora-ingest-text',
+      description: 'Text ingest',
+      registerTools: vi.fn(),
+    },
+    'aurora-ingest-media': {
+      name: 'aurora-ingest-media',
+      description: 'Media ingest',
+      registerTools: vi.fn(),
+    },
+    'aurora-media': {
+      name: 'aurora-media',
+      description: 'Media',
+      registerTools: vi.fn(),
+    },
+    'aurora-library': {
+      name: 'aurora-library',
+      description: 'Library',
+      registerTools: vi.fn(),
+    },
+    'aurora-quality': {
+      name: 'aurora-quality',
+      description: 'Quality',
+      registerTools: vi.fn(),
+    },
+    'neuron-runs': {
+      name: 'neuron-runs',
+      description: 'Runs',
+      registerTools: vi.fn(),
+    },
+    'neuron-analytics': {
+      name: 'neuron-analytics',
+      description: 'Analytics',
+      registerTools: vi.fn(),
+    },
+  },
+}));
 
 // Mock the job-runner module
 const mockCheckCompletedJobs = vi.fn();

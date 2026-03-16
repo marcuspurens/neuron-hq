@@ -3,9 +3,8 @@ import { z } from 'zod';
 import { ingestUrl, ingestDocument } from '../../aurora/intake.js';
 import type { IngestOptions } from '../../aurora/intake.js';
 
-/** Register aurora_ingest_url and aurora_ingest_doc MCP tools. */
-export function registerAuroraIngestTools(server: McpServer): void {
-  // Tool 1: aurora_ingest_url
+/** Register the aurora_ingest_url MCP tool. */
+export function registerAuroraIngestUrlTool(server: McpServer): void {
   server.tool(
     'aurora_ingest_url',
     'Ingest a URL into Aurora knowledge graph. Extracts text, chunks it, generates embeddings, and creates document + chunk nodes.',
@@ -46,8 +45,10 @@ export function registerAuroraIngestTools(server: McpServer): void {
       }
     },
   );
+}
 
-  // Tool 2: aurora_ingest_doc
+/** Register the aurora_ingest_doc MCP tool. */
+export function registerAuroraIngestDocTool(server: McpServer): void {
   server.tool(
     'aurora_ingest_doc',
     'Ingest a local file (text, markdown, or PDF) into Aurora knowledge graph. Extracts text, chunks it, generates embeddings, and creates document + chunk nodes.',
@@ -88,4 +89,10 @@ export function registerAuroraIngestTools(server: McpServer): void {
       }
     },
   );
+}
+
+/** Register both aurora_ingest_url and aurora_ingest_doc MCP tools. */
+export function registerAuroraIngestTools(server: McpServer): void {
+  registerAuroraIngestUrlTool(server);
+  registerAuroraIngestDocTool(server);
 }

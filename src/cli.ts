@@ -161,7 +161,10 @@ program
 program
   .command('mcp-server')
   .description('Start Neuron HQ as an MCP server (stdio transport)')
-  .action(mcpServerCommand);
+  .option('--scope <name>', 'Server scope: aurora-search, aurora-insights, aurora-memory, aurora-ingest-text, aurora-ingest-media, aurora-media, aurora-library, aurora-quality, neuron-runs, neuron-analytics, or all')
+  .action(async (options: { scope?: string }) => {
+    await mcpServerCommand(options.scope);
+  });
 
 program
   .command('aurora:status')
