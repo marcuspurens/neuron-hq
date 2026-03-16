@@ -14,6 +14,7 @@ import { computeAllTaskScores } from './task-rewards.js';
 import { updateCostTracking } from '../commands/costs.js';
 import type { AgentModelMap } from './model-registry.js';
 import { eventBus } from './event-bus.js';
+import { startDashboardServer, type DashboardServer } from './dashboard-server.js';
 
 export interface RunContext {
   runid: RunId;
@@ -34,6 +35,7 @@ export interface RunContext {
   previousRunContext?: string;  // loaded from previous run's handoff files
   agentModelMap?: AgentModelMap;
   defaultModelOverride?: string;  // CLI --model override
+  dashboardServer?: DashboardServer | null;
 }
 
 /** Directories to skip when copying a target repo to workspace. */
@@ -238,6 +240,15 @@ export class RunOrchestrator {
       hours,
       startTime: new Date().toISOString(),
     });
+
+    // Start live dashboard (non-fatal — dashboard issues must never affect the run)
+    let dashboardServer: DashboardServer | null = null;
+    try {
+      dashboardServer = startDashboardServer(runid);
+    } catch {
+      // Dashboard startup failure is non-fatal
+    }
+
     return {
       runid,
       target,
@@ -254,6 +265,7 @@ export class RunOrchestrator {
       policy: this.policy,
       startTime: new Date(),
       endTime,
+      dashboardServer,
     };
   }
 
@@ -423,6 +435,13 @@ export class RunOrchestrator {
       }
     } catch {
       // Non-fatal: auto-KM failure should not break finalization
+    }
+
+    // Close dashboard server (safety net — it auto-closes on run:end too)
+    try {
+      ctx.dashboardServer?.close();
+    } catch {
+      // Non-fatal
     }
 
     eventBus.safeEmit('run:end', {
