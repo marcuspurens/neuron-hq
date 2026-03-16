@@ -398,6 +398,17 @@ export function narrateDecision(decision: Decision): string {
 }
 
 /**
+ * Narrate an aggregated decision (produced by aggregateRepetitive).
+ * Aggregated decisions have 'what' like 'X k\u00F6rde Y \u00E5tg\u00E4rder'.
+ */
+export function narrateAggregatedDecision(decision: Decision): string {
+  if (decision.what.includes('k\u00F6rde') && decision.what.includes('\u00E5tg\u00E4rder')) {
+    return `\uD83D\uDCCA ${decision.what}`;
+  }
+  return narrateDecision(decision);
+}
+
+/**
  * Return an automation bias warning in Swedish, or null if no warning applies.
  *
  * Checks:

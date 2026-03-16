@@ -139,9 +139,10 @@ function renderHeaderHTML(safeRunid: string): string {
 <h1>NEURON HQ &mdash; K&ouml;rning ${safeRunid}</h1>
 <div class="stats">
 <span id="timer">\u23F1 00:00 / --:--</span>
-<span id="iterations">\uD83D\uDD04 0/0</span>
-<span id="tokens">\uD83D\uDCCA in:0 out:0</span>
+<span id="task-count">\uD83D\uDCCB 0/0 uppgifter</span>
+<span id="tokens">\uD83D\uDCCA 0 in \u00B7 0 ut</span>
 <span id="cost">\uD83D\uDCB0 $0.00</span>
+<span id="latency">\u26A1 \u2014 tok/s</span>
 </div>
 <button id="explanation-toggle" class="explanation-toggle" onclick="toggleExplanation()">F\u00F6renklat l\u00E4ge \u2713</button>
 </div>
@@ -203,11 +204,22 @@ var agents={};
 var tasks={};
 var taskDescriptions={};
 var taskAgents={};
+var taskWaves={};
+var taskStartTimes={};
 var logPaused=false;
 var logEl=document.getElementById('event-log');
 var runDropdownOpen=false;
 var showingDigest=false;
 var explanationMode='simple';
+var timerElapsed=0,timerTotal=0,timerRunning=false;
+var lastTokenTime=0,lastTokenOut=0;
+setInterval(function(){
+  if(!timerRunning)return;
+  timerElapsed++;
+  var em=Math.floor(timerElapsed/60),es=String(Math.floor(timerElapsed%60)).padStart(2,'0');
+  var tm=Math.floor(timerTotal/60),ts2=String(Math.floor(timerTotal%60)).padStart(2,'0');
+  document.getElementById('timer').textContent='\u23F1 '+String(em).padStart(2,'0')+':'+es+' / '+(timerTotal>0?String(tm).padStart(2,'0')+':'+ts2:'--:--');
+},1000);
 
 function cap(n){return n?n.charAt(0).toUpperCase()+n.slice(1):'Unknown';}
 
@@ -393,7 +405,7 @@ function getOrCreateTile(name){
 if(agents[name])return agents[name];
 var t=document.createElement('div');t.className='agent-tile aktiv';
 t.innerHTML='<div class="name">'+esc(name)+'</div>'
-+'<div class="status"><span class="status-dot green">\\u25CF</span> aktiv</div>'
++'<div class="status"><span class="status-dot green">\\u25CF</span> <span class="status-text">Arbetar</span></div>'
 +'<div class="task-info"></div>'
 +'<div class="agent-stats"><span class="agent-iter"></span> <span class="agent-tokens"></span></div>'
 +'<div class="toggle">\\u25B6 Resonemang</div>'
@@ -419,21 +431,64 @@ renderTasks();}
 function renderTasks(){
 var el=document.getElementById('task-list');el.innerHTML='';
 var ids=Object.keys(tasks);
-if(ids.length===0){el.innerHTML='<div class="task-item" style="color:#64748b">V\\u00E4ntar p\\u00E5 uppgifter\\u2026</div>';return;}
+if(ids.length===0){el.innerHTML='<div class="task-item" style="color:#64748b">V\u00E4ntar p\u00E5 uppgifter\u2026</div>';return;}
+
+// Group by wave
+var waves={};
+var noWave=[];
 for(var i=0;i<ids.length;i++){
-var s=tasks[ids[i]];
-var icon='\\u23F3';
-if(s==='completed')icon='\\u2705';else if(s==='running')icon='\\uD83D\\uDD04';else if(s==='failed')icon='\\u274C';
-var d=document.createElement('div');d.className='task-item';
-var line=icon+' '+ids[i]+' \\u2014 '+s;
-if(taskDescriptions[ids[i]])line+=' \\u2014 '+taskDescriptions[ids[i]];
-if(taskAgents[ids[i]]&&s==='running')line+=' (\\uD83D\\uDC77 '+taskAgents[ids[i]]+')';
-d.textContent=line;
-el.appendChild(d);}}
+  var w=taskWaves[ids[i]];
+  if(w!==undefined){if(!waves[w])waves[w]=[];waves[w].push(ids[i]);}
+  else noWave.push(ids[i]);
+}
+
+function renderTaskItem(tid){
+  var s=tasks[tid];
+  var icon='\u23F3';
+  if(s==='completed')icon='\u2705';else if(s==='running')icon='\uD83D\uDD04';else if(s==='failed')icon='\u274C';
+  var desc=taskDescriptions[tid]?(' \u2014 '+taskDescriptions[tid]):'';
+  var agent=taskAgents[tid]?('\uD83D\uDC77 '+cap(taskAgents[tid])):'\u2014';
+  var timeStr='';
+  if(s==='running'&&taskStartTimes[tid]){
+    var elapsed=Math.round((Date.now()-taskStartTimes[tid])/60000);
+    timeStr=' \u00B7 '+(elapsed>0?elapsed+' min':'p\u00E5g\u00E5r');
+  } else if(s==='completed'&&taskStartTimes[tid]){
+    var dur=Math.round((Date.now()-taskStartTimes[tid])/60000);
+    timeStr=' \u00B7 '+dur+' min';
+  }
+  var div=document.createElement('div');div.className='task-item';
+  div.innerHTML=icon+' '+esc(tid)+esc(desc)+'    '+esc(agent)+timeStr;
+  return div;
+}
+
+var waveNums=Object.keys(waves).sort(function(a,b){return Number(a)-Number(b);});
+for(var wi=0;wi<waveNums.length;wi++){
+  var wn=waveNums[wi];
+  var sep=document.createElement('div');
+  sep.className='task-item';
+  sep.style.color='#38bdf8';
+  sep.style.fontWeight='600';
+  sep.style.borderBottom='1px solid #334155';
+  sep.textContent='\u2501\u2501\u2501 Wave '+wn+' \u2501\u2501\u2501';
+  el.appendChild(sep);
+  for(var ti=0;ti<waves[wn].length;ti++){
+    el.appendChild(renderTaskItem(waves[wn][ti]));
+  }
+}
+if(noWave.length>0){
+  if(waveNums.length>0){
+    var sep2=document.createElement('div');sep2.className='task-item';sep2.style.color='#38bdf8';sep2.style.fontWeight='600';sep2.style.borderBottom='1px solid #334155';sep2.textContent='\u2501\u2501\u2501 \u00D6vriga \u2501\u2501\u2501';
+    el.appendChild(sep2);
+  }
+  for(var ni=0;ni<noWave.length;ni++){
+    el.appendChild(renderTaskItem(noWave[ni]));
+  }
+}}
 
 function handleEvent(event,data,ts){
 addLogEntry(event,data,ts);
 if(event==='run:start'){
+timerRunning=true;
 document.querySelector('.header h1').innerHTML='NEURON HQ &mdash; K\\u00F6rning '+esc(data.runid||'');}
 else if(event==='agent:start'){
 var tile=getOrCreateTile(data.agent||'unknown');
@@ -441,16 +496,26 @@ tile.el.className='agent-tile aktiv';
 var statusText='aktiv';
 if(data.taskId)statusText='Arbetar med '+data.taskId;
 if(data.task)statusText+=': '+data.task;
-tile.el.querySelector('.status').innerHTML='<span class="green">\\u25CF</span> '+esc(statusText);
-if(data.taskId){tile.el.querySelector('.task-info').textContent='Task: '+data.taskId;taskAgents[data.taskId]=data.agent;}}
+tile.el.querySelector('.status').innerHTML='<span class="green">\\u25CF</span> <span class="status-text">'+esc(statusText)+'</span>';
+if(data.taskId){tile.el.querySelector('.task-info').textContent='Task: '+data.taskId;taskAgents[data.taskId]=data.agent;}
+var statusText=tile.el.querySelector('.status-text');
+if(data.taskId && taskDescriptions[data.taskId]){
+  statusText.textContent='Arbetar med '+data.taskId+': '+taskDescriptions[data.taskId];
+} else if(data.taskId){
+  statusText.textContent='Arbetar med '+data.taskId;
+} else {
+  statusText.textContent='Arbetar \u2014 planering';
+}}
 else if(event==='agent:end'){
 var a=agents[data.agent];if(!a)return;
 a.el.className='agent-tile klar';
-a.el.querySelector('.status').innerHTML='<span style="color:#64748b">\\u25CF</span> klar';}
+a.el.querySelector('.status').innerHTML='<span style="color:#64748b">\\u25CF</span> klar';
+var statusText2=a.el.querySelector('.status-text');
+if(statusText2) statusText2.textContent='Klar';}
 else if(event==='agent:text'){
 var a2=agents[data.agent];if(!a2)a2=getOrCreateTile(data.agent||'unknown');
 a2.lines.push(data.text||'');
-if(a2.lines.length>10)a2.lines=a2.lines.slice(-10);
+if(a2.lines.length>5)a2.lines=a2.lines.slice(-5);
 var rEl=a2.el.querySelector('.reasoning');
 rEl.textContent=a2.lines.join('\\n');
 rEl.scrollTop=rEl.scrollHeight;}
@@ -466,7 +531,13 @@ tcEl.textContent=display;
 tcEl.scrollTop=tcEl.scrollHeight;
 at.el.querySelector('.thinking-toggle').style.display='block';}
 else if(event==='task:status'){
-updateTask(data.taskId||'?',data.status||'pending',data.description,data.agent);}
+updateTask(data.taskId||'?',data.status||'pending',data.description,data.agent);
+if(data.status==='running' && !taskStartTimes[data.taskId]){
+  taskStartTimes[data.taskId]=Date.now();
+}
+var completed=0,total=Object.keys(tasks).length;
+for(var k in tasks){if(tasks[k]==='completed')completed++;}
+document.getElementById('task-count').textContent='\\uD83D\\uDCCB '+completed+'/'+total+' uppgifter';}
 else if(event==='stoplight'){
 var sl=document.getElementById('stoplight');
 var color={'GREEN':'#22c55e','YELLOW':'#eab308','RED':'#ef4444'}[data.status]||'#334155';
@@ -479,20 +550,35 @@ var at2=agents[data.agent];
 if(at2){
 if(!at2.tokIn)at2.tokIn=0;if(!at2.tokOut)at2.tokOut=0;
 at2.tokIn+=(data.input||0);at2.tokOut+=(data.output||0);
-at2.el.querySelector('.agent-tokens').textContent=fmtK(at2.tokIn)+' in/'+fmtK(at2.tokOut)+' ut';}
+at2.el.querySelector('.agent-tokens').textContent=fmtK(at2.tokIn)+' in \u00B7 '+fmtK(at2.tokOut)+' ut';}
 totalIn+=(data.input||0);totalOut+=(data.output||0);
 totalCost=(totalIn*3.0+totalOut*15.0)/1000000;
-document.getElementById('tokens').textContent='\\uD83D\\uDCCA in:'+fmtK(totalIn)+' out:'+fmtK(totalOut);
+document.getElementById('tokens').textContent='\\uD83D\\uDCCA '+fmtK(totalIn)+' in \\u00B7 '+fmtK(totalOut)+' ut';
+var now=Date.now();
+if(lastTokenTime>0){
+  var dt=(now-lastTokenTime)/1000;
+  if(dt>0){
+    var tokPerSec=Math.round((totalOut-lastTokenOut)/dt);
+    document.getElementById('latency').textContent='\\u26A1 '+tokPerSec+' tok/s';
+  }
+}
+lastTokenTime=now;lastTokenOut=totalOut;
 document.getElementById('cost').textContent='\\uD83D\\uDCB0 $'+totalCost.toFixed(2);}
 else if(event==='time'){
-var e=data.elapsed||0,r=data.remaining||0;
-var em=Math.floor(e/60),es2=String(Math.floor(e%60)).padStart(2,'0');
-var tm=Math.floor((e+r)/60),ts2=String(Math.floor((e+r)%60)).padStart(2,'0');
-document.getElementById('timer').textContent='\\u23F1 '+String(em).padStart(2,'0')+':'+es2+' / '+String(tm).padStart(2,'0')+':'+ts2;}
+timerElapsed=data.elapsed||0;
+timerTotal=(data.elapsed||0)+(data.remaining||0);
+timerRunning=true;}
 else if(event==='iteration'){
 var ai=agents[data.agent];
-if(ai){ai.el.querySelector('.agent-iter').textContent='Iter '+(data.current||0)+'/'+(data.max||0);}
-document.getElementById('iterations').textContent='\\uD83D\\uDD04 '+(data.current||0)+'/'+(data.max||0);}
+if(ai){ai.el.querySelector('.agent-iter').textContent='Iter '+(data.current||0)+'/'+(data.max||0);}}
+else if(event==='audit'){
+if(data.tool==='delegate_parallel_wave'){
+  var waveNum=data.wave||data.wave_index||0;
+  var waveTasks=data.tasks||[];
+  for(var wi=0;wi<waveTasks.length;wi++){
+    if(waveTasks[wi].id)taskWaves[waveTasks[wi].id]=waveNum;
+  }
+}}
 else if(event==='decision'){
 // Decision events handled by addLogEntry decision rendering
 }}

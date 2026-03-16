@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   extractDecisions,
   buildDecisionChain,
+  filterSignificantDecisions,
+  aggregateRepetitive,
+  getDigestDecisions,
   type Decision,
   type AuditEntry,
   type EventData,
@@ -364,6 +367,232 @@ describe('decision-extractor', () => {
       expect(implChildren).toHaveLength(2);
 
       expect(tree.orphans).toHaveLength(0);
+    });
+  });
+
+  // =====================================================
+  // filterSignificantDecisions
+  // =====================================================
+  describe('filterSignificantDecisions', () => {
+    it('returns empty array for empty input', () => {
+      expect(filterSignificantDecisions([])).toEqual([]);
+    });
+
+    it('filters out tool_choice decisions', () => {
+      const decisions: Decision[] = [
+        makeDecision('d-1', 'tool_choice', 'impl'),
+        makeDecision('d-2', 'plan', 'manager'),
+      ];
+      const result = filterSignificantDecisions(decisions);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe('plan');
+    });
+
+    it('filters out review decisions starting with Review action:', () => {
+      const decisions: Decision[] = [
+        makeDecision('d-1', 'review', 'reviewer', 'Review action: bash_exec'),
+        makeDecision('d-2', 'plan', 'manager'),
+      ];
+      const result = filterSignificantDecisions(decisions);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe('plan');
+    });
+
+    it('keeps review decisions with Approved keyword', () => {
+      const decisions: Decision[] = [
+        makeDecision('d-1', 'review', 'reviewer', 'Approved the changes'),
+      ];
+      const result = filterSignificantDecisions(decisions);
+      expect(result).toHaveLength(1);
+    });
+
+    it('keeps review decisions with MERGE keyword', () => {
+      const decisions: Decision[] = [
+        makeDecision('d-1', 'review', 'reviewer', 'verdict: MERGE'),
+      ];
+      const result = filterSignificantDecisions(decisions);
+      expect(result).toHaveLength(1);
+    });
+
+    it('keeps review decisions with ITERATE keyword', () => {
+      const decisions: Decision[] = [
+        makeDecision('d-1', 'review', 'reviewer', 'ITERATE on tests'),
+      ];
+      const result = filterSignificantDecisions(decisions);
+      expect(result).toHaveLength(1);
+    });
+
+    it('keeps review decisions with INVESTIGATE keyword', () => {
+      const decisions: Decision[] = [
+        makeDecision('d-1', 'review', 'reviewer', 'INVESTIGATE the failure'),
+      ];
+      const result = filterSignificantDecisions(decisions);
+      expect(result).toHaveLength(1);
+    });
+
+    it('filters out review without verdict keywords', () => {
+      const decisions: Decision[] = [
+        makeDecision('d-1', 'review', 'reviewer', 'Checked the file contents'),
+      ];
+      const result = filterSignificantDecisions(decisions);
+      expect(result).toHaveLength(0);
+    });
+
+    it('keeps plan, delegation, fix, escalation unchanged', () => {
+      const decisions: Decision[] = [
+        makeDecision('d-1', 'plan', 'manager'),
+        makeDecision('d-2', 'delegation', 'manager', 'Delegated to impl'),
+        makeDecision('d-3', 'fix', 'impl'),
+        makeDecision('d-4', 'escalation', 'impl'),
+      ];
+      const result = filterSignificantDecisions(decisions);
+      expect(result).toHaveLength(4);
+    });
+
+    it('is a pure function (does not mutate input)', () => {
+      const decisions: Decision[] = [
+        makeDecision('d-1', 'tool_choice', 'impl'),
+        makeDecision('d-2', 'plan', 'manager'),
+      ];
+      const copy = [...decisions];
+      filterSignificantDecisions(decisions);
+      expect(decisions).toEqual(copy);
+    });
+  });
+
+  // =====================================================
+  // aggregateRepetitive
+  // =====================================================
+  describe('aggregateRepetitive', () => {
+    it('returns empty array for empty input', () => {
+      expect(aggregateRepetitive([])).toEqual([]);
+    });
+
+    it('passes through groups with 2 or fewer decisions', () => {
+      const decisions: Decision[] = [
+        makeDecision('d-1', 'fix', 'impl', 'Fix the build error'),
+        makeDecision('d-2', 'fix', 'impl', 'Fix the build error again'),
+      ];
+      const result = aggregateRepetitive(decisions);
+      expect(result).toHaveLength(2);
+    });
+
+    it('aggregates groups with >2 identical-prefix decisions', () => {
+      const decisions: Decision[] = [];
+      for (let i = 0; i < 5; i++) {
+        decisions.push(makeDecision(`d-${i}`, 'fix', 'impl', 'Retried bash_exec after previous failure'));
+      }
+      const result = aggregateRepetitive(decisions);
+      expect(result).toHaveLength(1);
+      expect(result[0].what).toContain('impl');
+      expect(result[0].what).toContain('5');
+      expect(result[0].what).toContain('fix');
+    });
+
+    it('uses most common confidence in aggregated group', () => {
+      const decisions: Decision[] = [
+        { ...makeDecision('d-1', 'fix', 'impl', 'Retried bash_exec after fail'), confidence: 'high' },
+        { ...makeDecision('d-2', 'fix', 'impl', 'Retried bash_exec after fail'), confidence: 'low' },
+        { ...makeDecision('d-3', 'fix', 'impl', 'Retried bash_exec after fail'), confidence: 'low' },
+        { ...makeDecision('d-4', 'fix', 'impl', 'Retried bash_exec after fail'), confidence: 'low' },
+      ];
+      const result = aggregateRepetitive(decisions);
+      expect(result).toHaveLength(1);
+      expect(result[0].confidence).toBe('low');
+    });
+
+    it('groups by agent separately', () => {
+      const decisions: Decision[] = [];
+      for (let i = 0; i < 3; i++) {
+        decisions.push(makeDecision(`d-a-${i}`, 'fix', 'agent-a', 'Retried bash_exec after fail'));
+      }
+      for (let i = 0; i < 3; i++) {
+        decisions.push(makeDecision(`d-b-${i}`, 'fix', 'agent-b', 'Retried bash_exec after fail'));
+      }
+      const result = aggregateRepetitive(decisions);
+      expect(result).toHaveLength(2);
+    });
+
+    it('groups by type separately', () => {
+      const decisions: Decision[] = [];
+      for (let i = 0; i < 3; i++) {
+        decisions.push(makeDecision(`d-f-${i}`, 'fix', 'impl', 'Same prefix for all of these'));
+      }
+      for (let i = 0; i < 3; i++) {
+        decisions.push(makeDecision(`d-p-${i}`, 'plan', 'impl', 'Same prefix for all of these'));
+      }
+      const result = aggregateRepetitive(decisions);
+      expect(result).toHaveLength(2);
+    });
+
+    it('is a pure function (does not mutate input)', () => {
+      const decisions: Decision[] = [
+        makeDecision('d-1', 'fix', 'impl', 'Same thing repeated'),
+        makeDecision('d-2', 'fix', 'impl', 'Same thing repeated'),
+        makeDecision('d-3', 'fix', 'impl', 'Same thing repeated'),
+      ];
+      const origLength = decisions.length;
+      aggregateRepetitive(decisions);
+      expect(decisions).toHaveLength(origLength);
+    });
+  });
+
+  // =====================================================
+  // getDigestDecisions
+  // =====================================================
+  describe('getDigestDecisions', () => {
+    it('returns empty array for empty input', () => {
+      expect(getDigestDecisions([])).toEqual([]);
+    });
+
+    it('chains filter then aggregate then slice', () => {
+      const decisions: Decision[] = [
+        makeDecision('d-1', 'plan', 'manager', 'Created plan with 3 tasks'),
+        makeDecision('d-2', 'tool_choice', 'impl', 'use regex'),
+        makeDecision('d-3', 'delegation', 'manager', 'Delegated to impl'),
+        makeDecision('d-4', 'review', 'reviewer', 'Review action: bash_exec'),
+        makeDecision('d-5', 'review', 'reviewer', 'Approved the merge'),
+      ];
+      const result = getDigestDecisions(decisions);
+      // tool_choice filtered out, Review action filtered out
+      // Remaining: plan, delegation, review(Approved)
+      expect(result).toHaveLength(3);
+      expect(result.map((d) => d.type)).toEqual(['plan', 'delegation', 'review']);
+    });
+
+    it('respects maxCount parameter', () => {
+      const decisions: Decision[] = [
+        makeDecision('d-1', 'plan', 'manager'),
+        makeDecision('d-2', 'delegation', 'manager', 'Delegated to a'),
+        makeDecision('d-3', 'delegation', 'manager', 'Delegated to b'),
+        makeDecision('d-4', 'fix', 'impl'),
+        makeDecision('d-5', 'escalation', 'impl'),
+      ];
+      const result = getDigestDecisions(decisions, 3);
+      expect(result).toHaveLength(3);
+    });
+
+    it('defaults maxCount to 15', () => {
+      const decisions: Decision[] = [];
+      for (let i = 0; i < 20; i++) {
+        decisions.push(makeDecision(`d-${i}`, 'plan', `agent-${i}`, `Plan ${i} unique text here`));
+      }
+      const result = getDigestDecisions(decisions);
+      expect(result).toHaveLength(15);
+    });
+
+    it('aggregates repetitive before slicing', () => {
+      const decisions: Decision[] = [
+        makeDecision('d-1', 'plan', 'manager', 'Created plan with 3 tasks'),
+      ];
+      // Add 10 repetitive fix decisions (same agent, type, prefix)
+      for (let i = 0; i < 10; i++) {
+        decisions.push(makeDecision(`d-fix-${i}`, 'fix', 'impl', 'Retried bash_exec after previous failure'));
+      }
+      const result = getDigestDecisions(decisions);
+      // plan + 1 aggregated fix = 2
+      expect(result).toHaveLength(2);
+      expect(result[1].what).toContain('10');
     });
   });
 });

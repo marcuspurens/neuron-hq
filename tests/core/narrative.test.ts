@@ -3,6 +3,7 @@ import {
   narrateEvent,
   isLogWorthy,
   narrateDecision,
+  narrateAggregatedDecision,
   automationBiasWarning,
   narrateDecisionSimple,
 } from '../../src/core/narrative.js';
@@ -573,6 +574,30 @@ describe('narrative', () => {
   describe('isLogWorthy — RT-3 decision event', () => {
     it('returns true for decision event type', () => {
       expect(isLogWorthy('decision')).toBe(true);
+    });
+  });
+
+  // =====================================================
+  // narrateAggregatedDecision
+  // =====================================================
+  describe('narrateAggregatedDecision', () => {
+    it('returns chart emoji for aggregated decision with körde/åtgärder', () => {
+      const d = makeDecision({ what: 'Implementer körde 5 åtgärder' });
+      const result = narrateAggregatedDecision(d);
+      expect(result).toContain('\uD83D\uDCCA');
+      expect(result).toContain('körde 5 åtgärder');
+    });
+
+    it('falls back to narrateDecision for non-aggregated decisions', () => {
+      const d = makeDecision({ what: 'Delade briefen i 6 uppgifter', confidence: 'high' });
+      const result = narrateAggregatedDecision(d);
+      expect(result).toBe(narrateDecision(d));
+    });
+
+    it('falls back when only körde is present without åtgärder', () => {
+      const d = makeDecision({ what: 'Agent körde ett test' });
+      const result = narrateAggregatedDecision(d);
+      expect(result).toBe(narrateDecision(d));
     });
   });
 

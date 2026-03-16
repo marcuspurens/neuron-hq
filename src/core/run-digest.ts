@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { calcCost } from './pricing.js';
-import { extractDecisions } from './decision-extractor.js';
+import { extractDecisions, getDigestDecisions } from './decision-extractor.js';
 import type { Decision, AuditEntry as DecisionAuditEntry, EventData } from './decision-extractor.js';
 import { captureFieldOfView, summarizeFieldOfView } from './field-of-view.js';
 import type { AuditEntry as FovAuditEntry } from './field-of-view.js';
@@ -314,13 +314,23 @@ function parseTaskScores(scores: TaskScoreLine[]): TaskResult[] {
 function buildDecisionsSection(decisions: Decision[], fovSummary: string): string {
   if (decisions.length === 0) return '';
 
+  const filtered = getDigestDecisions(decisions);
+  if (filtered.length === 0) return '';
+
   const lines: string[] = [];
   lines.push('');
   lines.push('## Beslut');
   lines.push('');
 
-  const agentDecisions = new Map<string, Decision[]>();
+  // Count totals per agent before filtering
+  const totalByAgent = new Map<string, number>();
   for (const d of decisions) {
+    const agent = d.agent || 'unknown';
+    totalByAgent.set(agent, (totalByAgent.get(agent) || 0) + 1);
+  }
+
+  const agentDecisions = new Map<string, Decision[]>();
+  for (const d of filtered) {
     const agent = d.agent || 'unknown';
     if (!agentDecisions.has(agent)) agentDecisions.set(agent, []);
     agentDecisions.get(agent)!.push(d);
@@ -330,15 +340,20 @@ function buildDecisionsSection(decisions: Decision[], fovSummary: string): strin
     const capitalized = agent.charAt(0).toUpperCase() + agent.slice(1);
     lines.push(`${capitalized} fattade ${decs.length} beslut:`);
     for (const d of decs) {
-      const emoji = d.confidence === 'high' ? '✅' : d.confidence === 'medium' ? '⚠️' : '🔴';
-      const confText = d.confidence === 'high' ? 'hög säkerhet' : d.confidence === 'medium' ? 'viss osäkerhet' : 'låg säkerhet';
+      const emoji = d.confidence === 'high' ? '\u2705' : d.confidence === 'medium' ? '\u26A0\uFE0F' : '\uD83D\uDD34';
+      const confText = d.confidence === 'high' ? 'h\u00F6g s\u00E4kerhet' : d.confidence === 'medium' ? 'viss os\u00E4kerhet' : 'l\u00E5g s\u00E4kerhet';
       lines.push(`- ${emoji} ${d.what} (${confText})`);
+    }
+    // Show how many were filtered
+    const totalBefore = totalByAgent.get(agent) || 0;
+    if (totalBefore > decs.length) {
+      lines.push(`  (${totalBefore - decs.length} ytterligare \u00E5tg\u00E4rder filtrerade)`);
     }
     lines.push('');
   }
 
   if (fovSummary) {
-    lines.push('### Synfält');
+    lines.push('### Synf\u00E4lt');
     lines.push('');
     lines.push(fovSummary);
     lines.push('');

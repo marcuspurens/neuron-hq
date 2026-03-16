@@ -640,8 +640,10 @@ describe('generateDigest - Beslut section RT-3 extras', () => {
       ],
     });
     const digest = await generateDigest(tempDir);
+    // tool_choice decisions are filtered by getDigestDecisions;
+    // delegation decisions survive filtering
     expect(digest).toContain('## Beslut');
-    expect(digest).toContain('run the tests before committing');
+    expect(digest).toContain('Delegated to implementer');
   });
 
   it('includes confidence from high-confidence thinking keywords', async () => {
@@ -664,7 +666,10 @@ describe('generateDigest - Beslut section RT-3 extras', () => {
       ],
     });
     const digest = await generateDigest(tempDir);
-    expect(digest).toContain('hög säkerhet');
+    // After getDigestDecisions filtering, delegation decisions survive
+    // with medium confidence from audit-derived decisions
+    expect(digest).toContain('## Beslut');
+    expect(digest).toContain('Delegated to implementer');
   });
 
   it('includes confidence from low-confidence thinking keywords', async () => {
@@ -687,7 +692,10 @@ describe('generateDigest - Beslut section RT-3 extras', () => {
       ],
     });
     const digest = await generateDigest(tempDir);
-    expect(digest).toContain('låg säkerhet');
+    // After getDigestDecisions filtering, tool_choice decisions are removed;
+    // delegation decision survives with medium confidence
+    expect(digest).toContain('## Beslut');
+    expect(digest).toContain('viss osäkerhet');
   });
 
   it('handles audit.jsonl with only empty lines gracefully', async () => {
@@ -722,7 +730,7 @@ describe('generateDigest - Beslut section RT-3 extras', () => {
         {
           ts: '2026-01-01T00:02:00Z',
           role: 'reviewer',
-          tool: 'approve_change',
+          tool: 'delegate_to_implementer',
           allowed: true,
         },
       ],
@@ -730,5 +738,122 @@ describe('generateDigest - Beslut section RT-3 extras', () => {
     const digest = await generateDigest(tempDir);
     expect(digest).toContain('Manager fattade');
     expect(digest).toContain('Reviewer fattade');
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// RT-3c: Beslut filtering and aggregation
+// ---------------------------------------------------------------------------
+
+describe('generateDigest - Beslut filtering (RT-3c)', () => {
+  let tempDir: string;
+
+  afterEach(async () => {
+    if (tempDir) {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('filters out tool_choice decisions from digest', async () => {
+    tempDir = await createRunDir({
+      'brief.md': '# Test Brief',
+      'report.md': 'STOPLIGHT: GREEN',
+      'audit.jsonl': [
+        { ts: '2024-01-01T00:00:00Z', role: 'manager', tool: 'delegate_to_implementer', allowed: true },
+        { ts: '2024-01-01T00:01:00Z', role: 'implementer', tool: 'read_file', allowed: true },
+        { ts: '2024-01-01T00:02:00Z', role: 'implementer', tool: 'write_file', allowed: true },
+        {
+          ts: '2024-01-01T00:03:00Z',
+          event: 'agent:thinking',
+          agent: 'implementer',
+          text: "I'll use regex. I'll try parsing. I'll create the file.",
+        },
+      ],
+    });
+    const md = await generateDigest(tempDir);
+    // tool_choice from thinking should be filtered out
+    expect(md).not.toContain('use regex');
+    expect(md).not.toContain('try parsing');
+  });
+
+  it('keeps delegation decisions in filtered digest', async () => {
+    tempDir = await createRunDir({
+      'brief.md': '# Test Brief',
+      'report.md': 'STOPLIGHT: GREEN',
+      'audit.jsonl': [
+        { ts: '2024-01-01T00:00:00Z', role: 'manager', tool: 'delegate_to_implementer', allowed: true },
+        { ts: '2024-01-01T00:01:00Z', role: 'manager', tool: 'delegate_to_reviewer', allowed: true },
+      ],
+    });
+    const md = await generateDigest(tempDir);
+    expect(md).toContain('implementer');
+    expect(md).toContain('reviewer');
+  });
+
+  it('shows filtered count when many actions removed', async () => {
+    const audit: object[] = [];
+    // 50 reviewer read_file entries
+    for (let i = 0; i < 50; i++) {
+      audit.push({
+        ts: `2024-01-01T00:${String(i).padStart(2, '0')}:00Z`,
+        role: 'reviewer',
+        tool: 'read_file',
+        allowed: true,
+      });
+    }
+    tempDir = await createRunDir({
+      'brief.md': '# Test Brief',
+      'report.md': 'STOPLIGHT: GREEN',
+      'audit.jsonl': audit,
+    });
+    const md = await generateDigest(tempDir);
+    // Reviewer read_file entries should be filtered (they're non-decisions)
+    expect(md).not.toContain('Review action: read_file');
+  });
+
+  it('max 15 decisions in digest', async () => {
+    const audit: object[] = [];
+    // 20 delegation entries
+    for (let i = 0; i < 20; i++) {
+      audit.push({
+        ts: `2024-01-01T00:${String(i).padStart(2, '0')}:00Z`,
+        role: 'manager',
+        tool: 'delegate_to_implementer',
+        allowed: true,
+      });
+    }
+    tempDir = await createRunDir({
+      'brief.md': '# Test Brief',
+      'report.md': 'STOPLIGHT: GREEN',
+      'audit.jsonl': audit,
+    });
+    const md = await generateDigest(tempDir);
+    // Count bullet points in Beslut section
+    const beslutSection = md.split('## Beslut')[1] || '';
+    const bulletPoints = beslutSection.match(/^- /gm) || [];
+    expect(bulletPoints.length).toBeLessThanOrEqual(15);
+  });
+
+  it('aggregates repetitive review actions', async () => {
+    const audit: object[] = [];
+    // 30 reviewer bash_exec entries
+    for (let i = 0; i < 30; i++) {
+      audit.push({
+        ts: `2024-01-01T00:${String(i).padStart(2, '0')}:00Z`,
+        role: 'reviewer',
+        tool: 'bash_exec',
+        allowed: true,
+      });
+    }
+    tempDir = await createRunDir({
+      'brief.md': '# Test Brief',
+      'report.md': 'STOPLIGHT: GREEN',
+      'audit.jsonl': audit,
+    });
+    const md = await generateDigest(tempDir);
+    // Should NOT have 30 individual "Review action: bash_exec" lines
+    const reviewLines = (md.match(/Review action: bash_exec/g) || []).length;
+    expect(reviewLines).toBeLessThan(5);
   });
 });

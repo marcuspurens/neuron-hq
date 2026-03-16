@@ -389,3 +389,110 @@ export function buildDecisionChain(decisions: Decision[]): DecisionTree {
 
   return tree;
 }
+
+
+// ── Digest Helpers ───────────────────────────────────────
+
+/** Keywords that indicate a review decision contains an actual verdict. */
+const REVIEW_VERDICT_PATTERN =
+  /(?:Approved|Rejected|verdict|MERGE|ITERATE|INVESTIGATE)/i;
+
+/**
+ * Filter decisions to keep only significant ones (not tool calls or
+ * repetitive reviewer commands).
+ *
+ * Rules:
+ * - Filter OUT type 'tool_choice' entirely
+ * - Filter OUT type 'review' where 'what' starts with 'Review action:'
+ * - Keep type 'review' only if 'what' matches a verdict keyword
+ * - Keep 'plan', 'delegation', 'fix', and 'escalation' as-is
+ *
+ * @param decisions - Array of Decision objects to filter
+ * @returns Filtered array containing only significant decisions
+ */
+export function filterSignificantDecisions(decisions: Decision[]): Decision[] {
+  return decisions.filter((d) => {
+    if (d.type === 'tool_choice') return false;
+
+    if (d.type === 'review') {
+      if (d.what.startsWith('Review action:')) return false;
+      return REVIEW_VERDICT_PATTERN.test(d.what);
+    }
+
+    // Keep plan, delegation, fix, escalation
+    return true;
+  });
+}
+
+/**
+ * Aggregate repetitive decisions into summary entries.
+ *
+ * Groups decisions by (agent, type, what-prefix) where what-prefix is the
+ * first 30 characters of 'what'. Groups with >2 decisions are replaced
+ * with a single summary. Groups with <=2 pass through unchanged.
+ *
+ * @param decisions - Array of Decision objects to aggregate
+ * @returns Array with repetitive groups collapsed into summaries
+ */
+export function aggregateRepetitive(decisions: Decision[]): Decision[] {
+  const groupKey = (d: Decision): string =>
+    `${d.agent}|${d.type}|${d.what.slice(0, 30)}`;
+
+  // Preserve insertion order
+  const groups = new Map<string, Decision[]>();
+  for (const d of decisions) {
+    const key = groupKey(d);
+    const arr = groups.get(key) || [];
+    arr.push(d);
+    groups.set(key, arr);
+  }
+
+  const result: Decision[] = [];
+  for (const members of groups.values()) {
+    if (members.length <= 2) {
+      result.push(...members);
+      continue;
+    }
+
+    // Find most common confidence
+    const counts = new Map<string, number>();
+    for (const m of members) {
+      counts.set(m.confidence, (counts.get(m.confidence) || 0) + 1);
+    }
+    let bestConf: Decision['confidence'] = 'medium';
+    let bestCount = 0;
+    for (const [conf, cnt] of counts) {
+      if (cnt > bestCount) {
+        bestCount = cnt;
+        bestConf = conf as Decision['confidence'];
+      }
+    }
+
+    const first = members[0];
+    result.push({
+      ...first,
+      what: `${first.agent} k\u00F6rde ${members.length} ${first.type}-\u00E5tg\u00E4rder`,
+      confidence: bestConf,
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Produce a concise list of digest-worthy decisions.
+ *
+ * Chains: filterSignificantDecisions -> aggregateRepetitive -> slice(0, maxCount).
+ *
+ * @param decisions - Raw decisions from extractDecisions
+ * @param maxCount - Maximum number of decisions to return (default 15)
+ * @returns At most maxCount significant, de-duplicated decisions
+ */
+export function getDigestDecisions(
+  decisions: Decision[],
+  maxCount: number = 15,
+): Decision[] {
+  const significant = filterSignificantDecisions(decisions);
+  const aggregated = aggregateRepetitive(significant);
+  return aggregated.slice(0, maxCount);
+}

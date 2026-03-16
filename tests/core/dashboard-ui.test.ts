@@ -39,11 +39,12 @@ describe('renderLiveDashboard', () => {
     expect(html).toContain('id="event-log"');
   });
 
-  it('includes timer, iteration, token, and cost elements', () => {
+  it('includes timer, task-count, token, cost, and latency elements', () => {
     expect(html).toContain('id="timer"');
-    expect(html).toContain('id="iterations"');
+    expect(html).toContain('id="task-count"');
     expect(html).toContain('id="tokens"');
     expect(html).toContain('id="cost"');
+    expect(html).toContain('id="latency"');
   });
 
   it('handles all expected event types in JS', () => {
@@ -88,8 +89,8 @@ describe('renderLiveDashboard', () => {
     expect(html).toContain('1200px');
   });
 
-  it('keeps last 10 lines for agent reasoning', () => {
-    expect(html).toContain('>10');
+  it('keeps last 5 lines for agent reasoning', () => {
+    expect(html).toContain('>5');
   });
 
   it('keeps last 200 events in log buffer', () => {
@@ -233,5 +234,81 @@ describe('renderLiveDashboard', () => {
 
   it('pause handler is on log-pause-hint not logEl', () => {
     expect(html).toContain("getElementById('log-pause-hint').addEventListener");
+  });
+
+  // ===== RT-3c: Header tests =====
+
+  it('header contains task-count element with uppgifter', () => {
+    expect(html).toContain('id="task-count"');
+    expect(html).toContain('uppgifter');
+  });
+
+  it('header contains latency element with tok/s', () => {
+    expect(html).toContain('id="latency"');
+    expect(html).toContain('tok/s');
+  });
+
+  it('header does NOT contain iterations span', () => {
+    expect(html).not.toContain('id="iterations"');
+  });
+
+  it('tokens display uses middle dot separator', () => {
+    expect(html).toContain('\u00B7');
+  });
+
+  it('header has client-side timer with setInterval', () => {
+    expect(html).toContain('setInterval');
+    expect(html).toContain('timerRunning');
+    expect(html).toContain('timerElapsed');
+  });
+
+  it('timer syncs with time events (timerElapsed and timerTotal)', () => {
+    expect(html).toContain('timerElapsed=data.elapsed');
+    expect(html).toContain('timerTotal=');
+  });
+
+  it('latency calculated from token output rate', () => {
+    expect(html).toContain('lastTokenTime');
+    expect(html).toContain('lastTokenOut');
+    expect(html).toContain('tokPerSec');
+  });
+
+  it('task counter updated on task:status events', () => {
+    expect(html).toContain('task-count');
+    expect(html).toContain('completed');
+  });
+
+  // ===== RT-3c: Task list tests =====
+
+  it('task list supports wave grouping', () => {
+    expect(html).toContain('taskWaves');
+    expect(html).toContain('Wave');
+  });
+
+  it('task list shows descriptions from taskDescriptions', () => {
+    expect(html).toContain('taskDescriptions[tid]');
+  });
+
+  it('task list shows agent per task', () => {
+    expect(html).toContain('taskAgents[tid]');
+  });
+
+  it('task list shows time elapsed for running tasks', () => {
+    expect(html).toContain('taskStartTimes');
+  });
+
+  it('wave tracking from delegate_parallel_wave audit events', () => {
+    expect(html).toContain('delegate_parallel_wave');
+    expect(html).toContain('taskWaves');
+  });
+
+  // ===== RT-3c: Agent panel tests =====
+
+  it('agent panels show status-text span', () => {
+    expect(html).toContain('status-text');
+  });
+
+  it('agent panels show Arbetar status', () => {
+    expect(html).toContain('Arbetar');
   });
 });
