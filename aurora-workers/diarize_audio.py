@@ -40,7 +40,10 @@ def diarize_audio(source: str) -> dict:
         token=token,
     )
 
-    diarization = pipeline(source)
+    result = pipeline(source)
+
+    # pyannote 4.x returns DiarizeOutput; 3.x returns Annotation directly
+    diarization = getattr(result, "speaker_diarization", result)
 
     speakers_set: set[str] = set()
     segments = []
