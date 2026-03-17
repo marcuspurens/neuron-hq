@@ -670,6 +670,16 @@ program
     await chainStatusCommand(chainId);
   });
 
+// Obsidian export
+program
+  .command('obsidian-export')
+  .description('Export Aurora knowledge graph to Obsidian vault as markdown + wiki-links')
+  .option('--vault <path>', 'Obsidian vault path', '/Users/mpmac/Documents/Neuron Lab')
+  .action(async (options: { vault?: string }) => {
+    const { obsidianExportCommand } = await import('./commands/obsidian-export.js');
+    await obsidianExportCommand(options);
+  });
+
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =
   process.argv[1] &&
