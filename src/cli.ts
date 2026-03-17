@@ -670,6 +670,15 @@ program
     await chainStatusCommand(chainId);
   });
 
+// aurora:show <nodeId>
+program
+  .command('aurora:show <nodeId>')
+  .description('Show full metadata, edges and text for an Aurora node')
+  .action(async (nodeId: string) => {
+    const { auroraShowCommand } = await import('./commands/aurora-show.js');
+    await auroraShowCommand(nodeId);
+  });
+
 // Obsidian export
 program
   .command('obsidian-export')
