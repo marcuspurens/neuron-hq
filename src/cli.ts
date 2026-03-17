@@ -11,6 +11,10 @@ const __dirname = path.dirname(__filename);
 // quiet: true prevents dotenv from writing to stdout, which breaks MCP JSON-RPC
 config({ path: path.resolve(__dirname, '..', '.env'), quiet: true });
 
+// Initialize Langfuse tracing BEFORE any Anthropic imports
+import { initLangfuse } from './core/langfuse.js';
+initLangfuse();
+
 import {
   targetAddCommand,
   targetListCommand,

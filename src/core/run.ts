@@ -14,7 +14,8 @@ import { computeAllTaskScores } from './task-rewards.js';
 import { updateCostTracking } from '../commands/costs.js';
 import type { AgentModelMap } from './model-registry.js';
 import { eventBus } from './event-bus.js';
-import { startDashboardServer, type DashboardServer } from './dashboard-server.js';
+import type { DashboardServer } from './dashboard-server.js';
+import { createRunTrace, getRunTrace, shutdownLangfuse, registerEventBusListeners } from './langfuse.js';
 
 export interface RunContext {
   runid: RunId;
@@ -256,13 +257,17 @@ export class RunOrchestrator {
       startTime: new Date().toISOString(),
     });
 
-    // Start live dashboard (non-fatal — dashboard issues must never affect the run)
-    let dashboardServer: DashboardServer | null = null;
+    // Create Langfuse trace for this run (non-fatal)
     try {
-      dashboardServer = startDashboardServer(runid, undefined, runsDir);
+      createRunTrace(runid, { brief: processedBrief, briefTitle, target: target.name, hours });
+      registerEventBusListeners(eventBus);
     } catch {
-      // Dashboard startup failure is non-fatal
+      // Langfuse failure must never affect the run
     }
+
+    // Dashboard disabled — replaced by Langfuse observability (session 95)
+    // To re-enable: startDashboardServer(runid, undefined, runsDir)
+    const dashboardServer: DashboardServer | null = null;
 
     return {
       runid,
@@ -487,6 +492,23 @@ export class RunOrchestrator {
       duration: Date.now() - ctx.startTime.getTime(),
       status: stoplight.risk,
     });
+
+    // Finalize Langfuse trace (non-fatal)
+    try {
+      const trace = getRunTrace(ctx.runid);
+      if (trace) {
+        trace.update({
+          output: {
+            stoplight: stoplight.risk,
+            tests: stoplight.after_change_verify,
+            duration: Date.now() - ctx.startTime.getTime(),
+          },
+        });
+      }
+      await shutdownLangfuse();
+    } catch {
+      // Langfuse failure must never affect the run
+    }
   }
 
   /**

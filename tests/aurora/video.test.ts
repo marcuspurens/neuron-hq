@@ -407,14 +407,14 @@ describe('ingestVideo', () => {
         action: 'extract_video',
         source: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       },
-      { timeout: 300_000 },
+      { timeout: 600_000 },
     );
     expect(mockRunWorker).toHaveBeenCalledWith(
       {
         action: 'transcribe_audio',
         source: '/tmp/audio.m4a',
       },
-      { timeout: 600_000 },
+      { timeout: 1_800_000 },
     );
   });
 
@@ -433,7 +433,7 @@ describe('ingestVideo', () => {
         source: '/tmp/audio.m4a',
         options: { whisper_model: 'large' },
       }),
-      { timeout: 600_000 },
+      { timeout: 1_800_000 },
     );
   });
 
@@ -452,7 +452,7 @@ describe('ingestVideo', () => {
         source: '/tmp/audio.m4a',
         options: { language: 'sv' },
       }),
-      { timeout: 600_000 },
+      { timeout: 1_800_000 },
     );
   });
 
@@ -472,7 +472,7 @@ describe('ingestVideo', () => {
         source: '/tmp/audio.m4a',
         options: { whisper_model: 'large', language: 'sv' },
       }),
-      { timeout: 600_000 },
+      { timeout: 1_800_000 },
     );
   });
 
