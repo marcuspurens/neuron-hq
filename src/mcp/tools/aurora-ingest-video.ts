@@ -12,8 +12,8 @@ export function registerAuroraIngestVideoTool(server: McpServer): void {
       diarize: z
         .boolean()
         .optional()
-        .default(false)
-        .describe('Run speaker identification (requires pyannote)'),
+        .default(true)
+        .describe('Run speaker identification (requires pyannote). Default: true'),
       scope: z
         .enum(['personal', 'shared', 'project'])
         .optional()

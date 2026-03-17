@@ -224,7 +224,7 @@ program
 program
   .command('aurora:ingest-video <url>')
   .description('Ingest a video (YouTube, SVT, Vimeo, TV4, etc.) into Aurora knowledge graph')
-  .option('--diarize', 'Run speaker identification')
+  .option('--no-diarize', 'Skip speaker identification (diarize is on by default)')
   .option('--scope <scope>', 'personal | shared | project', 'personal')
   .option('--max-chunks <N>', 'Max chunks')
   .option('--whisper-model <model>', 'Whisper model: tiny|small|medium|large', 'small')

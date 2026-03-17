@@ -66,7 +66,7 @@ async function run(): Promise<void> {
     );
 
     const options: VideoIngestOptions = {
-      diarize: (input.diarize as boolean) ?? false,
+      diarize: (input.diarize as boolean) ?? true,
       scope: (input.scope as VideoIngestOptions['scope']) ?? 'personal',
       whisperModel: input.whisper_model as string | undefined,
       language: input.language as string | undefined,

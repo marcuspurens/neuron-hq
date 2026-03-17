@@ -38,7 +38,7 @@ export async function auroraIngestVideoCommand(
   };
 
   const options: VideoIngestOptions = {
-    diarize: cmdOptions.diarize ?? false,
+    diarize: cmdOptions.diarize ?? true,
     scope: (cmdOptions.scope as VideoIngestOptions['scope']) ?? 'personal',
     maxChunks: cmdOptions.maxChunks ? parseInt(cmdOptions.maxChunks, 10) : undefined,
     whisperModel: cmdOptions.whisperModel,
