@@ -229,6 +229,7 @@ program
   .option('--max-chunks <N>', 'Max chunks')
   .option('--whisper-model <model>', 'Whisper model: tiny|small|medium|large', 'small')
   .option('--language <lang>', 'Language code (e.g. sv, en) — skip auto-detection')
+  .option('--no-keep-audio', 'Do not save audio file (audio is saved by default to Neuron Lab/audio/)')
   .action(auroraIngestVideoCommand);
 
 

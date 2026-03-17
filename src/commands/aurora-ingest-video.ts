@@ -1,7 +1,11 @@
 import chalk from 'chalk';
+import { copyFile, mkdir } from 'fs/promises';
+import { join, basename } from 'path';
 import { isWorkerAvailable } from '../aurora/worker-bridge.js';
 import { ingestVideo } from '../aurora/video.js';
 import type { VideoIngestOptions, ProgressUpdate } from '../aurora/video.js';
+
+const AUDIO_DIR = '/Users/mpmac/Documents/Neuron Lab/audio';
 
 /**
  * CLI command: aurora:ingest-video <url>
@@ -15,6 +19,7 @@ export async function auroraIngestVideoCommand(
     maxChunks?: string;
     whisperModel?: string;
     language?: string;
+    keepAudio?: boolean;
   },
 ): Promise<void> {
   console.log(chalk.bold('\n🎬 Ingesting video...'));
@@ -72,6 +77,13 @@ export async function auroraIngestVideoCommand(
     console.log(`    Duration: ${result.duration}s`);
     if (result.modelUsed) {
       console.log(`    Model used: ${result.modelUsed}`);
+    }
+    // Save audio file (default: on, use --no-keep-audio to skip)
+    if ((cmdOptions.keepAudio ?? true) && result.audioPath) {
+      await mkdir(AUDIO_DIR, { recursive: true });
+      const dest = join(AUDIO_DIR, `${result.transcriptNodeId}${basename(result.audioPath).replace(/^[^.]*/, '')}`);
+      await copyFile(result.audioPath, dest);
+      console.log(`    🔊 Audio saved: ${dest}`);
     }
     if (result.crossRefsCreated > 0) {
       console.log(chalk.cyan(`  🔗 ${result.crossRefsCreated} cross-reference${result.crossRefsCreated > 1 ? 's' : ''} created:`));
