@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-03-12T1945-session81-tech-debt-td4-td8-td11.md](docs/handoffs/HANDOFF-2026-03-12T1945-session81-tech-debt-td4-td8-td11.md)
+Senaste handoff: [HANDOFF-2026-03-17T0130-session95-langfuse-observability.md](docs/handoffs/HANDOFF-2026-03-17T0130-session95-langfuse-observability.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -80,5 +80,18 @@ Senaste handoff: [HANDOFF-2026-03-12T1945-session81-tech-debt-td4-td8-td11.md](d
 | 2026-03-12 | 17:30 | 80 | F1 🟢 + SDK 0.78 + statistikfix | [länk](docs/handoffs/HANDOFF-2026-03-12T1730-session80-f1-sdk-statistikfix.md) |
 | 2026-03-12 | 19:45 | 81 | Tech debt: TD-4 + TD-8 + TD-11 | [länk](docs/handoffs/HANDOFF-2026-03-12T1945-session81-tech-debt-td4-td8-td11.md) |
 | 2026-03-12 | 22:00 | 82 | TD-13 + TD-14 + TD-15: Shared tools + batch embed | [länk](docs/handoffs/HANDOFF-2026-03-12T2200-session82-td13-td14-td15.md) |
+| 2026-03-13 | 10:00 | 83 | Dashboard + Adaptive Manager | [länk](docs/handoffs/HANDOFF-2026-03-13T1000-session83-dashboard-adaptive-manager.md) |
+| 2026-03-14 | 08:00 | 84 | TD-1 + E1 + E2 + F3 | [länk](docs/handoffs/HANDOFF-2026-03-14T0800-session84-td1-e1-e2-f3.md) |
+| 2026-03-14 | 15:00 | 85 | E3 + E4 + E4b Knowledge Library | [länk](docs/handoffs/HANDOFF-2026-03-14T1500-session85-e3-e4-e4b-knowledge-library.md) |
+| 2026-03-15 | 08:00 | 86 | E4b/c/d + E5 Topic chaining | [länk](docs/handoffs/HANDOFF-2026-03-15T0800-session86-e4bcd-e5-topic-chaining.md) |
+| 2026-03-15 | 11:00 | 87 | E6 + E7 + Obsidian research | [länk](docs/handoffs/HANDOFF-2026-03-15T1100-session87-e6-e7-obsidian-research.md) |
+| 2026-03-15 | 22:00 | 88 | Async jobs + GPU Whisper | [länk](docs/handoffs/HANDOFF-2026-03-15T2200-session88-async-jobs-gpu-whisper.md) |
+| 2026-03-16 | 10:00 | 89 | MCP split architecture | [länk](docs/handoffs/HANDOFF-2026-03-16T1000-session89-mcp-split-architecture.md) |
+| 2026-03-16 | 12:00 | 90 | TD-3 MCP split complete | [länk](docs/handoffs/HANDOFF-2026-03-16T1200-session90-td3-mcp-split-complete.md) |
+| 2026-03-16 | 15:00 | 90b | Architecture docs | [länk](docs/handoffs/HANDOFF-2026-03-16T1500-session90b-architecture-docs.md) |
+| 2026-03-16 | 18:00 | 91 | RT Dashboard | [länk](docs/handoffs/HANDOFF-2026-03-16T1800-session91-rt-dashboard.md) |
+| 2026-03-16 | 20:00 | 93 | RT-3 Explainability | [länk](docs/handoffs/HANDOFF-2026-03-16T2000-session93-rt3-explainability.md) |
+| 2026-03-16 | 22:00 | 94 | TD-5 + Dashboard fixes | [länk](docs/handoffs/HANDOFF-2026-03-16T2200-session94-td5-dashboard-fixes.md) |
+| 2026-03-17 | 01:30 | 95 | **Langfuse observability** — ersätter custom dashboard | [länk](docs/handoffs/HANDOFF-2026-03-17T0130-session95-langfuse-observability.md) |
 
-> **Not:** Session 1, 6, och 79 saknas — handoffs skapades inte vid dessa tillfällen.
+> **Not:** Session 1, 6, 79 och 92 saknas — handoffs skapades inte vid dessa tillfällen.
