@@ -11,9 +11,19 @@ export const ParsedIdeaSchema = z.object({
 });
 export type ParsedIdea = z.infer<typeof ParsedIdeaSchema>;
 
+/** Patterns for sub-bullets that are NOT ideas (tradeoffs, checklists) */
+const NON_IDEA_BULLET = /^(pro:|con:|✅|❌)/i;
+
+/** Detect the "detailed" format: ## N. Title (numbered heading = idea, not group) */
+const NUMBERED_HEADING = /^(\d+)\.\s+(.+)/;
+
 /**
  * Parse ideas.md content into structured ideas.
- * Each ## heading = a group. Each - bullet or numbered item = an idea.
+ *
+ * Supports two formats:
+ * 1. **List format**: ## heading = group, bullets/numbered items = ideas
+ * 2. **Detailed format**: ## N. Title = idea (with multi-line body including Pro/Con)
+ *
  * Defensive: skips malformed lines, never throws.
  */
 export function parseIdeasMd(content: string): ParsedIdea[] {
@@ -21,24 +31,58 @@ export function parseIdeasMd(content: string): ParsedIdea[] {
   const lines = content.split('\n');
   let currentGroup = 'General';
 
-  for (const line of lines) {
-    const trimmed = line.trim();
+  // Detect format: if any ## heading matches "## N. Title", use detailed mode
+  const isDetailed = lines.some(l => {
+    const t = l.trim();
+    return t.startsWith('## ') && NUMBERED_HEADING.test(t.slice(3).trim());
+  });
 
-    // ## heading = group
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+
+    // ## heading
     if (trimmed.startsWith('## ')) {
-      currentGroup = trimmed.slice(3).trim();
+      const headingText = trimmed.slice(3).trim();
+
+      // Detailed format: ## N. Title is an idea, not a group
+      if (isDetailed) {
+        const m = headingText.match(NUMBERED_HEADING);
+        if (m) {
+          const bodyText = collectBody(lines, i + 1);
+          const fullText = headingText + (bodyText ? '\n' + bodyText : '');
+          const cleanTitle = m[2].replace(/\*\*/g, '').trim();
+          const title = extractTitle(cleanTitle);
+          const { impact, effort, risk } = extractImpactEffortRisk(fullText);
+
+          ideas.push({
+            title,
+            description: fullText,
+            group: currentGroup,
+            impact,
+            effort,
+            risk,
+          });
+          continue;
+        }
+      }
+
+      // Regular group heading
+      currentGroup = headingText;
       continue;
     }
 
     // # heading = skip (top-level title)
     if (trimmed.startsWith('# ')) continue;
 
-    // - bullet = idea
+    // In detailed format, skip everything except ## headings (body is collected above)
+    if (isDetailed) continue;
+
+    // - bullet = idea (list format only)
     if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
       const text = trimmed.slice(2).trim();
       if (!text) continue;
+      if (NON_IDEA_BULLET.test(text)) continue;
 
-      // Title: first sentence or up to 80 chars
       const title = extractTitle(text);
       const { impact, effort, risk } = extractImpactEffortRisk(text);
 
@@ -59,7 +103,6 @@ export function parseIdeasMd(content: string): ParsedIdea[] {
       const text = numberedMatch[1].trim();
       if (!text) continue;
 
-      // Strip bold markers for title extraction
       const cleanText = text.replace(/\*\*/g, '');
       const title = extractTitle(cleanText);
       const { impact, effort, risk } = extractImpactEffortRisk(text);
@@ -76,6 +119,21 @@ export function parseIdeasMd(content: string): ParsedIdea[] {
   }
 
   return ideas;
+}
+
+/**
+ * Collect body text below a ## heading until the next ## or end of file.
+ * Used in detailed format to extract full idea description for keyword scoring.
+ */
+function collectBody(lines: string[], startIdx: number): string {
+  const bodyLines: string[] = [];
+  for (let i = startIdx; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (trimmed.startsWith('## ') || trimmed.startsWith('# ')) break;
+    if (trimmed === '---') break;
+    bodyLines.push(trimmed);
+  }
+  return bodyLines.join('\n').trim();
 }
 
 /**
