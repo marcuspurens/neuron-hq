@@ -1929,3 +1929,47 @@ await pool.query(
 **Senast bekräftad:** 20260312-2122-neuron-hq
 
 ---
+
+## Tidskodat talartidslinje från överlappande segmentarrayer
+**Kontext:** Behov att kombinera Whisper transkribering (text, start/end tidsstämplar) med pyannote diarization (talare, start/end) för att skapa enhetlig tidslinje.
+**Lösning:** Implementera `buildSpeakerTimeline()` som matchar whisper-segment mot diarization-segment genom att beräkna tidsöverlappsgrad. För varje tidsintervall tilldelas den talare med högsta överlapp. Intilliggande block med samma talare slås samman automatiskt. Output formateras som hh:mm:ss internt MS-lagrat.
+**Effekt:** Exakt talartilldelning utan manuell justering. Automatisk gruppering reducerar antalet block och förbättrar läsbarheten. Testet (round-trip, överlapp-kanter, luckor) bekräftade robusthet.
+**Keywords:** segment matching, speaker diarization, time-overlap, timeline, transcript alignment
+**Relaterat:** OB-1a brief, Obsidian export, aurora:show
+**Körningar:** #20260318-0701
+**Senast bekräftad:** 20260318-0701
+
+---
+
+## Additivt moduldesign för isolerad feature-implementering
+**Kontext:** Stor ny feature (talartidslinje) kräver både ny logik och integrering med befintliga kommandon (obsidian-export, aurora:show).
+**Lösning:** Skapa helt ny ren modul (speaker-timeline.ts) med noll externa beroenden. Modulen innehåller all affärslogik (formatMs, buildSpeakerTimeline, typer). Integrering görs via tunna adaptrar i befintliga filer — bara de få rader som krävs för att anropa ny modul. Befintliga kodvägar för icke-video-noder förblir oförändrade.
+**Effekt:** Låg integrerings-risk trots 1400+ rader ny kod. Zero regressioner på 3000 befintliga tester. Modulen är helt testbar isolerat. Enkelt rollback: ta bort speaker-timeline.ts och reversera de få ändringar i video.ts och kommandon.
+**Keywords:** modular design, additive architecture, feature isolation, pure module, adapter pattern
+**Relaterat:** patterns.md#Additivt moduldesign för minnessystem-parallellisering
+**Körningar:** #20260318-0701
+**Senast bekräftad:** 20260318-0701
+
+---
+
+## Tidskodat talartidslinje från överlappande segmentarrayer
+**Kontext:** Behov att kombinera Whisper transkribering (text, start/end tidsstämplar) med pyannote diarization (talare, start/end) för att skapa enhetlig tidslinje.
+**Lösning:** Implementera `buildSpeakerTimeline()` som matchar whisper-segment mot diarization-segment genom att beräkna tidsöverlappsgrad. För varje tidsintervall tilldelas den talare med högsta överlapp. Intilliggande block med samma talare slås samman automatiskt. Output formateras som hh:mm:ss internt MS-lagrat.
+**Effekt:** Exakt talartilldelning utan manuell justering. Automatisk gruppering reducerar antalet block och förbättrar läsbarheten. Testet (round-trip, överlapp-kanter, luckor) bekräftade robusthet.
+**Keywords:** segment matching, speaker diarization, time-overlap, timeline, transcript alignment
+**Relaterat:** OB-1a brief, Obsidian export, aurora:show
+**Körningar:** #20260318-0701
+**Senast bekräftad:** 20260318-0701
+
+---
+
+## Additivt moduldesign för isolerad feature-implementering
+**Kontext:** Stor ny feature (talartidslinje) kräver både ny logik och integrering med befintliga kommandon (obsidian-export, aurora:show).
+**Lösning:** Skapa helt ny ren modul (speaker-timeline.ts) med noll externa beroenden. Modulen innehåller all affärslogik (formatMs, buildSpeakerTimeline, typer). Integrering görs via tunna adaptrar i befintliga filer — bara de få rader som krävs för att anropa ny modul. Befintliga kodvägar för icke-video-noder förblir oförändrade.
+**Effekt:** Låg integrerings-risk trots 1400+ rader ny kod. Zero regressioner på 3000 befintliga tester. Modulen är helt testbar isolerat. Enkelt rollback: ta bort speaker-timeline.ts och reversera de få ändringar i video.ts och kommandon.
+**Keywords:** modular design, additive architecture, feature isolation, pure module, adapter pattern
+**Relaterat:** patterns.md#Additivt moduldesign för minnessystem-parallellisering
+**Körningar:** #20260318-0701
+**Senast bekräftad:** 20260318-0701
+
+---

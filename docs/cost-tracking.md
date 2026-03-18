@@ -1,20 +1,20 @@
 # Neuron HQ — Körningshistorik & Kostnader
 
-Genererad: 2026-03-12 21:36  
-Antal körningar: 121  
+Genererad: 2026-03-18 07:32  
+Antal körningar: 156  
 Prismodell: Sonnet 4.5 — $3/MTok input, $15/MTok output
 
 ## Sammanfattning
 
 | Mått | Värde |
 |------|-------|
-| Körningar | 121 |
-| GREEN | 64 |
-| Totala tokens | 509.5M |
-| Total kostnad | $1603.87 |
-| Snitt per körning | $13.26 |
+| Körningar | 156 |
+| GREEN | 98 |
+| Totala tokens | 894.0M |
+| Total kostnad | $2799.86 |
+| Snitt per körning | $17.95 |
 | Billigaste | $0.00 |
-| Dyraste | $45.64 |
+| Dyraste | $68.28 |
 
 ## Alla körningar
 
@@ -141,17 +141,52 @@ Prismodell: Sonnet 4.5 — $3/MTok input, $15/MTok output
 | 119 | 2026-03-12 | 19:07 | TD-13: Extrahera gemensam agentver… | GREEN | Sonnet 4.5 | 10.4M | 0.12M | 10.6M | $33.09 | 6 | 33m |
 | 120 | 2026-03-12 | 20:23 | TD-14: Batch UPDATE i autoEmbedAur… | GREEN | Sonnet 4.5 | 2.7M | 0.03M | 2.7M | $8.62 | 6 | 13m |
 | 121 | 2026-03-12 | 21:22 | TD-15: Batch UPDATE i autoEmbedNod… | GREEN | Sonnet 4.5 | 2.9M | 0.03M | 3.0M | $9.35 | 6 | 14m |
+| 122 | 2026-03-13 | 06:55 | TD-12: Öka testtäckning för otesta… | GREEN | Sonnet 4.5 | 5.9M | 0.05M | 6.0M | $18.61 | 7 | 16m |
+| 123 | 2026-03-13 | 07:27 | F2-prep: Statistik-dashboard (HTML) | GREEN | Sonnet 4.5 | 9.0M | 0.07M | 9.0M | $27.98 | 6 | 23m |
+| 124 | 2026-03-13 | 07:58 | F2: Adaptiv Manager — statistik-dr… | GREEN | Sonnet 4.5 | 6.5M | 0.06M | 6.6M | $20.36 | 6 | 23m |
+| 125 | 2026-03-13 | 08:29 | F2-prep v2: Utökad dashboard — kör… | GREEN | Sonnet 4.5 | 7.2M | 0.10M | 7.3M | $23.02 | 8 | 31m |
+| 126 | 2026-03-13 | 13:28 | TD-1: Graf-query-optimering — elim… | GREEN | Sonnet 4.5 | 6.7M | 0.06M | 6.8M | $20.95 | 6 | 16m |
+| 127 | 2026-03-13 | 15:12 | E1: Knowledge Manager-agent — auto… | GREEN | Sonnet 4.5 | 8.7M | 0.10M | 8.8M | $27.56 | 6 | 33m |
+| 128 | 2026-03-13 | 17:58 | F3: Bayesiskt medvetande — confide… | GREEN | Sonnet 4.5 | 10.9M | 0.10M | 11.0M | $34.32 | 7 | 29m |
+| 129 | 2026-03-13 | 21:00 | F3-fix: Byt decay från kalendertid… | GREEN | Sonnet 4.5 | 5.2M | 0.04M | 5.3M | $16.19 | 6 | 13m |
+| 130 | 2026-03-14 | 06:30 | E2: Knowledge Manager — faktisk we… | GREEN | Sonnet 4.5 | 6.3M | 0.07M | 6.4M | $20.03 | 6 | 21m |
+| 131 | 2026-03-14 | 07:51 | E3: Schemalagd Knowledge Manager —… | GREEN | Sonnet 4.5 | 9.0M | 0.08M | 9.1M | $28.31 | 6 | 29m |
+| 132 | 2026-03-14 | 11:57 | E4: Knowledge Library — syntetiser… | GREEN | Sonnet 4.5 | 15.1M | 0.16M | 15.2M | $47.55 | 7 | 45m |
+| 133 | 2026-03-14 | 14:46 | E4b: Ontologi — automatiskt växand… | GREEN | Sonnet 4.5 | 12.0M | 0.13M | 12.1M | $37.84 | 6 | 41m |
+| 134 | 2026-03-14 | 15:48 | E4c: EBUCore+ metadata alignment f… | GREEN | Sonnet 4.5 | 10.9M | 0.10M | 11.0M | $34.15 | 7 | 30m |
+| 135 | 2026-03-14 | 21:16 | E4d: Persistenta identifierare — a… | GREEN | Sonnet 4.5 | 18.3M | 0.17M | 18.5M | $57.56 | 8 | 42m |
+| 136 | 2026-03-15 | 06:20 | E5: Topic Chaining — KM som kedjar… | GREEN | Sonnet 4.5 | 21.7M | 0.21M | 21.9M | $68.28 | 6 | 59m |
+| 137 | 2026-03-15 | 08:01 | E6: JSON-LD Export — exportera ont… | GREEN | Sonnet 4.5 | 10.3M | 0.12M | 10.4M | $32.66 | 6 | 35m |
+| 138 | 2026-03-15 | 09:18 | E7: DOI via CrossRef — publikation… | GREEN | Sonnet 4.5 | 14.2M | 0.12M | 14.3M | $44.27 | 6 | 37m |
+| 139 | 2026-03-15 | 21:12 | TD-2: Async Video Ingest with Job … | GREEN | Sonnet 4.5 | 14.9M | 0.14M | 15.0M | $46.80 | 7 | 43m |
+| 140 | 2026-03-15 | 22:13 | TD-2b: Job System Polish — Notific… | GREEN | Sonnet 4.5 | 10.7M | 0.10M | 10.8M | $33.57 | 6 | 31m |
+| 141 | 2026-03-16 | 02:46 | TD-3a: MCP Server Split — 10 Focus… | GREEN | Sonnet 4.5 | 16.2M | 0.18M | 16.4M | $51.40 | 6 | 54m |
+| 142 | 2026-03-16 | 05:51 | TD-3b: MCP Prompts — Server-Scoped… | GREEN | Sonnet 4.5 | 7.3M | 0.06M | 7.4M | $22.86 | 7 | 25m |
+| 143 | 2026-03-16 | 06:19 | TD-3c: Skills — Cross-Server Workf… | ? | Sonnet 4.5 | 5.7M | 0.06M | 5.8M | $18.12 | 6 | 19m |
+| 144 | 2026-03-16 | 10:02 | RT-1a: EventBus — Centralt Event-s… | GREEN | Sonnet 4.5 | 8.0M | 0.06M | 8.1M | $25.02 | 6 | 24m |
+| 145 | 2026-03-16 | 10:35 | RT-1b: Live Dashboard — SSE-server… | GREEN | Sonnet 4.5 | 12.6M | 0.11M | 12.8M | $39.65 | 9 | 45m |
+| 146 | 2026-03-16 | 12:27 | RT-1c: Thinking-extraktion + Recon… | GREEN | Sonnet 4.5 | 5.5M | 0.05M | 5.6M | $17.40 | 6 | 17m |
+| 147 | 2026-03-16 | 12:52 | TD-4: Idé-noder i Kunskapsgrafen | GREEN | Sonnet 4.5 | 6.2M | 0.07M | 6.2M | $19.53 | 6 | 25m |
+| 148 | 2026-03-16 | 13:27 | RT-2: Berättande Dashboard + Körni… | GREEN | Sonnet 4.5 | 12.6M | 0.09M | 12.7M | $39.14 | 6 | 37m |
+| 149 | 2026-03-16 | 14:15 | RT-3: Förklarbarhet — Beslutskedjo… | GREEN | Sonnet 4.5 | 13.0M | 0.13M | 13.1M | $40.85 | 6 | 46m |
+| 150 | 2026-03-16 | 17:01 | RT-3b: Rik händelselogg — Expander… | GREEN | Sonnet 4.5 | 8.3M | 0.14M | 8.5M | $27.12 | 6 | 43m |
+| 151 | 2026-03-16 | 17:47 | RT-3c: Dashboard UX-polish — Läsba… | GREEN | Sonnet 4.5 | 16.7M | 0.13M | 16.8M | $52.01 | 6 | 38m |
+| 152 | 2026-03-16 | 18:33 | RT-3d: Brief-visning, Resonemang-f… | GREEN | Sonnet 4.5 | 17.3M | 0.13M | 17.4M | $53.85 | 4 | 49m |
+| 153 | 2026-03-16 | 20:29 | TD-5: Nödsparning — Bevara arbete … | GREEN | Sonnet 4.5 | 7.9M | 0.08M | 7.9M | $24.75 | 6 | 27m |
+| 154 | 2026-03-16 | 21:16 | RT-3d-fix: Dashboard-bugfixar — Re… | GREEN | Sonnet 4.5 | 17.1M | 0.11M | 17.2M | $52.89 | 6 | 47m |
+| 155 | 2026-03-16 | 22:17 | RT-3e: Brief-panel, Kostnad per ag… | GREEN | Sonnet 4.5 | 15.6M | 0.12M | 15.7M | $48.62 | 9 | 35m |
+| 156 | 2026-03-18 | 07:01 | OB-1a: Spara segmentdata & Bygg ta… | GREEN | Sonnet 4.5 | 7.3M | 0.07M | 7.3M | $22.78 | 6 | 31m |
 
 ## Kostnad per agent (genomsnitt)
 
 | Agent | Snitt tokens | Kostnad/körning | Andel |
 |-------|------------:|----------------:|------:|
-| manager | 1.33M | $4.13 | 30.9% |
-| implementer | 1.31M | $4.20 | 26.7% |
-| reviewer | 0.76M | $2.36 | 15.4% |
-| tester | 0.09M | $0.30 | 1.9% |
-| merger | 0.19M | $0.63 | 4.0% |
-| researcher | 0.93M | $2.96 | 4.6% |
-| historian | 0.63M | $1.95 | 13.7% |
-| librarian | 0.44M | $1.38 | 1.7% |
-| consolidator | 1.40M | $4.34 | 1.1% |
+| manager | 1.78M | $5.51 | 30.5% |
+| implementer | 1.99M | $6.34 | 31.0% |
+| reviewer | 1.07M | $3.30 | 16.5% |
+| tester | 0.19M | $0.59 | 2.9% |
+| merger | 0.21M | $0.71 | 3.4% |
+| researcher | 0.95M | $3.02 | 3.1% |
+| historian | 0.60M | $1.84 | 9.7% |
+| librarian | 0.45M | $1.43 | 1.4% |
+| consolidator | 1.61M | $4.97 | 1.4% |

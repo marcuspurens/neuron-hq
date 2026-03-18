@@ -2449,3 +2449,90 @@ Inga kända problem. Typecheck, lint och test-svit alla gröna.
 - Risk för denna typ av refaktorering är låg när den följer redan-testamönster från tidigare commits
 
 ---
+
+## Körning 20260316-2217-neuron-hq — neuron-hq
+**Datum:** 2026-03-16
+**Uppgift:** Implementera RT-3e: Brief-panel, Kostnad per agent, ETA, Konfidens-histogram i dashboarden
+**Resultat:** ✅ 13/13 acceptanskriterier — alla delar (A–D) levererade och verifierade, 43 nya tester, noll regressioner
+
+**Vad som fungerade:**
+Alla fyra dashboard-komponenter implementerades utan problem. Brief-panel visar titel+sammanfattning med collapsible expansion, agent-kostnad beräknas korrekt från token-events med hårdkodade Sonnet-priser, ETA använder median-baserad uppskattning efter 3+ uppgifter, och konfidens-histogram renderas som ASCII-stapeldiagram. Testsuiten växte från 2957 till 3000 (43 nya). Build, typecheck och linting passerade utan regressioner eller nya fel.
+
+**Vad som inte fungerade:**
+Inga blockerare eller misslyckanden. Rivngörnfall (leaderless briefs, svag tillförlitlighet på ETA med varierande uppgiftstider) lösta proaktivt med fallbacks (visa första 300 tecken om ingen H1, dölj ETA om <3 datapunkter). Emergent ändringar var enbart build-time Python-hjälpskript, inte produktionskod.
+
+**Lärdomar:**
+- Brief-event via SSE + endpoint-fallback ger både liveness och reconnect-robusthet utan duplication
+- Median för ETA-uppskattning skyddar mot outliers bättre än medelvärde
+- Cost-beräkning samma över alla agenter (hårdkodade Sonnet-priser) — enkelt men kräver uppdatering vid modellbyten
+- Histogram i digest-format (ASCII) är markdown-kompatibelt och fungerar överallt utan extra beroenden
+
+---
+
+## Körningseffektivitet
+- **Teststäckning:** +43 nya tests (141 rader kod + 402 rader tests; ratio 1:2.85 — bra täckning). Baseline 2957 → 3000 = 100% pass rate. Zero regressioner.
+- **Kodkvalitet:** Lintövervakning: 37 förhanden fel (pre-existing) och 125 varningar (oförändrad). Typsäkerhet: `tsc --noEmit` clean. Ingen ny teknisk skuld introducerad.
+
+---
+
+## Körning 20260316-2217-neuron-hq — Dashboard RT-3e
+**Datum:** 2026-03-16
+**Uppgift:** Implementera brief-panel i dashboarden, kostnad per agent, ETA-beräkning och konfidens-histogram
+**Resultat:** ✅ 4/4 uppgifter klara — alla acceptanskriterier verifierade, 43 nya tester
+
+**Vad som fungerade:**
+- Brief-panel under header med collapsible expansion av full text, korrekt sammanfattning (max 300 tecken)
+- Kostnad per agent beräknad från tokens med hårdkodade Sonnet-priser, visad i agent-tiles som "$X.XX"
+- ETA-beräkning i header efter 3+ avslutade uppgifter, använder median av uppgiftstider, uppdateras var 10:e sekund (inte vid varje event)
+- Konfidens-histogram i digest med ASCII-stapeldiagram (hög/medel/låg) med antal och procent
+- Nytt `brief`-event i event-bus.ts emitteras vid run:start, endpoint GET /brief/:runid returnerar brief-innehåll
+- Alla befintliga 2957 tester passerar utan regression, 43 nya tester adderade (totalt 3000)
+
+**Vad som inte fungerade:**
+Inga kända problem — typecheck ren, inga nya lint-fel, zero regressioner.
+
+**Lärdomar:**
+- Acceptanskriterier bör formuleras som observable, verifierbara conditions (synliga i UI eller kod). Alla 13 kriterier från brief verifierades genom grep/inspection av källkod.
+- ETA med median istället för medelvärde är robust design — en långsam uppgift förstör inte uppskattningen
+- Separation av brief-content i event vs endpoint är smartare än att skicka hela innehållet via SSE — minskar payload, möjliggör reconnect-fallback
+- Hårdkodade priskonsta anter kan extraheras senare; att ha dem på ett ställe från början är värdefullt
+
+---
+
+## Körning 20260318-0701-neuron-hq — neuron-hq
+**Datum:** 2026-03-18
+**Uppgift:** Implementera OB-1a — spara segmentdata från Whisper/pyannote, bygga tidskodat talartidslinje-system för YouTube-videotranskript.
+**Resultat:** ✅ 11/11 kriterier — 3028/3028 tester passar, noll regressioner, renaste typecheck.
+
+**Vad som fungerade:**
+Helt nytt speaker-timeline-modul skapades (198 rader) med formatMs och buildSpeakerTimeline, plus 174 rader gyldig test-täckning. Segment-lagring implementerades i video.ts med minimal påverkan (+2 rader). Obsidian-export omformatterades för tidslinjor med talartabell och automatisk blockgruppering för intilliggande samma talare.
+
+**Vad som inte fungerade:**
+Inga kända problem. Ingen blocker, ingen regression, clean typecheck.
+
+**Lärdomar:**
+- Additivt moduldesign (ny ren modul + tunna adaptrar i befintliga kommandon) är lågrisk för stora nya features.
+- Tidsmatchning baserad på överlapp mellan whisper- och diarization-segment är robust för alignment.
+- Max 7 rader per block (ca 150 ord) är praktisk gräns för läsbar tidslinjeoutput.
+- Aurora re-ingest krävs för befintliga videor för att få uppdaterad segmentdata.
+
+---
+
+## Körning 20260318-0701-neuron-hq — neuron-hq
+**Datum:** 2026-03-18
+**Uppgift:** Implementera OB-1a — spara segmentdata från Whisper/pyannote, bygga tidskodat talartidslinje-system för YouTube-videotranskript.
+**Resultat:** ✅ 11/11 kriterier — 3028/3028 tester passar, noll regressioner, renaste typecheck.
+
+**Vad som fungerade:**
+Helt nytt speaker-timeline-modul skapades (198 rader) med formatMs och buildSpeakerTimeline, plus 174 rader gyldig test-täckning. Segment-lagring implementerades i video.ts med minimal påverkan (+2 rader). Obsidian-export omformatterades för tidslinjor med talartabell och automatisk blockgruppering för intilliggande samma talare.
+
+**Vad som inte fungerade:**
+Inga kända problem. Ingen blocker, ingen regression, clean typecheck.
+
+**Lärdomar:**
+- Additivt moduldesign (ny ren modul + tunna adaptrar i befintliga kommandon) är lågrisk för stora nya features.
+- Tidsmatchning baserad på överlapp mellan whisper- och diarization-segment är robust för alignment.
+- Max 7 rader per block (ca 150 ord) är praktisk gräns för läsbar tidslinjeoutput.
+- Aurora re-ingest krävs för befintliga videor för att få uppdaterad segmentdata.
+
+---

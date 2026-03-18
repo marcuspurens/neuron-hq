@@ -859,3 +859,33 @@ Uppdateras av Librarian-agenten.
 **Relaterat:** techniques.md#Agyn, techniques.md#Multi-Agent-LLM-Committees-for-Autonomous-Software-Beta-Testing, techniques.md#MASFactory
 
 ---
+
+## From Experiments to Expertise: Scientific Knowledge Consolidation for AI-Driven Computational Research (2026)
+**Källa:** arxiv:2603.13191 | Haonan Huang
+**Kärna:** QMatSuite är en plattform som låter AI-agenter konsolidera kunskap från iterativa experimentkörningar. Istället för att behandla varje körning isolerat, registrerar agenter resultat med full provenance, hämtar tidigare kunskap före nya beräkningar, och genomför dedikerade reflektionssessioner där felaktiga fynd korrigeras och observationer syntetiseras till tvärkompundsmsönster. Agenten kan således lära sig från både framgångar och misslyckanden över en serie relaterade experimentkörningar.
+**Nyckelresultat:** På ett sexstegs kvantmekaniskt simuleringsarbetsflöde reducerade ackumulerad kunskap resoneringskostnaden med 67% och förbättrade noggrannheten från 47% till 3% avvikelse från litteratur. Vid överföring till ett okänt material uppnåddes 1% avvikelse med noll pipelinefel.
+**Relevans för Neuron HQ:** Direkt tillämpbar princip för vår Historian-agent. Istället för att bara lagra mönster reaktivt kunde Historian proaktivt syntetisera knowledge från multipla runs — t.ex. identifiera "detta CodeQL-mönster fungerar bättre än det andra" genom att jämföra framgångar över flera PRs. Reflektionssessionerna (korrigera felaktiga fynd, syntetisera mönster) matchar exakt vad Historian bör göra periodiskt.
+**Keywords:** knowledge-consolidation, scientific-reasoning, provenance, reflection, agent-learning
+**Relaterat:** techniques.md#Live-Evo, techniques.md#TAME, techniques.md#TALM
+
+---
+
+## LLM Constitutional Multi-Agent Governance (2026)
+**Källa:** arxiv:2603.13189 | J. de Curtò et al.
+**Kärna:** CMAG introducerar ett tvåstegs-ramverk för att styra LLM-agentpopulationer: (1) hårdkodad constraint-filtrering och (2) soft penalized-utility-optimering som balanserar kooperativ effektivitet mot manipulationsrisk och autonomi-tryck. Definierar Ethical Cooperation Score (ECS) som en multiplikativ sammansättning av kooperation, autonomi, integritet och rättvisa — ett mål som straffar kooperation uppnådd genom manipulativa medel.
+**Nyckelresultat:** På storskaliga nätverk (80 agenter, 70% agenter bryter mot regler) uppnår CMAG ECS = 0.741 (+14.9% förbättring vs oconstraineread optimization), samtidigt som autonomi bevaras på 0.985 och integritet på 0.995. Governance reducerar hub-periphery-exponerings-dispariteter med över 60%.
+**Relevans för Neuron HQ:** Viktig ramverk för att styra vår multi-agent-swarm etiskt. Om Manager kan manipulera Implementer-agenter eller Reviewer-agenter kan korrupteras av framtidskuskap från kontaminerade minnesdata bör vi implementera liknande constraint-filtrering. CMAG:s ECS-metric kunde adapteras för vår kontext: mät kooperation (job completion), autonomi (agents make independent decisions), integritet (memory is not corrupted), och rättvisa (all agents get fair resource allocation).
+**Keywords:** multi-agent, governance, constraint-filtering, ethics, autonomy, manipulation-risk
+**Relaterat:** techniques.md#AgentSys, techniques.md#A-MemGuard, techniques.md#Influencing-LLM-Multi-Agent-Dialogue
+
+---
+
+## AgentRM: An OS-Inspired Resource Manager for LLM Agent Systems (2026)
+**Källa:** arxiv:2603.13110 | Jianshu She
+**Kärna:** AgentRM modellerar agent-system som operativsystem och löser två kritiska problem: (1) scheduling-fel (blockering, zombieprocesser, rate-limit-kaskadflopp) via MLFQ-scheduler med zombie-reaping och rate-limit-aware admission control, och (2) minnesförsämring (oopagränsad växtning, dåliga retention-policies) via en treskikts Context Lifecycle Manager med adaptiv komprimering och hibernation. AgentRM lånar explicit OS-design-mönster för agentresurshantering.
+**Nyckelresultat:** AgentRM-MLFQ reducerar P95-latens med 86%, minskar lane-waste med 96%, ökar throughput med 168% och eliminerar zombieagenter (0 vs 29 baseline). AgentRM-CLM uppnår 100% nyckelinformationsbevarande med 95% kvalitetsscore vs 65.1% bevarande och 87% kvalitet för existerande metoder.
+**Relevans för Neuron HQ:** Direkt applicerbar på att skalera vår swarm. MLFQ-scheduler-principerna kunde hantera "agenter som växer för långsamt" eller "fastnar på high-cost-uppgifter" genom dynamisk prioritetsanpassning baserad på progress. Context Lifecycle Manager är kritisk för vår Historian-agent — istället för att let runs.md växa obegränsat kunde vi implementera adaptiv komprimering (gamla runs får lägre granularitet) och hibernation (arkivera runs från för länge sedan). 86% latensreduktion motiverar denna investering.
+**Keywords:** resource-management, scheduling, context-lifecycle, OS-inspired, throughput, latency, agent-systems
+**Relaterat:** techniques.md#MemGPT, techniques.md#Focus, techniques.md#CMV, techniques.md#BudgetMem
+
+---

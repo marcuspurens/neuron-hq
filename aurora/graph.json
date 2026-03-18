@@ -1,39 +1,6 @@
 {
   "nodes": [
     {
-      "id": "doc_21725e4d573a",
-      "type": "document",
-      "title": "README",
-      "properties": {
-        "text": "# Neuron HQ\n\n**Autonomous agent swarm control plane for developing target repos**\n\nNeuron HQ coordinates Manager, Implementer, Reviewer, and Researcher agents to autonomously develop code in other repositories over 2-3 hour runs, with full audit trails, policy enforcement, and artifact generation.\n\n## Quick Start\n\n### 1. Install\n\n```bash\npnpm install\n```\n\n### 2. Configure API Key\n\n```bash\ncp .env.example .env\n# Edit .env and add your ANTHROPIC_API_KEY\n```\n\n### 3. Add a Target Repo\n\n```bash\npnpm ",
-        "language": "unknown",
-        "word_count": 591,
-        "source_type": "text"
-      },
-      "confidence": 0.5,
-      "scope": "personal",
-      "sourceUrl": null,
-      "created": "2026-03-09T08:39:51.243Z",
-      "updated": "2026-03-09T08:39:51.243Z"
-    },
-    {
-      "id": "doc_21725e4d573a_chunk_1",
-      "type": "document",
-      "title": "README [chunk 2/4]",
-      "properties": {
-        "text": "**Afternoon**: Review `runs/<runid>/report.md`, `questions.md`, `ideas.md`\n5. **If blockers**: Answer in `runs/<runid>/answers.md`\n6. **Resume**: `pnpm neuron resume <runid> --hours 2`\n7. **Repeat** until satisfied\n\n## CLI Commands\n\n### Target Management\n```bash\npnpm neuron target add <name> <path-or-url>   # Add target repo\npnpm neuron target list                        # List all targets\n```\n\n### Running\n```bash\npnpm neuron run <target> --hours 3            # Start new run\npnpm neuron resume <runid> --hours 2          # Resume run\npnpm neuron status                            # List all runs\n```\n\n### Results & Logs\n```bash\npnpm neuron report <runid>                    # Show report\npnpm neuron logs <runid>                      # Show artifact paths\npnpm neuron replay <runid>                    # Re-run verification\n```\n\n## What Gets Created\n\nEvery run creates in `runs/<runid>/`:\n\n- **brief.md** - Snapshot of input brief\n- **baseline.md** - Baseline verification results\n- **report.md** - STOPLIGHT status + how to run/test + risks + rollback\n- **questions.md** - Max 3 blockers (or \"No blockers\")\n- **ideas.md** - Research-driven ideas with impact/effort/risk\n- **knowledge.md** - Learnings, assumptions, open questions\n- **research/sources.md** - Links + summaries\n- **audit.jsonl** - Append-only audit log\n- **manifest.json** - Checksums + commands\n- **usage.json** - Token tracking (info only)\n- **redaction_report.md** - What was redacted from logs\n\n## Agent",
-        "parentId": "doc_21725e4d573a",
-        "wordCount": 200,
-        "chunkIndex": 1,
-        "totalChunks": 4
-      },
-      "confidence": 0.5,
-      "scope": "personal",
-      "sourceUrl": null,
-      "created": "2026-03-09T08:39:51.243Z",
-      "updated": "2026-03-09T08:39:51.243Z"
-    },
-    {
       "id": "doc_21725e4d573a_chunk_3",
       "type": "document",
       "title": "README [chunk 4/4]",
@@ -42,40 +9,6 @@
         "parentId": "doc_21725e4d573a",
         "wordCount": 79,
         "chunkIndex": 3,
-        "totalChunks": 4
-      },
-      "confidence": 0.5,
-      "scope": "personal",
-      "sourceUrl": null,
-      "created": "2026-03-09T08:39:51.243Z",
-      "updated": "2026-03-09T08:39:51.243Z"
-    },
-    {
-      "id": "doc_21725e4d573a_chunk_0",
-      "type": "document",
-      "title": "README [chunk 1/4]",
-      "properties": {
-        "text": "# Neuron HQ\n\n**Autonomous agent swarm control plane for developing target repos**\n\nNeuron HQ coordinates Manager, Implementer, Reviewer, and Researcher agents to autonomously develop code in other repositories over 2-3 hour runs, with full audit trails, policy enforcement, and artifact generation.\n\n## Quick Start\n\n### 1. Install\n\n```bash\npnpm install\n```\n\n### 2. Configure API Key\n\n```bash\ncp .env.example .env\n# Edit .env and add your ANTHROPIC_API_KEY\n```\n\n### 3. Add a Target Repo\n\n```bash\npnpm neuron target add my-app /path/to/my-app\n```\n\n### 4. Write Your Brief\n\nEdit `briefs/today.md` with what you want to achieve.\n\n### 5. Start a Run\n\n```bash\npnpm neuron run my-app --hours 3\n```\n\n### 6. Review Results\n\n```bash\npnpm neuron report <runid>\ncat runs/<runid>/questions.md\ncat runs/<runid>/ideas.md\n```\n\n## Daily Workflow\n\n1. **Morning**: Edit `briefs/today.md` with your goals\n2. **Start run**: `pnpm neuron run <target> --hours 3`\n3. **Go do other work** while the agents operate autonomously\n4. **Afternoon**: Review `runs/<runid>/report.md`, `questions.md`, `ideas.md`\n5. **If blockers**: Answer in `runs/<runid>/answers.md`\n6. **Resume**: `pnpm neuron resume <runid> --hours 2`\n7.",
-        "parentId": "doc_21725e4d573a",
-        "wordCount": 172,
-        "chunkIndex": 0,
-        "totalChunks": 4
-      },
-      "confidence": 0.5,
-      "scope": "personal",
-      "sourceUrl": null,
-      "created": "2026-03-09T08:39:51.243Z",
-      "updated": "2026-03-09T08:39:51.243Z"
-    },
-    {
-      "id": "doc_21725e4d573a_chunk_2",
-      "type": "document",
-      "title": "README [chunk 3/4]",
-      "properties": {
-        "text": "Checksums + commands\n- **usage.json** - Token tracking (info only)\n- **redaction_report.md** - What was redacted from logs\n\n## Agent Roles\n\n- **Manager**: Plans, prioritizes, enforces WIP limit (1 feature at a time), stops on time/blockers\n- **Implementer**: Writes clean code, small diffs (<150 lines), runs verifications\n- **Reviewer**: Policy gatekeeper, risk classifier (LOW/MED/HIGH), requires two-phase for HIGH risk\n- **Researcher**: Web search, generates ideas with impact/effort/risk analysis\n\n## Policy Enforcement\n\nAll agents are constrained by policy in `policy/`:\n\n- **bash_allowlist.txt** - Only these commands allowed\n- **forbidden_patterns.txt** - These patterns always blocked\n- **git_rules.md** - Git safety rules (no force push, no history rewrite)\n- **limits.yaml** - Runtime limits (hours, diff size, timeouts)\n\nPolicy violations are logged in `audit.jsonl` and block execution.\n\n## Security\n\n- API keys never committed (use `.env`)\n- All secrets redacted from artifacts\n- Writes restricted to `workspaces/<runid>/` and `runs/<runid>/`\n- Command injection prevented via allowlist\n- File path traversal blocked\n- Git destructive operations blocked\n\n## Development\n\n### Run Tests\n```bash\npnpm test\npnpm test:watch  # Watch mode\n```\n\n### Type Check\n```bash\npnpm typecheck\n```\n\n### Lint & Format\n```bash\npnpm lint\npnpm lint:fix\npnpm format\n```\n\n## Documentation\n\n- [Architecture](docs/architecture.md) - System",
-        "parentId": "doc_21725e4d573a",
-        "wordCount": 200,
-        "chunkIndex": 2,
         "totalChunks": 4
       },
       "confidence": 0.5,
@@ -135,6 +68,26 @@
       "sourceUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
       "created": "2026-03-10T07:59:53.156Z",
       "updated": "2026-03-10T07:59:53.156Z"
+    },
+    {
+      "id": "yt-EdZWPB1fIJc_chunk_4",
+      "type": "transcript",
+      "title": "Should You Learn Coding Now? Anthropic CEO Explains [chunk 5/10]",
+      "properties": {
+        "text": "anything and, you know, create anything. Having basic critical thinking skills may be the most important thing to, to success. I worry about, you know, these AI models that, that generate images and videos and we don't make, you know, models that generate images and videos and for many reasons, but, you know, this is one of them. It's really hard to tell what's real from what's not. And so, you know, a significant part of success may be having the street smarts, you know, not to get, not to get fooled by, by, you know, I mean, hopefully we can crack down on and regulate some of this fake content, but, but, you know, assume we can't, you know, critical thinking skills are going to be really important and, you know, you don't want to fall for things that are, that are, that are fake. You don't want to have false beliefs. You don't want to get scammed like, you know, that's, that's really advice that I would give to someone.",
+        "parentId": "yt-EdZWPB1fIJc",
+        "wordCount": 172,
+        "chunkIndex": 4,
+        "ebucore:end": 278120,
+        "totalChunks": 10,
+        "ebucore:start": 220652,
+        "ebucore:partNumber": 4
+      },
+      "confidence": 0.9,
+      "scope": "personal",
+      "sourceUrl": "https://www.youtube.com/watch?v=EdZWPB1fIJc",
+      "created": "2026-03-18T07:55:34.921Z",
+      "updated": "2026-03-18T07:55:34.921Z"
     },
     {
       "id": "yt-R3ydGMRtnqU_chunk_1",
@@ -205,40 +158,6 @@
       "updated": "2026-03-10T07:59:53.156Z"
     },
     {
-      "id": "yt-R3ydGMRtnqU_chunk_6",
-      "type": "transcript",
-      "title": "Only 40 lines of code [chunk 7/10]",
-      "properties": {
-        "text": "of the time. I forgot that it has like a little percent sign right there when you hover over it. Read was 16.8% of the time and F open was 43% of the time. Yes, most of that time, if you did quick maths in your head, about 90% of the time was spent just fangolin and jangolin around with files. This right here, this was the scan F time. Like very little, just only 3.9% of the time was it actually doing something. The rest of the time is just off in file land, copying and doing to whoever knows what all these little few texts and everything, these fast user space mutexes. Okay, hey, get my mutex out your mouth, buddy. I actually, I have no idea what that means. And of course the change, this is what the change looks like. Now you can tell right away that something's happened. Okay, you don't have to be a genius here. You don't really have to understand how this works to look at it and just say, hey, it just looks like a lot of stuff is not happening anymore. There's one little peak right here, one little flame.",
-        "parentId": "yt-R3ydGMRtnqU",
-        "wordCount": 200,
-        "chunkIndex": 6,
-        "totalChunks": 10
-      },
-      "confidence": 0.9,
-      "scope": "personal",
-      "sourceUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
-      "created": "2026-03-10T07:59:53.156Z",
-      "updated": "2026-03-10T07:59:53.156Z"
-    },
-    {
-      "id": "yt-R3ydGMRtnqU_chunk_5",
-      "type": "transcript",
-      "title": "Only 40 lines of code [chunk 6/10]",
-      "properties": {
-        "text": "better, right? Now the best way to kind of understand the performance of how something runs is using flame graphs. If you've never used a flame graph before, here one is they're actually not too confusing. They're actually pretty simple. How you read this is that you read this as, from the very bottom, this is like the very bottom function call and then each one of these little tops, these are all different function calls. Now the ordering doesn't necessarily matter. These are not time dependent. Instead, you look at the very top and this top part, this is the percentage of the program while running was within this function right here. So you just kind of look at it as like relative portions. You can say that, hey, the time spent closing a file, this operation right here, looks like 33% of the time of getting user time was just spent closing a file. What appears to be like 16% of what? Oh, I just realized, I forgot that they have this. It's 34% of the time. I forgot that it has like a little percent sign right there when you hover over it.",
-        "parentId": "yt-R3ydGMRtnqU",
-        "wordCount": 196,
-        "chunkIndex": 5,
-        "totalChunks": 10
-      },
-      "confidence": 0.9,
-      "scope": "personal",
-      "sourceUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
-      "created": "2026-03-10T07:59:53.156Z",
-      "updated": "2026-03-10T07:59:53.156Z"
-    },
-    {
       "id": "yt-R3ydGMRtnqU_chunk_8",
       "type": "transcript",
       "title": "Only 40 lines of code [chunk 9/10]",
@@ -272,14 +191,151 @@
       "updated": "2026-03-10T07:59:53.156Z"
     },
     {
-      "id": "yt-R3ydGMRtnqU_chunk_7",
+      "id": "yt-R3ydGMRtnqU_chunk_6",
       "type": "transcript",
-      "title": "Only 40 lines of code [chunk 8/10]",
+      "title": "Only 40 lines of code [chunk 7/10]",
       "properties": {
-        "text": "just looks like a lot of stuff is not happening anymore. There's one little peak right here, one little flame. There's one super thin flame right here. We don't really care what that is. And that's it. It's just, it's obvious. Okay, very little things are happening. Jeremy was nice enough of course to actually do the benchmarking also so that way we can have some real times. And it went from about 11 microseconds to 279 nanoseconds. Now this is shocking, right? I would have never, I just would have never guessed that I would have been spending a lot of time and by a lot of time, I mean, it's microseconds. Yeah, sure, you're right. It's not like a ton of time out there. But nonetheless, I would have just never guessed it. I would assume that's like the fastest possible operation. I would have never investigated it at any point. But this is what happened. This is just like a recent fix from just a couple of weeks ago. And I just think these kinds of investigations are super cool. I really do appreciate these write-ups.",
+        "text": "of the time. I forgot that it has like a little percent sign right there when you hover over it. Read was 16.8% of the time and F open was 43% of the time. Yes, most of that time, if you did quick maths in your head, about 90% of the time was spent just fangolin and jangolin around with files. This right here, this was the scan F time. Like very little, just only 3.9% of the time was it actually doing something. The rest of the time is just off in file land, copying and doing to whoever knows what all these little few texts and everything, these fast user space mutexes. Okay, hey, get my mutex out your mouth, buddy. I actually, I have no idea what that means. And of course the change, this is what the change looks like. Now you can tell right away that something's happened. Okay, you don't have to be a genius here. You don't really have to understand how this works to look at it and just say, hey, it just looks like a lot of stuff is not happening anymore. There's one little peak right here, one little flame.",
         "parentId": "yt-R3ydGMRtnqU",
-        "wordCount": 189,
-        "chunkIndex": 7,
+        "wordCount": 200,
+        "chunkIndex": 6,
+        "totalChunks": 10
+      },
+      "confidence": 0.9,
+      "scope": "personal",
+      "sourceUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
+      "created": "2026-03-10T07:59:53.156Z",
+      "updated": "2026-03-10T07:59:53.156Z"
+    },
+    {
+      "id": "doc_153262dee7a8_chunk_3",
+      "type": "document",
+      "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen [chunk 4/4]",
+      "properties": {
+        "text": "linje vara försökskanin för den mest krävande energiformen?”\n- Kontraktet är värt cirka 4.5 miljarder svenska kronor.\nLänk till upphandlingen. - Torghatten Nord är ett dotterbolag till rederiet Torghatten, som ägs av svenska EQT Infrastructure and norska Nysnø Klimainvesteringer.\n- Powercell ska leverera bränslecellsystemen som sedan monteras på färjorna av norska SEAM åt rederiet Torghatten Avtalet är värt drygt 200 miljoner kronor för Powercell.\n- De två nya färjorna, Røst och Moskenes, är omkring 117 meter långa och kan ta upp till 599 passagerare och 120 bilar. De skulle börjat trafikera rutten 1 oktober 2025 men har blivit försenade.\nDET HÄR ÄR POWERCELL\n- Svenskt börsnoterat bolag som utvecklar och säljer vätgasdrivna bränsleceller som genererar el.\n- Grundat 2008 som en avknoppning från Volvo Group.\n- Huvudkontor i Göteborg.\n- Har omkring 125 anställda.\n- Tekniken används inom bland annat marin sektor, industri och stationär kraftproduktion.\n- Vd, Rickard Berkling, tillträdde 1 januari 2021.",
+        "parentId": "doc_153262dee7a8",
+        "wordCount": 154,
+        "chunkIndex": 3,
+        "totalChunks": 4
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "sourceUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
+      "created": "2026-03-10T08:01:31.061Z",
+      "updated": "2026-03-10T08:01:31.061Z"
+    },
+    {
+      "id": "doc_21725e4d573a",
+      "type": "document",
+      "title": "README",
+      "properties": {
+        "text": "# Neuron HQ\n\n**Autonomous agent swarm control plane for developing target repos**\n\nNeuron HQ coordinates Manager, Implementer, Reviewer, and Researcher agents to autonomously develop code in other repositories over 2-3 hour runs, with full audit trails, policy enforcement, and artifact generation.\n\n## Quick Start\n\n### 1. Install\n\n```bash\npnpm install\n```\n\n### 2. Configure API Key\n\n```bash\ncp .env.example .env\n# Edit .env and add your ANTHROPIC_API_KEY\n```\n\n### 3. Add a Target Repo\n\n```bash\npnpm ",
+        "language": "unknown",
+        "word_count": 591,
+        "source_type": "text"
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "sourceUrl": null,
+      "created": "2026-03-09T08:39:51.243Z",
+      "updated": "2026-03-09T08:39:51.243Z"
+    },
+    {
+      "id": "doc_153262dee7a8",
+      "type": "document",
+      "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen",
+      "properties": {
+        "text": "– Att ens överväga att leverera den här teknologin till en båt som ska frakta människor i en tuff miljö; jag begriper inte det, säger en källa.\nSatsningen gäller två färjor mellan Bodö och Lofoten i Nordnorge, båda ska drivas med vätgas från en ny fabrik som nu byggs. Klimatprojektet har drivits på från högsta politiska nivå i Norge och prislappen för färjorna väntas landa på motsvarande 4,5 miljarder svenska kronor.\nVätgasläckan: Powercells dolda tester\nGöteborgsbolaget Powercell ska leverera b",
+        "language": "unknown",
+        "word_count": 670,
+        "source_type": "url"
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "sourceUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
+      "created": "2026-03-10T08:01:31.061Z",
+      "updated": "2026-03-10T08:01:31.061Z"
+    },
+    {
+      "id": "vid-4fc93ffbb1cd",
+      "type": "transcript",
+      "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen",
+      "properties": {
+        "text": "Det är enorma investeringar och så kommer man leverera skräp som inte håller. Före media framlade härter också hjälpigt för rök. Här i Lofoten i Nordnorge lanserar Norska staten snart sin gröna miljardsatsning- på vätgas drivna fartyg. Det är de här färgerna som snart ska bytas ut mot vätgas drivna. I centrum står svenska Power Cell som ska leverera vätgassystemen- som ska driva färgerna. Satsningen beskrivs som historisk. Norska staten står för notan och räddriet Torjhatten för fartygen- i en affär värld cirka 4,5 miljarder kronor. Runt 200 miljoner gäller bränsleceller från Power Cell- som installeras som bord av Norska SIM. Men SVT-skranskning visar att tekniken har allvarliga brister. Flera personer med god insyn i Power Cell- vittnar om hur både Norska staten och Torjhatten förts bakom ljuset. Projektet har solts under falska premisser. Det vi säger i alla dokument stämmer inte. För boende här på Väröj är färgen avgörande. Det är den enda färgeförbindelsen man har med fastlandet. Flera som vi pratar med välkomnar satsningen på vätgas. Vi är som fårregangsplöter. Vi kan gå för dagen. Vi tänker på miljöer. Det blir säkert väldigt bra. Mycket står på spel. På andra sidan Västfjorden byggs en helt ny vätgasanläggning- för att förse färgerna med bränsle. Är fabriken baserat på färgen och Power Cell-produkter- bygger man i onödan. Det är Norges längsta och mest väderutsatta färgelinje. När avtalet tecknas 2023 är det Power Cells största affär någonsin- och första gången systemen ska testas i den här skalen. Men åretta på visar interna dokument- att Power Cell vet att bränslecellernas livslängd- bara är en tiondel av vad man lovar- och att systemet inte är moget för Torjhatten. I kontrakten står att man ska klara väldigt mycket- och där finns det ett gap mot verkligheten. Men det är inget som redoriet får veta. De har förlitat sig på kontraktet. Förr i media framlade här till oss är det ett helt nytt förrör. Jag har ingen indikationer per dags dato- att bränsleceller inte ska levera i händelser som avtals. Power Cell avbörjar intervju- men svarar i e-mail att om tester och dokument- SVT tagit del av inte är representativa- för dagens produkter då systemen uppdaterats. Power Cell skriver vidare att produkterna- har genomgått omfattande testning och validering- att man kommer leverera enligt avtal- och att livslängden är kopplad till korrekt drift och underhåll. Ledningen avfärdar källornas kritik och uppgifter om lögner. Vi har gjort allt vi har kunnat för att få påkallat uppmärksamhet- kring de här sakerna, internt och inte fått nåt som helst jag hör för det.",
+        "videoId": null,
+        "duration": 200,
+        "language": "sv",
+        "platform": "svt:page",
+        "videoUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
+        "segmentCount": 52,
+        "publishedDate": "2026-03-10"
+      },
+      "confidence": 0.9,
+      "scope": "personal",
+      "sourceUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
+      "created": "2026-03-10T08:24:51.817Z",
+      "updated": "2026-03-10T08:24:51.817Z"
+    },
+    {
+      "id": "doc_21725e4d573a_chunk_1",
+      "type": "document",
+      "title": "README [chunk 2/4]",
+      "properties": {
+        "text": "**Afternoon**: Review `runs/<runid>/report.md`, `questions.md`, `ideas.md`\n5. **If blockers**: Answer in `runs/<runid>/answers.md`\n6. **Resume**: `pnpm neuron resume <runid> --hours 2`\n7. **Repeat** until satisfied\n\n## CLI Commands\n\n### Target Management\n```bash\npnpm neuron target add <name> <path-or-url>   # Add target repo\npnpm neuron target list                        # List all targets\n```\n\n### Running\n```bash\npnpm neuron run <target> --hours 3            # Start new run\npnpm neuron resume <runid> --hours 2          # Resume run\npnpm neuron status                            # List all runs\n```\n\n### Results & Logs\n```bash\npnpm neuron report <runid>                    # Show report\npnpm neuron logs <runid>                      # Show artifact paths\npnpm neuron replay <runid>                    # Re-run verification\n```\n\n## What Gets Created\n\nEvery run creates in `runs/<runid>/`:\n\n- **brief.md** - Snapshot of input brief\n- **baseline.md** - Baseline verification results\n- **report.md** - STOPLIGHT status + how to run/test + risks + rollback\n- **questions.md** - Max 3 blockers (or \"No blockers\")\n- **ideas.md** - Research-driven ideas with impact/effort/risk\n- **knowledge.md** - Learnings, assumptions, open questions\n- **research/sources.md** - Links + summaries\n- **audit.jsonl** - Append-only audit log\n- **manifest.json** - Checksums + commands\n- **usage.json** - Token tracking (info only)\n- **redaction_report.md** - What was redacted from logs\n\n## Agent",
+        "parentId": "doc_21725e4d573a",
+        "wordCount": 200,
+        "chunkIndex": 1,
+        "totalChunks": 4
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "sourceUrl": null,
+      "created": "2026-03-09T08:39:51.243Z",
+      "updated": "2026-03-09T08:39:51.243Z"
+    },
+    {
+      "id": "doc_21725e4d573a_chunk_0",
+      "type": "document",
+      "title": "README [chunk 1/4]",
+      "properties": {
+        "text": "# Neuron HQ\n\n**Autonomous agent swarm control plane for developing target repos**\n\nNeuron HQ coordinates Manager, Implementer, Reviewer, and Researcher agents to autonomously develop code in other repositories over 2-3 hour runs, with full audit trails, policy enforcement, and artifact generation.\n\n## Quick Start\n\n### 1. Install\n\n```bash\npnpm install\n```\n\n### 2. Configure API Key\n\n```bash\ncp .env.example .env\n# Edit .env and add your ANTHROPIC_API_KEY\n```\n\n### 3. Add a Target Repo\n\n```bash\npnpm neuron target add my-app /path/to/my-app\n```\n\n### 4. Write Your Brief\n\nEdit `briefs/today.md` with what you want to achieve.\n\n### 5. Start a Run\n\n```bash\npnpm neuron run my-app --hours 3\n```\n\n### 6. Review Results\n\n```bash\npnpm neuron report <runid>\ncat runs/<runid>/questions.md\ncat runs/<runid>/ideas.md\n```\n\n## Daily Workflow\n\n1. **Morning**: Edit `briefs/today.md` with your goals\n2. **Start run**: `pnpm neuron run <target> --hours 3`\n3. **Go do other work** while the agents operate autonomously\n4. **Afternoon**: Review `runs/<runid>/report.md`, `questions.md`, `ideas.md`\n5. **If blockers**: Answer in `runs/<runid>/answers.md`\n6. **Resume**: `pnpm neuron resume <runid> --hours 2`\n7.",
+        "parentId": "doc_21725e4d573a",
+        "wordCount": 172,
+        "chunkIndex": 0,
+        "totalChunks": 4
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "sourceUrl": null,
+      "created": "2026-03-09T08:39:51.243Z",
+      "updated": "2026-03-09T08:39:51.243Z"
+    },
+    {
+      "id": "doc_21725e4d573a_chunk_2",
+      "type": "document",
+      "title": "README [chunk 3/4]",
+      "properties": {
+        "text": "Checksums + commands\n- **usage.json** - Token tracking (info only)\n- **redaction_report.md** - What was redacted from logs\n\n## Agent Roles\n\n- **Manager**: Plans, prioritizes, enforces WIP limit (1 feature at a time), stops on time/blockers\n- **Implementer**: Writes clean code, small diffs (<150 lines), runs verifications\n- **Reviewer**: Policy gatekeeper, risk classifier (LOW/MED/HIGH), requires two-phase for HIGH risk\n- **Researcher**: Web search, generates ideas with impact/effort/risk analysis\n\n## Policy Enforcement\n\nAll agents are constrained by policy in `policy/`:\n\n- **bash_allowlist.txt** - Only these commands allowed\n- **forbidden_patterns.txt** - These patterns always blocked\n- **git_rules.md** - Git safety rules (no force push, no history rewrite)\n- **limits.yaml** - Runtime limits (hours, diff size, timeouts)\n\nPolicy violations are logged in `audit.jsonl` and block execution.\n\n## Security\n\n- API keys never committed (use `.env`)\n- All secrets redacted from artifacts\n- Writes restricted to `workspaces/<runid>/` and `runs/<runid>/`\n- Command injection prevented via allowlist\n- File path traversal blocked\n- Git destructive operations blocked\n\n## Development\n\n### Run Tests\n```bash\npnpm test\npnpm test:watch  # Watch mode\n```\n\n### Type Check\n```bash\npnpm typecheck\n```\n\n### Lint & Format\n```bash\npnpm lint\npnpm lint:fix\npnpm format\n```\n\n## Documentation\n\n- [Architecture](docs/architecture.md) - System",
+        "parentId": "doc_21725e4d573a",
+        "wordCount": 200,
+        "chunkIndex": 2,
+        "totalChunks": 4
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "sourceUrl": null,
+      "created": "2026-03-09T08:39:51.243Z",
+      "updated": "2026-03-09T08:39:51.243Z"
+    },
+    {
+      "id": "yt-R3ydGMRtnqU_chunk_5",
+      "type": "transcript",
+      "title": "Only 40 lines of code [chunk 6/10]",
+      "properties": {
+        "text": "better, right? Now the best way to kind of understand the performance of how something runs is using flame graphs. If you've never used a flame graph before, here one is they're actually not too confusing. They're actually pretty simple. How you read this is that you read this as, from the very bottom, this is like the very bottom function call and then each one of these little tops, these are all different function calls. Now the ordering doesn't necessarily matter. These are not time dependent. Instead, you look at the very top and this top part, this is the percentage of the program while running was within this function right here. So you just kind of look at it as like relative portions. You can say that, hey, the time spent closing a file, this operation right here, looks like 33% of the time of getting user time was just spent closing a file. What appears to be like 16% of what? Oh, I just realized, I forgot that they have this. It's 34% of the time. I forgot that it has like a little percent sign right there when you hover over it.",
+        "parentId": "yt-R3ydGMRtnqU",
+        "wordCount": 196,
+        "chunkIndex": 5,
         "totalChunks": 10
       },
       "confidence": 0.9,
@@ -298,22 +354,6 @@
         "wordCount": 183,
         "chunkIndex": 1,
         "totalChunks": 4
-      },
-      "confidence": 0.5,
-      "scope": "personal",
-      "sourceUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
-      "created": "2026-03-10T08:01:31.061Z",
-      "updated": "2026-03-10T08:01:31.061Z"
-    },
-    {
-      "id": "doc_153262dee7a8",
-      "type": "document",
-      "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen",
-      "properties": {
-        "text": "– Att ens överväga att leverera den här teknologin till en båt som ska frakta människor i en tuff miljö; jag begriper inte det, säger en källa.\nSatsningen gäller två färjor mellan Bodö och Lofoten i Nordnorge, båda ska drivas med vätgas från en ny fabrik som nu byggs. Klimatprojektet har drivits på från högsta politiska nivå i Norge och prislappen för färjorna väntas landa på motsvarande 4,5 miljarder svenska kronor.\nVätgasläckan: Powercells dolda tester\nGöteborgsbolaget Powercell ska leverera b",
-        "language": "unknown",
-        "word_count": 670,
-        "source_type": "url"
       },
       "confidence": 0.5,
       "scope": "personal",
@@ -356,41 +396,38 @@
       "updated": "2026-03-10T08:01:31.061Z"
     },
     {
-      "id": "doc_153262dee7a8_chunk_3",
-      "type": "document",
-      "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen [chunk 4/4]",
-      "properties": {
-        "text": "linje vara försökskanin för den mest krävande energiformen?”\n- Kontraktet är värt cirka 4.5 miljarder svenska kronor.\nLänk till upphandlingen. - Torghatten Nord är ett dotterbolag till rederiet Torghatten, som ägs av svenska EQT Infrastructure and norska Nysnø Klimainvesteringer.\n- Powercell ska leverera bränslecellsystemen som sedan monteras på färjorna av norska SEAM åt rederiet Torghatten Avtalet är värt drygt 200 miljoner kronor för Powercell.\n- De två nya färjorna, Røst och Moskenes, är omkring 117 meter långa och kan ta upp till 599 passagerare och 120 bilar. De skulle börjat trafikera rutten 1 oktober 2025 men har blivit försenade.\nDET HÄR ÄR POWERCELL\n- Svenskt börsnoterat bolag som utvecklar och säljer vätgasdrivna bränsleceller som genererar el.\n- Grundat 2008 som en avknoppning från Volvo Group.\n- Huvudkontor i Göteborg.\n- Har omkring 125 anställda.\n- Tekniken används inom bland annat marin sektor, industri och stationär kraftproduktion.\n- Vd, Rickard Berkling, tillträdde 1 januari 2021.",
-        "parentId": "doc_153262dee7a8",
-        "wordCount": 154,
-        "chunkIndex": 3,
-        "totalChunks": 4
-      },
-      "confidence": 0.5,
-      "scope": "personal",
-      "sourceUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
-      "created": "2026-03-10T08:01:31.061Z",
-      "updated": "2026-03-10T08:01:31.061Z"
-    },
-    {
-      "id": "vid-4fc93ffbb1cd",
+      "id": "vid-4fc93ffbb1cd_chunk_1",
       "type": "transcript",
-      "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen",
+      "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen [chunk 2/3]",
       "properties": {
-        "text": "Det är enorma investeringar och så kommer man leverera skräp som inte håller. Före media framlade härter också hjälpigt för rök. Här i Lofoten i Nordnorge lanserar Norska staten snart sin gröna miljardsatsning- på vätgas drivna fartyg. Det är de här färgerna som snart ska bytas ut mot vätgas drivna. I centrum står svenska Power Cell som ska leverera vätgassystemen- som ska driva färgerna. Satsningen beskrivs som historisk. Norska staten står för notan och räddriet Torjhatten för fartygen- i en affär värld cirka 4,5 miljarder kronor. Runt 200 miljoner gäller bränsleceller från Power Cell- som installeras som bord av Norska SIM. Men SVT-skranskning visar att tekniken har allvarliga brister. Flera personer med god insyn i Power Cell- vittnar om hur både Norska staten och Torjhatten förts bakom ljuset. Projektet har solts under falska premisser. Det vi säger i alla dokument stämmer inte. För boende här på Väröj är färgen avgörande. Det är den enda färgeförbindelsen man har med fastlandet. Flera som vi pratar med välkomnar satsningen på vätgas. Vi är som fårregangsplöter. Vi kan gå för dagen. Vi tänker på miljöer. Det blir säkert väldigt bra. Mycket står på spel. På andra sidan Västfjorden byggs en helt ny vätgasanläggning- för att förse färgerna med bränsle. Är fabriken baserat på färgen och Power Cell-produkter- bygger man i onödan. Det är Norges längsta och mest väderutsatta färgelinje. När avtalet tecknas 2023 är det Power Cells största affär någonsin- och första gången systemen ska testas i den här skalen. Men åretta på visar interna dokument- att Power Cell vet att bränslecellernas livslängd- bara är en tiondel av vad man lovar- och att systemet inte är moget för Torjhatten. I kontrakten står att man ska klara väldigt mycket- och där finns det ett gap mot verkligheten. Men det är inget som redoriet får veta. De har förlitat sig på kontraktet. Förr i media framlade här till oss är det ett helt nytt förrör. Jag har ingen indikationer per dags dato- att bränsleceller inte ska levera i händelser som avtals. Power Cell avbörjar intervju- men svarar i e-mail att om tester och dokument- SVT tagit del av inte är representativa- för dagens produkter då systemen uppdaterats. Power Cell skriver vidare att produkterna- har genomgått omfattande testning och validering- att man kommer leverera enligt avtal- och att livslängden är kopplad till korrekt drift och underhåll. Ledningen avfärdar källornas kritik och uppgifter om lögner. Vi har gjort allt vi har kunnat för att få påkallat uppmärksamhet- kring de här sakerna, internt och inte fått nåt som helst jag hör för det.",
-        "videoId": null,
-        "videoUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
-        "platform": "svt:page",
-        "duration": 200,
-        "language": "sv",
-        "segmentCount": 52,
-        "publishedDate": "2026-03-10"
+        "text": "som fårregangsplöter. Vi kan gå för dagen. Vi tänker på miljöer. Det blir säkert väldigt bra. Mycket står på spel. På andra sidan Västfjorden byggs en helt ny vätgasanläggning- för att förse färgerna med bränsle. Är fabriken baserat på färgen och Power Cell-produkter- bygger man i onödan. Det är Norges längsta och mest väderutsatta färgelinje. När avtalet tecknas 2023 är det Power Cells största affär någonsin- och första gången systemen ska testas i den här skalen. Men åretta på visar interna dokument- att Power Cell vet att bränslecellernas livslängd- bara är en tiondel av vad man lovar- och att systemet inte är moget för Torjhatten. I kontrakten står att man ska klara väldigt mycket- och där finns det ett gap mot verkligheten. Men det är inget som redoriet får veta. De har förlitat sig på kontraktet. Förr i media framlade här till oss är det ett helt nytt förrör. Jag har ingen indikationer per dags dato- att bränsleceller inte ska levera i händelser som avtals. Power Cell avbörjar intervju- men svarar i e-mail att om tester och dokument- SVT tagit del av inte är representativa- för dagens produkter då systemen uppdaterats.",
+        "parentId": "vid-4fc93ffbb1cd",
+        "wordCount": 191,
+        "chunkIndex": 1,
+        "totalChunks": 3
       },
       "confidence": 0.9,
       "scope": "personal",
       "sourceUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
       "created": "2026-03-10T08:24:51.817Z",
       "updated": "2026-03-10T08:24:51.817Z"
+    },
+    {
+      "id": "yt-R3ydGMRtnqU_chunk_7",
+      "type": "transcript",
+      "title": "Only 40 lines of code [chunk 8/10]",
+      "properties": {
+        "text": "just looks like a lot of stuff is not happening anymore. There's one little peak right here, one little flame. There's one super thin flame right here. We don't really care what that is. And that's it. It's just, it's obvious. Okay, very little things are happening. Jeremy was nice enough of course to actually do the benchmarking also so that way we can have some real times. And it went from about 11 microseconds to 279 nanoseconds. Now this is shocking, right? I would have never, I just would have never guessed that I would have been spending a lot of time and by a lot of time, I mean, it's microseconds. Yeah, sure, you're right. It's not like a ton of time out there. But nonetheless, I would have just never guessed it. I would assume that's like the fastest possible operation. I would have never investigated it at any point. But this is what happened. This is just like a recent fix from just a couple of weeks ago. And I just think these kinds of investigations are super cool. I really do appreciate these write-ups.",
+        "parentId": "yt-R3ydGMRtnqU",
+        "wordCount": 189,
+        "chunkIndex": 7,
+        "totalChunks": 10
+      },
+      "confidence": 0.9,
+      "scope": "personal",
+      "sourceUrl": "https://www.youtube.com/watch?v=R3ydGMRtnqU",
+      "created": "2026-03-10T07:59:53.156Z",
+      "updated": "2026-03-10T07:59:53.156Z"
     },
     {
       "id": "vid-4fc93ffbb1cd_chunk_0",
@@ -398,27 +435,10 @@
       "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen [chunk 1/3]",
       "properties": {
         "text": "Det är enorma investeringar och så kommer man leverera skräp som inte håller. Före media framlade härter också hjälpigt för rök. Här i Lofoten i Nordnorge lanserar Norska staten snart sin gröna miljardsatsning- på vätgas drivna fartyg. Det är de här färgerna som snart ska bytas ut mot vätgas drivna. I centrum står svenska Power Cell som ska leverera vätgassystemen- som ska driva färgerna. Satsningen beskrivs som historisk. Norska staten står för notan och räddriet Torjhatten för fartygen- i en affär värld cirka 4,5 miljarder kronor. Runt 200 miljoner gäller bränsleceller från Power Cell- som installeras som bord av Norska SIM. Men SVT-skranskning visar att tekniken har allvarliga brister. Flera personer med god insyn i Power Cell- vittnar om hur både Norska staten och Torjhatten förts bakom ljuset. Projektet har solts under falska premisser. Det vi säger i alla dokument stämmer inte. För boende här på Väröj är färgen avgörande. Det är den enda färgeförbindelsen man har med fastlandet. Flera som vi pratar med välkomnar satsningen på vätgas. Vi är som fårregangsplöter. Vi kan gå för dagen. Vi tänker på miljöer. Det blir säkert väldigt bra. Mycket står på spel.",
-        "chunkIndex": 0,
-        "totalChunks": 3,
+        "parentId": "vid-4fc93ffbb1cd",
         "wordCount": 190,
-        "parentId": "vid-4fc93ffbb1cd"
-      },
-      "confidence": 0.9,
-      "scope": "personal",
-      "sourceUrl": "https://www.svt.se/nyheter/lokalt/vast/norge-miljardsatsar-i-lofoten-affaren-med-powercell-riskerar-sanka-satsningen",
-      "created": "2026-03-10T08:24:51.817Z",
-      "updated": "2026-03-10T08:24:51.817Z"
-    },
-    {
-      "id": "vid-4fc93ffbb1cd_chunk_1",
-      "type": "transcript",
-      "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen [chunk 2/3]",
-      "properties": {
-        "text": "som fårregangsplöter. Vi kan gå för dagen. Vi tänker på miljöer. Det blir säkert väldigt bra. Mycket står på spel. På andra sidan Västfjorden byggs en helt ny vätgasanläggning- för att förse färgerna med bränsle. Är fabriken baserat på färgen och Power Cell-produkter- bygger man i onödan. Det är Norges längsta och mest väderutsatta färgelinje. När avtalet tecknas 2023 är det Power Cells största affär någonsin- och första gången systemen ska testas i den här skalen. Men åretta på visar interna dokument- att Power Cell vet att bränslecellernas livslängd- bara är en tiondel av vad man lovar- och att systemet inte är moget för Torjhatten. I kontrakten står att man ska klara väldigt mycket- och där finns det ett gap mot verkligheten. Men det är inget som redoriet får veta. De har förlitat sig på kontraktet. Förr i media framlade här till oss är det ett helt nytt förrör. Jag har ingen indikationer per dags dato- att bränsleceller inte ska levera i händelser som avtals. Power Cell avbörjar intervju- men svarar i e-mail att om tester och dokument- SVT tagit del av inte är representativa- för dagens produkter då systemen uppdaterats.",
-        "chunkIndex": 1,
-        "totalChunks": 3,
-        "wordCount": 191,
-        "parentId": "vid-4fc93ffbb1cd"
+        "chunkIndex": 0,
+        "totalChunks": 3
       },
       "confidence": 0.9,
       "scope": "personal",
@@ -432,10 +452,10 @@
       "title": "Norge miljardsatsar i Lofoten – affären med Powercell riskerar sänka satsningen [chunk 3/3]",
       "properties": {
         "text": "i e-mail att om tester och dokument- SVT tagit del av inte är representativa- för dagens produkter då systemen uppdaterats. Power Cell skriver vidare att produkterna- har genomgått omfattande testning och validering- att man kommer leverera enligt avtal- och att livslängden är kopplad till korrekt drift och underhåll. Ledningen avfärdar källornas kritik och uppgifter om lögner. Vi har gjort allt vi har kunnat för att få påkallat uppmärksamhet- kring de här sakerna, internt och inte fått nåt som helst jag hör för det.",
-        "chunkIndex": 2,
-        "totalChunks": 3,
+        "parentId": "vid-4fc93ffbb1cd",
         "wordCount": 83,
-        "parentId": "vid-4fc93ffbb1cd"
+        "chunkIndex": 2,
+        "totalChunks": 3
       },
       "confidence": 0.9,
       "scope": "personal",
@@ -448,10 +468,10 @@
       "type": "voice_print",
       "title": "Speaker: SPEAKER_1",
       "properties": {
-        "speakerLabel": "SPEAKER_1",
         "videoId": null,
         "videoNodeId": "vid-4fc93ffbb1cd",
         "segmentCount": 1,
+        "speakerLabel": "SPEAKER_1",
         "totalDurationMs": 0
       },
       "confidence": 0.7,
@@ -461,133 +481,1524 @@
       "updated": "2026-03-10T08:24:51.817Z"
     },
     {
-      "id": "ed85f1ea-69ae-4b12-b7da-e80fb7a7f9ce",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-EdZWPB1fIJc",
+      "type": "transcript",
+      "title": "Should You Learn Coding Now? Anthropic CEO Explains",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "A bunch of people at Anthropic write code, and so, you know, we made this internal tool called Claude Code, and because we ourselves write code, we have, you know, I think a special and unique insight into, you know, how to use the, how to best use the AI models to write code. So, you know, I think, I think, I think in the code space, you know, we've, we've become very strong, very strong competitors. What industry do you think will get disrupted and what has a certain runway left? I'm asking from the lens of, I'm trying to figure out what book to read, which college to go to, what skill set to learn if I'm starting a startup today. What has some kind of a tailwind? Yeah. For a short period of time is okay as well, but what ask you? Yeah, I mean, you know, I would, I would think about tasks that are human-centered, you know, tasks that involve relating to people. You know, I, you know, I think that the stuff like code and software engineering is, you know, is becoming more and more kind of AI, AI focused, you know, things like math and science. Is that coding or engineering? If I were to segregate coding and engineering to be two completely different things, is coding going away or is engineering element of software where you're an architect trying to figure out? I think coding is going away first, or coding is being, you know, done by the AI models first. And then the broader task of software engineering will take longer, but I think that is, you know, that doing that end to end, I think that is going to happen as well, I would say. But you know, again, the elements of like, you know, design or making something that's useful to users or knowing what the demand is, or, you know, managing teams of like AI models, like, you know, those things may still be present. Again, like there's this comparative advantage is surprisingly powerful, right? Even if you're only doing like, you know, 5% of the task, like, you know, that 5% gets super amplified and levered, because it's like you're only doing 5% of the task. The AI does the other 95%, and so you become, you know, 20 times more productive. Again, at some point you get to 99%, 99%, and then it becomes harder. But I think there's surprisingly much in that, in that sort of, you know, in that zone of comparative advantage. But I would really think about the things that are human centered. Like I think there's, I think there's something to that. I think there's something to kind of the physical world, or things that mix together, human centered, the physical world, one of those two, and analytical skills that somehow tie them together, you know, similar to the radiologist example I gave. So what would I study? See, I'm actual use case, I'm 25 years old. I'm trying to pick a profession for myself. I want some kind of tailwind. My outcome is a capitalistic win in the next decade. What industry would I pick outside of something which has a physical interface? Yeah. Again, anything where you're building on AI, like if AI is the tailwind, you know, if you can be part of some other, other part of the supply chain, you know, something in the semiconductor space, which, you know, I think is, you know, that's one example, you know, it has an element of kind of, you know, physical world and more traditional engineering, not, not software engineering. You know, again, the very kind of human centered professions, like, you know, that is, that is something I would, I would think in terms of, and I think the other thing I always say is like in the world in which, you know, AI can kind of generate anything and, you know, create anything. Having basic critical thinking skills may be the most important thing to, to success. I worry about, you know, these AI models that, that generate images and videos and we don't make, you know, models that generate images and videos and for many reasons, but, you know, this is one of them. It's really hard to tell what's real from what's not. And so, you know, a significant part of success may be having the street smarts, you know, not to get, not to get fooled by, by, you know, I mean, hopefully we can crack down on and regulate some of this fake content, but, but, you know, assume we can't, you know, critical thinking skills are going to be really important and, you know, you don't want to fall for things that are, that are, that are fake. You don't want to have false beliefs. You don't want to get scammed like, you know, that's, that's really advice that I would give to someone. If every innovation in the history of humanity killed a core human skills, I'll give you an example, if calculators killed our ability to do arithmetic, if writing reduced the memory of human beings per se, what muscle is AI killing? So you know, first of all, I'm not, I'm not so sure, like, you know, I still have, I still do math in my head quite a lot. I still find it useful to do math in my head, you know, even without a calculator, just because it's like, you know, it's more integrated into my thought processes, right? You know, I, you know, I might want to say, oh, yeah, you know, it's like each user paid this amount, then, you know, then the revenue would be that, you know, I want to be able to close that loop in my head without having to, you know, without having to give the answer to a calculator. So I think a lot of these skills are still pretty relevant. But, you know, I would say that if you don't use things carefully that you can lose, you can lose important skills. And, you know, we, you know, I think we started to see it with, you know, students where, you know, it's like, you know, they have the AI, like, write the essay for it, it's basically just cheating on homework. So you know, we shouldn't do that. You know, we did some studies around code and showed that, you know, depending on how you use the model, you know, we can see de-skilling in terms of writing code, right? There are different ways to use the model and some of them don't cause de-skilling and some of them do. You know, definitely if folks are not thoughtful in how they use things, then de-skilling absolutely can happen. Do you think humans will become stupider as a race in the next decade? Because if we are in a way exporting thinking and cognition to systems? Yeah, I think if we deploy, again, it's the machines of loving grace and adolescence of technology. If we deploy AI in the wrong way, if we deploy it carelessly, then, yes, people could become stupider. Even if an AI is always going to be better than you at something, you can still learn that thing, right? You can still enrich yourself intellectually. And so that's a choice we have to make as individual companies, as individual people and as a society overall. When I tried to use Claude code for the first time, I did struggle to get it to work. It was for somebody who's very stupid and has no coding or programming knowledge. It's not very, very easy. I think there's a learning curve. I heard someone say, well, it's like even prompt engineering is like playing a piano. You can't sit and start playing it. To my audience, I think it becomes increasingly relevant where to learn how to set context, how to prompt, how to use Claude code better. For somebody like me who comes with zero knowledge, can you recommend how one does that? Yeah. First of all, I would say we're trying increasingly to make that learning curve easier. So one of the things that caused us to release Claude code work, which is basically Claude code for non-coders, is, oh man, we were noticing a bunch of non-technical people who really wanted to use Claude code, and we're struggling through the command line terminal to do that. Just like coders use the command line terminal all the time, but non-coders, it just makes things unnecessarily complicated. Co-work was designed to be more of a, the kind of, it was powered by the Claude code engine on the back, but the idea was to make it more user-friendly and easier to use. We're definitely trying to introduce interfaces that kind of make it easier. But I would also say that there's classes you can take that help you learn this thing. Now I think it's a very empirical science you mostly learn by doing, but it's like Anthropic has its part of the company that we call the Ministry of Education, and I think increasingly we'll put out videos on how to run effective agents and how to prompt models. We've already done some of that, and I think we're going to ramp it up because we do want everyone to be able to learn this.",
+        "videoId": "EdZWPB1fIJc",
+        "duration": 526,
+        "language": "en",
+        "platform": "youtube",
+        "videoUrl": "https://www.youtube.com/watch?v=EdZWPB1fIJc",
+        "rawSegments": [
+          {
+            "text": "A bunch of people at Anthropic write code, and so, you know, we made this internal tool",
+            "end_ms": 4340,
+            "start_ms": 0
+          },
+          {
+            "text": "called Claude Code, and because we ourselves write code, we have, you know, I think a special",
+            "end_ms": 9400,
+            "start_ms": 4340
+          },
+          {
+            "text": "and unique insight into, you know, how to use the, how to best use the AI models to",
+            "end_ms": 13740,
+            "start_ms": 9400
+          },
+          {
+            "text": "write code.",
+            "end_ms": 14740,
+            "start_ms": 13740
+          },
+          {
+            "text": "So, you know, I think, I think, I think in the code space, you know, we've, we've become",
+            "end_ms": 19540,
+            "start_ms": 14740
+          },
+          {
+            "text": "very strong, very strong competitors.",
+            "end_ms": 22060,
+            "start_ms": 19540
+          },
+          {
+            "text": "What industry do you think will get disrupted and what has a certain runway left?",
+            "end_ms": 27860,
+            "start_ms": 22060
+          },
+          {
+            "text": "I'm asking from the lens of, I'm trying to figure out what book to read, which college",
+            "end_ms": 33500,
+            "start_ms": 27860
+          },
+          {
+            "text": "to go to, what skill set to learn if I'm starting a startup today.",
+            "end_ms": 43140,
+            "start_ms": 33500
+          },
+          {
+            "text": "What has some kind of a tailwind?",
+            "end_ms": 44660,
+            "start_ms": 43140
+          },
+          {
+            "text": "Yeah.",
+            "end_ms": 45660,
+            "start_ms": 44660
+          },
+          {
+            "text": "For a short period of time is okay as well, but what ask you?",
+            "end_ms": 48140,
+            "start_ms": 45660
+          },
+          {
+            "text": "Yeah, I mean, you know, I would, I would think about tasks that are human-centered, you know,",
+            "end_ms": 54580,
+            "start_ms": 48140
+          },
+          {
+            "text": "tasks that involve relating to people.",
+            "end_ms": 56980,
+            "start_ms": 54580
+          },
+          {
+            "text": "You know, I, you know, I think that the stuff like code and software engineering is, you",
+            "end_ms": 61220,
+            "start_ms": 56980
+          },
+          {
+            "text": "know, is becoming more and more kind of AI, AI focused, you know, things like math and",
+            "end_ms": 65900,
+            "start_ms": 61220
+          },
+          {
+            "text": "science.",
+            "end_ms": 66900,
+            "start_ms": 65900
+          },
+          {
+            "text": "Is that coding or engineering?",
+            "end_ms": 67900,
+            "start_ms": 66900
+          },
+          {
+            "text": "If I were to segregate coding and engineering to be two completely different things, is",
+            "end_ms": 72780,
+            "start_ms": 67900
+          },
+          {
+            "text": "coding going away or is engineering element of software where you're an architect trying",
+            "end_ms": 77540,
+            "start_ms": 72780
+          },
+          {
+            "text": "to figure out?",
+            "end_ms": 79180,
+            "start_ms": 77540
+          },
+          {
+            "text": "I think coding is going away first, or coding is being, you know, done by the AI models",
+            "end_ms": 83900,
+            "start_ms": 79180
+          },
+          {
+            "text": "first.",
+            "end_ms": 84900,
+            "start_ms": 83900
+          },
+          {
+            "text": "And then the broader task of software engineering will take longer, but I think that is, you",
+            "end_ms": 89220,
+            "start_ms": 84900
+          },
+          {
+            "text": "know, that doing that end to end, I think that is going to happen as well, I would say.",
+            "end_ms": 94260,
+            "start_ms": 89220
+          },
+          {
+            "text": "But you know, again, the elements of like, you know, design or making something that's",
+            "end_ms": 98900,
+            "start_ms": 94260
+          },
+          {
+            "text": "useful to users or knowing what the demand is, or, you know, managing teams of like AI",
+            "end_ms": 104780,
+            "start_ms": 98900
+          },
+          {
+            "text": "models, like, you know, those things may still be present.",
+            "end_ms": 108780,
+            "start_ms": 104780
+          },
+          {
+            "text": "Again, like there's this comparative advantage is surprisingly powerful, right?",
+            "end_ms": 113020,
+            "start_ms": 108780
+          },
+          {
+            "text": "Even if you're only doing like, you know, 5% of the task, like, you know, that 5% gets",
+            "end_ms": 119020,
+            "start_ms": 113020
+          },
+          {
+            "text": "super amplified and levered, because it's like you're only doing 5% of the task.",
+            "end_ms": 123179,
+            "start_ms": 119020
+          },
+          {
+            "text": "The AI does the other 95%, and so you become, you know, 20 times more productive.",
+            "end_ms": 128419,
+            "start_ms": 123179
+          },
+          {
+            "text": "Again, at some point you get to 99%, 99%, and then it becomes harder.",
+            "end_ms": 132019,
+            "start_ms": 128419
+          },
+          {
+            "text": "But I think there's surprisingly much in that, in that sort of, you know, in that zone of",
+            "end_ms": 138180,
+            "start_ms": 132019
+          },
+          {
+            "text": "comparative advantage.",
+            "end_ms": 139680,
+            "start_ms": 138180
+          },
+          {
+            "text": "But I would really think about the things that are human centered.",
+            "end_ms": 142780,
+            "start_ms": 139680
+          },
+          {
+            "text": "Like I think there's, I think there's something to that.",
+            "end_ms": 146060,
+            "start_ms": 142780
+          },
+          {
+            "text": "I think there's something to kind of the physical world, or things that mix together, human",
+            "end_ms": 152180,
+            "start_ms": 146060
+          },
+          {
+            "text": "centered, the physical world, one of those two, and analytical skills that somehow tie",
+            "end_ms": 158180,
+            "start_ms": 152180
+          },
+          {
+            "text": "them together, you know, similar to the radiologist example I gave.",
+            "end_ms": 162300,
+            "start_ms": 158180
+          },
+          {
+            "text": "So what would I study?",
+            "end_ms": 163300,
+            "start_ms": 162300
+          },
+          {
+            "text": "See, I'm actual use case, I'm 25 years old.",
+            "end_ms": 166980,
+            "start_ms": 163300
+          },
+          {
+            "text": "I'm trying to pick a profession for myself.",
+            "end_ms": 169700,
+            "start_ms": 166980
+          },
+          {
+            "text": "I want some kind of tailwind.",
+            "end_ms": 171620,
+            "start_ms": 169700
+          },
+          {
+            "text": "My outcome is a capitalistic win in the next decade.",
+            "end_ms": 175140,
+            "start_ms": 171620
+          },
+          {
+            "text": "What industry would I pick outside of something which has a physical interface?",
+            "end_ms": 181060,
+            "start_ms": 175140
+          },
+          {
+            "text": "Yeah.",
+            "end_ms": 182060,
+            "start_ms": 181060
+          },
+          {
+            "text": "Again, anything where you're building on AI, like if AI is the tailwind, you know, if you",
+            "end_ms": 185140,
+            "start_ms": 182060
+          },
+          {
+            "text": "can be part of some other, other part of the supply chain, you know, something in the semiconductor",
+            "end_ms": 190100,
+            "start_ms": 185140
+          },
+          {
+            "text": "space, which, you know, I think is, you know, that's one example, you know, it has an element",
+            "end_ms": 196140,
+            "start_ms": 190100
+          },
+          {
+            "text": "of kind of, you know, physical world and more traditional engineering, not, not software",
+            "end_ms": 200580,
+            "start_ms": 196140
+          },
+          {
+            "text": "engineering.",
+            "end_ms": 201580,
+            "start_ms": 200580
+          },
+          {
+            "text": "You know, again, the very kind of human centered professions, like, you know, that is, that",
+            "end_ms": 206340,
+            "start_ms": 201580
+          },
+          {
+            "text": "is something I would, I would think in terms of, and I think the other thing I always say",
+            "end_ms": 210500,
+            "start_ms": 206340
+          },
+          {
+            "text": "is like in the world in which, you know, AI can kind of generate anything and, you know,",
+            "end_ms": 216060,
+            "start_ms": 210500
+          },
+          {
+            "text": "create anything.",
+            "end_ms": 217300,
+            "start_ms": 216060
+          },
+          {
+            "text": "Having basic critical thinking skills may be the most important thing to, to success.",
+            "end_ms": 221580,
+            "start_ms": 217300
+          },
+          {
+            "text": "I worry about, you know, these AI models that, that generate images and videos and we don't",
+            "end_ms": 226420,
+            "start_ms": 221580
+          },
+          {
+            "text": "make, you know, models that generate images and videos and for many reasons, but, you",
+            "end_ms": 230420,
+            "start_ms": 226420
+          },
+          {
+            "text": "know, this is one of them.",
+            "end_ms": 233260,
+            "start_ms": 230420
+          },
+          {
+            "text": "It's really hard to tell what's real from what's not.",
+            "end_ms": 236740,
+            "start_ms": 233260
+          },
+          {
+            "text": "And so, you know, a significant part of success may be having the street smarts, you know,",
+            "end_ms": 241340,
+            "start_ms": 236740
+          },
+          {
+            "text": "not to get, not to get fooled by, by, you know, I mean, hopefully we can crack down on and",
+            "end_ms": 246540,
+            "start_ms": 241340
+          },
+          {
+            "text": "regulate some of this fake content, but, but, you know, assume we can't, you know, critical",
+            "end_ms": 253380,
+            "start_ms": 246540
+          },
+          {
+            "text": "thinking skills are going to be really important and, you know, you don't want to fall for",
+            "end_ms": 256459,
+            "start_ms": 253380
+          },
+          {
+            "text": "things that are, that are, that are fake.",
+            "end_ms": 258579,
+            "start_ms": 256459
+          },
+          {
+            "text": "You don't want to have false beliefs.",
+            "end_ms": 260260,
+            "start_ms": 258579
+          },
+          {
+            "text": "You don't want to get scammed like, you know, that's, that's really advice that I would",
+            "end_ms": 264020,
+            "start_ms": 260260
+          },
+          {
+            "text": "give to someone.",
+            "end_ms": 265700,
+            "start_ms": 264020
+          },
+          {
+            "text": "If every innovation in the history of humanity killed a core human skills, I'll give you",
+            "end_ms": 272340,
+            "start_ms": 265700
+          },
+          {
+            "text": "an example, if calculators killed our ability to do arithmetic, if writing reduced the memory",
+            "end_ms": 280860,
+            "start_ms": 272340
+          },
+          {
+            "text": "of human beings per se, what muscle is AI killing?",
+            "end_ms": 286260,
+            "start_ms": 280860
+          },
+          {
+            "text": "So you know, first of all, I'm not, I'm not so sure, like, you know, I still have, I still",
+            "end_ms": 291580,
+            "start_ms": 286260
+          },
+          {
+            "text": "do math in my head quite a lot.",
+            "end_ms": 293020,
+            "start_ms": 291580
+          },
+          {
+            "text": "I still find it useful to do math in my head, you know, even without a calculator, just",
+            "end_ms": 298460,
+            "start_ms": 293020
+          },
+          {
+            "text": "because it's like, you know, it's more integrated into my thought processes, right?",
+            "end_ms": 302900,
+            "start_ms": 298460
+          },
+          {
+            "text": "You know, I, you know, I might want to say, oh, yeah, you know, it's like each user paid",
+            "end_ms": 306780,
+            "start_ms": 302900
+          },
+          {
+            "text": "this amount, then, you know, then the revenue would be that, you know, I want to be able",
+            "end_ms": 309659,
+            "start_ms": 306780
+          },
+          {
+            "text": "to close that loop in my head without having to, you know, without having to give the answer",
+            "end_ms": 314340,
+            "start_ms": 309659
+          },
+          {
+            "text": "to a calculator.",
+            "end_ms": 315340,
+            "start_ms": 314340
+          },
+          {
+            "text": "So I think a lot of these skills are still pretty relevant.",
+            "end_ms": 319179,
+            "start_ms": 315340
+          },
+          {
+            "text": "But, you know, I would say that if you don't use things carefully that you can lose, you",
+            "end_ms": 325020,
+            "start_ms": 319179
+          },
+          {
+            "text": "can lose important skills.",
+            "end_ms": 326580,
+            "start_ms": 325060
+          },
+          {
+            "text": "And, you know, we, you know, I think we started to see it with, you know, students where,",
+            "end_ms": 331979,
+            "start_ms": 326580
+          },
+          {
+            "text": "you know, it's like, you know, they have the AI, like, write the essay for it, it's basically",
+            "end_ms": 335340,
+            "start_ms": 331979
+          },
+          {
+            "text": "just cheating on homework.",
+            "end_ms": 336580,
+            "start_ms": 335340
+          },
+          {
+            "text": "So you know, we shouldn't do that.",
+            "end_ms": 338539,
+            "start_ms": 336580
+          },
+          {
+            "text": "You know, we did some studies around code and showed that, you know, depending on how",
+            "end_ms": 342500,
+            "start_ms": 338539
+          },
+          {
+            "text": "you use the model, you know, we can see de-skilling in terms of writing code, right?",
+            "end_ms": 347940,
+            "start_ms": 342500
+          },
+          {
+            "text": "There are different ways to use the model and some of them don't cause de-skilling and",
+            "end_ms": 350979,
+            "start_ms": 347940
+          },
+          {
+            "text": "some of them do.",
+            "end_ms": 351979,
+            "start_ms": 350979
+          },
+          {
+            "text": "You know, definitely if folks are not thoughtful in how they use things, then de-skilling absolutely",
+            "end_ms": 357380,
+            "start_ms": 352100
+          },
+          {
+            "text": "can happen.",
+            "end_ms": 358380,
+            "start_ms": 357380
+          },
+          {
+            "text": "Do you think humans will become stupider as a race in the next decade?",
+            "end_ms": 363420,
+            "start_ms": 359700
+          },
+          {
+            "text": "Because if we are in a way exporting thinking and cognition to systems?",
+            "end_ms": 370900,
+            "start_ms": 363420
+          },
+          {
+            "text": "Yeah, I think if we deploy, again, it's the machines of loving grace and adolescence of",
+            "end_ms": 376820,
+            "start_ms": 370900
+          },
+          {
+            "text": "technology.",
+            "end_ms": 377820,
+            "start_ms": 376820
+          },
+          {
+            "text": "If we deploy AI in the wrong way, if we deploy it carelessly, then, yes, people could become",
+            "end_ms": 383900,
+            "start_ms": 377820
+          },
+          {
+            "text": "stupider.",
+            "end_ms": 384900,
+            "start_ms": 383900
+          },
+          {
+            "text": "Even if an AI is always going to be better than you at something, you can still learn",
+            "end_ms": 388580,
+            "start_ms": 384900
+          },
+          {
+            "text": "that thing, right?",
+            "end_ms": 389580,
+            "start_ms": 388580
+          },
+          {
+            "text": "You can still enrich yourself intellectually.",
+            "end_ms": 392060,
+            "start_ms": 389580
+          },
+          {
+            "text": "And so that's a choice we have to make as individual companies, as individual people",
+            "end_ms": 396460,
+            "start_ms": 392060
+          },
+          {
+            "text": "and as a society overall.",
+            "end_ms": 398539,
+            "start_ms": 396460
+          },
+          {
+            "text": "When I tried to use Claude code for the first time, I did struggle to get it to work.",
+            "end_ms": 405100,
+            "start_ms": 398539
+          },
+          {
+            "text": "It was for somebody who's very stupid and has no coding or programming knowledge.",
+            "end_ms": 410580,
+            "start_ms": 405100
+          },
+          {
+            "text": "It's not very, very easy.",
+            "end_ms": 413900,
+            "start_ms": 410580
+          },
+          {
+            "text": "I think there's a learning curve.",
+            "end_ms": 415620,
+            "start_ms": 413900
+          },
+          {
+            "text": "I heard someone say, well, it's like even prompt engineering is like playing a piano.",
+            "end_ms": 421060,
+            "start_ms": 415620
+          },
+          {
+            "text": "You can't sit and start playing it.",
+            "end_ms": 423580,
+            "start_ms": 421060
+          },
+          {
+            "text": "To my audience, I think it becomes increasingly relevant where to learn how to set context,",
+            "end_ms": 431620,
+            "start_ms": 423580
+          },
+          {
+            "text": "how to prompt, how to use Claude code better.",
+            "end_ms": 434100,
+            "start_ms": 431620
+          },
+          {
+            "text": "For somebody like me who comes with zero knowledge, can you recommend how one does that?",
+            "end_ms": 439460,
+            "start_ms": 434100
+          },
+          {
+            "text": "Yeah.",
+            "end_ms": 440460,
+            "start_ms": 439460
+          },
+          {
+            "text": "First of all, I would say we're trying increasingly to make that learning curve easier.",
+            "end_ms": 446020,
+            "start_ms": 440460
+          },
+          {
+            "text": "So one of the things that caused us to release Claude code work, which is basically Claude",
+            "end_ms": 450820,
+            "start_ms": 446020
+          },
+          {
+            "text": "code for non-coders, is, oh man, we were noticing a bunch of non-technical people who really",
+            "end_ms": 457420,
+            "start_ms": 450820
+          },
+          {
+            "text": "wanted to use Claude code, and we're struggling through the command line terminal to do that.",
+            "end_ms": 462900,
+            "start_ms": 457420
+          },
+          {
+            "text": "Just like coders use the command line terminal all the time, but non-coders, it just makes",
+            "end_ms": 468660,
+            "start_ms": 462900
+          },
+          {
+            "text": "things unnecessarily complicated.",
+            "end_ms": 471780,
+            "start_ms": 468660
+          },
+          {
+            "text": "Co-work was designed to be more of a, the kind of, it was powered by the Claude code",
+            "end_ms": 479180,
+            "start_ms": 471780
+          },
+          {
+            "text": "engine on the back, but the idea was to make it more user-friendly and easier to use.",
+            "end_ms": 487820,
+            "start_ms": 479180
+          },
+          {
+            "text": "We're definitely trying to introduce interfaces that kind of make it easier.",
+            "end_ms": 492820,
+            "start_ms": 487820
+          },
+          {
+            "text": "But I would also say that there's classes you can take that help you learn this thing.",
+            "end_ms": 500780,
+            "start_ms": 492820
+          },
+          {
+            "text": "Now I think it's a very empirical science you mostly learn by doing, but it's like",
+            "end_ms": 504780,
+            "start_ms": 500780
+          },
+          {
+            "text": "Anthropic has its part of the company that we call the Ministry of Education, and I think",
+            "end_ms": 509900,
+            "start_ms": 504780
+          },
+          {
+            "text": "increasingly we'll put out videos on how to run effective agents and how to prompt models.",
+            "end_ms": 515419,
+            "start_ms": 509900
+          },
+          {
+            "text": "We've already done some of that, and I think we're going to ramp it up because we do want",
+            "end_ms": 519979,
+            "start_ms": 515699
+          },
+          {
+            "text": "everyone to be able to learn this.",
+            "end_ms": 521260,
+            "start_ms": 519979
+          }
+        ],
+        "segmentCount": 129,
+        "publishedDate": "2026-03-09"
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-12T13:11:27.333Z",
-      "updated": "2026-03-12T13:11:27.333Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=EdZWPB1fIJc",
+      "created": "2026-03-18T07:55:34.921Z",
+      "updated": "2026-03-18T07:55:34.921Z"
     },
     {
-      "id": "babb5efc-f8ce-4c2b-9d43-ca14ef986f17",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-EdZWPB1fIJc_chunk_0",
+      "type": "transcript",
+      "title": "Should You Learn Coding Now? Anthropic CEO Explains [chunk 1/10]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "A bunch of people at Anthropic write code, and so, you know, we made this internal tool called Claude Code, and because we ourselves write code, we have, you know, I think a special and unique insight into, you know, how to use the, how to best use the AI models to write code. So, you know, I think, I think, I think in the code space, you know, we've, we've become very strong, very strong competitors. What industry do you think will get disrupted and what has a certain runway left? I'm asking from the lens of, I'm trying to figure out what book to read, which college to go to, what skill set to learn if I'm starting a startup today. What has some kind of a tailwind? Yeah. For a short period of time is okay as well, but what ask you? Yeah, I mean, you know, I would, I would think about tasks that are human-centered, you know, tasks that involve relating to people.",
+        "parentId": "yt-EdZWPB1fIJc",
+        "wordCount": 168,
+        "chunkIndex": 0,
+        "ebucore:end": 53780,
+        "totalChunks": 10,
+        "ebucore:start": 0,
+        "ebucore:partNumber": 0
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-12T13:11:44.644Z",
-      "updated": "2026-03-12T13:11:44.644Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=EdZWPB1fIJc",
+      "created": "2026-03-18T07:55:34.921Z",
+      "updated": "2026-03-18T07:55:34.921Z"
     },
     {
-      "id": "d4287e77-6376-4a58-ae39-bd7e5e3b23e2",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-EdZWPB1fIJc_chunk_9",
+      "type": "transcript",
+      "title": "Should You Learn Coding Now? Anthropic CEO Explains [chunk 10/10]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "make it easier. But I would also say that there's classes you can take that help you learn this thing. Now I think it's a very empirical science you mostly learn by doing, but it's like Anthropic has its part of the company that we call the Ministry of Education, and I think increasingly we'll put out videos on how to run effective agents and how to prompt models. We've already done some of that, and I think we're going to ramp it up because we do want everyone to be able to learn this.",
+        "parentId": "yt-EdZWPB1fIJc",
+        "wordCount": 95,
+        "chunkIndex": 9,
+        "ebucore:end": 526000,
+        "totalChunks": 10,
+        "ebucore:start": 495822,
+        "ebucore:partNumber": 9
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-12T13:12:39.969Z",
-      "updated": "2026-03-12T13:12:39.969Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=EdZWPB1fIJc",
+      "created": "2026-03-18T07:55:34.921Z",
+      "updated": "2026-03-18T07:55:34.921Z"
     },
     {
-      "id": "a693e4fe-b649-4931-84b3-57b6f960d9c5",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-EdZWPB1fIJc_chunk_1",
+      "type": "transcript",
+      "title": "Should You Learn Coding Now? Anthropic CEO Explains [chunk 2/10]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "you know, I would, I would think about tasks that are human-centered, you know, tasks that involve relating to people. You know, I, you know, I think that the stuff like code and software engineering is, you know, is becoming more and more kind of AI, AI focused, you know, things like math and science. Is that coding or engineering? If I were to segregate coding and engineering to be two completely different things, is coding going away or is engineering element of software where you're an architect trying to figure out? I think coding is going away first, or coding is being, you know, done by the AI models first. And then the broader task of software engineering will take longer, but I think that is, you know, that doing that end to end, I think that is going to happen as well, I would say. But you know, again, the elements of like, you know, design or making something that's useful to users or knowing what the demand is, or, you know, managing teams of like AI models, like, you know, those things may still be present. Again, like there's this comparative advantage is surprisingly powerful, right?",
+        "parentId": "yt-EdZWPB1fIJc",
+        "wordCount": 199,
+        "chunkIndex": 1,
+        "ebucore:end": 115059,
+        "totalChunks": 10,
+        "ebucore:start": 46527,
+        "ebucore:partNumber": 1
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-12T13:18:06.888Z",
-      "updated": "2026-03-12T13:18:06.888Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=EdZWPB1fIJc",
+      "created": "2026-03-18T07:55:34.921Z",
+      "updated": "2026-03-18T07:55:34.921Z"
     },
     {
-      "id": "d098c282-68f7-43bc-8771-b71fddd3a59a",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-EdZWPB1fIJc_chunk_2",
+      "type": "transcript",
+      "title": "Should You Learn Coding Now? Anthropic CEO Explains [chunk 3/10]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "models, like, you know, those things may still be present. Again, like there's this comparative advantage is surprisingly powerful, right? Even if you're only doing like, you know, 5% of the task, like, you know, that 5% gets super amplified and levered, because it's like you're only doing 5% of the task. The AI does the other 95%, and so you become, you know, 20 times more productive. Again, at some point you get to 99%, 99%, and then it becomes harder. But I think there's surprisingly much in that, in that sort of, you know, in that zone of comparative advantage. But I would really think about the things that are human centered. Like I think there's, I think there's something to that. I think there's something to kind of the physical world, or things that mix together, human centered, the physical world, one of those two, and analytical skills that somehow tie them together, you know, similar to the radiologist example I gave. So what would I study? See, I'm actual use case, I'm 25 years old. I'm trying to pick a profession for myself. I want some kind of tailwind.",
+        "parentId": "yt-EdZWPB1fIJc",
+        "wordCount": 193,
+        "chunkIndex": 2,
+        "ebucore:end": 173141,
+        "totalChunks": 10,
+        "ebucore:start": 106577,
+        "ebucore:partNumber": 2
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-12T13:18:38.752Z",
-      "updated": "2026-03-12T13:18:38.752Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=EdZWPB1fIJc",
+      "created": "2026-03-18T07:55:34.921Z",
+      "updated": "2026-03-18T07:55:34.921Z"
     },
     {
-      "id": "3a658fbb-713a-48b9-8cc6-de0a46ac9a16",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-EdZWPB1fIJc_chunk_3",
+      "type": "transcript",
+      "title": "Should You Learn Coding Now? Anthropic CEO Explains [chunk 4/10]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "use case, I'm 25 years old. I'm trying to pick a profession for myself. I want some kind of tailwind. My outcome is a capitalistic win in the next decade. What industry would I pick outside of something which has a physical interface? Yeah. Again, anything where you're building on AI, like if AI is the tailwind, you know, if you can be part of some other, other part of the supply chain, you know, something in the semiconductor space, which, you know, I think is, you know, that's one example, you know, it has an element of kind of, you know, physical world and more traditional engineering, not, not software engineering. You know, again, the very kind of human centered professions, like, you know, that is, that is something I would, I would think in terms of, and I think the other thing I always say is like in the world in which, you know, AI can kind of generate anything and, you know, create anything. Having basic critical thinking skills may be the most important thing to, to success.",
+        "parentId": "yt-EdZWPB1fIJc",
+        "wordCount": 181,
+        "chunkIndex": 3,
+        "ebucore:end": 228396,
+        "totalChunks": 10,
+        "ebucore:start": 166933,
+        "ebucore:partNumber": 3
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-12T13:58:33.229Z",
-      "updated": "2026-03-12T13:58:33.229Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=EdZWPB1fIJc",
+      "created": "2026-03-18T07:55:34.921Z",
+      "updated": "2026-03-18T07:55:34.921Z"
     },
     {
-      "id": "67bbfa1c-95b7-4e6b-b485-d0a80a3c2687",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-EdZWPB1fIJc_chunk_5",
+      "type": "transcript",
+      "title": "Should You Learn Coding Now? Anthropic CEO Explains [chunk 6/10]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "beliefs. You don't want to get scammed like, you know, that's, that's really advice that I would give to someone. If every innovation in the history of humanity killed a core human skills, I'll give you an example, if calculators killed our ability to do arithmetic, if writing reduced the memory of human beings per se, what muscle is AI killing? So you know, first of all, I'm not, I'm not so sure, like, you know, I still have, I still do math in my head quite a lot. I still find it useful to do math in my head, you know, even without a calculator, just because it's like, you know, it's more integrated into my thought processes, right? You know, I, you know, I might want to say, oh, yeah, you know, it's like each user paid this amount, then, you know, then the revenue would be that, you know, I want to be able to close that loop in my head without having to, you know, without having to give the answer to a calculator. So I think a lot of these skills are still pretty relevant.",
+        "parentId": "yt-EdZWPB1fIJc",
+        "wordCount": 190,
+        "chunkIndex": 5,
+        "ebucore:end": 332023,
+        "totalChunks": 10,
+        "ebucore:start": 271175,
+        "ebucore:partNumber": 5
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-12T14:35:05.783Z",
-      "updated": "2026-03-12T14:35:05.783Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=EdZWPB1fIJc",
+      "created": "2026-03-18T07:55:34.921Z",
+      "updated": "2026-03-18T07:55:34.921Z"
     },
     {
-      "id": "30bda9b5-54aa-40c9-989f-febb85962a27",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-EdZWPB1fIJc_chunk_6",
+      "type": "transcript",
+      "title": "Should You Learn Coding Now? Anthropic CEO Explains [chunk 7/10]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "having to give the answer to a calculator. So I think a lot of these skills are still pretty relevant. But, you know, I would say that if you don't use things carefully that you can lose, you can lose important skills. And, you know, we, you know, I think we started to see it with, you know, students where, you know, it's like, you know, they have the AI, like, write the essay for it, it's basically just cheating on homework. So you know, we shouldn't do that. You know, we did some studies around code and showed that, you know, depending on how you use the model, you know, we can see de-skilling in terms of writing code, right? There are different ways to use the model and some of them don't cause de-skilling and some of them do. You know, definitely if folks are not thoughtful in how they use things, then de-skilling absolutely can happen. Do you think humans will become stupider as a race in the next decade? Because if we are in a way exporting thinking and cognition to systems?",
+        "parentId": "yt-EdZWPB1fIJc",
+        "wordCount": 186,
+        "chunkIndex": 6,
+        "ebucore:end": 386909,
+        "totalChunks": 10,
+        "ebucore:start": 325754,
+        "ebucore:partNumber": 6
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-12T16:18:17.489Z",
-      "updated": "2026-03-12T16:18:17.489Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=EdZWPB1fIJc",
+      "created": "2026-03-18T07:55:34.921Z",
+      "updated": "2026-03-18T07:55:34.921Z"
     },
     {
-      "id": "4fc64ab6-1734-47c9-98ca-03a632c5a50f",
-      "type": "research",
-      "title": "What is X?",
+      "id": "yt-EdZWPB1fIJc_chunk_7",
+      "type": "transcript",
+      "title": "Should You Learn Coding Now? Anthropic CEO Explains [chunk 8/10]",
       "properties": {
-        "text": "What is X?",
-        "gapType": "unanswered",
-        "frequency": 1
+        "text": "as a race in the next decade? Because if we are in a way exporting thinking and cognition to systems? Yeah, I think if we deploy, again, it's the machines of loving grace and adolescence of technology. If we deploy AI in the wrong way, if we deploy it carelessly, then, yes, people could become stupider. Even if an AI is always going to be better than you at something, you can still learn that thing, right? You can still enrich yourself intellectually. And so that's a choice we have to make as individual companies, as individual people and as a society overall. When I tried to use Claude code for the first time, I did struggle to get it to work. It was for somebody who's very stupid and has no coding or programming knowledge. It's not very, very easy. I think there's a learning curve. I heard someone say, well, it's like even prompt engineering is like playing a piano. You can't sit and start playing it. To my audience, I think it becomes increasingly relevant where to learn how to set context, how to prompt, how to use Claude code better.",
+        "parentId": "yt-EdZWPB1fIJc",
+        "wordCount": 194,
+        "chunkIndex": 7,
+        "ebucore:end": 445484,
+        "totalChunks": 10,
+        "ebucore:start": 380702,
+        "ebucore:partNumber": 7
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "scope": "personal",
-      "created": "2026-03-12T18:34:41.819Z",
-      "updated": "2026-03-12T18:34:41.819Z"
+      "sourceUrl": "https://www.youtube.com/watch?v=EdZWPB1fIJc",
+      "created": "2026-03-18T07:55:34.921Z",
+      "updated": "2026-03-18T07:55:34.921Z"
     },
     {
-      "id": "59c9bc88-6070-4037-934d-7c7e5860ab31",
+      "id": "yt-EdZWPB1fIJc_chunk_8",
+      "type": "transcript",
+      "title": "Should You Learn Coding Now? Anthropic CEO Explains [chunk 9/10]",
+      "properties": {
+        "text": "it becomes increasingly relevant where to learn how to set context, how to prompt, how to use Claude code better. For somebody like me who comes with zero knowledge, can you recommend how one does that? Yeah. First of all, I would say we're trying increasingly to make that learning curve easier. So one of the things that caused us to release Claude code work, which is basically Claude code for non-coders, is, oh man, we were noticing a bunch of non-technical people who really wanted to use Claude code, and we're struggling through the command line terminal to do that. Just like coders use the command line terminal all the time, but non-coders, it just makes things unnecessarily complicated. Co-work was designed to be more of a, the kind of, it was powered by the Claude code engine on the back, but the idea was to make it more user-friendly and easier to use. We're definitely trying to introduce interfaces that kind of make it easier. But I would also say that there's classes you can take that help you learn this thing.",
+        "parentId": "yt-EdZWPB1fIJc",
+        "wordCount": 184,
+        "chunkIndex": 8,
+        "ebucore:end": 502091,
+        "totalChunks": 10,
+        "ebucore:start": 438538,
+        "ebucore:partNumber": 8
+      },
+      "confidence": 0.9,
+      "scope": "personal",
+      "sourceUrl": "https://www.youtube.com/watch?v=EdZWPB1fIJc",
+      "created": "2026-03-18T07:55:34.921Z",
+      "updated": "2026-03-18T07:55:34.921Z"
+    },
+    {
+      "id": "vp-yt-EdZWPB1fIJc-SPEAKER_01",
+      "type": "voice_print",
+      "title": "Speaker: SPEAKER_01",
+      "properties": {
+        "videoId": "EdZWPB1fIJc",
+        "segments": [
+          {
+            "end_ms": 19049,
+            "start_ms": 30
+          },
+          {
+            "end_ms": 21563,
+            "start_ms": 19572
+          },
+          {
+            "end_ms": 45509,
+            "start_ms": 45087
+          },
+          {
+            "end_ms": 59059,
+            "start_ms": 47348
+          },
+          {
+            "end_ms": 66315,
+            "start_ms": 59397
+          },
+          {
+            "end_ms": 72323,
+            "start_ms": 71850
+          },
+          {
+            "end_ms": 114612,
+            "start_ms": 79157
+          },
+          {
+            "end_ms": 143924,
+            "start_ms": 114848
+          },
+          {
+            "end_ms": 145780,
+            "start_ms": 144227
+          },
+          {
+            "end_ms": 151517,
+            "start_ms": 145982
+          },
+          {
+            "end_ms": 153087,
+            "start_ms": 151737
+          },
+          {
+            "end_ms": 161794,
+            "start_ms": 153424
+          },
+          {
+            "end_ms": 192540,
+            "start_ms": 180627
+          },
+          {
+            "end_ms": 216739,
+            "start_ms": 193249
+          },
+          {
+            "end_ms": 232095,
+            "start_ms": 216975
+          },
+          {
+            "end_ms": 264630,
+            "start_ms": 233108
+          },
+          {
+            "end_ms": 288593,
+            "start_ms": 286095
+          },
+          {
+            "end_ms": 295967,
+            "start_ms": 288677
+          },
+          {
+            "end_ms": 318816,
+            "start_ms": 296339
+          },
+          {
+            "end_ms": 357865,
+            "start_ms": 318951
+          },
+          {
+            "end_ms": 397875,
+            "start_ms": 370302
+          },
+          {
+            "end_ms": 476159,
+            "start_ms": 439320
+          },
+          {
+            "end_ms": 495565,
+            "start_ms": 476395
+          },
+          {
+            "end_ms": 506230,
+            "start_ms": 496493
+          },
+          {
+            "end_ms": 518144,
+            "start_ms": 506466
+          },
+          {
+            "end_ms": 521282,
+            "start_ms": 518160
+          }
+        ],
+        "videoNodeId": "yt-EdZWPB1fIJc",
+        "segmentCount": 26,
+        "speakerLabel": "SPEAKER_01",
+        "totalDurationMs": 383216
+      },
+      "confidence": 0.7,
+      "scope": "personal",
+      "sourceUrl": "https://www.youtube.com/watch?v=EdZWPB1fIJc",
+      "created": "2026-03-18T07:55:34.921Z",
+      "updated": "2026-03-18T07:55:34.921Z"
+    },
+    {
+      "id": "vp-yt-EdZWPB1fIJc-SPEAKER_00",
+      "type": "voice_print",
+      "title": "Speaker: SPEAKER_00",
+      "properties": {
+        "videoId": "EdZWPB1fIJc",
+        "segments": [
+          {
+            "end_ms": 27570,
+            "start_ms": 21782
+          },
+          {
+            "end_ms": 29545,
+            "start_ms": 27824
+          },
+          {
+            "end_ms": 31857,
+            "start_ms": 30389
+          },
+          {
+            "end_ms": 34354,
+            "start_ms": 31941
+          },
+          {
+            "end_ms": 36160,
+            "start_ms": 34641
+          },
+          {
+            "end_ms": 38455,
+            "start_ms": 36852
+          },
+          {
+            "end_ms": 41324,
+            "start_ms": 38792
+          },
+          {
+            "end_ms": 42015,
+            "start_ms": 41459
+          },
+          {
+            "end_ms": 44884,
+            "start_ms": 42960
+          },
+          {
+            "end_ms": 48006,
+            "start_ms": 45070
+          },
+          {
+            "end_ms": 71850,
+            "start_ms": 65640
+          },
+          {
+            "end_ms": 78229,
+            "start_ms": 72677
+          },
+          {
+            "end_ms": 163870,
+            "start_ms": 162199
+          },
+          {
+            "end_ms": 166654,
+            "start_ms": 164309
+          },
+          {
+            "end_ms": 169354,
+            "start_ms": 166975
+          },
+          {
+            "end_ms": 174400,
+            "start_ms": 169607
+          },
+          {
+            "end_ms": 176509,
+            "start_ms": 174889
+          },
+          {
+            "end_ms": 177252,
+            "start_ms": 176880
+          },
+          {
+            "end_ms": 180930,
+            "start_ms": 178450
+          },
+          {
+            "end_ms": 267381,
+            "start_ms": 265542
+          },
+          {
+            "end_ms": 269237,
+            "start_ms": 267769
+          },
+          {
+            "end_ms": 276426,
+            "start_ms": 269946
+          },
+          {
+            "end_ms": 282349,
+            "start_ms": 277034
+          },
+          {
+            "end_ms": 284914,
+            "start_ms": 283244
+          },
+          {
+            "end_ms": 364125,
+            "start_ms": 359704
+          },
+          {
+            "end_ms": 365459,
+            "start_ms": 364699
+          },
+          {
+            "end_ms": 367517,
+            "start_ms": 366623
+          },
+          {
+            "end_ms": 370859,
+            "start_ms": 368344
+          },
+          {
+            "end_ms": 400407,
+            "start_ms": 398264
+          },
+          {
+            "end_ms": 402820,
+            "start_ms": 401082
+          },
+          {
+            "end_ms": 406617,
+            "start_ms": 403512
+          },
+          {
+            "end_ms": 411308,
+            "start_ms": 407123
+          },
+          {
+            "end_ms": 412034,
+            "start_ms": 411392
+          },
+          {
+            "end_ms": 415155,
+            "start_ms": 412472
+          },
+          {
+            "end_ms": 417619,
+            "start_ms": 415510
+          },
+          {
+            "end_ms": 422631,
+            "start_ms": 418379
+          },
+          {
+            "end_ms": 426951,
+            "start_ms": 423492
+          },
+          {
+            "end_ms": 428622,
+            "start_ms": 427390
+          },
+          {
+            "end_ms": 430731,
+            "start_ms": 429145
+          },
+          {
+            "end_ms": 437025,
+            "start_ms": 431204
+          },
+          {
+            "end_ms": 439270,
+            "start_ms": 437295
+          }
+        ],
+        "videoNodeId": "yt-EdZWPB1fIJc",
+        "segmentCount": 41,
+        "speakerLabel": "SPEAKER_00",
+        "totalDurationMs": 110174
+      },
+      "confidence": 0.7,
+      "scope": "personal",
+      "sourceUrl": "https://www.youtube.com/watch?v=EdZWPB1fIJc",
+      "created": "2026-03-18T07:55:34.921Z",
+      "updated": "2026-03-18T07:55:34.921Z"
+    },
+    {
+      "id": "yt-Ko7_tC1fMMM",
+      "type": "transcript",
+      "title": "Using Claude Code Remote Control",
+      "properties": {
+        "text": "How often do you start a cloud code session at your desk? Leave. And a few hours later, think, I wish I could continue that session from literally anywhere. Well, good news. With remote control, you can connect cloud code web or the cloud app on your mobile device to a cloud code session running on your machine and pick up where you left off. The bad news is that your family will be concerned who you're texting so much. So here's how it works. Navigate to your project directory and run cloud remote control. This will start a new session and show you a URL that you can connect to with cloud code web. And if you hit the space bar, you'll get a QR code that you can scan with your phone. And from there, it will take you to your mobile browser or the cloud mobile app and you can see your session in progress. If you're already in a cloud code session and want to hand off to your remote devices, then type slash remote control and you'll see the URL there. Now the URL will be provided for convenience, but realize that since cloud code is tied to your cloud account, you can just go on your mobile device without explicitly clicking the link provided. Once you have everything set up and are connected, you get the same cloud code experience that you're used to. You have access to the same tools, MCP servers, configurations and file system. Everything is still running on your machine. Nothing is moved to the cloud. The conversation then stays in sync across devices. If you type in your cloud mobile app, you can then see it update in your terminal in real time. By default, we ask you to specify when you want a remote control session each time. However, in your slash config, you can enable remote control for all sessions, so you don't have to explicitly enable it each time. Cloud remote control also comes with a spawn mode that you can use to create new sessions remotely. As of this video, it's available to Macs, team and enterprise users. Type in cloud remote control, then go on cloud web or mobile, then you can select your remote session by tapping the environment button and selecting your device. And there you can spawn multiple instances of cloud code. If you want to pick up a session that you started on your desk, well, remote control can make that happen. We're currently rolling out to pro and max plan users.",
+        "videoId": "Ko7_tC1fMMM",
+        "videoUrl": "https://www.youtube.com/watch?v=Ko7_tC1fMMM",
+        "platform": "youtube",
+        "duration": 160,
+        "language": "en",
+        "segmentCount": 39,
+        "rawSegments": [
+          {
+            "start_ms": 0,
+            "end_ms": 7960,
+            "text": "How often do you start a cloud code session at your desk?"
+          },
+          {
+            "start_ms": 7960,
+            "end_ms": 8960,
+            "text": "Leave."
+          },
+          {
+            "start_ms": 8960,
+            "end_ms": 14840,
+            "text": "And a few hours later, think, I wish I could continue that session from literally anywhere."
+          },
+          {
+            "start_ms": 14840,
+            "end_ms": 18040,
+            "text": "Well, good news."
+          },
+          {
+            "start_ms": 18040,
+            "end_ms": 22280,
+            "text": "With remote control, you can connect cloud code web or the cloud app on your mobile"
+          },
+          {
+            "start_ms": 22280,
+            "end_ms": 28840,
+            "text": "device to a cloud code session running on your machine and pick up where you left off."
+          },
+          {
+            "start_ms": 28840,
+            "end_ms": 34400,
+            "text": "The bad news is that your family will be concerned who you're texting so much."
+          },
+          {
+            "start_ms": 34400,
+            "end_ms": 37800,
+            "text": "So here's how it works."
+          },
+          {
+            "start_ms": 37800,
+            "end_ms": 41800,
+            "text": "Navigate to your project directory and run cloud remote control."
+          },
+          {
+            "start_ms": 41800,
+            "end_ms": 45960,
+            "text": "This will start a new session and show you a URL that you can connect to with cloud code"
+          },
+          {
+            "start_ms": 45960,
+            "end_ms": 46960,
+            "text": "web."
+          },
+          {
+            "start_ms": 46960,
+            "end_ms": 52540,
+            "text": "And if you hit the space bar, you'll get a QR code that you can scan with your phone."
+          },
+          {
+            "start_ms": 52540,
+            "end_ms": 57879,
+            "text": "And from there, it will take you to your mobile browser or the cloud mobile app and you can"
+          },
+          {
+            "start_ms": 57880,
+            "end_ms": 62000,
+            "text": "see your session in progress."
+          },
+          {
+            "start_ms": 62000,
+            "end_ms": 66760,
+            "text": "If you're already in a cloud code session and want to hand off to your remote devices,"
+          },
+          {
+            "start_ms": 66760,
+            "end_ms": 71120,
+            "text": "then type slash remote control and you'll see the URL there."
+          },
+          {
+            "start_ms": 71120,
+            "end_ms": 76600,
+            "text": "Now the URL will be provided for convenience, but realize that since cloud code is tied"
+          },
+          {
+            "start_ms": 76600,
+            "end_ms": 81000,
+            "text": "to your cloud account, you can just go on your mobile device without explicitly clicking"
+          },
+          {
+            "start_ms": 81000,
+            "end_ms": 84160,
+            "text": "the link provided."
+          },
+          {
+            "start_ms": 84160,
+            "end_ms": 88479,
+            "text": "Once you have everything set up and are connected, you get the same cloud code experience that"
+          },
+          {
+            "start_ms": 88479,
+            "end_ms": 90200,
+            "text": "you're used to."
+          },
+          {
+            "start_ms": 90200,
+            "end_ms": 96080,
+            "text": "You have access to the same tools, MCP servers, configurations and file system."
+          },
+          {
+            "start_ms": 96080,
+            "end_ms": 98399,
+            "text": "Everything is still running on your machine."
+          },
+          {
+            "start_ms": 98399,
+            "end_ms": 100679,
+            "text": "Nothing is moved to the cloud."
+          },
+          {
+            "start_ms": 100679,
+            "end_ms": 104080,
+            "text": "The conversation then stays in sync across devices."
+          },
+          {
+            "start_ms": 104080,
+            "end_ms": 107880,
+            "text": "If you type in your cloud mobile app, you can then see it update in your terminal in"
+          },
+          {
+            "start_ms": 107880,
+            "end_ms": 109240,
+            "text": "real time."
+          },
+          {
+            "start_ms": 109240,
+            "end_ms": 113520,
+            "text": "By default, we ask you to specify when you want a remote control session each time."
+          },
+          {
+            "start_ms": 113640,
+            "end_ms": 118280,
+            "text": "However, in your slash config, you can enable remote control for all sessions, so you don't"
+          },
+          {
+            "start_ms": 118280,
+            "end_ms": 122160,
+            "text": "have to explicitly enable it each time."
+          },
+          {
+            "start_ms": 122160,
+            "end_ms": 126000,
+            "text": "Cloud remote control also comes with a spawn mode that you can use to create new sessions"
+          },
+          {
+            "start_ms": 126000,
+            "end_ms": 127000,
+            "text": "remotely."
+          },
+          {
+            "start_ms": 127000,
+            "end_ms": 131039,
+            "text": "As of this video, it's available to Macs, team and enterprise users."
+          },
+          {
+            "start_ms": 131039,
+            "end_ms": 135960,
+            "text": "Type in cloud remote control, then go on cloud web or mobile, then you can select your remote"
+          },
+          {
+            "start_ms": 135960,
+            "end_ms": 139960,
+            "text": "session by tapping the environment button and selecting your device."
+          },
+          {
+            "start_ms": 139960,
+            "end_ms": 145200,
+            "text": "And there you can spawn multiple instances of cloud code."
+          },
+          {
+            "start_ms": 145200,
+            "end_ms": 149280,
+            "text": "If you want to pick up a session that you started on your desk, well, remote control"
+          },
+          {
+            "start_ms": 149280,
+            "end_ms": 152320,
+            "text": "can make that happen."
+          },
+          {
+            "start_ms": 152320,
+            "end_ms": 155080,
+            "text": "We're currently rolling out to pro and max plan users."
+          }
+        ],
+        "publishedDate": "2026-03-17"
+      },
+      "confidence": 0.9,
+      "scope": "personal",
+      "sourceUrl": "https://www.youtube.com/watch?v=Ko7_tC1fMMM",
+      "created": "2026-03-18T08:10:02.501Z",
+      "updated": "2026-03-18T08:10:02.501Z"
+    },
+    {
+      "id": "yt-Ko7_tC1fMMM_chunk_0",
+      "type": "transcript",
+      "title": "Using Claude Code Remote Control [chunk 1/3]",
+      "properties": {
+        "text": "How often do you start a cloud code session at your desk? Leave. And a few hours later, think, I wish I could continue that session from literally anywhere. Well, good news. With remote control, you can connect cloud code web or the cloud app on your mobile device to a cloud code session running on your machine and pick up where you left off. The bad news is that your family will be concerned who you're texting so much. So here's how it works. Navigate to your project directory and run cloud remote control. This will start a new session and show you a URL that you can connect to with cloud code web. And if you hit the space bar, you'll get a QR code that you can scan with your phone. And from there, it will take you to your mobile browser or the cloud mobile app and you can see your session in progress. If you're already in a cloud code session and want to hand off to your remote devices, then type slash remote control and you'll see the URL there.",
+        "chunkIndex": 0,
+        "totalChunks": 3,
+        "wordCount": 186,
+        "parentId": "yt-Ko7_tC1fMMM",
+        "ebucore:start": 0,
+        "ebucore:end": 65750,
+        "ebucore:partNumber": 0
+      },
+      "confidence": 0.9,
+      "scope": "personal",
+      "sourceUrl": "https://www.youtube.com/watch?v=Ko7_tC1fMMM",
+      "created": "2026-03-18T08:10:02.501Z",
+      "updated": "2026-03-18T08:10:02.501Z"
+    },
+    {
+      "id": "yt-Ko7_tC1fMMM_chunk_1",
+      "type": "transcript",
+      "title": "Using Claude Code Remote Control [chunk 2/3]",
+      "properties": {
+        "text": "and want to hand off to your remote devices, then type slash remote control and you'll see the URL there. Now the URL will be provided for convenience, but realize that since cloud code is tied to your cloud account, you can just go on your mobile device without explicitly clicking the link provided. Once you have everything set up and are connected, you get the same cloud code experience that you're used to. You have access to the same tools, MCP servers, configurations and file system. Everything is still running on your machine. Nothing is moved to the cloud. The conversation then stays in sync across devices. If you type in your cloud mobile app, you can then see it update in your terminal in real time. By default, we ask you to specify when you want a remote control session each time. However, in your slash config, you can enable remote control for all sessions, so you don't have to explicitly enable it each time. Cloud remote control also comes with a spawn mode that you can use to create new sessions remotely. As of this video, it's available to Macs, team and enterprise users.",
+        "chunkIndex": 1,
+        "totalChunks": 3,
+        "wordCount": 197,
+        "parentId": "yt-Ko7_tC1fMMM",
+        "ebucore:start": 58573,
+        "ebucore:end": 133823,
+        "ebucore:partNumber": 1
+      },
+      "confidence": 0.9,
+      "scope": "personal",
+      "sourceUrl": "https://www.youtube.com/watch?v=Ko7_tC1fMMM",
+      "created": "2026-03-18T08:10:02.501Z",
+      "updated": "2026-03-18T08:10:02.501Z"
+    },
+    {
+      "id": "yt-Ko7_tC1fMMM_chunk_2",
+      "type": "transcript",
+      "title": "Using Claude Code Remote Control [chunk 3/3]",
+      "properties": {
+        "text": "you can use to create new sessions remotely. As of this video, it's available to Macs, team and enterprise users. Type in cloud remote control, then go on cloud web or mobile, then you can select your remote session by tapping the environment button and selecting your device. And there you can spawn multiple instances of cloud code. If you want to pick up a session that you started on your desk, well, remote control can make that happen. We're currently rolling out to pro and max plan users.",
+        "chunkIndex": 2,
+        "totalChunks": 3,
+        "wordCount": 89,
+        "parentId": "yt-Ko7_tC1fMMM",
+        "ebucore:start": 126100,
+        "ebucore:end": 160000,
+        "ebucore:partNumber": 2
+      },
+      "confidence": 0.9,
+      "scope": "personal",
+      "sourceUrl": "https://www.youtube.com/watch?v=Ko7_tC1fMMM",
+      "created": "2026-03-18T08:10:02.501Z",
+      "updated": "2026-03-18T08:10:02.501Z"
+    },
+    {
+      "id": "vp-yt-Ko7_tC1fMMM-SPEAKER_00",
+      "type": "voice_print",
+      "title": "Speaker: SPEAKER_00",
+      "properties": {
+        "speakerLabel": "SPEAKER_00",
+        "videoId": "Ko7_tC1fMMM",
+        "videoNodeId": "yt-Ko7_tC1fMMM",
+        "segmentCount": 17,
+        "totalDurationMs": 126901,
+        "segments": [
+          {
+            "start_ms": 4941,
+            "end_ms": 13716
+          },
+          {
+            "start_ms": 15977,
+            "end_ms": 26693
+          },
+          {
+            "start_ms": 28735,
+            "end_ms": 32380
+          },
+          {
+            "start_ms": 34270,
+            "end_ms": 34675
+          },
+          {
+            "start_ms": 34979,
+            "end_ms": 35890
+          },
+          {
+            "start_ms": 37442,
+            "end_ms": 51044
+          },
+          {
+            "start_ms": 52292,
+            "end_ms": 59397
+          },
+          {
+            "start_ms": 61877,
+            "end_ms": 69690
+          },
+          {
+            "start_ms": 70956,
+            "end_ms": 81925
+          },
+          {
+            "start_ms": 84051,
+            "end_ms": 89552
+          },
+          {
+            "start_ms": 90059,
+            "end_ms": 99745
+          },
+          {
+            "start_ms": 100605,
+            "end_ms": 108756
+          },
+          {
+            "start_ms": 109077,
+            "end_ms": 120467
+          },
+          {
+            "start_ms": 121952,
+            "end_ms": 134305
+          },
+          {
+            "start_ms": 134862,
+            "end_ms": 142540
+          },
+          {
+            "start_ms": 145054,
+            "end_ms": 150218
+          },
+          {
+            "start_ms": 152159,
+            "end_ms": 155196
+          }
+        ]
+      },
+      "confidence": 0.7,
+      "scope": "personal",
+      "sourceUrl": "https://www.youtube.com/watch?v=Ko7_tC1fMMM",
+      "created": "2026-03-18T08:10:02.501Z",
+      "updated": "2026-03-18T08:10:02.501Z"
+    },
+    {
+      "id": "d2774d96-8daf-4ef3-8662-17fd46c85daa",
       "type": "research",
       "title": "What is X?",
       "properties": {
@@ -597,8 +2008,36 @@
       },
       "confidence": 0.5,
       "scope": "personal",
-      "created": "2026-03-12T18:37:07.249Z",
-      "updated": "2026-03-12T18:37:07.249Z"
+      "created": "2026-03-18T08:20:01.510Z",
+      "updated": "2026-03-18T08:20:01.510Z"
+    },
+    {
+      "id": "9771b413-1120-42ea-a1a2-da45607a63af",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-18T08:21:19.225Z",
+      "updated": "2026-03-18T08:21:19.225Z"
+    },
+    {
+      "id": "10419c5c-ddac-4199-b984-7c36d254d499",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-18T08:22:39.089Z",
+      "updated": "2026-03-18T08:22:39.089Z"
     }
   ],
   "edges": [
@@ -785,7 +2224,135 @@
       "metadata": {
         "createdBy": "video-intake"
       }
+    },
+    {
+      "from": "yt-EdZWPB1fIJc_chunk_0",
+      "to": "yt-EdZWPB1fIJc",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "yt-EdZWPB1fIJc_chunk_1",
+      "to": "yt-EdZWPB1fIJc",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "yt-EdZWPB1fIJc_chunk_2",
+      "to": "yt-EdZWPB1fIJc",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "yt-EdZWPB1fIJc_chunk_3",
+      "to": "yt-EdZWPB1fIJc",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "yt-EdZWPB1fIJc_chunk_4",
+      "to": "yt-EdZWPB1fIJc",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "yt-EdZWPB1fIJc_chunk_5",
+      "to": "yt-EdZWPB1fIJc",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "yt-EdZWPB1fIJc_chunk_6",
+      "to": "yt-EdZWPB1fIJc",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "yt-EdZWPB1fIJc_chunk_7",
+      "to": "yt-EdZWPB1fIJc",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "yt-EdZWPB1fIJc_chunk_8",
+      "to": "yt-EdZWPB1fIJc",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "yt-EdZWPB1fIJc_chunk_9",
+      "to": "yt-EdZWPB1fIJc",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "vp-yt-EdZWPB1fIJc-SPEAKER_01",
+      "to": "yt-EdZWPB1fIJc",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "vp-yt-EdZWPB1fIJc-SPEAKER_00",
+      "to": "yt-EdZWPB1fIJc",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "yt-Ko7_tC1fMMM_chunk_0",
+      "to": "yt-Ko7_tC1fMMM",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "yt-Ko7_tC1fMMM_chunk_1",
+      "to": "yt-Ko7_tC1fMMM",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "yt-Ko7_tC1fMMM_chunk_2",
+      "to": "yt-Ko7_tC1fMMM",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
+    },
+    {
+      "from": "vp-yt-Ko7_tC1fMMM-SPEAKER_00",
+      "to": "yt-Ko7_tC1fMMM",
+      "type": "derived_from",
+      "metadata": {
+        "createdBy": "video-intake"
+      }
     }
   ],
-  "lastUpdated": "2026-03-12T18:37:07.249Z"
+  "lastUpdated": "2026-03-18T08:22:39.089Z"
 }
