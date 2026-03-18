@@ -709,6 +709,26 @@ program
     await obsidianExportCommand(options);
   });
 
+// Ideas command
+program
+  .command('ideas')
+  .description('Show ranked ideas from the knowledge graph')
+  .option('--group <group>', 'Filter by group')
+  .option('--status <status>', 'Filter by status')
+  .option('--limit <n>', 'Max results', '10')
+  .option('--link', 'Link related ideas first')
+  .option('--backfill', 'Backfill ideas from all runs')
+  .action(async (opts) => {
+    const { ideasCommand } = await import('./commands/ideas.js');
+    await ideasCommand({
+      group: opts.group,
+      status: opts.status,
+      limit: parseInt(opts.limit, 10),
+      link: opts.link ?? false,
+      backfill: opts.backfill ?? false,
+    });
+  });
+
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =
   process.argv[1] &&

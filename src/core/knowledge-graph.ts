@@ -4,6 +4,7 @@ import path from 'path';
 import { getPool, isDbAvailable } from './db.js';
 import { isEmbeddingAvailable, getEmbeddingProvider } from './embeddings.js';
 import { createLogger } from './logger.js';
+import { parseIdeasMd } from './ideas-parser.js';
 
 const logger = createLogger('graph');
 
@@ -76,6 +77,34 @@ export const KnowledgeGraphSchema = z.object({
   lastUpdated: z.string(),
 });
 export type KnowledgeGraph = z.infer<typeof KnowledgeGraphSchema>;
+
+/** Zod schema for idea-specific node properties. */
+export const IdeaPropertiesSchema = z.object({
+  description: z.string(),
+  impact: z.number().int().min(1).max(5),       // 1=minimal, 5=transformativ
+  effort: z.number().int().min(1).max(5),       // 1=XS, 5=XL
+  risk: z.number().int().min(1).max(5).default(3),
+  priority: z.number().min(0).max(5).optional(),
+  status: z.enum(['proposed', 'accepted', 'in-progress', 'done', 'rejected']).default('proposed'),
+  source_run: z.string().optional(),
+  source_brief: z.string().optional(),
+  provenance: z.enum(['agent', 'user', 'research']).default('agent'),
+  group: z.string().optional(),
+  tags: z.array(z.string()).default([]),
+  mention_count: z.number().optional(),
+  last_seen_run: z.string().optional(),
+});
+export type IdeaProperties = z.infer<typeof IdeaPropertiesSchema>;
+
+/**
+ * Compute normalized priority from impact, effort, and risk.
+ * Formula: impact * (6-effort) * (6-risk) / 25
+ * Range: 0.04 (worst) to 5.0 (best)
+ */
+export function computePriority(impact: number, effort: number, risk: number): number {
+  return parseFloat(((impact * (6 - effort) * (6 - risk)) / 25).toFixed(2));
+}
+
 
 // --- Default path ---
 
@@ -581,4 +610,358 @@ export function applyConfidenceDecay(
     nodes: newNodes,
     lastUpdated: now,
   };
+}
+
+/**
+ * Rank idea nodes by computed priority with optional filtering and connection boost.
+ * Returns sorted KGNode[] (highest priority first).
+ */
+export function rankIdeas(
+  graph: KnowledgeGraph,
+  options?: {
+    status?: string[];        // filter on status (default: ['proposed', 'accepted'])
+    group?: string;           // filter on group
+    minImpact?: number;       // minimum impact score
+    limit?: number;           // max results (default: 10)
+    boostConnected?: boolean; // give bonus for more connections (default: true)
+  },
+): KGNode[] {
+  const opts = {
+    status: options?.status ?? ['proposed', 'accepted'],
+    group: options?.group,
+    minImpact: options?.minImpact,
+    limit: options?.limit ?? 10,
+    boostConnected: options?.boostConnected ?? true,
+  };
+
+  // 1. Filter idea nodes
+  let ideas = graph.nodes.filter(n => n.type === 'idea');
+
+  // Filter by status
+  if (opts.status.length > 0) {
+    ideas = ideas.filter(n => {
+      const status = n.properties.status as string | undefined;
+      return status ? opts.status.includes(status) : true;
+    });
+  }
+
+  // Filter by group
+  if (opts.group) {
+    ideas = ideas.filter(n => {
+      const group = n.properties.group as string | undefined;
+      return group?.toLowerCase() === opts.group!.toLowerCase();
+    });
+  }
+
+  // Filter by minImpact
+  if (opts.minImpact !== undefined) {
+    ideas = ideas.filter(n => {
+      const impact = n.properties.impact as number | undefined;
+      return impact !== undefined && impact >= opts.minImpact!;
+    });
+  }
+
+  // 2. Compute priority if missing, and calculate final score
+  const scored = ideas.map(node => {
+    const impact = (node.properties.impact as number) || 0;
+    const effort = (node.properties.effort as number) || 0;
+    const risk = (node.properties.risk as number) || 3;
+
+    let priority = node.properties.priority as number | undefined;
+    if (priority === undefined && impact > 0 && effort > 0) {
+      priority = computePriority(impact, effort, risk);
+    }
+
+    let score = priority ?? 0;
+
+    // 3. Connection boost: +0.1 per edge, max +0.5
+    if (opts.boostConnected) {
+      const edgeCount = graph.edges.filter(
+        e => e.from === node.id || e.to === node.id
+      ).length;
+      score += Math.min(edgeCount * 0.1, 0.5);
+    }
+
+    return { node, score };
+  });
+
+  // 4. Sort by score descending
+  scored.sort((a, b) => b.score - a.score);
+
+  // 5. Return top N nodes
+  return scored.slice(0, opts.limit).map(s => s.node);
+}
+
+
+// ---- Stop words for Jaccard similarity ----
+const STOP_WORDS = new Set([
+  'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+  'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+  'should', 'may', 'might', 'can', 'shall', 'to', 'of', 'in', 'for',
+  'on', 'with', 'at', 'by', 'from', 'as', 'into', 'through', 'during',
+  'before', 'after', 'above', 'below', 'between', 'and', 'but', 'or',
+  'nor', 'not', 'so', 'yet', 'both', 'either', 'neither', 'each',
+  'every', 'all', 'any', 'few', 'more', 'most', 'other', 'some',
+  'such', 'no', 'only', 'own', 'same', 'than', 'too', 'very',
+  'just', 'because', 'if', 'when', 'where', 'how', 'what', 'which',
+  'who', 'whom', 'this', 'that', 'these', 'those', 'it', 'its',
+]);
+
+/**
+ * Extract meaningful words from text (lowercase, stop words removed).
+ */
+function tokenize(text: string): Set<string> {
+  const words = text.toLowerCase().replace(/[^a-z0-9\s-]/g, '').split(/\s+/).filter(w => w.length > 1);
+  return new Set(words.filter(w => !STOP_WORDS.has(w)));
+}
+
+/**
+ * Compute Jaccard similarity between two word sets.
+ */
+function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 && b.size === 0) return 0;
+  let intersection = 0;
+  for (const word of a) {
+    if (b.has(word)) intersection++;
+  }
+  const union = a.size + b.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+/**
+ * Link related idea nodes via related_to edges based on text similarity.
+ * Only creates idea-to-idea edges. Checks for existing edges to prevent duplicates.
+ * Returns a new graph with added edges.
+ */
+export function linkRelatedIdeas(
+  graph: KnowledgeGraph,
+  options?: {
+    similarityThreshold?: number;  // 0-1, default 0.3
+    maxEdgesPerNode?: number;      // default 3
+  },
+): KnowledgeGraph {
+  const threshold = options?.similarityThreshold ?? 0.3;
+  const maxEdges = options?.maxEdgesPerNode ?? 3;
+
+  const ideas = graph.nodes.filter(n => n.type === 'idea');
+  if (ideas.length < 2) return graph;
+
+  // Pre-tokenize all ideas
+  const tokenized = ideas.map(idea => ({
+    id: idea.id,
+    tokens: tokenize(`${idea.title} ${(idea.properties.description as string) || ''}`),
+  }));
+
+  // Track how many related_to edges each idea node has
+  const edgeCounts = new Map<string, number>();
+  for (const idea of ideas) {
+    const existing = graph.edges.filter(e =>
+      e.type === 'related_to' &&
+      (e.from === idea.id || e.to === idea.id) &&
+      ideas.some(i => i.id === (e.from === idea.id ? e.to : e.from))
+    ).length;
+    edgeCounts.set(idea.id, existing);
+  }
+
+  // Collect candidate edges with similarity scores
+  const candidates: Array<{ from: string; to: string; similarity: number }> = [];
+
+  for (let i = 0; i < tokenized.length; i++) {
+    for (let j = i + 1; j < tokenized.length; j++) {
+      const sim = jaccardSimilarity(tokenized[i].tokens, tokenized[j].tokens);
+      if (sim >= threshold) {
+        candidates.push({
+          from: tokenized[i].id,
+          to: tokenized[j].id,
+          similarity: sim,
+        });
+      }
+    }
+  }
+
+  // Sort by similarity (highest first) to prioritize best matches
+  candidates.sort((a, b) => b.similarity - a.similarity);
+
+  let result = graph;
+  const now = new Date().toISOString();
+
+  for (const candidate of candidates) {
+    const fromCount = edgeCounts.get(candidate.from) || 0;
+    const toCount = edgeCounts.get(candidate.to) || 0;
+
+    // Skip if either node is at max edges
+    if (fromCount >= maxEdges || toCount >= maxEdges) continue;
+
+    // Skip if edge already exists (check result.edges which grows as we add)
+    if (result.edges.some(e =>
+      (e.from === candidate.from && e.to === candidate.to) ||
+      (e.from === candidate.to && e.to === candidate.from)
+    )) continue;
+
+    // Add the edge
+    result = addEdge(result, {
+      from: candidate.from,
+      to: candidate.to,
+      type: 'related_to',
+      metadata: {
+        agent: 'linkRelatedIdeas',
+        timestamp: now,
+      },
+    });
+
+    edgeCounts.set(candidate.from, fromCount + 1);
+    edgeCounts.set(candidate.to, toCount + 1);
+  }
+
+  return result;
+}
+
+
+/**
+ * Backfill ideas from all runs/{runId}/ideas.md files.
+ * 1. Deletes ALL existing idea nodes (old string-based data)
+ * 2. Parses all ideas.md files with updated numeric parser
+ * 3. Creates new idea nodes with dedup (title-matching)
+ * 4. Links related ideas
+ * Returns the updated graph.
+ */
+export async function backfillIdeas(
+  graph: KnowledgeGraph,
+  runsDir: string,
+): Promise<KnowledgeGraph> {
+  // Step 1: Delete all existing idea nodes
+  const ideaNodeIds = graph.nodes
+    .filter((n) => n.type === 'idea')
+    .map((n) => n.id);
+  let result = graph;
+  for (const id of ideaNodeIds) {
+    result = removeNode(result, id);
+  }
+
+  // Step 2: Read all runs/{runId}/ideas.md files
+  const entries = await fs
+    .readdir(runsDir, { withFileTypes: true })
+    .catch(() => [] as never[]);
+  const runDirs = entries
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)
+    .sort(); // chronological order (runid format: YYYYMMDD-HHMM-target)
+
+  const allIdeas: Array<{
+    title: string;
+    description: string;
+    group: string;
+    impact: number;
+    effort: number;
+    risk: number;
+    sourceRun: string;
+  }> = [];
+
+  for (const dir of runDirs) {
+    const ideasPath = path.join(runsDir, dir, 'ideas.md');
+    try {
+      const content = await fs.readFile(ideasPath, 'utf-8');
+      const ideas = parseIdeasMd(content);
+      for (const idea of ideas) {
+        allIdeas.push({
+          ...idea,
+          sourceRun: dir,
+        });
+      }
+    } catch {
+      // File doesn't exist or can't be read - skip
+      continue;
+    }
+  }
+
+  // Step 3: Dedup by title similarity and create nodes
+  const seen = new Map<string, string>(); // normalized title -> node id
+  let nextId = 1;
+  const now = new Date().toISOString();
+
+  for (const idea of allIdeas) {
+    const normalizedTitle = idea.title.toLowerCase().trim();
+
+    // Check for title-based dedup
+    const existingId = seen.get(normalizedTitle);
+    if (existingId) {
+      // Update mention count and last_seen_run on existing node
+      const existingNode = result.nodes.find((n) => n.id === existingId);
+      if (existingNode) {
+        const mentionCount =
+          ((existingNode.properties.mention_count as number) || 1) + 1;
+        result = updateNode(result, existingId, {
+          confidence: Math.min(
+            (existingNode.confidence || 0.5) + 0.1,
+            1.0,
+          ),
+          properties: {
+            ...existingNode.properties,
+            mention_count: mentionCount,
+            last_seen_run: idea.sourceRun,
+          },
+        });
+      }
+      continue;
+    }
+
+    // Create new idea node
+    const nodeId = 'idea-' + String(nextId).padStart(3, '0');
+    nextId++;
+
+    const priority = computePriority(idea.impact, idea.effort, idea.risk);
+
+    const newNode: KGNode = {
+      id: nodeId,
+      type: 'idea',
+      title: idea.title,
+      properties: {
+        description: idea.description,
+        impact: idea.impact,
+        effort: idea.effort,
+        risk: idea.risk,
+        priority,
+        status: 'proposed',
+        source_run: idea.sourceRun,
+        provenance: 'agent',
+        group: idea.group,
+        tags: [],
+        mention_count: 1,
+        last_seen_run: idea.sourceRun,
+      },
+      confidence: 0.5,
+      scope: 'project-specific',
+      model: null,
+      created: now,
+      updated: now,
+    };
+
+    result = addNode(result, newNode);
+    seen.set(normalizedTitle, nodeId);
+
+    // Create discovered_in edge to run node if it exists
+    const runNode = result.nodes.find(
+      (n) =>
+        n.type === 'run' &&
+        (n.id.includes(idea.sourceRun) ||
+          n.properties.runId === idea.sourceRun),
+    );
+    if (runNode) {
+      result = addEdge(result, {
+        from: nodeId,
+        to: runNode.id,
+        type: 'discovered_in',
+        metadata: {
+          runId: idea.sourceRun,
+          agent: 'backfill',
+          timestamp: now,
+        },
+      });
+    }
+  }
+
+  // Step 4: Link related ideas
+  result = linkRelatedIdeas(result);
+
+  return result;
 }

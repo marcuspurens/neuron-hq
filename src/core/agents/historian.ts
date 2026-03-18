@@ -7,7 +7,7 @@ import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
-import { loadGraph, saveGraph, applyConfidenceDecay, addNode, addEdge, findNodes, type KGNode } from '../knowledge-graph.js';
+import { loadGraph, saveGraph, applyConfidenceDecay, addNode, addEdge, findNodes, computePriority, type KGNode } from '../knowledge-graph.js';
 import { semanticSearch } from '../semantic-search.js';
 import { isEmbeddingAvailable } from '../embeddings.js';
 import { parseIdeasMd } from '../ideas-parser.js';
@@ -570,6 +570,8 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
           properties: {
             impact: idea.impact,
             effort: idea.effort,
+            risk: idea.risk,
+            priority: computePriority(idea.impact, idea.effort, idea.risk),
             status: 'proposed',
             source_run: this.ctx.runid,
             description: idea.description,

@@ -54,6 +54,7 @@ import { registerDashboardTool } from './tools/dashboard.js';
 import { registerRunStatisticsTool } from './tools/run-statistics.js';
 import { registerKnowledgeTool } from './tools/knowledge.js';
 import { registerCrossRefLookupTool } from './tools/crossref-lookup.js';
+import { registerIdeasTool } from './tools/ideas.js';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -365,6 +366,7 @@ export const SCOPES: Record<string, ServerScope> = {
       registerRunStatisticsTool(server);
       registerKnowledgeTool(server);
       registerCrossRefLookupTool(server);
+      registerIdeasTool(server);
 
       server.prompt(
         'dashboard',

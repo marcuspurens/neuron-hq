@@ -99,6 +99,9 @@ vi.mock('../../src/mcp/tools/knowledge.js', () => ({
 vi.mock('../../src/mcp/tools/crossref-lookup.js', () => ({
   registerCrossRefLookupTool: vi.fn(),
 }));
+vi.mock('../../src/mcp/tools/ideas.js', () => ({
+  registerIdeasTool: vi.fn(),
+}));
 
 /* Mock job-runner — needed by wrapToolsWithNotification in server.ts */
 vi.mock('../../src/aurora/job-runner.js', () => ({

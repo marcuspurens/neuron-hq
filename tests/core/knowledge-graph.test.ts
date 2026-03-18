@@ -9,6 +9,10 @@ import {
   removeNode,
   KGNodeSchema,
   KnowledgeGraphSchema,
+  IdeaPropertiesSchema,
+  computePriority,
+  rankIdeas,
+  linkRelatedIdeas,
   type KnowledgeGraph,
   type KGNode,
   type KGEdge,
@@ -531,5 +535,247 @@ describe('KGNode model field', () => {
     const node = makeNode({ model: '' });
     const parsed = KGNodeSchema.parse(node);
     expect(parsed.model).toBe('');
+  });
+});
+
+describe('IdeaPropertiesSchema', () => {
+  it('validates complete idea properties', () => {
+    const valid = { description: 'test', impact: 4, effort: 2, risk: 3 };
+    expect(() => IdeaPropertiesSchema.parse(valid)).not.toThrow();
+  });
+
+  it('rejects impact outside 1-5', () => {
+    expect(() => IdeaPropertiesSchema.parse({ description: 'x', impact: 0, effort: 3, risk: 3 })).toThrow();
+    expect(() => IdeaPropertiesSchema.parse({ description: 'x', impact: 6, effort: 3, risk: 3 })).toThrow();
+  });
+
+  it('applies defaults for risk, status, tags', () => {
+    const result = IdeaPropertiesSchema.parse({ description: 'x', impact: 3, effort: 3 });
+    expect(result.risk).toBe(3);
+    expect(result.status).toBe('proposed');
+    expect(result.tags).toEqual([]);
+  });
+});
+
+describe('computePriority', () => {
+  it('computes max priority (5, 1, 1)', () => {
+    expect(computePriority(5, 1, 1)).toBe(5.0);
+  });
+
+  it('computes min priority (1, 5, 5)', () => {
+    expect(computePriority(1, 5, 5)).toBe(0.04);
+  });
+
+  it('computes default priority (3, 3, 3)', () => {
+    expect(computePriority(3, 3, 3)).toBe(1.08);
+  });
+});
+
+describe('rankIdeas', () => {
+  function makeIdeaNode(id: string, props: Record<string, unknown>): KGNode {
+    return {
+      id, type: 'idea', title: `Idea ${id}`,
+      properties: { description: 'test', status: 'proposed', ...props },
+      confidence: 0.5, scope: 'project-specific', model: null,
+      created: '2026-01-01T00:00:00Z', updated: '2026-01-01T00:00:00Z',
+    };
+  }
+
+  const testGraph: KnowledgeGraph = {
+    version: '1.0',
+    nodes: [
+      makeIdeaNode('idea-001', { impact: 5, effort: 1, risk: 1, priority: 5.0, group: 'logger' }),
+      makeIdeaNode('idea-002', { impact: 3, effort: 3, risk: 3, priority: 1.08, group: 'logger' }),
+      makeIdeaNode('idea-003', { impact: 1, effort: 5, risk: 5, priority: 0.04, group: 'security' }),
+      makeIdeaNode('idea-004', { impact: 4, effort: 2, risk: 2, priority: 2.56, status: 'done' }),
+      makeIdeaNode('idea-005', { impact: 4, effort: 2, risk: 1, priority: 3.2, group: 'logger' }),
+    ],
+    edges: [
+      { from: 'idea-001', to: 'idea-002', type: 'related_to', metadata: {} },
+      { from: 'idea-001', to: 'idea-005', type: 'related_to', metadata: {} },
+      { from: 'idea-001', to: 'run-001', type: 'discovered_in', metadata: {} },
+    ],
+    lastUpdated: '2026-01-01T00:00:00Z',
+  };
+
+  it('returns ideas sorted by priority (highest first)', () => {
+    const ranked = rankIdeas(testGraph);
+    expect(ranked[0].id).toBe('idea-001');
+    expect(ranked[ranked.length - 1].id).toBe('idea-003');
+  });
+
+  it('filters by status (default: proposed + accepted)', () => {
+    const ranked = rankIdeas(testGraph);
+    expect(ranked.find(n => n.id === 'idea-004')).toBeUndefined(); // status: done
+  });
+
+  it('filters by group', () => {
+    const ranked = rankIdeas(testGraph, { group: 'security', status: ['proposed'] });
+    expect(ranked).toHaveLength(1);
+    expect(ranked[0].id).toBe('idea-003');
+  });
+
+  it('filters by minImpact', () => {
+    const ranked = rankIdeas(testGraph, { minImpact: 4, status: ['proposed', 'done'] });
+    expect(ranked.every(n => (n.properties.impact as number) >= 4)).toBe(true);
+  });
+
+  it('respects limit', () => {
+    const ranked = rankIdeas(testGraph, { limit: 2 });
+    expect(ranked).toHaveLength(2);
+  });
+
+  it('applies connection boost (idea-001 has 3 edges)', () => {
+    const withBoost = rankIdeas(testGraph, { boostConnected: true, status: ['proposed'] });
+    const withoutBoost = rankIdeas(testGraph, { boostConnected: false, status: ['proposed'] });
+    // idea-001 should be first in both (already highest priority), but its effective score should be higher with boost
+    expect(withBoost[0].id).toBe('idea-001');
+    expect(withoutBoost[0].id).toBe('idea-001');
+  });
+
+  it('ideas without impact/effort rank last', () => {
+    const graphWithEmpty = {
+      ...testGraph,
+      nodes: [
+        ...testGraph.nodes,
+        makeIdeaNode('idea-006', {}), // no impact/effort
+      ],
+    };
+    const ranked = rankIdeas(graphWithEmpty);
+    expect(ranked[ranked.length - 1].id).toBe('idea-006');
+  });
+
+  it('computes priority if missing', () => {
+    const graphNoPriority = {
+      ...testGraph,
+      nodes: [
+        makeIdeaNode('idea-010', { impact: 5, effort: 1, risk: 1 }), // no priority field
+      ],
+      edges: [],
+    };
+    const ranked = rankIdeas(graphNoPriority);
+    expect(ranked).toHaveLength(1); // should still appear
+  });
+
+  it('returns empty array for graph with no ideas', () => {
+    const emptyGraph = { version: '1.0', nodes: [], edges: [], lastUpdated: '' };
+    expect(rankIdeas(emptyGraph)).toEqual([]);
+  });
+});
+
+
+describe('linkRelatedIdeas', () => {
+  function makeIdeaNode(id: string, title: string, description: string): KGNode {
+    return {
+      id, type: 'idea', title,
+      properties: { description, impact: 3, effort: 3, risk: 3, status: 'proposed' },
+      confidence: 0.5, scope: 'project-specific', model: null,
+      created: '2026-01-01T00:00:00Z', updated: '2026-01-01T00:00:00Z',
+    };
+  }
+
+  it('links ideas with similar text', () => {
+    const graph: KnowledgeGraph = {
+      version: '1.0',
+      nodes: [
+        makeIdeaNode('idea-001', 'Log writer batching output', 'Batch log writer output entries for production'),
+        makeIdeaNode('idea-002', 'Log writer streaming output', 'Stream log writer output entries to Langfuse'),
+        makeIdeaNode('idea-003', 'Database sharding strategy', 'Implement database sharding for horizontal scale'),
+      ],
+      edges: [],
+      lastUpdated: '2026-01-01T00:00:00Z',
+    };
+    const result = linkRelatedIdeas(graph, { similarityThreshold: 0.15 });
+    // idea-001 and idea-002 share log, writer, output, entries
+    const newEdges = result.edges.filter(e => e.type === 'related_to');
+    expect(newEdges.length).toBeGreaterThan(0);
+    // At least the log writer pair should be linked
+    const logWriterEdge = newEdges.find(e =>
+      (e.from === 'idea-001' && e.to === 'idea-002') ||
+      (e.from === 'idea-002' && e.to === 'idea-001')
+    );
+    expect(logWriterEdge).toBeDefined();
+  });
+
+  it('respects similarity threshold', () => {
+    const graph: KnowledgeGraph = {
+      version: '1.0',
+      nodes: [
+        makeIdeaNode('idea-001', 'Apple pie recipe', 'Best apple pie recipe ever'),
+        makeIdeaNode('idea-002', 'Quantum physics', 'Advanced quantum physics research'),
+      ],
+      edges: [],
+      lastUpdated: '2026-01-01T00:00:00Z',
+    };
+    const result = linkRelatedIdeas(graph, { similarityThreshold: 0.5 });
+    expect(result.edges).toHaveLength(0);
+  });
+
+  it('respects maxEdgesPerNode', () => {
+    const graph: KnowledgeGraph = {
+      version: '1.0',
+      nodes: [
+        makeIdeaNode('idea-001', 'Log writer batching', 'Batch log writer entries'),
+        makeIdeaNode('idea-002', 'Log writer file', 'File-based log writer'),
+        makeIdeaNode('idea-003', 'Log writer network', 'Network log writer'),
+        makeIdeaNode('idea-004', 'Log writer rotation', 'Log writer rotation support'),
+      ],
+      edges: [],
+      lastUpdated: '2026-01-01T00:00:00Z',
+    };
+    const result = linkRelatedIdeas(graph, { maxEdgesPerNode: 1, similarityThreshold: 0.1 });
+    // Each node should have at most 1 related_to edge
+    for (const node of result.nodes.filter(n => n.type === 'idea')) {
+      const count = result.edges.filter(e =>
+        e.type === 'related_to' && (e.from === node.id || e.to === node.id)
+      ).length;
+      expect(count).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('does not duplicate existing edges', () => {
+    const graph: KnowledgeGraph = {
+      version: '1.0',
+      nodes: [
+        makeIdeaNode('idea-001', 'Log writer batching', 'Batch log entries'),
+        makeIdeaNode('idea-002', 'Log writer file', 'File-based log writer'),
+      ],
+      edges: [
+        { from: 'idea-001', to: 'idea-002', type: 'related_to', metadata: {} },
+      ],
+      lastUpdated: '2026-01-01T00:00:00Z',
+    };
+    const result = linkRelatedIdeas(graph, { similarityThreshold: 0.1 });
+    const relatedEdges = result.edges.filter(e => e.type === 'related_to');
+    expect(relatedEdges).toHaveLength(1); // no new edge added
+  });
+
+  it('only creates idea-to-idea edges (not idea to pattern)', () => {
+    const graph: KnowledgeGraph = {
+      version: '1.0',
+      nodes: [
+        makeIdeaNode('idea-001', 'Log writer batching', 'Batch log entries'),
+        { id: 'pattern-001', type: 'pattern', title: 'Log writer batching pattern',
+          properties: { description: 'Batch log entries pattern' },
+          confidence: 0.9, scope: 'universal', model: null,
+          created: '2026-01-01T00:00:00Z', updated: '2026-01-01T00:00:00Z' },
+      ],
+      edges: [],
+      lastUpdated: '2026-01-01T00:00:00Z',
+    };
+    const result = linkRelatedIdeas(graph, { similarityThreshold: 0.1 });
+    // Should not create any edges since there is only 1 idea node
+    expect(result.edges).toHaveLength(0);
+  });
+
+  it('handles graph with fewer than 2 ideas', () => {
+    const graph: KnowledgeGraph = {
+      version: '1.0',
+      nodes: [makeIdeaNode('idea-001', 'Only idea', 'Single idea')],
+      edges: [],
+      lastUpdated: '2026-01-01T00:00:00Z',
+    };
+    const result = linkRelatedIdeas(graph);
+    expect(result.edges).toHaveLength(0);
   });
 });

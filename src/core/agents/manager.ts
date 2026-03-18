@@ -35,6 +35,7 @@ import { extractThinking } from '../thinking-extractor.js';
 import { extractDecisions } from '../decision-extractor.js';
 import { emergencySave } from '../emergency-save.js';
 import { createLogger } from '../logger.js';
+import { loadGraph, rankIdeas } from '../knowledge-graph.js';
 const logger = createLogger('agent:manager');
 
 
@@ -249,7 +250,27 @@ Stop when time limit approaches or when blockers are encountered.
       // DB not available or other error — skip adaptive hints (graceful degradation)
     }
 
-    return `${managerPrompt}\n\n${contextInfo}${previousContext}${adaptiveSection}`;
+    // Top ideas from knowledge graph
+    let ideasSection = '';
+    try {
+      const graphPath = path.join(this.baseDir, 'memory', 'graph.json');
+      const graph = await loadGraph(graphPath);
+      const topIdeas = rankIdeas(graph, { limit: 5, status: ['proposed', 'accepted'] });
+      if (topIdeas.length > 0) {
+        const ideaLines = topIdeas.map((idea, i) => {
+          const impact = (idea.properties.impact as number) || 0;
+          const effort = (idea.properties.effort as number) || 0;
+          const priority = (idea.properties.priority as number) || 0;
+          const group = (idea.properties.group as string) || '';
+          return `${i + 1}. **${idea.title}** (impact:${impact} effort:${effort} priority:${priority.toFixed(1)}${group ? ` group:${group}` : ''})`;
+        });
+        ideasSection = `\n\n## Relevant Ideas from Previous Runs\n\nThese are the top-ranked ideas from the knowledge graph. Consider them during planning:\n\n${ideaLines.join('\n')}\n`;
+      }
+    } catch {  /* intentional: graph not available — skip ideas section */
+      // Graph not available — graceful degradation
+    }
+
+    return `${managerPrompt}\n\n${contextInfo}${previousContext}${adaptiveSection}${ideasSection}`;
   }
 
   /**

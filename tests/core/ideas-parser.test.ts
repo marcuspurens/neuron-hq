@@ -3,6 +3,7 @@ import {
   ParsedIdeaSchema,
   parseIdeasMd,
   extractImpactEffort,
+  extractImpactEffortRisk,
 } from '../../src/core/ideas-parser.js';
 
 describe('ideas-parser', () => {
@@ -15,21 +16,23 @@ describe('ideas-parser', () => {
         title: 'Add event batching',
         description: 'Event batching for high-frequency events',
         group: 'Future Improvements',
-        impact: 'high',
-        effort: 'medium',
+        impact: 4,
+        effort: 3,
+        risk: 2,
       };
       expect(() => ParsedIdeaSchema.parse(valid)).not.toThrow();
     });
 
-    it('applies default impact and effort when omitted', () => {
+    it('applies default impact, effort, and risk when omitted', () => {
       const minimal = {
         title: 'Some idea',
         description: 'Description here',
         group: 'General',
       };
       const parsed = ParsedIdeaSchema.parse(minimal);
-      expect(parsed.impact).toBe('medium');
-      expect(parsed.effort).toBe('medium');
+      expect(parsed.impact).toBe(3);
+      expect(parsed.effort).toBe(3);
+      expect(parsed.risk).toBe(3);
     });
 
     it('rejects idea with empty title', () => {
@@ -41,24 +44,84 @@ describe('ideas-parser', () => {
       expect(() => ParsedIdeaSchema.parse(invalid)).toThrow();
     });
 
-    it('rejects idea with invalid impact', () => {
-      const invalid = {
-        title: 'Test',
-        description: 'desc',
-        group: 'General',
-        impact: 'extreme',
-      };
-      expect(() => ParsedIdeaSchema.parse(invalid)).toThrow();
+    it('rejects idea with impact outside 1-5', () => {
+      expect(() =>
+        ParsedIdeaSchema.parse({
+          title: 'Test',
+          description: 'desc',
+          group: 'General',
+          impact: 0,
+          effort: 3,
+          risk: 3,
+        }),
+      ).toThrow();
+      expect(() =>
+        ParsedIdeaSchema.parse({
+          title: 'Test',
+          description: 'desc',
+          group: 'General',
+          impact: 6,
+          effort: 3,
+          risk: 3,
+        }),
+      ).toThrow();
     });
 
-    it('rejects idea with invalid effort', () => {
-      const invalid = {
-        title: 'Test',
-        description: 'desc',
-        group: 'General',
-        effort: 'huge',
-      };
-      expect(() => ParsedIdeaSchema.parse(invalid)).toThrow();
+    it('rejects idea with effort outside 1-5', () => {
+      expect(() =>
+        ParsedIdeaSchema.parse({
+          title: 'Test',
+          description: 'desc',
+          group: 'General',
+          impact: 3,
+          effort: 0,
+          risk: 3,
+        }),
+      ).toThrow();
+      expect(() =>
+        ParsedIdeaSchema.parse({
+          title: 'Test',
+          description: 'desc',
+          group: 'General',
+          impact: 3,
+          effort: 6,
+          risk: 3,
+        }),
+      ).toThrow();
+    });
+
+    it('rejects idea with risk outside 1-5', () => {
+      expect(() =>
+        ParsedIdeaSchema.parse({
+          title: 'Test',
+          description: 'desc',
+          group: 'General',
+          impact: 3,
+          effort: 3,
+          risk: 0,
+        }),
+      ).toThrow();
+      expect(() =>
+        ParsedIdeaSchema.parse({
+          title: 'Test',
+          description: 'desc',
+          group: 'General',
+          impact: 3,
+          effort: 3,
+          risk: 6,
+        }),
+      ).toThrow();
+    });
+
+    it('rejects non-integer impact', () => {
+      expect(() =>
+        ParsedIdeaSchema.parse({
+          title: 'Test',
+          description: 'desc',
+          group: 'General',
+          impact: 2.5,
+        }),
+      ).toThrow();
     });
   });
 
@@ -148,20 +211,21 @@ describe('ideas-parser', () => {
     it('detects impact keywords in bullet text', () => {
       const md = `- This is critical for performance\n`;
       const ideas = parseIdeasMd(md);
-      expect(ideas[0].impact).toBe('high');
+      expect(ideas[0].impact).toBe(5);
     });
 
     it('detects effort keywords in bullet text', () => {
       const md = `- Simple change to fix the bug\n`;
       const ideas = parseIdeasMd(md);
-      expect(ideas[0].effort).toBe('low');
+      expect(ideas[0].effort).toBe(2);
     });
 
-    it('defaults impact and effort to medium', () => {
+    it('defaults impact, effort, and risk to 3', () => {
       const md = `- Regular idea with no keywords\n`;
       const ideas = parseIdeasMd(md);
-      expect(ideas[0].impact).toBe('medium');
-      expect(ideas[0].effort).toBe('medium');
+      expect(ideas[0].impact).toBe(3);
+      expect(ideas[0].effort).toBe(3);
+      expect(ideas[0].risk).toBe(3);
     });
 
     it('ignores non-bullet, non-heading lines', () => {
@@ -175,96 +239,169 @@ describe('ideas-parser', () => {
       const ideas = parseIdeasMd(md);
       expect(ideas).toHaveLength(2);
     });
+
+    it('parses numbered list items', () => {
+      const md = `## Group\n1. First numbered idea\n2. Second numbered idea\n`;
+      const ideas = parseIdeasMd(md);
+      expect(ideas).toHaveLength(2);
+      expect(ideas[0].title).toBe('First numbered idea');
+      expect(ideas[1].title).toBe('Second numbered idea');
+      expect(ideas[0].group).toBe('Group');
+    });
+
+    it('strips bold markers from numbered list titles', () => {
+      const md = `1. **Bold Title** — some description\n`;
+      const ideas = parseIdeasMd(md);
+      expect(ideas[0].title).toBe('Bold Title');
+    });
+
+    it('detects risk keywords in bullet text', () => {
+      const md = `- This is a breaking change that needs care\n`;
+      const ideas = parseIdeasMd(md);
+      expect(ideas[0].risk).toBe(5);
+    });
   });
 
   // =====================================================
-  // extractImpactEffort
+  // extractImpactEffortRisk
   // =====================================================
-  describe('extractImpactEffort', () => {
-    it('returns medium/medium for neutral text', () => {
-      const result = extractImpactEffort('Add a new feature');
-      expect(result).toEqual({ impact: 'medium', effort: 'medium' });
+  describe('extractImpactEffortRisk', () => {
+    it('returns 3/3/3 for neutral text', () => {
+      const result = extractImpactEffortRisk('Add a new feature');
+      expect(result).toEqual({ impact: 3, effort: 3, risk: 3 });
     });
 
-    it('detects high impact from "critical"', () => {
-      const result = extractImpactEffort('This is critical for the release');
-      expect(result.impact).toBe('high');
+    it('detects impact 5 from "critical"', () => {
+      const result = extractImpactEffortRisk('This is critical for the release');
+      expect(result.impact).toBe(5);
     });
 
-    it('detects high impact from "significant"', () => {
-      const result = extractImpactEffort(
+    it('detects impact 4 from "significant"', () => {
+      const result = extractImpactEffortRisk(
         'Significant improvement to performance',
       );
-      expect(result.impact).toBe('high');
+      expect(result.impact).toBe(4);
     });
 
-    it('detects high impact from "high impact"', () => {
-      const result = extractImpactEffort('High impact change needed');
-      expect(result.impact).toBe('high');
+    it('detects impact 4 from "high impact"', () => {
+      const result = extractImpactEffortRisk('High impact change needed');
+      expect(result.impact).toBe(4);
     });
 
-    it('detects low impact from "minor"', () => {
-      const result = extractImpactEffort('Minor tweak to logging');
-      expect(result.impact).toBe('low');
+    it('detects impact 2 from "minor"', () => {
+      const result = extractImpactEffortRisk('Minor tweak to logging');
+      expect(result.impact).toBe(2);
     });
 
-    it('detects low impact from "nice to have"', () => {
-      const result = extractImpactEffort('Nice to have feature');
-      expect(result.impact).toBe('low');
+    it('detects impact 2 from "nice to have"', () => {
+      const result = extractImpactEffortRisk('Nice to have feature');
+      expect(result.impact).toBe(2);
     });
 
-    it('detects low impact from "low impact"', () => {
-      const result = extractImpactEffort('Low impact cosmetic change');
-      expect(result.impact).toBe('low');
+    it('detects impact 2 from "low impact"', () => {
+      const result = extractImpactEffortRisk('Low impact cosmetic change');
+      expect(result.impact).toBe(2);
     });
 
-    it('detects high effort from "complex"', () => {
-      const result = extractImpactEffort('Complex refactoring needed');
-      expect(result.effort).toBe('high');
+    it('detects impact 1 from "negligible"', () => {
+      const result = extractImpactEffortRisk('Negligible change');
+      expect(result.impact).toBe(1);
     });
 
-    it('detects high effort from "major refactor"', () => {
-      const result = extractImpactEffort('Requires a major refactor');
-      expect(result.effort).toBe('high');
+    it('detects effort 4 from "complex"', () => {
+      const result = extractImpactEffortRisk('Complex refactoring needed');
+      expect(result.effort).toBe(4);
     });
 
-    it('detects high effort from "high effort"', () => {
-      const result = extractImpactEffort('High effort migration task');
-      expect(result.effort).toBe('high');
+    it('detects effort 5 from "major refactor"', () => {
+      const result = extractImpactEffortRisk('Requires a major refactor');
+      expect(result.effort).toBe(5);
     });
 
-    it('detects low effort from "simple"', () => {
-      const result = extractImpactEffort('Simple config change');
-      expect(result.effort).toBe('low');
+    it('detects effort 4 from "high effort"', () => {
+      const result = extractImpactEffortRisk('High effort migration task');
+      expect(result.effort).toBe(4);
     });
 
-    it('detects low effort from "trivial"', () => {
-      const result = extractImpactEffort('Trivial fix for typo');
-      expect(result.effort).toBe('low');
+    it('detects effort 2 from "simple"', () => {
+      const result = extractImpactEffortRisk('Simple config change');
+      expect(result.effort).toBe(2);
     });
 
-    it('detects low effort from "quick fix"', () => {
-      const result = extractImpactEffort('Quick fix for the timeout');
-      expect(result.effort).toBe('low');
+    it('detects effort 2 from "trivial"', () => {
+      const result = extractImpactEffortRisk('Trivial fix for typo');
+      expect(result.effort).toBe(2);
     });
 
-    it('detects low effort from "low effort"', () => {
-      const result = extractImpactEffort('Low effort documentation update');
-      expect(result.effort).toBe('low');
+    it('detects effort 2 from "quick fix"', () => {
+      const result = extractImpactEffortRisk('Quick fix for the timeout');
+      expect(result.effort).toBe(2);
+    });
+
+    it('detects effort 2 from "low effort"', () => {
+      const result = extractImpactEffortRisk('Low effort documentation update');
+      expect(result.effort).toBe(2);
+    });
+
+    it('detects effort 1 from "one-line"', () => {
+      const result = extractImpactEffortRisk('One-line fix');
+      expect(result.effort).toBe(1);
+    });
+
+    it('detects risk 5 from "breaking change"', () => {
+      const result = extractImpactEffortRisk('This is a breaking change');
+      expect(result.risk).toBe(5);
+    });
+
+    it('detects risk 4 from "high risk"', () => {
+      const result = extractImpactEffortRisk('High risk deployment');
+      expect(result.risk).toBe(4);
+    });
+
+    it('detects risk 2 from "safe"', () => {
+      const result = extractImpactEffortRisk('Safe additive change');
+      // 'safe' triggers risk=2, but 'additive' also triggers risk=1 — 'safe' matches first
+      expect(result.risk).toBe(2);
+    });
+
+    it('detects risk 1 from "zero risk"', () => {
+      const result = extractImpactEffortRisk('Zero risk documentation update');
+      expect(result.risk).toBe(1);
     });
 
     it('handles combined high impact + low effort', () => {
-      const result = extractImpactEffort(
+      const result = extractImpactEffortRisk(
         'Critical but simple one-line fix',
       );
-      expect(result.impact).toBe('high');
-      expect(result.effort).toBe('low');
+      expect(result.impact).toBe(5);
+      expect(result.effort).toBe(2);
     });
 
     it('is case insensitive', () => {
-      const result = extractImpactEffort('CRITICAL and TRIVIAL fix');
-      expect(result.impact).toBe('high');
-      expect(result.effort).toBe('low');
+      const result = extractImpactEffortRisk('CRITICAL and TRIVIAL fix');
+      expect(result.impact).toBe(5);
+      expect(result.effort).toBe(2);
+    });
+  });
+
+  // =====================================================
+  // extractImpactEffort (backwards compat alias)
+  // =====================================================
+  describe('extractImpactEffort', () => {
+    it('returns only impact and effort as numbers', () => {
+      const result = extractImpactEffort('Add a new feature');
+      expect(result).toEqual({ impact: 3, effort: 3 });
+      expect(result).not.toHaveProperty('risk');
+    });
+
+    it('detects impact 5 from "critical"', () => {
+      const result = extractImpactEffort('This is critical for the release');
+      expect(result.impact).toBe(5);
+    });
+
+    it('detects effort 2 from "simple"', () => {
+      const result = extractImpactEffort('Simple config change');
+      expect(result.effort).toBe(2);
     });
   });
 });
