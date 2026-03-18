@@ -2,8 +2,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getPool, isDbAvailable } from '../../core/db.js';
 import { calcCost, getModelShortName } from '../../core/pricing.js';
+import { createLogger } from '../../core/logger.js';
 import fs from 'fs/promises';
 import path from 'path';
+
+const logger = createLogger('mcp:runs');
 
 const RUNS_DIR = path.resolve(import.meta.dirname ?? '.', '../../../runs');
 
@@ -120,7 +123,7 @@ async function listRunsFromFs(args: {
       .sort()
       .reverse();
   } catch (err) {
-    console.error('[runs] reading run data failed:', err);
+    logger.error('[runs] reading run data failed:', { error: String(err) });
     return { content: [{ type: 'text' as const, text: '[]' }] };
   }
 
@@ -154,7 +157,7 @@ async function listRunsFromFs(args: {
         cost: Math.round(cost * 100) / 100,
       });
     } catch (err) {
-      console.error('[runs] listing runs failed:', err);
+      logger.error('[runs] listing runs failed:', { error: String(err) });
       /* skip invalid dirs */
     }
   }
@@ -203,13 +206,13 @@ async function getRunDetail(
   try {
     runData.brief = await fs.readFile(path.join(runDir, 'brief.md'), 'utf-8');
   } catch (err) {
-    console.error('[runs] reading run details failed:', err);
+    logger.error('[runs] reading run details failed:', { error: String(err) });
     /* no brief */
   }
   try {
     runData.report = await fs.readFile(path.join(runDir, 'report.md'), 'utf-8');
   } catch (err) {
-    console.error('[runs] reading run digest failed:', err);
+    logger.error('[runs] reading run digest failed:', { error: String(err) });
     /* no report */
   }
 

@@ -8,6 +8,8 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
+import { createLogger } from '../logger.js';
+const logger = createLogger('agent:researcher');
 
 /**
  * Researcher Agent - reads code, generates ideas.md and sources.md.
@@ -59,7 +61,7 @@ export class ResearcherAgent {
       const brief = await this.ctx.artifacts.readBrief();
       await this.runAgentLoop(systemPrompt, brief);
 
-      console.log('Researcher agent completed successfully.');
+      logger.info('Researcher agent completed successfully.');
     } catch (error) {
       await this.ctx.audit.log({
         ts: new Date().toISOString(),
@@ -138,11 +140,11 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
       iteration++;
 
       if (new Date() > this.ctx.endTime) {
-        console.log('Time limit reached. Stopping researcher loop.');
+        logger.info('Time limit reached. Stopping researcher loop.');
         break;
       }
 
-      console.log(`\n=== Researcher iteration ${iteration}/${this.maxIterations} ===`);
+      logger.info('Researcher iteration', { iteration: String(iteration), maxIterations: String(this.maxIterations) });
 
       try {
         const response = await withRetry(async () => {
@@ -181,7 +183,7 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
             (block: Anthropic.ContentBlock) => block.type === 'tool_use'
           );
           if (!hasToolUse) {
-            console.log('Researcher finished (no more tool calls).');
+            logger.info('Researcher finished (no more tool calls).');
             break;
           }
         }
@@ -191,17 +193,17 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
         if (toolResults.length > 0) {
           messages.push({ role: 'user', content: toolResults });
         } else {
-          console.log('Researcher finished (no tool calls).');
+          logger.info('Researcher finished (no tool calls).');
           break;
         }
       } catch (error) {
-        console.error('Error in researcher loop:', error);
+        logger.error('Error in researcher loop', { error: String(error) });
         throw error;
       }
     }
 
     if (iteration >= this.maxIterations) {
-      console.log('Researcher: max iterations reached.');
+      logger.info('Researcher: max iterations reached.');
     }
     this.ctx.usage.recordIterations('researcher', iteration, this.maxIterations);
   }
@@ -225,7 +227,7 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
 
     for (const block of content) {
       if (block.type === 'tool_use') {
-        console.log(`Researcher executing tool: ${block.name}`);
+        logger.info('Researcher executing tool', { tool: block.name });
         this.ctx.usage.recordToolCall(block.name);
 
         try {

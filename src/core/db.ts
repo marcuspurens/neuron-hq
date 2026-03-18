@@ -1,5 +1,8 @@
 import { Pool, PoolConfig } from 'pg';
 import { getConfig } from './config.js';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('db');
 
 let pool: Pool | null = null;
 
@@ -41,7 +44,7 @@ export async function isDbAvailable(): Promise<boolean> {
     client.release();
     return true;
   } catch (err) {
-    console.warn('Warning: Database not available:', err);
+    logger.warn('Database not available', { error: String(err) });
     return false;
   }
 }

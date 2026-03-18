@@ -23,6 +23,9 @@ import { guessSpeakers } from './speaker-guesser.js';
 import type { SpeakerGuess } from './speaker-guesser.js';
 import { ensureOllama } from '../core/ollama.js';
 
+import { createLogger } from '../core/logger.js';
+const logger = createLogger('aurora:video');
+
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
@@ -118,7 +121,7 @@ export function isVideoUrl(url: string): boolean {
     const hostname = new URL(url).hostname.replace(/^(www\.|m\.)/, '');
     return VIDEO_DOMAINS.has(hostname);
   } catch (err) {
-    console.error('[video] video processing failed:', err);
+    logger.error('[video] video processing failed', { error: String(err) });
     return false;
   }
 }
@@ -396,13 +399,13 @@ export async function ingestVideo(
       for (const result of autoTagResults) {
         if (result.action === 'auto_tagged') {
           await renameSpeaker(result.voicePrintId, result.identityName);
-          console.error(`  🏷️  Auto-tagged: ${result.identityName} (confidence: ${result.confidence.toFixed(2)})`);
+          logger.error('Auto-tagged speaker', { name: result.identityName, confidence: result.confidence.toFixed(2) });
         } else if (result.action === 'suggestion') {
-          console.error(`  💡 Suggestion: ${result.identityName}? (confidence: ${result.confidence.toFixed(2)})`);
+          logger.error('Speaker suggestion', { name: result.identityName, confidence: result.confidence.toFixed(2) });
         }
       }
     } catch (err) {
-      console.error('[video] video thumbnail extraction failed:', err);
+      logger.error('[video] video thumbnail extraction failed', { error: String(err) });
     }
   }
 
@@ -436,7 +439,7 @@ export async function ingestVideo(
       }
     }
   } catch (err) {
-    console.error('[video] video metadata read failed:', err);
+    logger.error('[video] video metadata read failed', { error: String(err) });
   }
 
   // 10. Optional: Polish transcript via LLM
@@ -453,7 +456,7 @@ export async function ingestVideo(
         polished = true;
       }
     } catch (err) {
-      console.error(`[polish] Skipping — ${err instanceof Error ? err.message : err}`);
+      logger.error('[polish] Skipping', { error: String(err instanceof Error ? err.message : err) });
     }
     options?.onProgress?.({ step: 'polishing', progress: 1.0, stepElapsedMs: Date.now() - stepStart });
   }
@@ -472,7 +475,7 @@ export async function ingestVideo(
         speakerGuesses = guessResult.guesses;
       }
     } catch (err) {
-      console.error(`[identify-speakers] Skipping — ${err instanceof Error ? err.message : err}`);
+      logger.error('[identify-speakers] Skipping', { error: String(err instanceof Error ? err.message : err) });
     }
     options?.onProgress?.({ step: 'identifying', progress: 1.0, stepElapsedMs: Date.now() - stepStart });
   }

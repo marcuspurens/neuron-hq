@@ -12,6 +12,8 @@ import { promisify } from 'util';
 import { loadPromptHierarchy, buildHierarchicalPrompt } from '../prompt-hierarchy.js';
 import { loadOverlay } from '../prompt-overlays.js';
 import { scanDiff, formatScanReport } from '../security-scan.js';
+import { createLogger } from '../logger.js';
+const logger = createLogger('agent:reviewer');
 
 const execAsync = promisify(exec);
 
@@ -73,7 +75,7 @@ export class ReviewerAgent {
       const systemPrompt = await this.buildSystemPrompt();
       await this.runAgentLoop(systemPrompt);
 
-      console.log('Reviewer agent completed successfully.');
+      logger.info('Reviewer agent completed successfully.');
     } catch (error) {
       await this.ctx.audit.log({
         ts: new Date().toISOString(),
@@ -171,7 +173,7 @@ Block if policy is violated or verification fails.
     try {
       return await fs.readFile(briefPath, 'utf-8');
     } catch (err) {
-      console.error('[reviewer] writing reviewer result failed:', err);
+      logger.error('[reviewer] writing reviewer result failed', { error: String(err) });
       return '(brief.md not found — cannot verify acceptance criteria)';
     }
   }
@@ -216,11 +218,11 @@ IMPORTANT: Never claim something is done without running a command to verify it.
       iteration++;
 
       if (new Date() > this.ctx.endTime) {
-        console.log('Time limit reached. Stopping reviewer loop.');
+        logger.info('Time limit reached. Stopping reviewer loop.');
         break;
       }
 
-      console.log(`\n=== Reviewer iteration ${iteration}/${this.maxIterations} ===`);
+      logger.info('Reviewer iteration', { iteration: String(iteration), maxIterations: String(this.maxIterations) });
 
       try {
         const response = await withRetry(async () => {
@@ -259,7 +261,7 @@ IMPORTANT: Never claim something is done without running a command to verify it.
             (block: Anthropic.ContentBlock) => block.type === 'tool_use'
           );
           if (!hasToolUse) {
-            console.log('Reviewer finished (no more tool calls).');
+            logger.info('Reviewer finished (no more tool calls).');
             break;
           }
         }
@@ -269,17 +271,17 @@ IMPORTANT: Never claim something is done without running a command to verify it.
         if (toolResults.length > 0) {
           messages.push({ role: 'user', content: toolResults });
         } else {
-          console.log('Reviewer finished (no tool calls).');
+          logger.info('Reviewer finished (no tool calls).');
           break;
         }
       } catch (error) {
-        console.error('Error in reviewer loop:', error);
+        logger.error('Error in reviewer loop', { error: String(error) });
         throw error;
       }
     }
 
     if (iteration >= this.maxIterations) {
-      console.log('Reviewer: max iterations reached.');
+      logger.info('Reviewer: max iterations reached.');
     }
     this.ctx.usage.recordIterations('reviewer', iteration, this.maxIterations);
   }
@@ -303,7 +305,7 @@ IMPORTANT: Never claim something is done without running a command to verify it.
 
     for (const block of content) {
       if (block.type === 'tool_use') {
-        console.log(`Reviewer executing tool: ${block.name}`);
+        logger.info('Reviewer executing tool', { tool: block.name });
         this.ctx.usage.recordToolCall(block.name);
 
         try {

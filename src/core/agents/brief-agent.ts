@@ -9,6 +9,8 @@ import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 import { TargetsManager } from '../targets.js';
 import { trimMessages, withRetry } from './agent-utils.js';
+import { createLogger } from '../logger.js';
+const logger = createLogger('agent:brief');
 
 /**
  * Generate a URL-safe slug from a text string.
@@ -243,8 +245,8 @@ export async function runBriefAgent(targetName: string): Promise<void> {
   const target = await targetsManager.getTarget(targetName);
 
   if (!target) {
-    console.error(`Error: target '${targetName}' not found.`);
-    console.error('Use "neuron target list" to see available targets.');
+    logger.error('Target not found', { target: targetName });
+    logger.error('Use "neuron target list" to see available targets.');
     process.exit(1);
   }
 
@@ -252,6 +254,6 @@ export async function runBriefAgent(targetName: string): Promise<void> {
   const briefPath = await agent.run();
 
   if (briefPath) {
-    console.log(`\n✅ Brief created: ${briefPath}`);
+    logger.info('Brief created', { path: briefPath });
   }
 }

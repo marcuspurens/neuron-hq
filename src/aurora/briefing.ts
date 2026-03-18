@@ -13,6 +13,9 @@ import { getPool } from '../core/db.js';
 import { calculateFreshnessScore, freshnessStatus } from './freshness.js';
 import type Anthropic from '@anthropic-ai/sdk';
 
+import { createLogger } from '../core/logger.js';
+const logger = createLogger('aurora:briefing');
+
 // --- Interfaces ---
 
 export interface BriefingOptions {
@@ -74,7 +77,7 @@ function getModelConfig(): ModelConfig {
   try {
     return resolveModelConfig('researcher');
   } catch (err) {
-    console.error('[briefing] briefing generation failed:', err);
+    logger.error('[briefing] briefing generation failed', { error: String(err) });
     return {
       ...DEFAULT_MODEL_CONFIG,
       model: 'claude-haiku-4-5-20251001',
@@ -151,7 +154,7 @@ export async function briefing(
       }
     }
   } catch (err) {
-    console.error('[briefing] briefing loading failed:', err);
+    logger.error('[briefing] briefing loading failed', { error: String(err) });
   }
 
   // Step 3: Map timeline from searchAurora
@@ -190,7 +193,7 @@ export async function briefing(
   try {
     integrityIssues = await checkCrossRefIntegrity({ limit: 5 });
   } catch (err) {
-    console.error('[briefing] briefing save failed:', err);
+    logger.error('[briefing] briefing save failed', { error: String(err) });
   }
 
   // Step 6: Generate summary with Claude Haiku

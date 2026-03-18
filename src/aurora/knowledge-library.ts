@@ -23,6 +23,9 @@ import { semanticSearch } from '../core/semantic-search.js';
 import type Anthropic from '@anthropic-ai/sdk';
 import { linkArticleToConcepts } from './ontology.js';
 
+import { createLogger } from '../core/logger.js';
+const logger = createLogger('aurora:knowledge-library');
+
 // ---------------------------------------------------------------------------
 //  Interfaces
 // ---------------------------------------------------------------------------
@@ -140,7 +143,7 @@ function getSynthesisModelConfig(modelOverride?: string): ModelConfig {
   try {
     return resolveModelConfig('librarian');
   } catch (err) {
-    console.error('[knowledge-library] loading knowledge entry failed:', err);
+    logger.error('[knowledge-library] loading knowledge entry failed', { error: String(err) });
     return { ...DEFAULT_MODEL_CONFIG, model: 'claude-haiku-4-5-20251001' };
   }
 }
@@ -214,7 +217,7 @@ export async function createArticle(input: {
   try {
     await autoEmbedAuroraNodes([id]);
   } catch (err) {
-    console.error('[knowledge-library] knowledge library search failed:', err);
+    logger.error('[knowledge-library] knowledge library search failed', { error: String(err) });
   }
 
   return node as ArticleNode;
@@ -426,7 +429,7 @@ export async function updateArticle(
   try {
     await autoEmbedAuroraNodes([newId]);
   } catch (err) {
-    console.error('[knowledge-library] knowledge library save failed:', err);
+    logger.error('[knowledge-library] knowledge library save failed', { error: String(err) });
   }
 
   return newNode as ArticleNode;
@@ -512,7 +515,7 @@ export async function importArticle(input: {
       await linkArticleToConcepts(article.id, conceptData);
     }
   } catch (err) {
-    console.error('[knowledge-library] knowledge library indexing failed:', err);
+    logger.error('[knowledge-library] knowledge library indexing failed', { error: String(err) });
   }
 
   return article;
@@ -627,7 +630,7 @@ export async function synthesizeArticle(
       await linkArticleToConcepts(article.id, conceptsForOntology);
     }
   } catch (err) {
-    console.error('[knowledge-library] knowledge library merge failed:', err);
+    logger.error('[knowledge-library] knowledge library merge failed', { error: String(err) });
   }
 
   return article;

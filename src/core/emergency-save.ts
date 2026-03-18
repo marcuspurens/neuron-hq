@@ -4,6 +4,9 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import type { AuditLogger } from './audit.js';
 import { eventBus } from './event-bus.js';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('emergency-save');
 
 const execFileAsync = promisify(execFile);
 
@@ -154,7 +157,7 @@ git cherry-pick ${commitHash || '<commit-hash>'}
   });
 
   // Console warning
-  console.warn(`⚠️ EMERGENCY SAVE: ${agentName} committed workspace at iteration ${iteration}/${maxIterations}`);
+  logger.warn('EMERGENCY SAVE: committed workspace', { agent: agentName, iteration: String(iteration), maxIterations: String(maxIterations) });
 
   return { saved: true, commitHash, message: commitMessage };
 }

@@ -7,6 +7,8 @@ import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
+import { createLogger } from '../logger.js';
+const logger = createLogger('agent:librarian');
 
 const FETCH_MAX_BYTES = 50_000;
 const FETCH_TIMEOUT_MS = 15_000;
@@ -62,7 +64,7 @@ export class LibrarianAgent {
     try {
       const systemPrompt = await this.buildSystemPrompt();
       await this.runAgentLoop(systemPrompt);
-      console.log('Librarian agent completed.');
+      logger.info('Librarian agent completed.');
     } catch (error) {
       await this.ctx.audit.log({
         ts: new Date().toISOString(),
@@ -117,11 +119,11 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
       iteration++;
 
       if (new Date() > this.ctx.endTime) {
-        console.log('Time limit reached. Stopping librarian loop.');
+        logger.info('Time limit reached. Stopping librarian loop.');
         break;
       }
 
-      console.log(`\n=== Librarian iteration ${iteration}/${this.maxIterations} ===`);
+      logger.info('Librarian iteration', { iteration: String(iteration), maxIterations: String(this.maxIterations) });
 
       try {
         const response = await withRetry(async () => {
@@ -160,7 +162,7 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
             (b: Anthropic.ContentBlock) => b.type === 'tool_use'
           );
           if (!hasToolUse) {
-            console.log('Librarian finished (no more tool calls).');
+            logger.info('Librarian finished (no more tool calls).');
             break;
           }
         }
@@ -169,17 +171,17 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
         if (toolResults.length > 0) {
           messages.push({ role: 'user', content: toolResults });
         } else {
-          console.log('Librarian finished (no tool calls).');
+          logger.info('Librarian finished (no tool calls).');
           break;
         }
       } catch (error) {
-        console.error('Error in librarian loop:', error);
+        logger.error('Error in librarian loop', { error: String(error) });
         throw error;
       }
     }
 
     if (iteration >= this.maxIterations) {
-      console.log('Librarian: max iterations reached.');
+      logger.info('Librarian: max iterations reached.');
     }
     this.ctx.usage.recordIterations('librarian', iteration, this.maxIterations);
   }
@@ -244,7 +246,7 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
 
     for (const block of content) {
       if (block.type === 'tool_use') {
-        console.log(`Librarian executing tool: ${block.name}`);
+        logger.info('Librarian executing tool', { tool: block.name });
         this.ctx.usage.recordToolCall(block.name);
 
         try {
@@ -358,7 +360,7 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
     try {
       return await fs.readFile(filePath, 'utf-8');
     } catch (err) {
-      console.error('[librarian] indexing run failed:', err);
+      logger.error('[librarian] indexing run failed', { error: String(err) });
       return `(memory/${file}.md not found — file will be created when you write to it)`;
     }
   }

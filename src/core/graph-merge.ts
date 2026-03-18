@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import type { KnowledgeGraph, KGNode } from './knowledge-graph.js';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('graph-merge');
 
 // --- Merge Proposal Schema ---
 
@@ -143,7 +146,7 @@ export async function mergeNodes(
       await transferCrossRefs(validated.removeNodeId, validated.keepNodeId, 'neuron');
     }
   } catch (err) {
-    console.error('[graph-merge] graph merge failed:', err);
+    logger.error('graph merge failed', { error: String(err) });
   }
 
   return {

@@ -7,6 +7,8 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
+import { createLogger } from '../logger.js';
+const logger = createLogger('agent:tester');
 
 /**
  * Tester Agent - independently runs the test suite and reports results.
@@ -59,7 +61,7 @@ export class TesterAgent {
     try {
       const systemPrompt = await this.buildSystemPrompt();
       const verdict = await this.runAgentLoop(systemPrompt);
-      console.log('Tester agent completed.');
+      logger.info('Tester agent completed.');
       return verdict;
     } catch (error) {
       await this.ctx.audit.log({
@@ -120,11 +122,11 @@ and write test_report.md to the run artifacts directory.
       iteration++;
 
       if (new Date() > this.ctx.endTime) {
-        console.log('Time limit reached. Stopping tester loop.');
+        logger.info('Time limit reached. Stopping tester loop.');
         break;
       }
 
-      console.log(`\n=== Tester iteration ${iteration}/${this.maxIterations} ===`);
+      logger.info('Tester iteration', { iteration: String(iteration), maxIterations: String(this.maxIterations) });
 
       try {
         const response = await withRetry(async () => {
@@ -170,7 +172,7 @@ and write test_report.md to the run artifacts directory.
             (b: Anthropic.ContentBlock) => b.type === 'tool_use'
           );
           if (!hasToolUse) {
-            console.log('Tester finished (no more tool calls).');
+            logger.info('Tester finished (no more tool calls).');
             break;
           }
         }
@@ -179,17 +181,17 @@ and write test_report.md to the run artifacts directory.
         if (toolResults.length > 0) {
           messages.push({ role: 'user', content: toolResults });
         } else {
-          console.log('Tester finished (no tool calls).');
+          logger.info('Tester finished (no tool calls).');
           break;
         }
       } catch (error) {
-        console.error('Error in tester loop:', error);
+        logger.error('Error in tester loop', { error: String(error) });
         throw error;
       }
     }
 
     if (iteration >= this.maxIterations) {
-      console.log('Tester: max iterations reached.');
+      logger.info('Tester: max iterations reached.');
     }
 
     this.ctx.usage.recordIterations('tester', iteration, this.maxIterations);
@@ -212,7 +214,7 @@ and write test_report.md to the run artifacts directory.
 
     for (const block of content) {
       if (block.type === 'tool_use') {
-        console.log(`Tester executing tool: ${block.name}`);
+        logger.info('Tester executing tool', { tool: block.name });
         this.ctx.usage.recordToolCall(block.name);
 
         try {

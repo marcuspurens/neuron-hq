@@ -28,7 +28,7 @@ describe('autoEmbedNodes', () => {
   beforeEach(() => {
     mockQuery.mockReset();
     mockEmbedBatch.mockReset();
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
   });
 
   it('generates embeddings for nodes without one using embedBatch', async () => {
@@ -85,10 +85,8 @@ describe('autoEmbedNodes', () => {
     await autoEmbedNodes(['p-1', 'p-2']);
 
     // Should warn about batch failure
-    expect(console.warn).toHaveBeenCalledWith(
-      expect.stringContaining('Failed to embed batch starting at index 0'),
-      expect.any(Error)
-    );
+    const output1 = (process.stderr.write as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => String(c[0])).join('');
+    expect(output1).toContain('Failed to embed batch');
     // embedBatch called once for the single batch (2 nodes < 20 batch size)
     expect(mockEmbedBatch).toHaveBeenCalledTimes(1);
   });
@@ -126,9 +124,7 @@ describe('autoEmbedNodes', () => {
 
     await autoEmbedNodes(['p-1']);
 
-    expect(console.warn).toHaveBeenCalledWith(
-      expect.stringContaining('Auto-embed failed'),
-      expect.any(Error)
-    );
+    const output2 = (process.stderr.write as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => String(c[0])).join('');
+    expect(output2).toContain('Auto-embed failed');
   });
 });

@@ -11,6 +11,8 @@ import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { emergencySave } from '../emergency-save.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { createLogger } from '../logger.js';
+const logger = createLogger('agent:merger');
 
 const execAsync = promisify(exec);
 
@@ -76,13 +78,13 @@ export class MergerAgent {
         return 'MERGER_BLOCKED: Reviewer did not give GREEN. See report.md.';
       }
 
-      console.log('Merger running — Reviewer gave GREEN.');
+      logger.info('Merger running — Reviewer gave GREEN.');
 
       // Step 2: Run execute flow directly
       const systemPrompt = await this.buildSystemPrompt();
       const result = await this.runAgentLoop(systemPrompt);
 
-      console.log('Merger agent completed.');
+      logger.info('Merger agent completed.');
       return result;
     } catch (error) {
       await this.ctx.audit.log({
@@ -149,11 +151,11 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
       iteration++;
 
       if (new Date() > this.ctx.endTime) {
-        console.log('Time limit reached. Stopping merger loop.');
+        logger.info('Time limit reached. Stopping merger loop.');
         break;
       }
 
-      console.log(`\n=== Merger iteration ${iteration}/${this.maxIterations} ===`);
+      logger.info('Merger iteration', { iteration: String(iteration), maxIterations: String(this.maxIterations) });
 
       try {
         const response = await withRetry(async () => {
@@ -192,7 +194,7 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
             (b: Anthropic.ContentBlock) => b.type === 'tool_use'
           );
           if (!hasToolUse) {
-            console.log('Merger finished (no more tool calls).');
+            logger.info('Merger finished (no more tool calls).');
             break;
           }
         }
@@ -201,17 +203,17 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
         if (toolResults.length > 0) {
           messages.push({ role: 'user', content: toolResults });
         } else {
-          console.log('Merger finished (no tool calls).');
+          logger.info('Merger finished (no tool calls).');
           break;
         }
       } catch (error) {
-        console.error('Error in merger loop:', error);
+        logger.error('Error in merger loop', { error: String(error) });
         throw error;
       }
     }
 
     if (iteration >= this.maxIterations) {
-      console.log('Merger: max iterations reached.');
+      logger.info('Merger: max iterations reached.');
       await emergencySave({
         agentName: 'merger',
         iteration,
@@ -300,7 +302,7 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
 
     for (const block of content) {
       if (block.type === 'tool_use') {
-        console.log(`Merger executing tool: ${block.name}`);
+        logger.info('Merger executing tool', { tool: block.name });
         this.ctx.usage.recordToolCall(block.name);
 
         try {

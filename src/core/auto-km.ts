@@ -1,4 +1,7 @@
 import type { KMReport } from './agents/knowledge-manager.js';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('auto-km');
 
 /**
  * Configuration for automatic Knowledge Manager scheduling.
@@ -116,7 +119,7 @@ export async function runAutoKM(
       }
     } catch (err) {
       // Article synthesis is optional — don't fail the KM run
-      console.error('Article synthesis failed:', (err as Error).message);
+      logger.error('Article synthesis failed', { error: (err as Error).message });
     }
   }
 

@@ -10,6 +10,9 @@ import type {
   AuroraScope,
 } from './aurora-schema.js';
 
+import { createLogger } from '../core/logger.js';
+const logger = createLogger('aurora:search');
+
 export interface SearchOptions {
   limit?: number; // Default: 10
   minSimilarity?: number; // Default: 0.3
@@ -147,7 +150,7 @@ export async function searchAurora(
       source: 'semantic' as const,
     }));
   } catch (err) {
-    console.error('[search] search failed:', err);
+    logger.error('[search] search failed', { error: String(err) });
     cachedGraph = await loadAuroraGraph();
     const keywordResults = findAuroraNodes(cachedGraph, {
       type: type as AuroraNodeType | undefined,

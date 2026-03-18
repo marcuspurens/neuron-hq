@@ -18,6 +18,9 @@ import {
 } from '../core/model-registry.js';
 import type Anthropic from '@anthropic-ai/sdk';
 
+import { createLogger } from '../core/logger.js';
+const logger = createLogger('aurora:memory');
+
 // --- Interfaces ---
 
 export interface RememberOptions {
@@ -151,7 +154,7 @@ function getContradictionModelConfig(): ModelConfig {
   try {
     return resolveModelConfig('researcher');
   } catch (err) {
-    console.error('[memory] memory load failed:', err);
+    logger.error('[memory] memory load failed', { error: String(err) });
     return {
       ...DEFAULT_MODEL_CONFIG,
       model: 'claude-haiku-4-5-20251001',
@@ -257,7 +260,7 @@ export async function remember(
       similarity: r.similarity,
     }));
   } catch (err) {
-    console.error('[memory] memory save failed:', err);
+    logger.error('[memory] memory save failed', { error: String(err) });
     const graph = await loadAuroraGraph();
     const found = findAuroraNodes(graph, { type, query: text });
     candidates = found.map((n) => ({

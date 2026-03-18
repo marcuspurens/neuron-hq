@@ -4,6 +4,9 @@
  * Registers cleanup callbacks that run on SIGINT/SIGTERM
  * before the process exits.
  */
+import { createLogger } from './logger.js';
+
+const logger = createLogger('shutdown');
 
 const cleanupHandlers: Array<() => Promise<void>> = [];
 
@@ -15,7 +18,7 @@ export function onShutdown(handler: () => Promise<void>): void {
 /** Install SIGINT/SIGTERM listeners that run all registered cleanup handlers. */
 export function installShutdownHandlers(): void {
   const shutdown = async (signal: string): Promise<void> => {
-    console.error(`\n[shutdown] ${signal} received — cleaning up...`);
+    logger.error('Signal received — cleaning up...', { signal });
     for (const handler of cleanupHandlers) {
       try {
         await handler();

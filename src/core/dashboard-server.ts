@@ -7,6 +7,9 @@ import { renderLiveDashboard } from './dashboard-ui.js';
 import { calcCost } from './pricing.js';
 import { extractDecisions } from './decision-extractor.js';
 import type { AuditEntry, EventData } from './decision-extractor.js';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('dashboard');
 
 const MAX_SSE_CLIENTS = 5;
 const DASHBOARD_PORT = 4200;
@@ -215,7 +218,7 @@ export function startDashboardServer(
           });
           res.end(JSON.stringify(summaries));
         } catch (err) {
-          console.error('[dashboard-server] listing runs failed:', err);
+          logger.error('listing runs failed', { error: String(err) });
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end('[]');
         }
@@ -320,15 +323,15 @@ export function startDashboardServer(
     server.listen(port);
 
     server.on('listening', () => {
-      console.log(`[Dashboard] Live at http://localhost:${port}`);
+      logger.info('Live at http://localhost:' + port, { port: String(port) });
       exec(`open http://localhost:${port}`);
     });
 
     server.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EADDRINUSE') {
-        console.log(`[Dashboard] Port ${port} unavailable, dashboard disabled`);
+        logger.info('Port unavailable, dashboard disabled', { port: String(port) });
       } else {
-        console.error(`[Dashboard] Server error: ${err.message}`);
+        logger.error('Server error', { error: err.message });
       }
     });
 
@@ -353,7 +356,7 @@ export function startDashboardServer(
 
     return { close, port };
   } catch (err: unknown) {
-    console.error(`[Dashboard] Failed to start: ${err}`);
+    logger.error('Failed to start', { error: String(err) });
     return null;
   }
 }

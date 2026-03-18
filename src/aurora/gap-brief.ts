@@ -12,6 +12,9 @@ import { getPool } from '../core/db.js';
 import { calculateFreshnessScore, freshnessStatus } from './freshness.js';
 import type Anthropic from '@anthropic-ai/sdk';
 
+import { createLogger } from '../core/logger.js';
+const logger = createLogger('aurora:gap-brief');
+
 // --- Interfaces ---
 
 export interface ResearchSuggestion {
@@ -48,7 +51,7 @@ function getModelConfig(): ModelConfig {
   try {
     return resolveModelConfig('researcher');
   } catch (err) {
-    console.error('[gap-brief] loading gap briefs failed:', err);
+    logger.error('[gap-brief] loading gap briefs failed', { error: String(err) });
     return {
       ...DEFAULT_MODEL_CONFIG,
       model: 'claude-haiku-4-5-20251001',
@@ -144,7 +147,7 @@ async function findRelatedGaps(
 
     if (related.length > 0) return related;
   } catch (err) {
-    console.error('[gap-brief] gap brief generation failed:', err);
+    logger.error('[gap-brief] gap brief generation failed', { error: String(err) });
   }
 
   // Keyword fallback
@@ -198,7 +201,7 @@ async function gatherKnownFacts(
       }
     }
   } catch (err) {
-    console.error('[gap-brief] reading gap brief failed:', err);
+    logger.error('[gap-brief] reading gap brief failed', { error: String(err) });
   }
 
   return facts.map(({ nodeId: _nodeId, ...rest }) => rest);

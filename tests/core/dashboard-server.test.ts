@@ -344,7 +344,7 @@ describe('Port conflict', () => {
 
   it('handles port conflict gracefully without throwing', async () => {
     const port = getPort();
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
 
     blocker = http.createServer();
     await new Promise<void>((resolve) => {
@@ -355,9 +355,9 @@ describe('Port conflict', () => {
     await wait(200);
 
     expect(server).not.toBeNull();
-    const calls = logSpy.mock.calls.flat().join(' ');
-    expect(calls).toContain('unavailable');
-    logSpy.mockRestore();
+    const output = stderrSpy.mock.calls.map(c => String(c[0])).join('');
+    expect(output).toContain('unavailable');
+    stderrSpy.mockRestore();
   });
 });
 

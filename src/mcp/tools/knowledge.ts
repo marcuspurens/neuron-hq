@@ -8,6 +8,9 @@ import {
   type NodeType,
   type NodeScope,
 } from '../../core/knowledge-graph.js';
+import { createLogger } from '../../core/logger.js';
+
+const logger = createLogger('mcp:knowledge');
 
 /** Register the neuron_knowledge MCP tool on the given server. */
 export function registerKnowledgeTool(server: McpServer): void {
@@ -73,7 +76,7 @@ export function registerKnowledgeTool(server: McpServer): void {
               };
             });
           } catch (err) {
-            console.error('[knowledge] knowledge tool query failed:', err);
+            logger.error('[knowledge] knowledge tool query failed:', { error: String(err) });
             results = await keywordSearch(args);
           }
         } else {
@@ -118,7 +121,7 @@ async function keywordSearch(args: {
     try {
       edges = traverse(graph, node.id);
     } catch (err) {
-      console.error('[knowledge] knowledge tool operation failed:', err);
+      logger.error('[knowledge] knowledge tool operation failed:', { error: String(err) });
       /* */
     }
     return {

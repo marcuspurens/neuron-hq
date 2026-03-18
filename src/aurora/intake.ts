@@ -20,6 +20,9 @@ import { isVideoUrl, ingestVideo } from './video.js';
 import { findNeuronMatchesForAurora, createCrossRef } from './cross-ref.js';
 import { updateConfidence, classifySource } from './bayesian-confidence.js';
 
+import { createLogger } from '../core/logger.js';
+const logger = createLogger('aurora:intake');
+
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
@@ -129,7 +132,7 @@ export async function ingestDocument(
   if (ext === '.pdf') {
     const { isTextGarbled, ocrPdf: ocrPdfFallback } = await import('./ocr.js');
     if (isTextGarbled(result.text)) {
-      console.log('  ⚠️  Text looks garbled — falling back to OCR...');
+      logger.info('  ⚠️  Text looks garbled — falling back to OCR...');
       return ocrPdfFallback(absolutePath, options);
     }
   }
@@ -292,7 +295,7 @@ export async function processExtractedText(
       }
     }
   } catch (err) {
-    console.error('[intake] intake processing failed:', err);
+    logger.error('[intake] intake processing failed', { error: String(err) });
     // Postgres might not be available, or kg_nodes might be empty
   }
 

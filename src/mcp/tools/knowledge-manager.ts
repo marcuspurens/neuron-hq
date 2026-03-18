@@ -2,6 +2,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { KnowledgeManagerAgent } from '../../core/agents/knowledge-manager.js';
 import { logKMRun } from '../../aurora/km-log.js';
+import { createLogger } from '../../core/logger.js';
+
+const logger = createLogger('mcp:knowledge-manager');
 
 /** Register the neuron_knowledge_manager MCP tool on the given server. */
 export function registerKnowledgeManagerTool(server: McpServer): void {
@@ -47,7 +50,7 @@ export function registerKnowledgeManagerTool(server: McpServer): void {
             stoppedBy: report.stoppedBy,
           });
         } catch (err) {
-          console.error('[knowledge-manager] knowledge manager operation failed:', err);
+          logger.error('[knowledge-manager] knowledge manager operation failed:', { error: String(err) });
         }
 
         return {

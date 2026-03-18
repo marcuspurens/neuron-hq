@@ -16,6 +16,9 @@ import type { AgentModelMap } from './model-registry.js';
 import { eventBus } from './event-bus.js';
 import type { DashboardServer } from './dashboard-server.js';
 import { createRunTrace, getRunTrace, shutdownLangfuse, registerEventBusListeners } from './langfuse.js';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('run');
 
 export interface RunContext {
   runid: RunId;
@@ -262,7 +265,7 @@ export class RunOrchestrator {
       createRunTrace(runid, { brief: processedBrief, briefTitle, target: target.name, hours });
       registerEventBusListeners(eventBus);
     } catch (err) {
-      console.error('[run] saving run manifest failed:', err);
+      logger.error('saving run manifest failed', { error: String(err) });
     }
 
     // Dashboard disabled — replaced by Langfuse observability (session 95)
@@ -478,7 +481,7 @@ export class RunOrchestrator {
       const preservedPath = path.join(ctx.workspaceDir, '.preserved');
       const preservedExists = await fs.access(preservedPath).then(() => true).catch(() => false);
       if (preservedExists || ctx.maxIterationsReached) {
-        console.warn(`\u26a0\ufe0f Workspace preserved: ${ctx.workspaceDir} (emergency save or max iterations)`);
+        logger.warn('Workspace preserved (emergency save or max iterations)', { workspaceDir: ctx.workspaceDir });
         // Write a note about preservation in the run dir
         const preserveNote = `Workspace preserved at: ${ctx.workspaceDir}\nReason: ${ctx.maxIterationsReached ? 'Max iterations reached' : 'Emergency save detected'}\n`;
         await fs.appendFile(path.join(ctx.runDir, 'WARNING.md'), `\n---\n\n## Workspace Bevarad\n\n${preserveNote}`, 'utf-8').catch(() => {});

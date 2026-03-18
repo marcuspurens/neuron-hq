@@ -9,9 +9,12 @@ import { getPool, closePool } from '../core/db.js';
 import { ingestVideo } from './video.js';
 import type { VideoIngestOptions, ProgressUpdate } from './video.js';
 
+import { createLogger } from '../core/logger.js';
+const logger = createLogger('aurora:job-worker');
+
 const jobId = process.argv[2];
 if (!jobId) {
-  console.error('Usage: job-worker.ts <job-id>');
+  logger.error('Usage: job-worker.ts <job-id>');
   process.exit(1);
 }
 
@@ -36,7 +39,7 @@ async function cleanupTempFiles(
   }
   if (bytesCleaned > 0) {
     const mb = (bytesCleaned / (1024 * 1024)).toFixed(1);
-    console.error(`Cleaned up ${mb} MB temp files`);
+    logger.error('Cleaned up temp files', { mb });
     await pool.query(
       'UPDATE aurora_jobs SET temp_bytes_cleaned = $2 WHERE id = $1',
       [jobId, bytesCleaned],
@@ -52,7 +55,7 @@ async function run(): Promise<void> {
     // Fetch job from DB
     const { rows } = await pool.query('SELECT * FROM aurora_jobs WHERE id = $1', [jobId]);
     if (rows.length === 0) {
-      console.error(`Job ${jobId} not found`);
+      logger.error('Job not found', { jobId });
       process.exit(1);
     }
     const job = rows[0] as Record<string, unknown>;
@@ -119,13 +122,13 @@ async function run(): Promise<void> {
       [jobId, JSON.stringify(result), JSON.stringify(realStepTimings), result.modelUsed ?? null],
     );
 
-    console.error(`Job ${jobId} completed successfully`);
+    logger.error('Job completed successfully', { jobId });
 
     // Clean up temp files after successful ingest
     await cleanupTempFiles(knownTempPaths, pool);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`Job ${jobId} failed: ${message}`);
+    logger.error('Job failed', { jobId, message });
 
     await pool
       .query(
@@ -148,7 +151,7 @@ async function run(): Promise<void> {
         await processQueue();
       }
     } catch (e) {
-      console.error('Failed to process next job in queue:', e);
+      logger.error('Failed to process next job in queue', { error: String(e) });
     }
 
     await closePool();
@@ -156,6 +159,6 @@ async function run(): Promise<void> {
 }
 
 run().catch((err: unknown) => {
-  console.error('Fatal worker error:', err);
+  logger.error('Fatal worker error', { error: String(err) });
   process.exit(1);
 });

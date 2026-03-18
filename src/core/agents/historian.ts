@@ -11,6 +11,8 @@ import { loadGraph, saveGraph, applyConfidenceDecay, addNode, addEdge, findNodes
 import { semanticSearch } from '../semantic-search.js';
 import { isEmbeddingAvailable } from '../embeddings.js';
 import { parseIdeasMd } from '../ideas-parser.js';
+import { createLogger } from '../logger.js';
+const logger = createLogger('agent:historian');
 
 type MemoryFile = 'runs' | 'patterns' | 'errors';
 
@@ -93,10 +95,10 @@ export class HistorianAgent {
         await this.processIdeas();
       } catch (error) {
         // Non-fatal: ideas processing should never block Historian
-        console.warn('Historian: ideas processing failed (non-fatal):', error);
+        logger.warn('Historian: ideas processing failed (non-fatal)', { error: String(error) });
       }
 
-      console.log('Historian agent completed.');
+      logger.info('Historian agent completed.');
     } catch (error) {
       await this.ctx.audit.log({
         ts: new Date().toISOString(),
@@ -167,11 +169,11 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
       iteration++;
 
       if (new Date() > this.ctx.endTime) {
-        console.log('Time limit reached. Stopping historian loop.');
+        logger.info('Time limit reached. Stopping historian loop.');
         break;
       }
 
-      console.log(`\n=== Historian iteration ${iteration}/${this.maxIterations} ===`);
+      logger.info('Historian iteration', { iteration: String(iteration), maxIterations: String(this.maxIterations) });
 
       try {
         const response = await withRetry(async () => {
@@ -210,7 +212,7 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
             (b: Anthropic.ContentBlock) => b.type === 'tool_use'
           );
           if (!hasToolUse) {
-            console.log('Historian finished (no more tool calls).');
+            logger.info('Historian finished (no more tool calls).');
             break;
           }
         }
@@ -219,17 +221,17 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
         if (toolResults.length > 0) {
           messages.push({ role: 'user', content: toolResults });
         } else {
-          console.log('Historian finished (no tool calls).');
+          logger.info('Historian finished (no tool calls).');
           break;
         }
       } catch (error) {
-        console.error('Error in historian loop:', error);
+        logger.error('Error in historian loop', { error: String(error) });
         throw error;
       }
     }
 
     if (iteration >= this.maxIterations) {
-      console.log('Historian: max iterations reached.');
+      logger.info('Historian: max iterations reached.');
     }
     this.ctx.usage.recordIterations('historian', iteration, this.maxIterations);
   }
@@ -360,7 +362,7 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
 
     for (const block of content) {
       if (block.type === 'tool_use') {
-        console.log(`Historian executing tool: ${block.name}`);
+        logger.info('Historian executing tool', { tool: block.name });
         this.ctx.usage.recordToolCall(block.name);
 
         try {
@@ -471,7 +473,7 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
 
       return warnings.length > 0 ? `[Semantic Dedup Check]\n${warnings.join('\n')}` : null;
     } catch (err) {
-      console.error('[historian] saving historian knowledge failed:', err);
+      logger.error('[historian] saving historian knowledge failed', { error: String(err) });
       return null;
     }
   }
@@ -488,7 +490,7 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
     try {
       content = await fs.readFile(ideasPath, 'utf-8');
     } catch (err) {
-      console.error('[historian] historian audit log failed:', err);
+      logger.error('[historian] historian audit log failed', { error: String(err) });
       return;
     }
 
@@ -624,7 +626,7 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
 
     await saveGraph(graph, graphPath);
 
-    console.log(`Historian: processed ${ideas.length} ideas — ${created} created, ${updated} updated (dedup).`);
+    logger.info('Historian processed ideas', { total: String(ideas.length), created: String(created), updated: String(updated) });
 
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
@@ -652,7 +654,7 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
       });
       return content;
     } catch (err) {
-      console.error('[historian] updating knowledge graph failed:', err);
+      logger.error('[historian] updating knowledge graph failed', { error: String(err) });
       return `(file not found: ${filePath})`;
     }
   }
@@ -676,7 +678,7 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
       });
       return content;
     } catch (err) {
-      console.error('[historian] persisting knowledge-graph state failed:', err);
+      logger.error('[historian] persisting knowledge-graph state failed', { error: String(err) });
       return `(file not found: ${file}.md)`;
     }
   }
@@ -749,7 +751,7 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
     try {
       content = await fs.readFile(filePath, 'utf-8');
     } catch (err) {
-      console.error('[historian] semantic search indexing failed:', err);
+      logger.error('[historian] semantic search indexing failed', { error: String(err) });
       return `Error: errors.md not found`;
     }
 
@@ -792,7 +794,7 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
     try {
       raw = await fs.readFile(filePath, 'utf-8');
     } catch (err) {
-      console.error('[historian] graph merge failed:', err);
+      logger.error('[historian] graph merge failed', { error: String(err) });
       return `(audit.jsonl not found in ${this.ctx.runDir})`;
     }
 

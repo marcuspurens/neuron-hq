@@ -325,14 +325,15 @@ describe('Group 4: Audit & events', () => {
     expect(String(eventData.message)).toContain('reviewer');
   });
 
-  it('console.warn called with EMERGENCY SAVE message', async () => {
+  it('logs EMERGENCY SAVE message to stderr', async () => {
     setupDirtyRepo();
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     await emergencySave(makeOptions({ agentName: 'implementer' }));
 
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(String(warnSpy.mock.calls[0][0])).toContain('EMERGENCY SAVE');
-    warnSpy.mockRestore();
+    expect(stderrSpy).toHaveBeenCalled();
+    const output = stderrSpy.mock.calls.map(c => String(c[0])).join('');
+    expect(output).toContain('EMERGENCY SAVE');
+    stderrSpy.mockRestore();
   });
 });
 

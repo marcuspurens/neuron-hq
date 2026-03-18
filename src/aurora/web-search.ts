@@ -3,6 +3,9 @@
  * Parses search result URLs from the HTML response.
  */
 
+import { createLogger } from '../core/logger.js';
+const logger = createLogger('aurora:web-search');
+
 export interface WebSearchResult {
   url: string;
   title: string;
@@ -34,7 +37,7 @@ export async function webSearch(query: string, maxResults = 5): Promise<string[]
     const html = await response.text();
     return parseSearchResults(html, maxResults);
   } catch (err) {
-    console.error('[web-search] web search failed:', err);
+    logger.error('[web-search] web search failed', { error: String(err) });
     return [];
   }
 }

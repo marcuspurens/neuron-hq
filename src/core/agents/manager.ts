@@ -34,6 +34,8 @@ import { eventBus } from '../event-bus.js';
 import { extractThinking } from '../thinking-extractor.js';
 import { extractDecisions } from '../decision-extractor.js';
 import { emergencySave } from '../emergency-save.js';
+import { createLogger } from '../logger.js';
+const logger = createLogger('agent:manager');
 
 
 /**
@@ -112,9 +114,9 @@ export class ManagerAgent {
       // 4. Write final artifacts
       await this.writeDefaultArtifacts();
 
-      console.log('Manager agent completed successfully.');
+      logger.info('Manager agent completed successfully.');
     } catch (error) {
-      console.error('Manager agent error:', error);
+      logger.error('Manager agent error', { error: String(error) });
 
       // Log error to audit
       await this.ctx.audit.log({
@@ -133,7 +135,7 @@ export class ManagerAgent {
    * Run baseline verification before making changes.
    */
   private async runBaseline(): Promise<void> {
-    console.log('Running baseline verification...');
+    logger.info('Running baseline verification...');
 
     // Discover and run verification commands
     const commands = await this.ctx.verifier.discoverCommands();
@@ -145,7 +147,7 @@ export class ManagerAgent {
     // Detect test status
     this.testStatus = await detectTestStatus(this.ctx.workspaceDir);
 
-    console.log('Baseline verification complete.');
+    logger.info('Baseline verification complete.');
   }
 
   /**
@@ -268,7 +270,7 @@ Stop when time limit approaches or when blockers are encountered.
 
       // Check time limit
       if (new Date() > this.ctx.endTime) {
-        console.log('Time limit reached. Stopping agent loop.');
+        logger.info('Time limit reached. Stopping agent loop.');
         const elapsed = Date.now() - this.ctx.startTime.getTime();
         const total = this.ctx.endTime.getTime() - this.ctx.startTime.getTime();
         eventBus.safeEmit('time', {
@@ -284,7 +286,7 @@ Stop when time limit approaches or when blockers are encountered.
       // Check e-stop (STOP file in repo root)
       await checkEstop(this.baseDir, this.ctx.audit);
 
-      console.log(`\n=== Manager iteration ${iteration}/${this.maxIterations} ===`);
+      logger.info('Manager iteration', { iteration: String(iteration), maxIterations: String(this.maxIterations) });
       eventBus.safeEmit('iteration', {
         runid: this.ctx.runid,
         agent: 'manager',
@@ -362,7 +364,7 @@ Stop when time limit approaches or when blockers are encountered.
           );
 
           if (!hasToolUse) {
-            console.log('Agent finished (no more tool calls).');
+            logger.info('Agent finished (no more tool calls).');
             break;
           }
         }
@@ -378,18 +380,18 @@ Stop when time limit approaches or when blockers are encountered.
           });
         } else {
           // No tool calls, agent is done
-          console.log('Agent finished (no tool calls).');
+          logger.info('Agent finished (no tool calls).');
           break;
         }
 
       } catch (error) {
-        console.error('Error in agent loop:', error);
+        logger.error('Error in agent loop', { error: String(error) });
         throw error;
       }
     }
 
     if (iteration >= this.maxIterations) {
-      console.log('Max iterations reached.');
+      logger.info('Max iterations reached.');
       // Emergency save: preserve uncommitted work
       await emergencySave({
         agentName: 'manager',
@@ -627,7 +629,7 @@ Stop when time limit approaches or when blockers are encountered.
 
     for (const block of content) {
       if (block.type === 'tool_use') {
-        console.log(`Executing tool: ${block.name}`);
+        logger.info('Executing tool', { tool: block.name });
 
         // Track tool call
         this.ctx.usage.recordToolCall(block.name);
@@ -811,7 +813,7 @@ Stop when time limit approaches or when blockers are encountered.
    * Delegate a coding task to the Implementer agent.
    */
   private async delegateToImplementer(input: { task: string }): Promise<string> {
-    console.log('Delegating to Implementer agent...');
+    logger.info('Delegating to Implementer agent...');
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
       role: 'manager',
@@ -888,7 +890,7 @@ Stop when time limit approaches or when blockers are encountered.
   ): Promise<string> {
     const { tasks, wave_index = 0 } = input;
 
-    console.log(`Delegating parallel wave ${wave_index} with ${tasks.length} tasks...`);
+    logger.info('Delegating parallel wave', { waveIndex: String(wave_index), taskCount: String(tasks.length) });
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
       role: 'manager',
@@ -1001,7 +1003,7 @@ Stop when time limit approaches or when blockers are encountered.
    * Delegate a review to the Reviewer agent.
    */
   private async delegateToReviewer(): Promise<string> {
-    console.log('Delegating to Reviewer agent...');
+    logger.info('Delegating to Reviewer agent...');
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
       role: 'manager',
@@ -1078,7 +1080,7 @@ Stop when time limit approaches or when blockers are encountered.
    * Delegate research to the Researcher agent.
    */
   private async delegateToResearcher(): Promise<string> {
-    console.log('Delegating to Researcher agent...');
+    logger.info('Delegating to Researcher agent...');
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
       role: 'manager',
@@ -1098,7 +1100,7 @@ Stop when time limit approaches or when blockers are encountered.
    * Delegate run summary writing to the Historian agent.
    */
   private async delegateToLibrarian(): Promise<string> {
-    console.log('Delegating to Librarian agent...');
+    logger.info('Delegating to Librarian agent...');
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
       role: 'manager',
@@ -1114,7 +1116,7 @@ Stop when time limit approaches or when blockers are encountered.
   }
 
   private async delegateToConsolidator(): Promise<string> {
-    console.log('Delegating to Consolidator agent...');
+    logger.info('Delegating to Consolidator agent...');
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
       role: 'manager',
@@ -1130,7 +1132,7 @@ Stop when time limit approaches or when blockers are encountered.
   }
 
   private async delegateToHistorian(): Promise<string> {
-    console.log('Delegating to Historian agent...');
+    logger.info('Delegating to Historian agent...');
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
       role: 'manager',
@@ -1149,7 +1151,7 @@ Stop when time limit approaches or when blockers are encountered.
    * Delegate independent test execution to the Tester agent.
    */
   private async delegateToTester(): Promise<string> {
-    console.log('Delegating to Tester agent...');
+    logger.info('Delegating to Tester agent...');
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
       role: 'manager',
@@ -1168,7 +1170,7 @@ Stop when time limit approaches or when blockers are encountered.
         `TESTER ERROR: ${error}. ` +
         `Do NOT call delegate_to_tester again — retrying will cause the same failure. ` +
         `Report test results as unavailable and proceed to the next step.`;
-      console.error('Tester agent failed:', error);
+      logger.error('Tester agent failed', { error: String(error) });
       return msg;
     }
   }
@@ -1177,7 +1179,7 @@ Stop when time limit approaches or when blockers are encountered.
    * Delegate the merge step to the Merger agent.
    */
   private async delegateToMerger(): Promise<string> {
-    console.log('Delegating to Merger agent...');
+    logger.info('Delegating to Merger agent...');
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
       role: 'manager',

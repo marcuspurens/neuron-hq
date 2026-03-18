@@ -14,6 +14,9 @@ import {
   type AuroraEdgeType,
 } from './aurora-schema.js';
 
+import { createLogger } from '../core/logger.js';
+const logger = createLogger('aurora:graph');
+
 // --- Default path ---
 const DEFAULT_GRAPH_PATH = path.resolve(
   import.meta.dirname ?? '.',
@@ -213,7 +216,7 @@ export async function loadAuroraGraphFromDb(): Promise<AuroraGraph | null> {
       lastUpdated: new Date().toISOString(),
     };
   } catch (err) {
-    console.warn('Warning: Failed to load Aurora graph from DB:', err);
+    logger.warn('Warning: Failed to load Aurora graph from DB', { error: String(err) });
     return null;
   }
 }
@@ -352,11 +355,11 @@ export async function autoEmbedAuroraNodes(nodeIds: string[]): Promise<void> {
           [ids, vectors],
         );
       } catch (err) {
-        console.warn(`Warning: Failed to embed batch starting at index ${i}:`, err);
+        logger.warn('Warning: Failed to embed batch starting at index', { i, error: String(err) });
       }
     }
   } catch (err) {
-    console.warn('Warning: Auto-embed Aurora nodes failed:', err);
+    logger.warn('Warning: Auto-embed Aurora nodes failed', { error: String(err) });
   }
 }
 
@@ -411,9 +414,6 @@ export async function saveAuroraGraph(
       await autoEmbedAuroraNodes(nodeIds);
     }
   } catch (err) {
-    console.warn(
-      'Warning: DB write failed during saveAuroraGraph (file backup exists):',
-      err,
-    );
+    logger.warn('DB write failed during saveAuroraGraph (file backup exists)', { error: String(err) });
   }
 }

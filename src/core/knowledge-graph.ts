@@ -3,6 +3,9 @@ import fs from 'fs/promises';
 import path from 'path';
 import { getPool, isDbAvailable } from './db.js';
 import { isEmbeddingAvailable, getEmbeddingProvider } from './embeddings.js';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('graph');
 
 // --- Schemas ---
 
@@ -159,7 +162,7 @@ export async function loadGraphFromDb(): Promise<KnowledgeGraph | null> {
       lastUpdated: new Date().toISOString(),
     };
   } catch (err) {
-    console.warn('Warning: Failed to load knowledge graph from DB:', err);
+    logger.warn('Failed to load knowledge graph from DB', { error: String(err) });
     return null;
   }
 }
@@ -308,11 +311,11 @@ export async function autoEmbedNodes(nodeIds: string[]): Promise<void> {
           [ids, vectors],
         );
       } catch (err) {
-        console.warn(`Warning: Failed to embed batch starting at index ${i}:`, err);
+        logger.warn('Failed to embed batch', { startIndex: String(i), error: String(err) });
       }
     }
   } catch (err) {
-    console.warn('Warning: Auto-embed failed:', err);
+    logger.warn('Auto-embed failed', { error: String(err) });
   }
 }
 
@@ -375,7 +378,7 @@ export async function saveGraph(
       await autoEmbedNodes(nodeIds);
     }
   } catch (err) {
-    console.warn('Warning: DB write failed during saveGraph (file backup exists):', err);
+    logger.warn('DB write failed during saveGraph (file backup exists)', { error: String(err) });
   }
 }
 

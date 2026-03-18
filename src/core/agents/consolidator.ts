@@ -11,6 +11,8 @@ import { loadGraph, saveGraph } from '../knowledge-graph.js';
 import { mergeNodes, findDuplicateCandidates, findStaleNodes, findMissingEdges } from '../graph-merge.js';
 import { isEmbeddingAvailable } from '../embeddings.js';
 import { findSimilarNodes } from '../semantic-search.js';
+import { createLogger } from '../logger.js';
+const logger = createLogger('agent:consolidator');
 
 /**
  * Consolidator Agent — analyzes the knowledge graph to find and merge
@@ -63,7 +65,7 @@ export class ConsolidatorAgent {
     try {
       const systemPrompt = await this.buildSystemPrompt();
       await this.runAgentLoop(systemPrompt);
-      console.log('Consolidator agent completed.');
+      logger.info('Consolidator agent completed.');
     } catch (error) {
       await this.ctx.audit.log({
         ts: new Date().toISOString(),
@@ -119,11 +121,11 @@ Analyze the knowledge graph and perform consolidation:
       iteration++;
 
       if (new Date() > this.ctx.endTime) {
-        console.log('Time limit reached. Stopping consolidator loop.');
+        logger.info('Time limit reached. Stopping consolidator loop.');
         break;
       }
 
-      console.log(`\n=== Consolidator iteration ${iteration}/${this.maxIterations} ===`);
+      logger.info('Consolidator iteration', { iteration: String(iteration), maxIterations: String(this.maxIterations) });
 
       try {
         const response = await withRetry(async () => {
@@ -162,7 +164,7 @@ Analyze the knowledge graph and perform consolidation:
             (b: Anthropic.ContentBlock) => b.type === 'tool_use'
           );
           if (!hasToolUse) {
-            console.log('Consolidator finished (no more tool calls).');
+            logger.info('Consolidator finished (no more tool calls).');
             break;
           }
         }
@@ -171,17 +173,17 @@ Analyze the knowledge graph and perform consolidation:
         if (toolResults.length > 0) {
           messages.push({ role: 'user', content: toolResults });
         } else {
-          console.log('Consolidator finished (no tool calls).');
+          logger.info('Consolidator finished (no tool calls).');
           break;
         }
       } catch (error) {
-        console.error('Error in consolidator loop:', error);
+        logger.error('Error in consolidator loop', { error: String(error) });
         throw error;
       }
     }
 
     if (iteration >= this.maxIterations) {
-      console.log('Consolidator: max iterations reached.');
+      logger.info('Consolidator: max iterations reached.');
     }
     this.ctx.usage.recordIterations('consolidator', iteration, this.maxIterations);
   }
@@ -273,7 +275,7 @@ Analyze the knowledge graph and perform consolidation:
 
     for (const block of content) {
       if (block.type === 'tool_use') {
-        console.log(`Consolidator executing tool: ${block.name}`);
+        logger.info('Consolidator executing tool', { tool: block.name });
         this.ctx.usage.recordToolCall(block.name);
 
         try {

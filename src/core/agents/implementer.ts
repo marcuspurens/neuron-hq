@@ -11,6 +11,8 @@ import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { emergencySave } from '../emergency-save.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { createLogger } from '../logger.js';
+const logger = createLogger('agent:implementer');
 
 const execAsync = promisify(exec);
 
@@ -85,7 +87,7 @@ export class ImplementerAgent {
         );
       }
 
-      console.log('Implementer agent completed successfully.');
+      logger.info('Implementer agent completed successfully.');
     } catch (error) {
       await this.ctx.audit.log({
         ts: new Date().toISOString(),
@@ -159,11 +161,11 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
       iteration++;
 
       if (new Date() > this.ctx.endTime) {
-        console.log('Time limit reached. Stopping implementer loop.');
+        logger.info('Time limit reached. Stopping implementer loop.');
         break;
       }
 
-      console.log(`\n=== Implementer iteration ${iteration}/${this.maxIterations} ===`);
+      logger.info('Implementer iteration', { iteration: String(iteration), maxIterations: String(this.maxIterations) });
 
       try {
         const response = await withRetry(async () => {
@@ -202,7 +204,7 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
             (block: Anthropic.ContentBlock) => block.type === 'tool_use'
           );
           if (!hasToolUse) {
-            console.log('Implementer finished (no more tool calls).');
+            logger.info('Implementer finished (no more tool calls).');
             break;
           }
         }
@@ -212,17 +214,17 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
         if (toolResults.length > 0) {
           messages.push({ role: 'user', content: toolResults });
         } else {
-          console.log('Implementer finished (no tool calls).');
+          logger.info('Implementer finished (no tool calls).');
           break;
         }
       } catch (error) {
-        console.error('Error in implementer loop:', error);
+        logger.error('Error in implementer loop', { error: String(error) });
         throw error;
       }
     }
 
     if (iteration >= this.maxIterations) {
-      console.log('Implementer: max iterations reached.');
+      logger.info('Implementer: max iterations reached.');
       await emergencySave({
         agentName: 'implementer',
         iteration,
@@ -255,7 +257,7 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
 
     for (const block of content) {
       if (block.type === 'tool_use') {
-        console.log(`Implementer executing tool: ${block.name}`);
+        logger.info('Implementer executing tool', { tool: block.name });
         this.ctx.usage.recordToolCall(block.name);
 
         try {

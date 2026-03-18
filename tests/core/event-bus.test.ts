@@ -50,8 +50,8 @@ describe('safeEmit', () => {
     }).not.toThrow();
   });
 
-  it('catches listener errors silently (console.error called, no exception)', () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it('catches listener errors silently (error logged to stderr, no exception)', () => {
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
 
     eventBus.on('run:start', () => {
       throw new Error('boom');
@@ -66,8 +66,8 @@ describe('safeEmit', () => {
       });
     }).not.toThrow();
 
-    expect(errorSpy).toHaveBeenCalled();
-    errorSpy.mockRestore();
+    expect(stderrSpy).toHaveBeenCalled();
+    stderrSpy.mockRestore();
   });
 });
 
@@ -260,7 +260,7 @@ describe('Event counters', () => {
 // =====================================================
 describe('Isolation', () => {
   it('if onAny callback throws, other listeners still get called and no exception propagates', () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
 
     const results: string[] = [];
 
@@ -280,9 +280,9 @@ describe('Isolation', () => {
 
     expect(results).toHaveLength(1);
     expect(results[0]).toBe('run:end');
-    expect(errorSpy).toHaveBeenCalled();
+    expect(stderrSpy).toHaveBeenCalled();
 
-    errorSpy.mockRestore();
+    stderrSpy.mockRestore();
   });
 });
 

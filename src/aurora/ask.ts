@@ -10,6 +10,9 @@ import { remember } from './memory.js';
 import type { RememberResult } from './memory.js';
 import { recordGap } from './knowledge-gaps.js';
 
+import { createLogger } from '../core/logger.js';
+const logger = createLogger('aurora:ask');
+
 export interface AskOptions {
   maxSources?: number; // Default: 10
   minSimilarity?: number; // Default: 0.3
@@ -76,7 +79,7 @@ function getAskModelConfig(): ModelConfig {
   try {
     return resolveModelConfig('researcher');
   } catch (err) {
-    console.error('[ask] ask query failed:', err);
+    logger.error('[ask] ask query failed', { error: String(err) });
     return {
       ...DEFAULT_MODEL_CONFIG,
       model: 'claude-haiku-4-5-20251001',
@@ -173,7 +176,7 @@ export async function ask(
     try {
       await recordGap(question);
     } catch (err) {
-      console.error('[ask] ask context loading failed:', err);
+      logger.error('[ask] ask context loading failed', { error: String(err) });
     }
     return {
       answer:

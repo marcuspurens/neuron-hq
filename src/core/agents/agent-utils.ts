@@ -1,4 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { createLogger } from '../logger.js';
+const logger = createLogger('agent:utils');
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -160,9 +162,7 @@ export async function withRetry<T>(
       const delay = isConnectionError(error) ? CONNECTION_RETRY_BASE_DELAY_MS : baseDelayMs;
       const delayMs = delay * Math.pow(2, attempt - 1);
       const reason = isOverloadedError(error) ? 'API overloaded' : 'Connection error';
-      console.log(
-        `  ${reason} — retrying in ${delayMs / 1000}s (attempt ${attempt}/${maxAttempts})...`
-      );
+      logger.info('Retrying after error', { reason, delayMs: String(delayMs / 1000), attempt: String(attempt), maxAttempts: String(maxAttempts) });
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }

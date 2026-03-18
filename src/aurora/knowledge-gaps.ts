@@ -18,6 +18,9 @@ import {
 } from '../core/model-registry.js';
 import type Anthropic from '@anthropic-ai/sdk';
 
+import { createLogger } from '../core/logger.js';
+const logger = createLogger('aurora:knowledge-gaps');
+
 export interface KnowledgeGap {
   id: string;
   question: string;
@@ -195,7 +198,7 @@ function getEmergentModelConfig(): ModelConfig {
   try {
     return resolveModelConfig('researcher');
   } catch (err) {
-    console.error('[knowledge-gaps] knowledge gap analysis failed:', err);
+    logger.error('[knowledge-gaps] knowledge gap analysis failed', { error: String(err) });
     return {
       ...DEFAULT_MODEL_CONFIG,
       model: 'claude-haiku-4-5-20251001',
@@ -305,7 +308,7 @@ export async function extractEmergentGaps(input: {
       confidence: 0.7,
     }));
   } catch (err) {
-    console.error('[knowledge-gaps] knowledge gap save failed:', err);
+    logger.error('[knowledge-gaps] knowledge gap save failed', { error: String(err) });
     return [];
   }
 }

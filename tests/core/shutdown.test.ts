@@ -157,7 +157,7 @@ describe('shutdown execution', () => {
 
   it('logs the signal name to stderr', async () => {
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {}) as never);
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
 
     let sigtermCallback: (() => void) | undefined;
     const processOnSpy = vi.spyOn(process, 'on').mockImplementation(((
@@ -173,13 +173,12 @@ describe('shutdown execution', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 50));
 
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('SIGTERM')
-    );
+    const output = stderrSpy.mock.calls.map(c => String(c[0])).join('');
+    expect(output).toContain('SIGTERM');
 
     processOnSpy.mockRestore();
     exitSpy.mockRestore();
-    errorSpy.mockRestore();
+    stderrSpy.mockRestore();
     vi.restoreAllMocks();
   });
 });

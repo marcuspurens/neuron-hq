@@ -9,6 +9,9 @@ import { loadAuroraGraph, saveAuroraGraph, addAuroraNode, addAuroraEdge, findAur
 import type { AuroraNode, AuroraEdge } from './aurora-schema.js';
 import crypto from 'crypto';
 
+import { createLogger } from '../core/logger.js';
+const logger = createLogger('aurora:crossref');
+
 // ---------------------------------------------------------------------------
 //  Interfaces
 // ---------------------------------------------------------------------------
@@ -79,7 +82,7 @@ async function withRetry<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await fn();
   } catch (err) {
-    console.error('[crossref] crossref API call failed:', err);
+    logger.error('[crossref] crossref API call failed', { error: String(err) });
     await sleep(1000);
     try {
       return await fn();

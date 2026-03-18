@@ -6,6 +6,8 @@ import { getEmbeddingProvider } from '../../core/embeddings.js';
 import { getFreshnessReport, verifySource, type FreshnessInfo } from '../../aurora/freshness.js';
 import { suggestResearch } from '../../aurora/gap-brief.js';
 import { remember } from '../../aurora/memory.js';
+import { createLogger } from '../logger.js';
+const logger = createLogger('agent:knowledge-manager');
 
 // --- Cosine similarity helper ---
 
@@ -263,7 +265,7 @@ export class KnowledgeManagerAgent {
         .sort((a, b) => b.similarity - a.similarity)
         .map((s) => s.gap);
     } catch (err) {
-      console.error('[knowledge-manager] reading knowledge file failed:', err);
+      logger.error('[knowledge-manager] reading knowledge file failed', { error: String(err) });
       return gaps.filter((g) =>
         g.question.toLowerCase().includes(topic.toLowerCase()),
       );
@@ -379,7 +381,7 @@ export class KnowledgeManagerAgent {
           factsLearned: factsLearnedCount,
         });
       } catch (err) {
-        console.error('[knowledge-manager] writing graph data failed:', err);
+        logger.error('[knowledge-manager] writing graph data failed', { error: String(err) });
       }
     }
 

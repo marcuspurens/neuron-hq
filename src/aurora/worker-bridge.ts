@@ -8,6 +8,9 @@ import { promisify } from 'util';
 import { resolve as resolvePath } from 'path';
 import { getConfig } from '../core/config.js';
 
+import { createLogger } from '../core/logger.js';
+const logger = createLogger('aurora:worker-bridge');
+
 const execFileAsync = promisify(execFile);
 
 /* ------------------------------------------------------------------ */
@@ -131,7 +134,7 @@ export async function isWorkerAvailable(
     );
     return stdout.trim() === 'ok';
   } catch (err) {
-    console.error('[worker-bridge] worker bridge request failed:', err);
+    logger.error('[worker-bridge] worker bridge request failed', { error: String(err) });
     return false;
   }
 }

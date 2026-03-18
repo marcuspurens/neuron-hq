@@ -10,6 +10,9 @@ import { semanticSearch } from '../core/semantic-search.js';
 import type { AuroraNode } from './aurora-schema.js';
 import { lookupExternalIds } from './external-ids.js';
 
+import { createLogger } from '../core/logger.js';
+const logger = createLogger('aurora:ontology');
+
 // ---------------------------------------------------------------------------
 //  Interfaces
 // ---------------------------------------------------------------------------
@@ -155,7 +158,7 @@ export async function getOrCreateConcept(input: {
           }
         }
       } catch (err) {
-        console.error('[ontology] ontology persist failed:', err);
+        logger.error('[ontology] ontology persist failed', { error: String(err) });
       }
     }
     return existingNode;
@@ -220,7 +223,7 @@ export async function getOrCreateConcept(input: {
         }
       }
     } catch (err) {
-      console.error('[ontology] ontology classification failed:', err);
+      logger.error('[ontology] ontology classification failed', { error: String(err) });
     }
   }
 
@@ -270,7 +273,7 @@ export async function getOrCreateConcept(input: {
   try {
     await autoEmbedAuroraNodes([id]);
   } catch (err) {
-    console.error('[ontology] ontology load failed:', err);
+    logger.error('[ontology] ontology load failed', { error: String(err) });
   }
 
   // Reload final state to return
@@ -466,7 +469,7 @@ export async function linkArticleToConcepts(
       });
       existed = hits.length > 0;
     } catch (err) {
-      console.error('[ontology] ontology update failed:', err);
+      logger.error('[ontology] ontology update failed', { error: String(err) });
     }
 
     const conceptNode = await getOrCreateConcept({
@@ -627,7 +630,7 @@ export async function suggestMerges(): Promise<
         minSimilarity: 0.8,
       });
     } catch (err) {
-      console.error('[ontology] ontology merge failed:', err);
+      logger.error('[ontology] ontology merge failed', { error: String(err) });
       continue;
     }
 

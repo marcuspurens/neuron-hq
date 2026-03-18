@@ -5,7 +5,9 @@
 import { execFile, spawn } from 'child_process';
 import { promisify } from 'util';
 import { getConfig } from './config.js';
+import { createLogger } from './logger.js';
 
+const logger = createLogger('ollama');
 const execFileAsync = promisify(execFile);
 
 /** Default Ollama base URL. */
@@ -47,7 +49,7 @@ async function doEnsureOllama(model?: string): Promise<boolean> {
 
   // 2. Start Ollama if not running
   if (!running) {
-    console.error('[ollama] Not running — starting...');
+    logger.error('Not running — starting...');
     const proc = spawn('ollama', ['serve'], {
       detached: true,
       stdio: 'ignore',
@@ -69,10 +71,10 @@ async function doEnsureOllama(model?: string): Promise<boolean> {
       }
     }
     if (!running) {
-      console.error('[ollama] Could not start — skipping');
+      logger.error('Could not start — skipping');
       return false;
     }
-    console.error('[ollama] Started');
+    logger.error('Started');
   }
 
   // If no specific model requested, we're done
@@ -82,13 +84,13 @@ async function doEnsureOllama(model?: string): Promise<boolean> {
   if (await isModelAvailable(model)) return true;
 
   // 4. Pull the model
-  console.error(`[ollama] Model "${model}" not found — pulling...`);
+  logger.error('Model not found — pulling...', { model });
   try {
     await execFileAsync('ollama', ['pull', model], { timeout: 300_000 });
-    console.error(`[ollama] Model "${model}" ready`);
+    logger.error('Model ready', { model });
     return true;
   } catch (err) {
-    console.error(`[ollama] Failed to pull model: ${err}`);
+    logger.error('Failed to pull model', { error: String(err) });
     return false;
   }
 }

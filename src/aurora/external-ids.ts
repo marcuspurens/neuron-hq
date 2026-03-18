@@ -10,6 +10,9 @@ import type { AuroraNode } from './aurora-schema.js';
 import { findRelatedWorks, searchCrossRef } from './crossref.js';
 import type { CrossRefWork } from './crossref.js';
 
+import { createLogger } from '../core/logger.js';
+const logger = createLogger('aurora:external-ids');
+
 // Re-export CrossRef utilities for downstream consumers
 export { searchCrossRef };
 export type { CrossRefWork };
@@ -374,9 +377,7 @@ export async function backfillExternalIds(
       const hasValues = Object.values(ids).some((v) => v !== undefined);
       if (hasValues) {
         if (options?.dryRun) {
-          console.error(
-            `[dry-run] Would update ${concept.title}: ${JSON.stringify(ids)}`,
-          );
+          logger.error('[dry-run] Would update concept', { title: concept.title, ids: JSON.stringify(ids) });
         } else {
           concept.properties.standardRefs = ids as unknown as Record<string, string>;
           concept.updated = new Date().toISOString();
@@ -386,7 +387,7 @@ export async function backfillExternalIds(
         skipped++;
       }
     } catch (err) {
-      console.error('[external-ids] saving external IDs failed:', err);
+      logger.error('[external-ids] saving external IDs failed', { error: String(err) });
       failed++;
     }
 
@@ -409,7 +410,7 @@ export async function backfillExternalIds(
       );
       if (doiResult.doi) {
         if (options?.dryRun) {
-          console.error(`[dry-run] Would add DOI for ${concept.title}: ${doiResult.doi}`);
+          logger.error('[dry-run] Would add DOI', { title: concept.title, doi: doiResult.doi });
         } else {
           concept.properties.standardRefs = { ...refs, doi: doiResult.doi } as unknown as Record<string, string>;
           concept.updated = new Date().toISOString();
@@ -417,7 +418,7 @@ export async function backfillExternalIds(
         updated++;
       }
     } catch (err) {
-      console.error('[external-ids] saving external IDs failed:', err);
+      logger.error('[external-ids] saving external IDs failed', { error: String(err) });
       failed++;
     }
     await sleep(1000);

@@ -1,4 +1,7 @@
 import { EventEmitter } from 'node:events';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('event-bus');
 
 /**
  * Typed event map for all Neuron agent observability events.
@@ -80,7 +83,7 @@ export class NeuronEventBus extends EventEmitter {
 
   /**
    * Type-safe emit that never throws.
-   * Catches ALL errors from listeners, logs to console.error,
+   * Catches ALL errors from listeners, logs via structured logger,
    * and always records to history + counters.
    */
   safeEmit<K extends keyof EventMap>(event: K, data: EventMap[K]): void {
@@ -93,7 +96,7 @@ export class NeuronEventBus extends EventEmitter {
     try {
       this.emit(event, data);
     } catch (err: unknown) {
-      console.error(`[EventBus] Error emitting ${String(event)}: ${err}`);
+      logger.error('Error emitting event', { event: String(event), error: String(err) });
     }
 
     // Notify wildcard listeners (outside the main try so one bad listener
@@ -102,7 +105,7 @@ export class NeuronEventBus extends EventEmitter {
       try {
         cb(event as string, data);
       } catch (err: unknown) {
-        console.error(`[EventBus] Error in onAny callback: ${err}`);
+        logger.error('Error in onAny callback', { error: String(err) });
       }
     }
   }

@@ -11,6 +11,9 @@ import { runWorker } from './worker-bridge.js';
 import { videoNodeId } from './video.js';
 import { loadAuroraGraph } from './aurora-graph.js';
 
+import { createLogger } from '../core/logger.js';
+const logger = createLogger('aurora:job-runner');
+
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
@@ -146,7 +149,7 @@ export async function startVideoIngestJob(
       };
     }
   } catch (err) {
-    console.error('Failed dedup check:', err);
+    logger.error('Failed dedup check', { error: String(err) });
   }
 
   // 2. Check if already ingested in Aurora graph
@@ -175,7 +178,7 @@ export async function startVideoIngestJob(
       };
     }
   } catch (err) {
-    console.error('Failed graph check:', err);
+    logger.error('Failed graph check', { error: String(err) });
   }
 
   // 3. Quick metadata fetch (non-blocking, best-effort)
@@ -192,7 +195,7 @@ export async function startVideoIngestJob(
       videoDurationSec = (meta.duration as number) ?? null;
     }
   } catch (err) {
-    console.error('[job-runner] updating job progress failed:', err);
+    logger.error('[job-runner] updating job progress failed', { error: String(err) });
   }
 
   // 4. Insert job row
@@ -219,7 +222,7 @@ export async function startVideoIngestJob(
     );
     queuePosition = (posRows[0] as Record<string, unknown>).pos as number;
   } catch (err) {
-    console.error('[job-runner] saving job result failed:', err);
+    logger.error('[job-runner] saving job result failed', { error: String(err) });
   }
 
   // 7. Estimate time
@@ -250,7 +253,7 @@ export async function getJob(jobId: string): Promise<AuroraJob | null> {
     if (rows.length === 0) return null;
     return mapRow(rows[0] as Record<string, unknown>);
   } catch (err) {
-    console.error('Failed to get job:', err);
+    logger.error('Failed to get job', { error: String(err) });
     return null;
   }
 }
@@ -279,7 +282,7 @@ export async function getJobs(
     );
     return (rows as Record<string, unknown>[]).map(mapRow);
   } catch (err) {
-    console.error('Failed to get jobs:', err);
+    logger.error('Failed to get jobs', { error: String(err) });
     return [];
   }
 }
@@ -322,7 +325,7 @@ export async function updateJobProgress(
       params,
     );
   } catch (err) {
-    console.error('Failed to update job progress:', err);
+    logger.error('Failed to update job progress', { error: String(err) });
   }
 }
 
@@ -366,7 +369,7 @@ export async function cancelJob(
     );
     return { success: true, message: 'Job cancelled' };
   } catch (err) {
-    console.error('Failed to cancel job:', err);
+    logger.error('Failed to cancel job', { error: String(err) });
     return { success: false, message: `Cancel failed: ${String(err)}` };
   }
 }
@@ -414,11 +417,11 @@ export async function processQueue(): Promise<void> {
     });
 
     child.on('error', (err) => {
-      console.error(`Job worker error for ${jobId}:`, err);
+      logger.error('Job worker error', { jobId, error: String(err) });
       void processQueue();
     });
   } catch (err) {
-    console.error('Failed to process queue:', err);
+    logger.error('Failed to process queue', { error: String(err) });
   }
 }
 
@@ -439,7 +442,7 @@ export async function checkCompletedJobs(): Promise<AuroraJob[]> {
 
     return jobs;
   } catch (err) {
-    console.error('Failed to check completed jobs:', err);
+    logger.error('Failed to check completed jobs', { error: String(err) });
     return [];
   }
 }
@@ -458,7 +461,7 @@ export async function markJobNotified(jobId: string): Promise<void> {
       [jobId],
     );
   } catch (err) {
-    console.error('Failed to mark job notified:', err);
+    logger.error('Failed to mark job notified', { error: String(err) });
   }
 }
 
@@ -478,7 +481,7 @@ export async function cleanupOldJobs(days: number = 7): Promise<number> {
     );
     return rowCount ?? 0;
   } catch (err) {
-    console.error('Failed to cleanup old jobs:', err);
+    logger.error('Failed to cleanup old jobs', { error: String(err) });
     return 0;
   }
 }
@@ -578,7 +581,7 @@ export async function getJobStats(): Promise<JobStats> {
       totalTempBytesCleaned,
     };
   } catch (err) {
-    console.error('Failed to get job stats:', err);
+    logger.error('Failed to get job stats', { error: String(err) });
     return empty;
   }
 }
@@ -614,7 +617,7 @@ export async function estimateTime(
       return Math.round(avgFactor * videoDurationSec);
     }
   } catch (err) {
-    console.error('[job-runner] job execution failed:', err);
+    logger.error('[job-runner] job execution failed', { error: String(err) });
   }
 
   // Fallback heuristic
