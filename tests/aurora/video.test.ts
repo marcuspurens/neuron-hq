@@ -506,4 +506,49 @@ describe('ingestVideo', () => {
     expect(result.modelUsed).toBe('KBLab/kb-whisper-large');
   });
 
+  it("saves rawSegments on transcript node from transcribeMeta", async () => {
+    mockRunWorker
+      .mockResolvedValueOnce(extractVideoResponse)
+      .mockResolvedValueOnce(transcribeResponse);
+
+    await ingestVideo("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+
+    const savedGraph = mockSaveAuroraGraph.mock.calls[0][0] as AuroraGraph;
+    const transcriptNode = savedGraph.nodes.find((n) => n.id === "yt-dQw4w9WgXcQ" && n.type === "transcript" && !n.properties.chunkIndex);
+    expect(transcriptNode).toBeDefined();
+    expect(transcriptNode!.properties.rawSegments).toEqual([
+      { start_ms: 0, end_ms: 5000, text: "Hello world" },
+      { start_ms: 5000, end_ms: 10000, text: "this is a test video with some content about many topics" },
+    ]);
+  });
+
+  it("saves segments (start_ms/end_ms only) on voice_print nodes", async () => {
+    mockRunWorker
+      .mockResolvedValueOnce(extractVideoResponse)
+      .mockResolvedValueOnce(transcribeResponse)
+      .mockResolvedValueOnce(diarizeResponse);
+
+    await ingestVideo("https://www.youtube.com/watch?v=dQw4w9WgXcQ", { diarize: true });
+
+    const savedGraph = mockSaveAuroraGraph.mock.calls[0][0] as AuroraGraph;
+    const vpNodes = savedGraph.nodes.filter((n) => n.type === "voice_print");
+    expect(vpNodes).toHaveLength(2);
+
+    const speaker1 = vpNodes.find((n) => n.properties.speakerLabel === "SPEAKER_1");
+    expect(speaker1).toBeDefined();
+    expect(speaker1!.properties.segments).toEqual([{ start_ms: 0, end_ms: 5000 }]);
+
+    const speaker2 = vpNodes.find((n) => n.properties.speakerLabel === "SPEAKER_2");
+    expect(speaker2).toBeDefined();
+    expect(speaker2!.properties.segments).toEqual([{ start_ms: 5000, end_ms: 10000 }]);
+
+    // Verify no speaker field leaked into segments
+    for (const vp of vpNodes) {
+      const segs = vp.properties.segments as Array<Record<string, unknown>>;
+      for (const seg of segs) {
+        expect(seg).not.toHaveProperty("speaker");
+      }
+    }
+  });
+
 });

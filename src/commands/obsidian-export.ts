@@ -2,6 +2,11 @@ import chalk from 'chalk';
 import { writeFile, mkdir, rm } from 'fs/promises';
 import { join } from 'path';
 import { getPool } from '../core/db.js';
+import {
+  buildSpeakerTimeline,
+  formatMs,
+} from '../aurora/speaker-timeline.js';
+import type { TimelineBlock } from '../aurora/speaker-timeline.js';
 
 const DEFAULT_VAULT = '/Users/mpmac/Documents/Neuron Lab';
 
@@ -21,11 +26,26 @@ interface AuroraEdge {
   type: string;
 }
 
+/** Info gathered from voice_print nodes for a given transcript. */
+interface SpeakerInfo {
+  label: string;
+  name: string;
+  confidence: number;
+  role: string;
+  segments: Array<{ start_ms: number; end_ms: number }>;
+}
+
 function sanitizeFilename(name: string): string {
   return name
     .replace(/\s*\[chunk \d+\/\d+\]\s*$/, '') // strip DB chunk suffix
     .replace(/[/\\:*?"<>|]/g, '_')
     .slice(0, 200);
+}
+
+/** Check if a node is a video transcript with raw segments. */
+function isVideoTranscript(node: AuroraNode): boolean {
+  const props = node.properties || {};
+  return node.type === 'transcript' && Array.isArray(props.rawSegments);
 }
 
 function formatFrontmatter(node: AuroraNode): string {
@@ -51,6 +71,65 @@ function formatFrontmatter(node: AuroraNode): string {
 
   lines.push('---');
   return lines.join('\n');
+}
+
+/** Build frontmatter for video transcript with timeline speaker data. */
+function formatVideoFrontmatter(
+  node: AuroraNode,
+  speakers: Map<string, SpeakerInfo>,
+): string {
+  const props = node.properties || {};
+  const durationMs = typeof props.duration === 'number'
+    ? props.duration * 1000
+    : 0;
+  const lines = [
+    '---',
+    `id: ${node.id}`,
+    `type: transcript`,
+  ];
+
+  if (props.platform) lines.push(`platform: ${props.platform}`);
+  lines.push(`duration: "${formatMs(durationMs)}"`);
+
+  lines.push('speakers:');
+  for (const [label, info] of speakers) {
+    lines.push(`  ${label}:`);
+    lines.push(`    name: "${info.name}"`);
+    lines.push(`    confidence: ${info.confidence}`);
+    lines.push(`    role: "${info.role}"`);
+  }
+
+  lines.push('---');
+  return lines.join('\n');
+}
+
+/** Build speaker table markdown. */
+function buildSpeakerTable(speakers: Map<string, SpeakerInfo>): string[] {
+  const lines: string[] = [
+    '## Talare',
+    '| ID | Namn | Konfidenspoäng | Roll |',
+    '|----|------|-----------|------|',
+  ];
+  for (const [label, info] of speakers) {
+    const displayName = label.startsWith('SPEAKER_')
+      ? '_ej identifierad_'
+      : info.name || '_ej identifierad_';
+    const conf = info.confidence > 0 ? String(info.confidence) : '\u2014';
+    const role = info.role || '\u2014';
+    lines.push(`| ${label} | ${displayName} | ${conf} | ${role} |`);
+  }
+  return lines;
+}
+
+/** Build timeline section from TimelineBlock array. */
+function buildTimelineSection(blocks: TimelineBlock[]): string[] {
+  const lines: string[] = ['## Tidslinje', ''];
+  for (const block of blocks) {
+    lines.push(`### ${formatMs(block.start_ms)} \u2014 ${block.speaker}`);
+    lines.push(block.text);
+    lines.push('');
+  }
+  return lines;
 }
 
 function buildNodeFilenameMap(nodes: AuroraNode[]): Map<string, string> {
@@ -91,6 +170,52 @@ function buildNodeFilenameMap(nodes: AuroraNode[]): Map<string, string> {
   return map;
 }
 
+/** Collect voice_print nodes whose videoNodeId matches the transcript id. */
+function findVoicePrints(
+  nodes: AuroraNode[],
+  transcriptId: string,
+): AuroraNode[] {
+  return nodes.filter(
+    (n) =>
+      n.type === 'voice_print' &&
+      n.properties.videoNodeId === transcriptId,
+  );
+}
+
+/** Build speaker info map from voice_print nodes. */
+function buildSpeakerMap(voicePrints: AuroraNode[]): Map<string, SpeakerInfo> {
+  const map = new Map<string, SpeakerInfo>();
+  for (const vp of voicePrints) {
+    const label = (vp.properties.speakerLabel as string) || 'UNKNOWN';
+    const segments = Array.isArray(vp.properties.segments)
+      ? (vp.properties.segments as Array<{ start_ms: number; end_ms: number }>)
+      : [];
+    map.set(label, {
+      label,
+      name: label.startsWith('SPEAKER_') ? '' : label,
+      confidence: vp.confidence ?? 0,
+      role: '',
+      segments,
+    });
+  }
+  return map;
+}
+
+/** Build IDs of chunk nodes that belong to a video transcript. */
+function buildVideoChunkIds(
+  nodes: AuroraNode[],
+  videoTranscriptIds: Set<string>,
+): Set<string> {
+  const skipIds = new Set<string>();
+  for (const node of nodes) {
+    const chunkMatch = node.id.match(/^(.+)_chunk_\d+$/);
+    if (chunkMatch && videoTranscriptIds.has(chunkMatch[1])) {
+      skipIds.add(node.id);
+    }
+  }
+  return skipIds;
+}
+
 export async function obsidianExportCommand(cmdOptions: {
   vault?: string;
   clean?: boolean;
@@ -120,6 +245,17 @@ export async function obsidianExportCommand(cmdOptions: {
     );
     const edges = edgesResult.rows;
 
+    // Identify video transcripts (transcript nodes with rawSegments)
+    const videoTranscriptIds = new Set<string>();
+    for (const node of nodes) {
+      if (isVideoTranscript(node)) {
+        videoTranscriptIds.add(node.id);
+      }
+    }
+
+    // Build set of chunk IDs to skip for video transcripts
+    const skipChunkIds = buildVideoChunkIds(nodes, videoTranscriptIds);
+
     // Build filename map and edge lookup
     const filenameMap = buildNodeFilenameMap(nodes);
     const outgoingEdges = new Map<string, AuroraEdge[]>();
@@ -137,77 +273,128 @@ export async function obsidianExportCommand(cmdOptions: {
 
     let written = 0;
     for (const node of nodes) {
+      // Skip chunk nodes for video transcripts
+      if (skipChunkIds.has(node.id)) continue;
+
       const filename = filenameMap.get(node.id)!;
       const props = node.properties || {};
       const lines: string[] = [];
 
-      // Frontmatter
-      lines.push(formatFrontmatter(node));
-      lines.push('');
+      if (isVideoTranscript(node)) {
+        // --- Video transcript with timeline ---
+        const voicePrints = findVoicePrints(nodes, node.id);
+        const speakerMap = buildSpeakerMap(voicePrints);
 
-      // Title
-      lines.push(`# ${node.title || node.id}`);
-      lines.push('');
-
-      // Type badge
-      const badges: string[] = [`\`${node.type}\``];
-      if (props.platform) badges.push(`\`${props.platform}\``);
-      if (props.language) badges.push(`\`${props.language}\``);
-      badges.push(`confidence: ${node.confidence}`);
-      lines.push(badges.join(' · '));
-      lines.push('');
-
-      // Links section — outgoing
-      const out = outgoingEdges.get(node.id) || [];
-      const inc = incomingEdges.get(node.id) || [];
-
-      if (out.length > 0 || inc.length > 0) {
-        lines.push('## Kopplingar');
-        lines.push('');
-        for (const edge of out) {
-          const targetName = filenameMap.get(edge.to_id);
-          if (targetName) {
-            lines.push(`- → \`${edge.type}\` [[${targetName}]]`);
+        // Collect all diarization segments from voice_prints
+        const allDiarizationSegments: Array<{
+          start_ms: number;
+          end_ms: number;
+          speaker: string;
+        }> = [];
+        for (const [label, info] of speakerMap) {
+          for (const seg of info.segments) {
+            allDiarizationSegments.push({
+              start_ms: seg.start_ms,
+              end_ms: seg.end_ms,
+              speaker: label,
+            });
           }
         }
-        for (const edge of inc) {
-          const sourceName = filenameMap.get(edge.from_id);
-          if (sourceName) {
-            lines.push(`- ← \`${edge.type}\` [[${sourceName}]]`);
+
+        const rawSegments = props.rawSegments as Array<{
+          start_ms: number;
+          end_ms: number;
+          text: string;
+        }>;
+
+        const timelineBlocks = buildSpeakerTimeline(
+          rawSegments,
+          allDiarizationSegments,
+        );
+
+        // Frontmatter
+        lines.push(formatVideoFrontmatter(node, speakerMap));
+        lines.push('');
+
+        // Title
+        lines.push(`# ${node.title || node.id}`);
+        lines.push('');
+
+        // Speaker table
+        lines.push(...buildSpeakerTable(speakerMap));
+        lines.push('');
+
+        // Timeline
+        lines.push(...buildTimelineSection(timelineBlocks));
+      } else {
+        // --- Standard non-video export (unchanged) ---
+        lines.push(formatFrontmatter(node));
+        lines.push('');
+
+        // Title
+        lines.push(`# ${node.title || node.id}`);
+        lines.push('');
+
+        // Type badge
+        const badges: string[] = [`\`${node.type}\``];
+        if (props.platform) badges.push(`\`${props.platform}\``);
+        if (props.language) badges.push(`\`${props.language}\``);
+        badges.push(`confidence: ${node.confidence}`);
+        lines.push(badges.join(' · '));
+        lines.push('');
+
+        // Links section — outgoing
+        const out = outgoingEdges.get(node.id) || [];
+        const inc = incomingEdges.get(node.id) || [];
+
+        if (out.length > 0 || inc.length > 0) {
+          lines.push('## Kopplingar');
+          lines.push('');
+          for (const edge of out) {
+            const targetName = filenameMap.get(edge.to_id);
+            if (targetName) {
+              lines.push(`- → \`${edge.type}\` [[${targetName}]]`);
+            }
           }
-        }
-        lines.push('');
-      }
-
-      // Source URL
-      if (props.videoUrl) {
-        lines.push(`## Källa`);
-        lines.push('');
-        lines.push(`[${props.videoUrl}](${props.videoUrl})`);
-        lines.push('');
-      } else if (props.sourceUrl) {
-        lines.push(`## Källa`);
-        lines.push('');
-        lines.push(`[${props.sourceUrl}](${props.sourceUrl})`);
-        lines.push('');
-      }
-
-      // Text content (truncated for chunks — full for main nodes)
-      const text = props.text as string | undefined;
-      if (text) {
-        const isChunk = node.id.includes('_chunk_');
-        if (isChunk) {
-          lines.push('## Utdrag');
+          for (const edge of inc) {
+            const sourceName = filenameMap.get(edge.from_id);
+            if (sourceName) {
+              lines.push(`- ← \`${edge.type}\` [[${sourceName}]]`);
+            }
+          }
           lines.push('');
-          // Show first 500 chars for chunks
-          const preview = text.length > 500 ? text.slice(0, 500) + '…' : text;
-          lines.push(preview);
-        } else {
-          lines.push('## Innehåll');
-          lines.push('');
-          lines.push(text);
         }
-        lines.push('');
+
+        // Source URL
+        if (props.videoUrl) {
+          lines.push(`## Källa`);
+          lines.push('');
+          lines.push(`[${props.videoUrl}](${props.videoUrl})`);
+          lines.push('');
+        } else if (props.sourceUrl) {
+          lines.push(`## Källa`);
+          lines.push('');
+          lines.push(`[${props.sourceUrl}](${props.sourceUrl})`);
+          lines.push('');
+        }
+
+        // Text content (truncated for chunks — full for main nodes)
+        const text = props.text as string | undefined;
+        if (text) {
+          const isChunk = node.id.includes('_chunk_');
+          if (isChunk) {
+            lines.push('## Utdrag');
+            lines.push('');
+            // Show first 500 chars for chunks
+            const preview = text.length > 500 ? text.slice(0, 500) + '…' : text;
+            lines.push(preview);
+          } else {
+            lines.push('## Innehåll');
+            lines.push('');
+            lines.push(text);
+          }
+          lines.push('');
+        }
       }
 
       const filePath = join(nodesDir, `${filename}.md`);

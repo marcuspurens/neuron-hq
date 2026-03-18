@@ -1,5 +1,19 @@
 import chalk from 'chalk';
 import { getPool } from '../core/db.js';
+import { buildSpeakerTimeline, formatMs } from '../aurora/speaker-timeline.js';
+import type { DiarizationSegment, WhisperSegment } from '../aurora/speaker-timeline.js';
+
+/** Shape of a voice_print node row from the DB. */
+interface VoicePrintRow {
+  id: string;
+  title: string;
+  type: string;
+  properties: {
+    speakerLabel?: string;
+    segments?: { start_ms: number; end_ms: number }[];
+    [key: string]: unknown;
+  };
+}
 
 /**
  * CLI command: aurora:show <nodeId>
@@ -74,6 +88,12 @@ export async function auroraShowCommand(nodeId: string): Promise<void> {
     }
   }
 
+  // Timeline (speaker summary)
+  const rawSegments = props.rawSegments as WhisperSegment[] | undefined;
+  if (node.type === 'transcript' && Array.isArray(rawSegments) && rawSegments.length > 0) {
+    await renderTimelineSummary(pool, nodeId, rawSegments);
+  }
+
   // Transcript (text)
   const text = props.text as string | undefined;
   if (text) {
@@ -95,4 +115,78 @@ export async function auroraShowCommand(nodeId: string): Promise<void> {
   }
 
   console.log('');
+}
+
+/**
+ * Query voice_print nodes, build speaker timeline, and display a summary.
+ */
+async function renderTimelineSummary(
+  pool: { query: (sql: string, params?: unknown[]) => Promise<{ rows: VoicePrintRow[] }> },
+  nodeId: string,
+  whisperSegments: WhisperSegment[],
+): Promise<void> {
+  const vpRes = await pool.query(
+    `SELECT id, title, type, properties FROM aurora_nodes WHERE type = 'voice_print' AND properties->>'videoNodeId' = $1`,
+    [nodeId],
+  );
+
+  // Build diarization segments from voice_print nodes
+  const diarizationSegments: DiarizationSegment[] = [];
+  for (const vp of vpRes.rows) {
+    const vpProps = vp.properties || {};
+    const speaker = (vpProps.speakerLabel as string) || 'UNKNOWN';
+    const segments = vpProps.segments || [];
+    for (const seg of segments) {
+      diarizationSegments.push({
+        start_ms: seg.start_ms,
+        end_ms: seg.end_ms,
+        speaker,
+      });
+    }
+  }
+
+  const blocks = buildSpeakerTimeline(whisperSegments, diarizationSegments);
+  if (blocks.length === 0) return;
+
+  // Count speaker changes
+  let speakerChanges = 0;
+  for (let i = 1; i < blocks.length; i++) {
+    if (blocks[i].speaker !== blocks[i - 1].speaker) {
+      speakerChanges++;
+    }
+  }
+
+  // Aggregate per-speaker stats
+  const speakerStats = new Map<string, { earliest: number; blockCount: number; totalMs: number }>();
+  for (const block of blocks) {
+    const existing = speakerStats.get(block.speaker);
+    if (existing) {
+      existing.earliest = Math.min(existing.earliest, block.start_ms);
+      existing.blockCount++;
+      existing.totalMs += block.end_ms - block.start_ms;
+    } else {
+      speakerStats.set(block.speaker, {
+        earliest: block.start_ms,
+        blockCount: 1,
+        totalMs: block.end_ms - block.start_ms,
+      });
+    }
+  }
+
+  // Sort speakers by earliest appearance
+  const speakers = [...speakerStats.entries()].sort((a, b) => a[1].earliest - b[1].earliest);
+
+  console.log('');
+  console.log(chalk.bold(`  Tidslinje (${speakerChanges} talarbyten)`));
+  for (let i = 0; i < speakers.length; i++) {
+    const [speaker, stats] = speakers[i];
+    const isLast = i === speakers.length - 1;
+    const prefix = isLast ? '└─' : '├─';
+    const startFormatted = formatMs(stats.earliest);
+    const durationFormatted = formatMs(stats.totalMs);
+    console.log(
+      chalk.dim(`  ${prefix}`) +
+        ` ${startFormatted} ${speaker} (${stats.blockCount} block, ${durationFormatted})`,
+    );
+  }
 }
