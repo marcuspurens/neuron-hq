@@ -1,4 +1,5 @@
 import { isDbAvailable } from './db.js';
+import { ensureOllama, getOllamaUrl } from './ollama.js';
 
 export interface EmbeddingProvider {
   embed(text: string): Promise<number[]>;
@@ -13,7 +14,7 @@ interface OllamaEmbedResponse {
 
 /**
  * Ollama-based embedding via HTTP API.
- * Requires: ollama pull snowflake-arctic-embed
+ * Automatically starts Ollama and pulls model if needed.
  */
 export class OllamaEmbedding implements EmbeddingProvider {
   readonly dimension = 1024;
@@ -21,7 +22,7 @@ export class OllamaEmbedding implements EmbeddingProvider {
   private model: string;
 
   constructor(
-    baseUrl = process.env.OLLAMA_URL || 'http://localhost:11434',
+    baseUrl = getOllamaUrl(),
     model = process.env.OLLAMA_MODEL_EMBED || 'snowflake-arctic-embed'
   ) {
     this.baseUrl = baseUrl;
@@ -29,6 +30,7 @@ export class OllamaEmbedding implements EmbeddingProvider {
   }
 
   async embed(text: string): Promise<number[]> {
+    await ensureOllama(this.model);
     const resp = await fetch(`${this.baseUrl}/api/embed`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -40,6 +42,7 @@ export class OllamaEmbedding implements EmbeddingProvider {
   }
 
   async embedBatch(texts: string[]): Promise<number[][]> {
+    await ensureOllama(this.model);
     const resp = await fetch(`${this.baseUrl}/api/embed`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

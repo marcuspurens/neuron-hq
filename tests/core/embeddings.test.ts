@@ -10,6 +10,12 @@ vi.mock('../../src/core/db.js', () => ({
   isDbAvailable: vi.fn().mockResolvedValue(false),
 }));
 
+// Mock ollama module — skip auto-start in tests
+vi.mock('../../src/core/ollama.js', () => ({
+  ensureOllama: vi.fn().mockResolvedValue(true),
+  getOllamaUrl: vi.fn().mockReturnValue('http://localhost:11434'),
+}));
+
 describe('OllamaEmbedding', () => {
   beforeEach(() => {
     mockFetch.mockReset();

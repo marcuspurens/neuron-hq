@@ -81,7 +81,12 @@ export function runWorker(
       stdout += data.toString();
     });
     proc.stderr.on('data', (data: Buffer) => {
-      stderr += data.toString();
+      const chunk = data.toString();
+      stderr += chunk;
+      // Forward worker diagnostic lines (e.g. [diarize] GPU info) to console
+      for (const line of chunk.split('\n')) {
+        if (line.startsWith('[')) process.stderr.write(`  ${line}\n`);
+      }
     });
 
     proc.on('close', (code) => {

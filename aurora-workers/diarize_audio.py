@@ -34,11 +34,22 @@ def diarize_audio(source: str) -> dict:
             },
         }
 
+    import torch
+
     token = os.environ.get("PYANNOTE_TOKEN")
     pipeline = Pipeline.from_pretrained(
         "pyannote/speaker-diarization-3.1",
         token=token,
     )
+
+    # Use Apple Metal GPU if available, otherwise CPU
+    if torch.backends.mps.is_available():
+        import sys
+        print("[diarize] Using MPS (Apple GPU)", file=sys.stderr, flush=True)
+        pipeline = pipeline.to(torch.device("mps"))
+    else:
+        import sys
+        print("[diarize] Using CPU (MPS not available)", file=sys.stderr, flush=True)
 
     result = pipeline(source)
 

@@ -27,8 +27,7 @@ export async function auroraDescribeImageCommand(
   // Check vision availability
   const available = await isVisionAvailable(cmdOptions.model);
   if (!available) {
-    console.error(chalk.red('  ❌ Ollama vision model not available.'));
-    console.error(chalk.red('     Install: ollama pull ' + model));
+    console.error(chalk.red('  ❌ Ollama vision model not available (auto-start and pull failed).'));
     return;
   }
 

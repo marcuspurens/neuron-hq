@@ -19,6 +19,12 @@ vi.mock('../../src/aurora/intake.js', () => ({
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
+// Mock ollama module — skip auto-start in tests
+vi.mock('../../src/core/ollama.js', () => ({
+  ensureOllama: vi.fn().mockResolvedValue(true),
+  getOllamaUrl: vi.fn().mockImplementation(() => process.env.OLLAMA_URL || 'http://localhost:11434'),
+}));
+
 /* ------------------------------------------------------------------ */
 /*  Setup                                                              */
 /* ------------------------------------------------------------------ */
@@ -171,43 +177,29 @@ describe('analyzeImage', () => {
 /* ------------------------------------------------------------------ */
 
 describe('isVisionAvailable', () => {
-  it('returns true when model exists', async () => {
-    mockFetch.mockResolvedValue({ ok: true });
+  it('returns true when ensureOllama succeeds', async () => {
+    const { ensureOllama } = await import('../../src/core/ollama.js');
+    vi.mocked(ensureOllama).mockResolvedValueOnce(true);
 
     const result = await isVisionAvailable();
-
     expect(result).toBe(true);
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:11434/api/show',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ name: 'qwen3-vl:8b' }),
-      }),
-    );
+    expect(ensureOllama).toHaveBeenCalledWith('qwen3-vl:8b');
   });
 
-  it('returns false when model does not exist', async () => {
-    mockFetch.mockResolvedValue({ ok: false });
-
-    const result = await isVisionAvailable();
-    expect(result).toBe(false);
-  });
-
-  it('returns false on network error', async () => {
-    mockFetch.mockRejectedValue(new Error('ECONNREFUSED'));
+  it('returns false when ensureOllama fails', async () => {
+    const { ensureOllama } = await import('../../src/core/ollama.js');
+    vi.mocked(ensureOllama).mockResolvedValueOnce(false);
 
     const result = await isVisionAvailable();
     expect(result).toBe(false);
   });
 
   it('uses custom model parameter', async () => {
-    mockFetch.mockResolvedValue({ ok: true });
+    const { ensureOllama } = await import('../../src/core/ollama.js');
+    vi.mocked(ensureOllama).mockResolvedValueOnce(true);
 
     await isVisionAvailable('llava:13b');
-
-    const callArgs = mockFetch.mock.calls[0];
-    const body = JSON.parse(callArgs[1].body);
-    expect(body.name).toBe('llava:13b');
+    expect(ensureOllama).toHaveBeenCalledWith('llava:13b');
   });
 });
 

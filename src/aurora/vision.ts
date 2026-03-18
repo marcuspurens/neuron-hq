@@ -1,6 +1,7 @@
 import { readFile } from 'fs/promises';
 import { extname, resolve, basename } from 'path';
 import { processExtractedText, type IngestOptions, type IngestResult } from './intake.js';
+import { ensureOllama, getOllamaUrl } from '../core/ollama.js';
 
 // --- Types ---
 
@@ -50,9 +51,11 @@ export async function analyzeImage(
   const imageBuffer = await readFile(absolutePath);
   const base64Image = imageBuffer.toString('base64');
 
-  const baseUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
+  const baseUrl = getOllamaUrl();
   const model = options?.model ?? process.env.OLLAMA_MODEL_VISION ?? 'qwen3-vl:8b';
   const prompt = options?.prompt ?? DEFAULT_PROMPT;
+
+  await ensureOllama(model);
 
   const resp = await fetch(`${baseUrl}/api/generate`, {
     method: 'POST',
@@ -78,18 +81,8 @@ export async function analyzeImage(
  * Check if the vision model is available in Ollama.
  */
 export async function isVisionAvailable(model?: string): Promise<boolean> {
-  const baseUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
   const modelName = model ?? process.env.OLLAMA_MODEL_VISION ?? 'qwen3-vl:8b';
-  try {
-    const resp = await fetch(`${baseUrl}/api/show`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: modelName }),
-    });
-    return resp.ok;
-  } catch {
-    return false;
-  }
+  return ensureOllama(modelName);
 }
 
 /**
