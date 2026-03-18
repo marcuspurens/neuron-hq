@@ -12,28 +12,36 @@ export function getOllamaUrl(): string {
   return process.env.OLLAMA_URL || 'http://localhost:11434';
 }
 
-/** Track whether Ollama has been verified this process. */
-let ollamaVerified = false;
+/** Promise-gate: deduplicates concurrent ensureOllama calls. */
+let ollamaReady: Promise<boolean> | null = null;
 
 /**
  * Ensure Ollama is running and a specific model is available.
  * Starts Ollama if needed and pulls the model if missing.
- * Only performs the startup check once per process.
+ * Uses a Promise-gate so concurrent calls share the same startup check.
  */
 export async function ensureOllama(model?: string): Promise<boolean> {
+  if (!ollamaReady) {
+    ollamaReady = doEnsureOllama(model);
+  }
+  return ollamaReady;
+}
+
+/**
+ * Internal implementation: check/start Ollama and pull model if needed.
+ */
+async function doEnsureOllama(model?: string): Promise<boolean> {
   const baseUrl = getOllamaUrl();
 
   // 1. Check if Ollama is reachable
-  let running = ollamaVerified;
-  if (!running) {
-    try {
-      const resp = await fetch(`${baseUrl}/api/tags`, {
-        signal: AbortSignal.timeout(3000),
-      });
-      running = resp.ok;
-    } catch {
-      running = false;
-    }
+  let running = false;
+  try {
+    const resp = await fetch(`${baseUrl}/api/tags`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    running = resp.ok;
+  } catch {
+    running = false;
   }
 
   // 2. Start Ollama if not running
@@ -65,8 +73,6 @@ export async function ensureOllama(model?: string): Promise<boolean> {
     }
     console.error('[ollama] Started');
   }
-
-  ollamaVerified = true;
 
   // If no specific model requested, we're done
   if (!model) return true;
@@ -103,7 +109,7 @@ export async function isModelAvailable(model: string): Promise<boolean> {
   }
 }
 
-/** Reset verified state (for testing). */
+/** Reset promise-gate state (for testing). */
 export function resetOllamaState(): void {
-  ollamaVerified = false;
+  ollamaReady = null;
 }

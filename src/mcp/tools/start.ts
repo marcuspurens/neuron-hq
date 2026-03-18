@@ -32,12 +32,11 @@ export function registerStartTool(server: McpServer): void {
           };
         }
 
-        // Validate brief path (must be under briefs/)
-        const normalizedBrief = path.normalize(args.brief);
-        if (
-          !normalizedBrief.startsWith('briefs/') &&
-          !normalizedBrief.startsWith('briefs\\')
-        ) {
+        // Validate brief path (must be under briefs/) using absolute path resolution
+        // to prevent traversal attacks like 'briefs/../etc/passwd'
+        const resolved = path.resolve(BASE_DIR, args.brief);
+        const briefsDir = path.resolve(BASE_DIR, 'briefs');
+        if (!resolved.startsWith(briefsDir + path.sep) && resolved !== briefsDir) {
           return {
             content: [
               {

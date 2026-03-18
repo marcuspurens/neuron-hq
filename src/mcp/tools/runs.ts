@@ -19,7 +19,7 @@ export function registerRunsTool(server: McpServer): void {
         .describe('Filter by run status'),
       target: z.string().optional().describe('Filter by target name'),
       last: z.number().optional().default(10).describe('Number of recent runs to return'),
-      runid: z.string().optional().describe('Get details for a specific run'),
+      runid: z.string().regex(/^[a-zA-Z0-9_-]+$/).optional().describe('Get details for a specific run'),
     },
     async (args) => {
       try {

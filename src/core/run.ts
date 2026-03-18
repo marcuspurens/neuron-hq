@@ -11,7 +11,7 @@ import { GitOperations } from './git.js';
 import { PolicyEnforcer } from './policy.js';
 import { computeRunMetrics } from './run-metrics.js';
 import { computeAllTaskScores } from './task-rewards.js';
-import { updateCostTracking } from '../commands/costs.js';
+import { updateCostTracking } from './cost-tracking.js';
 import type { AgentModelMap } from './model-registry.js';
 import { eventBus } from './event-bus.js';
 import type { DashboardServer } from './dashboard-server.js';

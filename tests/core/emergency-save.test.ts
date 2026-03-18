@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── Module-level mocks (hoisted by vitest) ──────────────────────────────────
 
-// Mock child_process exec
+// Mock child_process execFile
 vi.mock('child_process', () => ({
-  exec: vi.fn(),
+  execFile: vi.fn(),
 }));
 
 // Mock fs/promises
@@ -20,26 +20,42 @@ vi.mock('../../src/core/event-bus.js', () => ({
 
 // ── Imports (after mocks) ───────────────────────────────────────────────────
 
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import fs from 'fs/promises';
 import { emergencySave, type EmergencySaveOptions } from '../../src/core/emergency-save.js';
 import { eventBus } from '../../src/core/event-bus.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-const mockExec = vi.mocked(exec);
+const mockExecFile = vi.mocked(execFile);
 const mockWriteFile = vi.mocked(fs.writeFile);
 const mockSafeEmit = vi.mocked(eventBus.safeEmit);
 
 /**
- * Configure mock exec to respond differently for different git commands.
- * Each call to exec receives (cmd, opts, callback?) but since we use promisify,
- * the last argument is the callback.
+ * Configure mock execFile to respond differently for different git commands.
+ * execFile receives (file, args, opts, callback) — promisify passes the callback last.
  */
-function setupExecMock(responses: Record<string, { stdout?: string; stderr?: string; error?: Error }>): void {
-  mockExec.mockImplementation(((cmd: string, _opts: unknown, callback?: (error: Error | null, result: { stdout: string; stderr: string }) => void) => {
-    // promisify(exec) calls exec(cmd, opts, callback)
-    const cb = callback ?? (_opts as (error: Error | null, result: { stdout: string; stderr: string }) => void);
+function setupExecFileMock(responses: Record<string, { stdout?: string; stderr?: string; error?: Error }>): void {
+  mockExecFile.mockImplementation(((_file: string, args?: readonly string[] | unknown, opts?: unknown, callback?: (error: Error | null, result: { stdout: string; stderr: string }) => void) => {
+    // promisify(execFile) calls execFile(file, args, opts, callback)
+    // Resolve the actual callback — it could be in different positions
+    let cb: ((error: Error | null, result: { stdout: string; stderr: string }) => void) | undefined;
+    let actualArgs: readonly string[] = [];
+
+    if (typeof callback === 'function') {
+      cb = callback;
+      actualArgs = args as readonly string[];
+    } else if (typeof opts === 'function') {
+      cb = opts as (error: Error | null, result: { stdout: string; stderr: string }) => void;
+      actualArgs = args as readonly string[];
+    } else if (typeof args === 'function') {
+      cb = args as unknown as (error: Error | null, result: { stdout: string; stderr: string }) => void;
+    }
+
+    if (!cb) return;
+
+    // Reconstruct the command string from file + args for matching
+    const cmd = `git ${(actualArgs as string[]).join(' ')}`;
 
     // Find matching response by checking if cmd contains the key
     for (const [key, response] of Object.entries(responses)) {
@@ -54,7 +70,7 @@ function setupExecMock(responses: Record<string, { stdout?: string; stderr?: str
     }
     // Default: success with empty stdout
     cb(null, { stdout: '', stderr: '' });
-  }) as unknown as typeof exec);
+  }) as unknown as typeof execFile);
 }
 
 /** Build default options for emergencySave. */
@@ -73,7 +89,7 @@ function makeOptions(overrides?: Partial<EmergencySaveOptions>): EmergencySaveOp
 
 /** Default mock responses for a dirty repo with successful commit. */
 function setupDirtyRepo(commitHash = 'abc123def456'): void {
-  setupExecMock({
+  setupExecFileMock({
     'git status --porcelain': { stdout: ' M src/index.ts\n?? new-file.ts\n' },
     'git add -A': { stdout: '' },
     'git commit': { stdout: '' },
@@ -84,7 +100,7 @@ function setupDirtyRepo(commitHash = 'abc123def456'): void {
 
 /** Default mock responses for a clean repo. */
 function setupCleanRepo(): void {
-  setupExecMock({
+  setupExecFileMock({
     'git status --porcelain': { stdout: '' },
   });
 }
@@ -110,7 +126,10 @@ describe('Group 1: No-op cases (clean repo)', () => {
   it('does not call git commit when repo is clean', async () => {
     setupCleanRepo();
     await emergencySave(makeOptions());
-    const calls = mockExec.mock.calls.map(c => String(c[0]));
+    const calls = mockExecFile.mock.calls.map(c => {
+      const args = c[1] as string[] | undefined;
+      return `git ${(args ?? []).join(' ')}`;
+    });
     expect(calls.some(c => c.includes('git commit'))).toBe(false);
   });
 
@@ -136,18 +155,26 @@ describe('Group 2: Emergency commit (dirty repo)', () => {
   it('calls git add -A when there are uncommitted changes', async () => {
     setupDirtyRepo();
     await emergencySave(makeOptions());
-    const calls = mockExec.mock.calls.map(c => String(c[0]));
+    const calls = mockExecFile.mock.calls.map(c => {
+      const args = c[1] as string[] | undefined;
+      return `git ${(args ?? []).join(' ')}`;
+    });
     expect(calls.some(c => c.includes('git add -A'))).toBe(true);
   });
 
-  it('calls git commit with correct message', async () => {
+  it('calls git commit with correct message via args array', async () => {
     setupDirtyRepo();
     await emergencySave(makeOptions({ agentName: 'reviewer', iteration: 30, maxIterations: 40 }));
-    const calls = mockExec.mock.calls.map(c => String(c[0]));
-    const commitCall = calls.find(c => c.includes('git commit'));
+    const commitCall = mockExecFile.mock.calls.find(c => {
+      const args = c[1] as string[] | undefined;
+      return args?.includes('commit');
+    });
     expect(commitCall).toBeDefined();
-    expect(commitCall).toContain('EMERGENCY SAVE: reviewer');
-    expect(commitCall).toContain('30/40');
+    const commitArgs = commitCall![1] as string[];
+    expect(commitArgs).toContain('-m');
+    const msgIndex = commitArgs.indexOf('-m') + 1;
+    expect(commitArgs[msgIndex]).toContain('EMERGENCY SAVE: reviewer');
+    expect(commitArgs[msgIndex]).toContain('30/40');
   });
 
   it('returns { saved: true, commitHash, message }', async () => {
@@ -169,8 +196,29 @@ describe('Group 2: Emergency commit (dirty repo)', () => {
     setupDirtyRepo('face0ff123456');
     const result = await emergencySave(makeOptions());
     expect(result.commitHash).toBe('face0ff123456');
-    const calls = mockExec.mock.calls.map(c => String(c[0]));
+    const calls = mockExecFile.mock.calls.map(c => {
+      const args = c[1] as string[] | undefined;
+      return `git ${(args ?? []).join(' ')}`;
+    });
     expect(calls.some(c => c.includes('git rev-parse HEAD'))).toBe(true);
+  });
+
+  it('uses execFileAsync (no shell injection) — commit message passed as array element', async () => {
+    setupDirtyRepo();
+    const opts = makeOptions({ agentName: 'evil"; rm -rf /' });
+    await emergencySave(opts);
+    // The commit call should pass the message as a single array element, not interpolated into a shell string
+    const commitCall = mockExecFile.mock.calls.find(c => {
+      const args = c[1] as string[] | undefined;
+      return args?.includes('commit');
+    });
+    expect(commitCall).toBeDefined();
+    // First arg should be 'git' (the binary)
+    expect(commitCall![0]).toBe('git');
+    // The message should be a separate array element, not shell-escaped
+    const commitArgs = commitCall![1] as string[];
+    const msgIndex = commitArgs.indexOf('-m') + 1;
+    expect(commitArgs[msgIndex]).toContain('evil"; rm -rf /');
   });
 });
 
@@ -294,7 +342,7 @@ describe('Group 4: Audit & events', () => {
 
 describe('Group 5: Error handling', () => {
   it('git status fails → returns { saved: false }', async () => {
-    setupExecMock({
+    setupExecFileMock({
       'git status --porcelain': { error: new Error('git not found') },
     });
     const result = await emergencySave(makeOptions());
@@ -302,7 +350,7 @@ describe('Group 5: Error handling', () => {
   });
 
   it('git commit fails → returns { saved: false }', async () => {
-    setupExecMock({
+    setupExecFileMock({
       'git status --porcelain': { stdout: ' M file.ts\n' },
       'git add -A': { stdout: '' },
       'git commit': { error: new Error('commit failed') },

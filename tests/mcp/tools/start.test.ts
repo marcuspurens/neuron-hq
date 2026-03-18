@@ -80,6 +80,28 @@ describe('neuron_start tool', () => {
     expect(result.content[0].text).toContain('briefs/');
   });
 
+  it('rejects path traversal via briefs/../ bypass', async () => {
+    const result = await toolHandler({
+      target: 'test-target',
+      brief: 'briefs/../etc/passwd',
+      hours: 1,
+      confirm: true,
+    });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('briefs/');
+  });
+
+  it('rejects path traversal with nested traversal', async () => {
+    const result = await toolHandler({
+      target: 'test-target',
+      brief: 'briefs/../../etc/shadow',
+      hours: 1,
+      confirm: true,
+    });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('briefs/');
+  });
+
   it('rejects hours > 4', async () => {
     const result = await toolHandler({
       target: 'test-target',
@@ -127,5 +149,16 @@ describe('neuron_start tool', () => {
     const spawnOpts = mockSpawn.mock.calls[0][2] as Record<string, unknown>;
     expect(spawnOpts.detached).toBe(true);
     expect(spawnOpts.stdio).toBe('ignore');
+  });
+
+  it('allows valid subdirectory paths under briefs/', async () => {
+    const result = await toolHandler({
+      target: 'test-target',
+      brief: 'briefs/subdir/test.md',
+      hours: 1,
+      confirm: true,
+    });
+    expect(result.isError).toBeUndefined();
+    expect(mockSpawn).toHaveBeenCalledTimes(1);
   });
 });

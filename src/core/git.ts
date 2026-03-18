@@ -1,7 +1,7 @@
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export class GitOperations {
   constructor(private repoPath: string) {}
@@ -10,7 +10,7 @@ export class GitOperations {
    * Get current SHA of HEAD.
    */
   async getCurrentSHA(): Promise<string> {
-    const { stdout } = await execAsync('git rev-parse HEAD', {
+    const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], {
       cwd: this.repoPath,
     });
     return stdout.trim();
@@ -20,7 +20,7 @@ export class GitOperations {
    * Get current branch name.
    */
   async getCurrentBranch(): Promise<string> {
-    const { stdout } = await execAsync('git rev-parse --abbrev-ref HEAD', {
+    const { stdout } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
       cwd: this.repoPath,
     });
     return stdout.trim();
@@ -30,7 +30,7 @@ export class GitOperations {
    * Create and checkout a new branch.
    */
   async createBranch(branchName: string): Promise<void> {
-    await execAsync(`git checkout -b ${branchName}`, {
+    await execFileAsync('git', ['checkout', '-b', branchName], {
       cwd: this.repoPath,
     });
   }
@@ -40,7 +40,7 @@ export class GitOperations {
    */
   async getDiffStats(): Promise<{ additions: number; deletions: number }> {
     try {
-      const { stdout } = await execAsync('git diff --numstat', {
+      const { stdout } = await execFileAsync('git', ['diff', '--numstat'], {
         cwd: this.repoPath,
       });
 
@@ -64,8 +64,7 @@ export class GitOperations {
    * Stage files for commit.
    */
   async stageFiles(files: string[]): Promise<void> {
-    const fileList = files.join(' ');
-    await execAsync(`git add ${fileList}`, {
+    await execFileAsync('git', ['add', ...files], {
       cwd: this.repoPath,
     });
   }
@@ -74,9 +73,7 @@ export class GitOperations {
    * Create a commit.
    */
   async commit(message: string): Promise<void> {
-    // Escape single quotes in message
-    const escapedMessage = message.replace(/'/g, "'\\''");
-    await execAsync(`git commit -m '${escapedMessage}'`, {
+    await execFileAsync('git', ['commit', '-m', message], {
       cwd: this.repoPath,
     });
   }
@@ -85,7 +82,7 @@ export class GitOperations {
    * Get status (short format).
    */
   async getStatus(): Promise<string> {
-    const { stdout } = await execAsync('git status --short', {
+    const { stdout } = await execFileAsync('git', ['status', '--short'], {
       cwd: this.repoPath,
     });
     return stdout;
@@ -95,7 +92,7 @@ export class GitOperations {
    * Clone a repository.
    */
   static async clone(url: string, targetPath: string): Promise<void> {
-    await execAsync(`git clone ${url} ${targetPath}`);
+    await execFileAsync('git', ['clone', url, targetPath]);
   }
 
   /**
@@ -103,7 +100,7 @@ export class GitOperations {
    */
   static async isGitRepo(path: string): Promise<boolean> {
     try {
-      await execAsync('git rev-parse --git-dir', { cwd: path });
+      await execFileAsync('git', ['rev-parse', '--git-dir'], { cwd: path });
       return true;
     } catch {
       return false;
@@ -122,9 +119,9 @@ export class GitOperations {
       GIT_COMMITTER_NAME: 'Neuron HQ',
       GIT_COMMITTER_EMAIL: 'neuronhq@local',
     };
-    await execAsync('git init', { cwd: workspaceDir });
-    await execAsync('git add -A', { cwd: workspaceDir });
-    await execAsync(`git commit -m "Workspace: initial copy from ${targetName}"`, {
+    await execFileAsync('git', ['init'], { cwd: workspaceDir });
+    await execFileAsync('git', ['add', '-A'], { cwd: workspaceDir });
+    await execFileAsync('git', ['commit', '-m', `Workspace: initial copy from ${targetName}`], {
       cwd: workspaceDir,
       env,
     });
@@ -137,17 +134,18 @@ export class GitOperations {
    */
   async detectMergeConflicts(sourceBranch: string): Promise<string[]> {
     try {
-      await execAsync(`git merge --no-commit --no-ff ${sourceBranch}`, {
+      await execFileAsync('git', ['merge', '--no-commit', '--no-ff', sourceBranch], {
         cwd: this.repoPath,
       });
       // Clean merge — abort to leave repo clean
-      await execAsync('git merge --abort', { cwd: this.repoPath });
+      await execFileAsync('git', ['merge', '--abort'], { cwd: this.repoPath });
       return [];
     } catch {
       // Conflict detected — get list of conflicting files
       try {
-        const { stdout } = await execAsync(
-          'git diff --name-only --diff-filter=U',
+        const { stdout } = await execFileAsync(
+          'git',
+          ['diff', '--name-only', '--diff-filter=U'],
           { cwd: this.repoPath },
         );
         const files = stdout
@@ -158,7 +156,7 @@ export class GitOperations {
       } finally {
         // Always abort to leave the repo clean
         try {
-          await execAsync('git merge --abort', { cwd: this.repoPath });
+          await execFileAsync('git', ['merge', '--abort'], { cwd: this.repoPath });
         } catch {
           // Abort may fail if merge state already cleaned up
         }
@@ -179,18 +177,17 @@ export class GitOperations {
       GIT_COMMITTER_NAME: 'Neuron HQ',
       GIT_COMMITTER_EMAIL: 'neuronhq@local',
     };
-    // Escape single quotes in commit message
-    const escapedMessage = commitMessage.replace(/'/g, "'\\''");
     try {
-      await execAsync(
-        `git merge --no-ff -m '${escapedMessage}' ${sourceBranch}`,
+      await execFileAsync(
+        'git',
+        ['merge', '--no-ff', '-m', commitMessage, sourceBranch],
         { cwd: this.repoPath, env },
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       throw new Error(message);
     }
-    const { stdout } = await execAsync('git rev-parse HEAD', {
+    const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], {
       cwd: this.repoPath,
     });
     return stdout.trim();
@@ -200,7 +197,7 @@ export class GitOperations {
    * Delete a local branch. Used for cleanup after merge.
    */
   async deleteBranch(branchName: string): Promise<void> {
-    await execAsync(`git branch -D ${branchName}`, {
+    await execFileAsync('git', ['branch', '-D', branchName], {
       cwd: this.repoPath,
     });
   }
@@ -210,7 +207,7 @@ export class GitOperations {
    * Each worktree gets its own working directory backed by the same .git.
    */
   async addWorktree(worktreePath: string, branchName: string): Promise<void> {
-    await execAsync(`git worktree add "${worktreePath}" -b "${branchName}"`, {
+    await execFileAsync('git', ['worktree', 'add', worktreePath, '-b', branchName], {
       cwd: this.repoPath,
     });
   }
@@ -219,7 +216,7 @@ export class GitOperations {
    * Remove a git worktree and its directory.
    */
   async removeWorktree(worktreePath: string): Promise<void> {
-    await execAsync(`git worktree remove "${worktreePath}" --force`, {
+    await execFileAsync('git', ['worktree', 'remove', worktreePath, '--force'], {
       cwd: this.repoPath,
     });
   }

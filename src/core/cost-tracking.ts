@@ -1,0 +1,220 @@
+import fs from 'fs/promises';
+import path from 'path';
+import { MODEL_PRICING, getModelShortName, getModelLabel, calcCost } from './pricing.js';
+
+export interface RunCostRow {
+  runid: string;
+  date: string;
+  time: string;
+  task: string;
+  status: string;
+  model: string;
+  modelLabel: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  cost: number;
+  agents: number;
+  durationMin: number | null;
+}
+
+export async function loadRunData(runsDir: string, runid: string): Promise<RunCostRow | null> {
+  const usagePath = path.join(runsDir, runid, 'usage.json');
+  try {
+    await fs.access(usagePath);
+  } catch {
+    return null;
+  }
+
+  const usage = JSON.parse(await fs.readFile(usagePath, 'utf-8'));
+  const modelKey = getModelShortName(usage.model ?? '');
+  const modelLabel = getModelLabel(usage.model ?? '');
+
+  const inputTokens = usage.total_input_tokens ?? 0;
+  const outputTokens = usage.total_output_tokens ?? 0;
+  const cost = calcCost(inputTokens, outputTokens, modelKey);
+  const agents = Object.keys(usage.by_agent ?? {}).length;
+
+  // Brief title
+  let task = '?';
+  const briefPath = path.join(runsDir, runid, 'brief.md');
+  try {
+    const briefContent = await fs.readFile(briefPath, 'utf-8');
+    const firstLine = briefContent.split('\n')[0] ?? '';
+    const match = firstLine.match(/Brief:\s*(.+)/);
+    if (match) {
+      task = match[1].trim();
+    } else if (firstLine.startsWith('#')) {
+      task = firstLine.replace(/^#+\s*/, '').trim();
+    }
+  } catch { /* no brief */ }
+
+  // Status from report
+  let status = '?';
+  const reportPath = path.join(runsDir, runid, 'report.md');
+  try {
+    const reportContent = await fs.readFile(reportPath, 'utf-8');
+    if (reportContent.includes('GREEN')) status = 'GREEN';
+    else if (reportContent.includes('RED')) status = 'RED';
+    else if (reportContent.includes('YELLOW')) status = 'YELLOW';
+  } catch { /* no report */ }
+
+  // Duration from manifest
+  let durationMin: number | null = null;
+  const manifestPath = path.join(runsDir, runid, 'manifest.json');
+  try {
+    const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8'));
+    if (manifest.started_at && manifest.completed_at) {
+      const start = new Date(manifest.started_at).getTime();
+      const end = new Date(manifest.completed_at).getTime();
+      durationMin = (end - start) / 60_000;
+    }
+  } catch { /* no manifest */ }
+
+  // Date/time from runid (format: YYYYMMDD-HHMM-target)
+  const date = `${runid.slice(0, 4)}-${runid.slice(4, 6)}-${runid.slice(6, 8)}`;
+  const time = `${runid.slice(9, 11)}:${runid.slice(11, 13)}`;
+
+  return {
+    runid,
+    date,
+    time,
+    task,
+    status,
+    model: modelKey,
+    modelLabel,
+    inputTokens,
+    outputTokens,
+    totalTokens: inputTokens + outputTokens,
+    cost,
+    agents,
+    durationMin,
+  };
+}
+
+export async function saveCostTracking(
+  runsDir: string,
+  rows: RunCostRow[],
+  agentTotals: Record<string, { in: number; out: number; count: number }>,
+  totalCost: number,
+  totalIn: number,
+  totalOut: number,
+  greenCount: number,
+): Promise<void> {
+  const outputPath = path.join(path.dirname(runsDir), 'docs', 'cost-tracking.md');
+  const md = generateMarkdown(rows, agentTotals, totalCost, totalIn, totalOut, greenCount);
+  await fs.mkdir(path.dirname(outputPath), { recursive: true });
+  await fs.writeFile(outputPath, md, 'utf-8');
+}
+
+/**
+ * Auto-update docs/cost-tracking.md after a run completes.
+ * Called from finalizeRun — non-interactive, no console output.
+ */
+export async function updateCostTracking(baseDir: string): Promise<void> {
+  const runsDir = path.join(baseDir, 'runs');
+
+  let entries: string[];
+  try {
+    const dirEntries = await fs.readdir(runsDir, { withFileTypes: true });
+    entries = dirEntries
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .sort();
+  } catch {
+    return;
+  }
+
+  const rows: RunCostRow[] = (
+    await Promise.all(entries.map((runid) => loadRunData(runsDir, runid)))
+  ).filter((r): r is RunCostRow => r !== null);
+
+  if (rows.length === 0) return;
+
+  const agentTotals: Record<string, { in: number; out: number; count: number }> = {};
+  let totalCost = 0;
+  let totalIn = 0;
+  let totalOut = 0;
+  let greenCount = 0;
+
+  for (const r of rows) {
+    totalCost += r.cost;
+    totalIn += r.inputTokens;
+    totalOut += r.outputTokens;
+    if (r.status === 'GREEN') greenCount++;
+
+    const usagePath = path.join(runsDir, r.runid, 'usage.json');
+    try {
+      const usage = JSON.parse(await fs.readFile(usagePath, 'utf-8'));
+      for (const [name, info] of Object.entries(usage.by_agent ?? {})) {
+        const agentInfo = info as { input_tokens: number; output_tokens: number };
+        if (!agentTotals[name]) agentTotals[name] = { in: 0, out: 0, count: 0 };
+        agentTotals[name].in += agentInfo.input_tokens;
+        agentTotals[name].out += agentInfo.output_tokens;
+        agentTotals[name].count += 1;
+      }
+    } catch { /* skip */ }
+  }
+
+  await saveCostTracking(runsDir, rows, agentTotals, totalCost, totalIn, totalOut, greenCount);
+}
+
+export function generateMarkdown(
+  rows: RunCostRow[],
+  agentTotals: Record<string, { in: number; out: number; count: number }>,
+  totalCost: number,
+  totalIn: number,
+  totalOut: number,
+  greenCount: number,
+): string {
+  const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  const modelLabel = rows[0]?.modelLabel ?? 'Sonnet 4.5';
+  const modelKey = rows[0]?.model ?? 'sonnet';
+  const pricing = MODEL_PRICING[modelKey] ?? MODEL_PRICING['sonnet'];
+
+  let md = `# Neuron HQ — Körningshistorik & Kostnader\n\n`;
+  md += `Genererad: ${now}  \n`;
+  md += `Antal körningar: ${rows.length}  \n`;
+  md += `Prismodell: ${modelLabel} — $${pricing.input}/MTok input, $${pricing.output}/MTok output\n\n`;
+
+  // Summary table
+  md += `## Sammanfattning\n\n`;
+  md += `| Mått | Värde |\n|------|-------|\n`;
+  md += `| Körningar | ${rows.length} |\n`;
+  md += `| GREEN | ${greenCount} |\n`;
+  md += `| Totala tokens | ${((totalIn + totalOut) / 1e6).toFixed(1)}M |\n`;
+  md += `| Total kostnad | $${totalCost.toFixed(2)} |\n`;
+  md += `| Snitt per körning | $${(totalCost / rows.length).toFixed(2)} |\n`;
+  md += `| Billigaste | $${Math.min(...rows.map((r) => r.cost)).toFixed(2)} |\n`;
+  md += `| Dyraste | $${Math.max(...rows.map((r) => r.cost)).toFixed(2)} |\n\n`;
+
+  // All runs table
+  md += `## Alla körningar\n\n`;
+  md += `| # | Datum | Tid | Uppgift | Status | Modell | Input | Output | Totalt | Kostnad | Agenter | Körtid |\n`;
+  md += `|---|-------|-----|---------|--------|--------|------:|-------:|-------:|--------:|--------:|-------:|\n`;
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const taskShort = r.task.length > 35 ? r.task.slice(0, 34) + '…' : r.task;
+    const dur = r.durationMin ? `${Math.round(r.durationMin)}m` : '?';
+    md += `| ${i + 1} | ${r.date} | ${r.time} | ${taskShort} | ${r.status} | ${r.modelLabel} | ${(r.inputTokens / 1e6).toFixed(1)}M | ${(r.outputTokens / 1e6).toFixed(2)}M | ${(r.totalTokens / 1e6).toFixed(1)}M | $${r.cost.toFixed(2)} | ${r.agents} | ${dur} |\n`;
+  }
+
+  // Per-agent table
+  md += `\n## Kostnad per agent (genomsnitt)\n\n`;
+  md += `| Agent | Snitt tokens | Kostnad/körning | Andel |\n`;
+  md += `|-------|------------:|----------------:|------:|\n`;
+
+  const agentOrder = ['manager', 'implementer', 'reviewer', 'tester', 'merger', 'researcher', 'historian', 'librarian', 'consolidator'];
+  for (const name of agentOrder) {
+    const t = agentTotals[name];
+    if (!t) continue;
+    const avgCost = calcCost(t.in / t.count, t.out / t.count, modelKey);
+    const avgTok = (t.in + t.out) / t.count / 1e6;
+    const totalAgentCost = calcCost(t.in, t.out, modelKey);
+    const pct = (totalAgentCost / totalCost) * 100;
+    md += `| ${name} | ${avgTok.toFixed(2)}M | $${avgCost.toFixed(2)} | ${pct.toFixed(1)}% |\n`;
+  }
+
+  return md;
+}

@@ -1,11 +1,11 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import type { AuditLogger } from './audit.js';
 import { eventBus } from './event-bus.js';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export interface EmergencySaveOptions {
   agentName: string;
@@ -33,7 +33,7 @@ export async function emergencySave(options: EmergencySaveOptions): Promise<Emer
   // Check if there are uncommitted changes
   let status: string;
   try {
-    const result = await execAsync('git status --porcelain', { cwd: workspaceDir });
+    const result = await execFileAsync('git', ['status', '--porcelain'], { cwd: workspaceDir });
     status = result.stdout.trim();
   } catch {
     return { saved: false, message: 'Failed to check git status' };
@@ -47,9 +47,9 @@ export async function emergencySave(options: EmergencySaveOptions): Promise<Emer
   const commitMessage = `EMERGENCY SAVE: ${agentName} reached max iterations (${iteration}/${maxIterations})`;
   let commitHash: string | undefined;
   try {
-    await execAsync('git add -A', { cwd: workspaceDir });
-    await execAsync(`git commit -m "${commitMessage}"`, { cwd: workspaceDir });
-    const hashResult = await execAsync('git rev-parse HEAD', { cwd: workspaceDir });
+    await execFileAsync('git', ['add', '-A'], { cwd: workspaceDir });
+    await execFileAsync('git', ['commit', '-m', commitMessage], { cwd: workspaceDir });
+    const hashResult = await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: workspaceDir });
     commitHash = hashResult.stdout.trim();
   } catch {
     return { saved: false, message: 'Failed to commit changes' };
@@ -58,7 +58,7 @@ export async function emergencySave(options: EmergencySaveOptions): Promise<Emer
   // Get the branch name
   let branchName = 'unknown';
   try {
-    const branchResult = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: workspaceDir });
+    const branchResult = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: workspaceDir });
     branchName = branchResult.stdout.trim();
   } catch {
     // non-fatal
