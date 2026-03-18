@@ -243,7 +243,7 @@ Stop when time limit approaches or when blockers are encountered.
           note: `Generated ${hints.warnings.length} warnings, ${hints.strengths.length} strengths`,
         });
       }
-    } catch {
+    } catch {  /* intentional: DB not available — skip adaptive hints */
       // DB not available or other error — skip adaptive hints (graceful degradation)
     }
 
@@ -427,7 +427,7 @@ Stop when time limit approaches or when blockers are encountered.
           });
         }
       }
-    } catch {
+    } catch {  /* intentional: non-fatal decision extraction failure */
       // Non-fatal - decision extraction failure should never break the run
     }
   }
@@ -802,7 +802,7 @@ Stop when time limit approaches or when blockers are encountered.
         files_touched: [filePath],
       });
       return content;
-    } catch {
+    } catch {  /* intentional: memory file not found */
       return `(file not found: ${file}.md)`;
     }
   }
@@ -845,7 +845,7 @@ Stop when time limit approaches or when blockers are encountered.
           }),
         });
       }
-    } catch {
+    } catch {  /* intentional: no JSON result file */
       // No JSON result file — fallback to markdown handoff
     }
 
@@ -870,7 +870,7 @@ Stop when time limit approaches or when blockers are encountered.
       eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'implementer' });
       this._emitLiveDecisions();
       return result;
-    } catch {
+    } catch {  /* intentional: handoff file not readable */
       if (structuredResult) {
         return `Implementer agent completed.\n\n--- STRUCTURED RESULT ---\nConfidence: ${structuredResult.confidence}\nFiles modified: ${structuredResult.filesModified.length}\nRisks: ${structuredResult.risks.length}\nTests passing: ${structuredResult.testsPassing}`;
       }
@@ -941,7 +941,7 @@ Stop when time limit approaches or when blockers are encountered.
           const handoffPath = path.join(this.ctx.runDir, `task_${task.id}_handoff.json`);
           const handoffData = JSON.parse(await fs.readFile(handoffPath, 'utf-8'));
           status.filesModified = handoffData.filesModified ?? [];
-        } catch {
+        } catch {  /* intentional: no handoff file */
           // No handoff file
         }
       } catch (error: unknown) {
@@ -953,7 +953,7 @@ Stop when time limit approaches or when blockers are encountered.
       // Clean up worktree
       try {
         await git.removeWorktree(worktreePath);
-      } catch {
+      } catch {  /* intentional: best-effort worktree cleanup */
         // Best effort — worktree may not exist if addWorktree failed
       }
 
@@ -1035,7 +1035,7 @@ Stop when time limit approaches or when blockers are encountered.
           }),
         });
       }
-    } catch {
+    } catch {  /* intentional: no JSON result file */
       // No JSON result file — fallback to markdown handoff
     }
 
@@ -1066,7 +1066,7 @@ Stop when time limit approaches or when blockers are encountered.
       eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'reviewer' });
       this._emitLiveDecisions();
       return result;
-    } catch {
+    } catch {  /* intentional: handoff file not readable */
       if (structuredResult) {
         return `Reviewer agent completed.\n\n--- STRUCTURED RESULT ---\nVerdict: ${structuredResult.verdict}\nTests: ${structuredResult.testsPassing}/${structuredResult.testsRun}\nBlockers: ${structuredResult.blockers.length}\nSuggestions: ${structuredResult.suggestions.length}`;
       }
@@ -1238,7 +1238,7 @@ Stop when time limit approaches or when blockers are encountered.
     try {
       await fs.access(fullPath);
       // File exists — skip
-    } catch {
+    } catch {  /* intentional: file may not exist */
       await write();
     }
   }

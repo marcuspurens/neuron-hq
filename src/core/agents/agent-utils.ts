@@ -189,7 +189,7 @@ export async function searchMemoryFiles(query: string, memoryDir: string): Promi
     let content: string;
     try {
       content = await fs.readFile(filePath, 'utf-8');
-    } catch {
+    } catch {  /* intentional: memory file may not exist */
       continue;
     }
 

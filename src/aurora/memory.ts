@@ -150,7 +150,8 @@ function nodeToMemory(
 function getContradictionModelConfig(): ModelConfig {
   try {
     return resolveModelConfig('researcher');
-  } catch {
+  } catch (err) {
+    console.error('[memory] memory load failed:', err);
     return {
       ...DEFAULT_MODEL_CONFIG,
       model: 'claude-haiku-4-5-20251001',
@@ -218,7 +219,7 @@ Svara med JSON: { "contradicts": true/false, "reason": "kort förklaring" }`,
           });
         }
       }
-    } catch {
+    } catch {  /* intentional: parse may fail */
       // Individual candidate check failed — skip silently
     }
   }
@@ -255,8 +256,8 @@ export async function remember(
       id: r.id,
       similarity: r.similarity,
     }));
-  } catch {
-    // Fallback to keyword search
+  } catch (err) {
+    console.error('[memory] memory save failed:', err);
     const graph = await loadAuroraGraph();
     const found = findAuroraNodes(graph, { type, query: text });
     candidates = found.map((n) => ({
@@ -346,7 +347,7 @@ export async function remember(
     // Check for contradictions (non-fatal)
     try {
       contradictions = await checkContradictions(text, candidateInfo, graph);
-    } catch {
+    } catch {  /* intentional: memory file may not exist */
       // Contradiction check failed — fall back to related_to edges
     }
 

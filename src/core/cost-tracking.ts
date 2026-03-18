@@ -22,7 +22,7 @@ export async function loadRunData(runsDir: string, runid: string): Promise<RunCo
   const usagePath = path.join(runsDir, runid, 'usage.json');
   try {
     await fs.access(usagePath);
-  } catch {
+  } catch {  /* intentional: file may not exist */
     return null;
   }
 
@@ -47,7 +47,7 @@ export async function loadRunData(runsDir: string, runid: string): Promise<RunCo
     } else if (firstLine.startsWith('#')) {
       task = firstLine.replace(/^#+\s*/, '').trim();
     }
-  } catch { /* no brief */ }
+  } catch { /* intentional: no brief */ }
 
   // Status from report
   let status = '?';
@@ -57,7 +57,7 @@ export async function loadRunData(runsDir: string, runid: string): Promise<RunCo
     if (reportContent.includes('GREEN')) status = 'GREEN';
     else if (reportContent.includes('RED')) status = 'RED';
     else if (reportContent.includes('YELLOW')) status = 'YELLOW';
-  } catch { /* no report */ }
+  } catch { /* intentional: no report */ }
 
   // Duration from manifest
   let durationMin: number | null = null;
@@ -69,7 +69,7 @@ export async function loadRunData(runsDir: string, runid: string): Promise<RunCo
       const end = new Date(manifest.completed_at).getTime();
       durationMin = (end - start) / 60_000;
     }
-  } catch { /* no manifest */ }
+  } catch { /* intentional: no manifest */ }
 
   // Date/time from runid (format: YYYYMMDD-HHMM-target)
   const date = `${runid.slice(0, 4)}-${runid.slice(4, 6)}-${runid.slice(6, 8)}`;
@@ -121,7 +121,7 @@ export async function updateCostTracking(baseDir: string): Promise<void> {
       .filter((e) => e.isDirectory())
       .map((e) => e.name)
       .sort();
-  } catch {
+  } catch {  /* intentional: runs directory may not exist */
     return;
   }
 
@@ -153,7 +153,7 @@ export async function updateCostTracking(baseDir: string): Promise<void> {
         agentTotals[name].out += agentInfo.output_tokens;
         agentTotals[name].count += 1;
       }
-    } catch { /* skip */ }
+    } catch { /* intentional: skip */ }
   }
 
   await saveCostTracking(runsDir, rows, agentTotals, totalCost, totalIn, totalOut, greenCount);

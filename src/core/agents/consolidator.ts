@@ -419,7 +419,7 @@ Analyze the knowledge graph and perform consolidation:
               });
             }
           }
-        } catch {
+        } catch {  /* intentional: knowledge.md may not exist */
           // Skip nodes that fail semantic search
         }
       }

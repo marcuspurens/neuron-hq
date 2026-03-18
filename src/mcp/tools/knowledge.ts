@@ -53,7 +53,7 @@ export function registerKnowledgeTool(server: McpServer): void {
               let edges: KGNode[] = [];
               try {
                 edges = traverse(graph, sr.id);
-              } catch {
+              } catch {  /* intentional: JSON parse may fail */
                 /* node not in graph file */
               }
               return {
@@ -72,8 +72,8 @@ export function registerKnowledgeTool(server: McpServer): void {
                 })),
               };
             });
-          } catch {
-            // Semantic search unavailable, fall through to keyword
+          } catch (err) {
+            console.error('[knowledge] knowledge tool query failed:', err);
             results = await keywordSearch(args);
           }
         } else {
@@ -117,7 +117,8 @@ async function keywordSearch(args: {
     let edges: KGNode[] = [];
     try {
       edges = traverse(graph, node.id);
-    } catch {
+    } catch (err) {
+      console.error('[knowledge] knowledge tool operation failed:', err);
       /* */
     }
     return {

@@ -117,7 +117,8 @@ export function isVideoUrl(url: string): boolean {
   try {
     const hostname = new URL(url).hostname.replace(/^(www\.|m\.)/, '');
     return VIDEO_DOMAINS.has(hostname);
-  } catch {
+  } catch (err) {
+    console.error('[video] video processing failed:', err);
     return false;
   }
 }
@@ -400,8 +401,8 @@ export async function ingestVideo(
           console.error(`  💡 Suggestion: ${result.identityName}? (confidence: ${result.confidence.toFixed(2)})`);
         }
       }
-    } catch {
-      // Auto-tag failure should not break ingest
+    } catch (err) {
+      console.error('[video] video thumbnail extraction failed:', err);
     }
   }
 
@@ -434,8 +435,8 @@ export async function ingestVideo(
         });
       }
     }
-  } catch {
-    // Cross-ref failure should not break ingest
+  } catch (err) {
+    console.error('[video] video metadata read failed:', err);
   }
 
   // 10. Optional: Polish transcript via LLM

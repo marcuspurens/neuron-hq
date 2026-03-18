@@ -137,7 +137,7 @@ export class ArtifactsManager {
       const filePath = path.join(this.runDir, filename);
       try {
         await fs.access(filePath);
-      } catch {
+      } catch {  /* intentional: file may not exist */
         missing.push(filename);
       }
     }

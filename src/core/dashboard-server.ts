@@ -93,7 +93,7 @@ export function startDashboardServer(
       for (const client of sseClients) {
         try {
           client.write(payload);
-        } catch {
+        } catch {  /* intentional: SSE client may have disconnected */
           sseClients.delete(client);
         }
       }
@@ -131,7 +131,7 @@ export function startDashboardServer(
           try {
             const payload = `data: ${JSON.stringify({ event: entry.event, data: entry.data, timestamp: entry.timestamp })}\n\n`;
             res.write(payload);
-          } catch {
+          } catch {  /* intentional: client may have disconnected during replay */
             // ignore — client may have disconnected during replay
           }
         }
@@ -164,7 +164,7 @@ export function startDashboardServer(
               const metrics = JSON.parse(metricsRaw);
 
               let hasDigest = false;
-              try { await fsp.access(digestPath); hasDigest = true; } catch { /* noop */ }
+              try { await fsp.access(digestPath); hasDigest = true; } catch { /* intentional: noop */ }
 
               // Read brief title
               let briefTitle = entry.name;
@@ -172,7 +172,7 @@ export function startDashboardServer(
                 const briefRaw = await fsp.readFile(path.join(runsDir, entry.name, 'brief.md'), 'utf-8');
                 const m = briefRaw.match(/^#\s+(.+)/m);
                 if (m) briefTitle = m[1].trim();
-              } catch { /* noop */ }
+              } catch { /* intentional: noop */ }
 
               // Read stoplight
               let stoplight: string = 'unknown';
@@ -180,7 +180,7 @@ export function startDashboardServer(
                 const reportRaw = await fsp.readFile(path.join(runsDir, entry.name, 'report.md'), 'utf-8');
                 const sm = reportRaw.match(/STOPLIGHT.*?(GREEN|YELLOW|RED)/i);
                 if (sm) stoplight = sm[1].toUpperCase();
-              } catch { /* noop */ }
+              } catch { /* intentional: noop */ }
 
               const durationMin = metrics.timing?.duration_seconds
                 ? Math.round(metrics.timing.duration_seconds / 60)
@@ -201,7 +201,7 @@ export function startDashboardServer(
                 costUsd: Math.round(costUsd * 100) / 100,
                 hasDigest,
               });
-            } catch {
+            } catch {  /* intentional: skip runs with invalid metrics */
               // Skip runs without valid metrics.json
             }
           }
@@ -214,7 +214,8 @@ export function startDashboardServer(
             'Access-Control-Allow-Origin': '*',
           });
           res.end(JSON.stringify(summaries));
-        } catch {
+        } catch (err) {
+          console.error('[dashboard-server] listing runs failed:', err);
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end('[]');
         }
@@ -234,7 +235,7 @@ export function startDashboardServer(
           const content = await fsp.readFile(briefPath, 'utf-8');
           res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
           res.end(content);
-        } catch {
+        } catch {  /* intentional: brief file not found — return 404 */
           res.writeHead(404, { 'Content-Type': 'text/plain' });
           res.end('Brief not found');
         }
@@ -258,7 +259,7 @@ export function startDashboardServer(
             'Access-Control-Allow-Origin': '*',
           });
           res.end(digestContent);
-        } catch {
+        } catch {  /* intentional: digest file not found — return 404 */
           res.writeHead(404, { 'Content-Type': 'text/plain' });
           res.end('Digest not found');
         }
@@ -281,7 +282,7 @@ export function startDashboardServer(
             .trim()
             .split('\n')
             .filter(Boolean)
-            .map(line => { try { return JSON.parse(line); } catch { return null; } })
+            .map(line => { try { return JSON.parse(line); } catch { /* intentional: skip malformed JSON */ return null; } })
             .filter((e): e is AuditEntry => e !== null);
 
           // Extract thinking text from agent:thinking events in audit
@@ -304,7 +305,7 @@ export function startDashboardServer(
             'Access-Control-Allow-Origin': '*',
           });
           res.end(JSON.stringify(decisions, null, 2));
-        } catch {
+        } catch {  /* intentional: decisions data not found — return 404 */
           res.writeHead(404, { 'Content-Type': 'text/plain' });
           res.end('Decisions not found');
         }
@@ -336,7 +337,7 @@ export function startDashboardServer(
       for (const client of sseClients) {
         try {
           client.end();
-        } catch {
+        } catch {  /* intentional: client may already be gone */
           // ignore — client may already be gone
         }
       }

@@ -46,8 +46,8 @@ export function registerKnowledgeManagerTool(server: McpServer): void {
             cycleNumber: report.cycleNumber,
             stoppedBy: report.stoppedBy,
           });
-        } catch {
-          // Non-fatal
+        } catch (err) {
+          console.error('[knowledge-manager] knowledge manager operation failed:', err);
         }
 
         return {

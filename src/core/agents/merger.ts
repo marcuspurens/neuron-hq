@@ -68,7 +68,7 @@ export class MergerAgent {
       let reportContent: string;
       try {
         reportContent = await fs.readFile(reportPath, 'utf-8');
-      } catch {
+      } catch {  /* intentional: report.md not found */
         return 'MERGER_BLOCKED: report.md not found. Reviewer must run first.';
       }
 

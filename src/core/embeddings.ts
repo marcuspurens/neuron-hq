@@ -1,4 +1,5 @@
 import { isDbAvailable } from './db.js';
+import { getConfig } from './config.js';
 import { ensureOllama, getOllamaUrl } from './ollama.js';
 
 export interface EmbeddingProvider {
@@ -23,7 +24,7 @@ export class OllamaEmbedding implements EmbeddingProvider {
 
   constructor(
     baseUrl = getOllamaUrl(),
-    model = process.env.OLLAMA_MODEL_EMBED || 'snowflake-arctic-embed'
+    model = getConfig().OLLAMA_MODEL_EMBED,
   ) {
     this.baseUrl = baseUrl;
     this.model = model;
@@ -63,7 +64,7 @@ export async function isEmbeddingAvailable(): Promise<boolean> {
     const provider = getEmbeddingProvider();
     const result = await provider.embed('test');
     return result.length === provider.dimension;
-  } catch {
+  } catch {  /* intentional: ollama embedding not available */
     return false;
   }
 }

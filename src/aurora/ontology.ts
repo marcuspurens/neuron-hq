@@ -100,7 +100,7 @@ export async function getOrCreateConcept(input: {
       const node = graph.nodes.find((n) => n.id === hits[0].id);
       existingNode = asConceptNode(node);
     }
-  } catch {
+  } catch {  /* intentional: ontology file may not exist */
     // Semantic search may fail (no DB / embeddings); fall through to create
   }
 
@@ -154,8 +154,8 @@ export async function getOrCreateConcept(input: {
             await saveAuroraGraph(bGraph);
           }
         }
-      } catch {
-        // Non-fatal: external ID lookup may fail
+      } catch (err) {
+        console.error('[ontology] ontology persist failed:', err);
       }
     }
     return existingNode;
@@ -219,8 +219,8 @@ export async function getOrCreateConcept(input: {
           await saveAuroraGraph(graph);
         }
       }
-    } catch {
-      // Non-fatal: external ID lookup may fail
+    } catch (err) {
+      console.error('[ontology] ontology classification failed:', err);
     }
   }
 
@@ -269,8 +269,8 @@ export async function getOrCreateConcept(input: {
   // 4. Auto-embed (non-fatal)
   try {
     await autoEmbedAuroraNodes([id]);
-  } catch {
-    // Non-fatal
+  } catch (err) {
+    console.error('[ontology] ontology load failed:', err);
   }
 
   // Reload final state to return
@@ -465,8 +465,8 @@ export async function linkArticleToConcepts(
         minSimilarity: 0.85,
       });
       existed = hits.length > 0;
-    } catch {
-      // Semantic search unavailable; assume new
+    } catch (err) {
+      console.error('[ontology] ontology update failed:', err);
     }
 
     const conceptNode = await getOrCreateConcept({
@@ -626,7 +626,8 @@ export async function suggestMerges(): Promise<
         limit: 10,
         minSimilarity: 0.8,
       });
-    } catch {
+    } catch (err) {
+      console.error('[ontology] ontology merge failed:', err);
       continue;
     }
 

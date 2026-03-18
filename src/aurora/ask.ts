@@ -75,7 +75,8 @@ export function formatContext(results: SearchResult[]): string {
 function getAskModelConfig(): ModelConfig {
   try {
     return resolveModelConfig('researcher');
-  } catch {
+  } catch (err) {
+    console.error('[ask] ask query failed:', err);
     return {
       ...DEFAULT_MODEL_CONFIG,
       model: 'claude-haiku-4-5-20251001',
@@ -171,8 +172,8 @@ export async function ask(
     // Record knowledge gap
     try {
       await recordGap(question);
-    } catch {
-      // Non-fatal — don't block the answer
+    } catch (err) {
+      console.error('[ask] ask context loading failed:', err);
     }
     return {
       answer:
@@ -222,7 +223,7 @@ export async function ask(
     if (options?.learn) {
       try {
         factsLearned = await learnFromAnswer(answer);
-      } catch {
+      } catch {  /* intentional: context file may not exist */
         // Auto-learning is non-fatal — log but don't block
       }
     }

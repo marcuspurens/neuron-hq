@@ -80,7 +80,7 @@ export async function recordGap(question: string): Promise<void> {
         break;
       }
     }
-  } catch {
+  } catch {  /* intentional: knowledge-gaps file may not exist */
     // Fallback to keyword search
     const found = findAuroraNodes(graph, { type: 'research', query: question });
     existingGapNode = found.find(isGapNode);
@@ -194,7 +194,8 @@ export async function resolveGap(gapId: string, evidence: {
 function getEmergentModelConfig(): ModelConfig {
   try {
     return resolveModelConfig('researcher');
-  } catch {
+  } catch (err) {
+    console.error('[knowledge-gaps] knowledge gap analysis failed:', err);
     return {
       ...DEFAULT_MODEL_CONFIG,
       model: 'claude-haiku-4-5-20251001',
@@ -287,7 +288,7 @@ export async function extractEmergentGaps(input: {
         if (similar.length > 0) {
           isDuplicate = true;
         }
-      } catch {
+      } catch {  /* intentional: JSON parse may fail */
         // If search fails, keep the question (no dedup)
       }
 
@@ -303,8 +304,8 @@ export async function extractEmergentGaps(input: {
       chainedFrom: input.chainedFromGapId,
       confidence: 0.7,
     }));
-  } catch {
-    // Step 8: Error handling — never throw
+  } catch (err) {
+    console.error('[knowledge-gaps] knowledge gap save failed:', err);
     return [];
   }
 }

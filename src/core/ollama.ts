@@ -4,12 +4,13 @@
  */
 import { execFile, spawn } from 'child_process';
 import { promisify } from 'util';
+import { getConfig } from './config.js';
 
 const execFileAsync = promisify(execFile);
 
 /** Default Ollama base URL. */
 export function getOllamaUrl(): string {
-  return process.env.OLLAMA_URL || 'http://localhost:11434';
+  return getConfig().OLLAMA_URL;
 }
 
 /** Promise-gate: deduplicates concurrent ensureOllama calls. */
@@ -40,7 +41,7 @@ async function doEnsureOllama(model?: string): Promise<boolean> {
       signal: AbortSignal.timeout(3000),
     });
     running = resp.ok;
-  } catch {
+  } catch {  /* intentional: ollama may not be reachable */
     running = false;
   }
 
@@ -63,7 +64,7 @@ async function doEnsureOllama(model?: string): Promise<boolean> {
           running = true;
           break;
         }
-      } catch {
+      } catch {  /* intentional: waiting for ollama to start */
         /* keep waiting */
       }
     }
@@ -104,7 +105,7 @@ export async function isModelAvailable(model: string): Promise<boolean> {
     };
     const names = data.models.map((m) => m.name.replace(/:latest$/, ''));
     return names.includes(model);
-  } catch {
+  } catch {  /* intentional: ollama not reachable */
     return false;
   }
 }

@@ -23,7 +23,7 @@ export async function scaffoldProject(options: ScaffoldOptions): Promise<void> {
   try {
     await fs.access(projectDir);
     return;
-  } catch {
+  } catch {  /* intentional: file may not exist */
     // Directory doesn't exist — continue
   }
 

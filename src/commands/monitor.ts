@@ -80,7 +80,8 @@ export async function monitorCommand(targetName: string): Promise<void> {
   let raw: string;
   try {
     raw = await fs.readFile(healthPath, 'utf-8');
-  } catch {
+  } catch (err) {
+    console.error('[monitor] monitor operation failed:', err);
     console.error(chalk.red(`Error: data/health.json not found in ${target.path}`));
     process.exit(1);
     return; // unreachable but helps TS

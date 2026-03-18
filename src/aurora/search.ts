@@ -146,8 +146,8 @@ export async function searchAurora(
       scope: sr.scope,
       source: 'semantic' as const,
     }));
-  } catch {
-    // Step 2: Fallback to keyword search
+  } catch (err) {
+    console.error('[search] search failed:', err);
     cachedGraph = await loadAuroraGraph();
     const keywordResults = findAuroraNodes(cachedGraph, {
       type: type as AuroraNodeType | undefined,

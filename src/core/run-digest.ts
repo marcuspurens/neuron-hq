@@ -55,7 +55,7 @@ async function readJsonSafe<T>(filePath: string): Promise<T | null> {
   try {
     const content = await fs.readFile(filePath, 'utf-8');
     return JSON.parse(content) as T;
-  } catch {
+  } catch {  /* intentional: safe fallback for missing/malformed file */
     return null;
   }
 }
@@ -63,7 +63,7 @@ async function readJsonSafe<T>(filePath: string): Promise<T | null> {
 async function readTextSafe(filePath: string): Promise<string> {
   try {
     return await fs.readFile(filePath, 'utf-8');
-  } catch {
+  } catch {  /* intentional: safe fallback for missing/malformed file */
     return '';
   }
 }
@@ -76,7 +76,7 @@ async function readJsonlSafe<T>(filePath: string): Promise<T[]> {
       .split('\n')
       .filter(Boolean)
       .map((line) => JSON.parse(line) as T);
-  } catch {
+  } catch {  /* intentional: safe fallback for missing/malformed file */
     return [];
   }
 }
@@ -165,7 +165,7 @@ export function extractHighlights(auditLines: string[]): DigestEvent[] {
     let entry: AuditLine;
     try {
       entry = JSON.parse(line) as AuditLine;
-    } catch {
+    } catch {  /* intentional: parse may fail */
       continue;
     }
 
@@ -446,7 +446,7 @@ export async function generateDigest(runDir: string): Promise<string> {
 
   // Parse decisions from audit
   const parsedAuditEntries: DecisionAuditEntry[] = auditLines
-    .map(line => { try { return JSON.parse(line) as DecisionAuditEntry; } catch { return null; } })
+    .map(line => { try { return JSON.parse(line) as DecisionAuditEntry; } catch { /* intentional: skip malformed JSON */ return null; } })
     .filter((e): e is DecisionAuditEntry => e !== null);
 
   const agentEvents: EventData[] = parsedAuditEntries.map(e => ({

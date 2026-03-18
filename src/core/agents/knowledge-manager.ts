@@ -262,8 +262,8 @@ export class KnowledgeManagerAgent {
         .filter((s) => s.similarity >= 0.5)
         .sort((a, b) => b.similarity - a.similarity)
         .map((s) => s.gap);
-    } catch {
-      // Fallback to string matching
+    } catch (err) {
+      console.error('[knowledge-manager] reading knowledge file failed:', err);
       return gaps.filter((g) =>
         g.question.toLowerCase().includes(topic.toLowerCase()),
       );
@@ -355,7 +355,7 @@ export class KnowledgeManagerAgent {
         await ingestUrl(url);
         urlsIngestedCount++;
         ingestedUrls.push(url);
-      } catch {
+      } catch {  /* intentional: graph.json may not exist */
         // Skip failed URLs, continue with next
       }
     }
@@ -378,8 +378,8 @@ export class KnowledgeManagerAgent {
           urlsIngested: ingestedUrls,
           factsLearned: factsLearnedCount,
         });
-      } catch {
-        // Gap resolution failure shouldn't break the flow
+      } catch (err) {
+        console.error('[knowledge-manager] writing graph data failed:', err);
       }
     }
 

@@ -191,8 +191,8 @@ export async function startVideoIngestJob(
       const meta = metaResult.metadata as Record<string, unknown>;
       videoDurationSec = (meta.duration as number) ?? null;
     }
-  } catch {
-    // Metadata fetch is best-effort; continue without it
+  } catch (err) {
+    console.error('[job-runner] updating job progress failed:', err);
   }
 
   // 4. Insert job row
@@ -218,8 +218,8 @@ export async function startVideoIngestJob(
       [jobId],
     );
     queuePosition = (posRows[0] as Record<string, unknown>).pos as number;
-  } catch {
-    // Non-critical
+  } catch (err) {
+    console.error('[job-runner] saving job result failed:', err);
   }
 
   // 7. Estimate time
@@ -355,7 +355,7 @@ export async function cancelJob(
     if (status === 'running' && pid) {
       try {
         process.kill(pid);
-      } catch {
+      } catch {  /* intentional: best-effort progress update */
         // Process may have already exited
       }
     }
@@ -613,8 +613,8 @@ export async function estimateTime(
     if (avgFactor != null) {
       return Math.round(avgFactor * videoDurationSec);
     }
-  } catch {
-    // Fall through to heuristic
+  } catch (err) {
+    console.error('[job-runner] job execution failed:', err);
   }
 
   // Fallback heuristic

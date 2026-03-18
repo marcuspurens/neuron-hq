@@ -31,7 +31,7 @@ export async function logsCommand(runid: string): Promise<void> {
       try {
         await fs.access(artifactPath);
         console.log(chalk.green(`  ✓ ${artifactPath}`));
-      } catch {
+      } catch {  /* intentional: file may not exist */
         console.log(chalk.gray(`  - ${artifactPath} (not found)`));
       }
     }

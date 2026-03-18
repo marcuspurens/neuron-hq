@@ -279,7 +279,7 @@ async function readJsonSafe<T>(filePath: string): Promise<T | null> {
   try {
     const content = await fs.readFile(filePath, 'utf-8');
     return JSON.parse(content) as T;
-  } catch {
+  } catch {  /* intentional: safe fallback for missing/malformed file */
     return null;
   }
 }
@@ -292,7 +292,7 @@ async function readJsonlSafe(filePath: string): Promise<Array<Record<string, unk
       .split('\n')
       .filter(Boolean)
       .map((line) => JSON.parse(line) as Record<string, unknown>);
-  } catch {
+  } catch {  /* intentional: safe fallback for missing/malformed file */
     return [];
   }
 }
@@ -300,7 +300,7 @@ async function readJsonlSafe(filePath: string): Promise<Array<Record<string, unk
 async function readTextSafe(filePath: string): Promise<string> {
   try {
     return await fs.readFile(filePath, 'utf-8');
-  } catch {
+  } catch {  /* intentional: safe fallback for missing/malformed file */
     return '';
   }
 }

@@ -13,6 +13,7 @@
  */
 
 import Langfuse from 'langfuse';
+import { getConfig } from './config.js';
 import type { eventBus as EventBusType } from './event-bus.js';
 
 type LangfuseTrace = ReturnType<Langfuse['trace']>;
@@ -28,11 +29,13 @@ function spanKey(runid: string, agent: string): string {
 
 export function initLangfuse(): void {
   if (langfuse) return;
-  if (process.env.LANGFUSE_ENABLED === 'false') return;
 
-  const publicKey = process.env.LANGFUSE_PUBLIC_KEY;
-  const secretKey = process.env.LANGFUSE_SECRET_KEY;
-  const baseUrl = process.env.LANGFUSE_BASE_URL || 'http://localhost:3000';
+  const config = getConfig();
+  if (config.LANGFUSE_ENABLED === 'false') return;
+
+  const publicKey = config.LANGFUSE_PUBLIC_KEY;
+  const secretKey = config.LANGFUSE_SECRET_KEY;
+  const baseUrl = config.LANGFUSE_BASE_URL;
 
   if (!publicKey || !secretKey) return;
 

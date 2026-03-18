@@ -84,7 +84,8 @@ async function loadRunDataFromDb(limit?: number): Promise<RunCostRow[] | null> {
         durationMin,
       };
     });
-  } catch {
+  } catch (err) {
+    console.error('[costs] loading cost data failed:', err);
     return null;
   }
 }
@@ -105,7 +106,7 @@ export async function costsCommand(options: { last?: string; save?: boolean }): 
         .filter((e) => e.isDirectory())
         .map((e) => e.name)
         .sort();
-    } catch {
+    } catch {  /* intentional: run cost data may not be available */
       console.log(chalk.yellow('No runs directory found.'));
       return;
     }
@@ -197,7 +198,7 @@ export async function costsCommand(options: { last?: string; save?: boolean }): 
         agentTotals[name].out += agentInfo.output_tokens;
         agentTotals[name].count += 1;
       }
-    } catch { /* skip */ }
+    } catch { /* intentional: skip */ }
   }
 
   console.log(chalk.bold('  Kostnad per agent (genomsnitt per körning)'));

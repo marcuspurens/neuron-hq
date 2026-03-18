@@ -34,7 +34,7 @@ export async function detectTestStatus(
       // Has a test script but unknown framework
       return { testsExist: true, testFramework: null };
     }
-  } catch {
+  } catch {  /* intentional: baseline file may not exist */
     // No package.json or error reading
   }
 
@@ -48,7 +48,7 @@ export async function detectTestStatus(
     ) {
       return { testsExist: true, testFramework: 'pytest' };
     }
-  } catch {
+  } catch {  /* intentional: baseline file may not exist */
     // No pyproject.toml
   }
 
@@ -59,7 +59,7 @@ export async function detectTestStatus(
     if (stat.isDirectory()) {
       return { testsExist: true, testFramework: null };
     }
-  } catch {
+  } catch {  /* intentional: baseline file may not exist */
     // No tests/ directory
   }
 

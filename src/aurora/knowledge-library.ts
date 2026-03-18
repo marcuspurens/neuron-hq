@@ -82,7 +82,7 @@ export function parseJsonBlock(text: string): Record<string, unknown> | null {
   const last = blocks[blocks.length - 1][1].trim();
   try {
     return JSON.parse(last) as Record<string, unknown>;
-  } catch {
+  } catch {  /* intentional: parse may fail */
     return null;
   }
 }
@@ -139,7 +139,8 @@ function getSynthesisModelConfig(modelOverride?: string): ModelConfig {
   }
   try {
     return resolveModelConfig('librarian');
-  } catch {
+  } catch (err) {
+    console.error('[knowledge-library] loading knowledge entry failed:', err);
     return { ...DEFAULT_MODEL_CONFIG, model: 'claude-haiku-4-5-20251001' };
   }
 }
@@ -212,8 +213,8 @@ export async function createArticle(input: {
   // Auto-embed (non-fatal)
   try {
     await autoEmbedAuroraNodes([id]);
-  } catch {
-    // Embedding failure is non-fatal
+  } catch (err) {
+    console.error('[knowledge-library] knowledge library search failed:', err);
   }
 
   return node as ArticleNode;
@@ -424,8 +425,8 @@ export async function updateArticle(
   // Auto-embed new node (non-fatal)
   try {
     await autoEmbedAuroraNodes([newId]);
-  } catch {
-    // Embedding failure is non-fatal
+  } catch (err) {
+    console.error('[knowledge-library] knowledge library save failed:', err);
   }
 
   return newNode as ArticleNode;
@@ -453,7 +454,7 @@ export async function importArticle(input: {
       });
       const matchIds = results.map((r) => r.id);
       sourceNodeIds = [...new Set([...sourceNodeIds, ...matchIds])];
-    } catch {
+    } catch {  /* intentional: JSON parse may fail */
       // Search failure is non-fatal
     }
   }
@@ -510,8 +511,8 @@ export async function importArticle(input: {
       }));
       await linkArticleToConcepts(article.id, conceptData);
     }
-  } catch {
-    // Concept extraction is non-fatal
+  } catch (err) {
+    console.error('[knowledge-library] knowledge library indexing failed:', err);
   }
 
   return article;
@@ -625,8 +626,8 @@ export async function synthesizeArticle(
     if (conceptsForOntology.length > 0) {
       await linkArticleToConcepts(article.id, conceptsForOntology);
     }
-  } catch {
-    // Ontology linking is non-fatal
+  } catch (err) {
+    console.error('[knowledge-library] knowledge library merge failed:', err);
   }
 
   return article;

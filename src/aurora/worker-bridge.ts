@@ -6,6 +6,7 @@
 import { spawn, execFile } from 'child_process';
 import { promisify } from 'util';
 import { resolve as resolvePath } from 'path';
+import { getConfig } from '../core/config.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -42,7 +43,7 @@ export type WorkerResponse = WorkerResult | WorkerError;
 export interface WorkerOptions {
   /** Timeout in milliseconds (default 60 000). */
   timeout?: number;
-  /** Path to the Python interpreter (default process.env.AURORA_PYTHON_PATH ?? 'python3'). */
+  /** Path to the Python interpreter (default getConfig().AURORA_PYTHON_PATH). */
   pythonPath?: string;
 }
 
@@ -61,7 +62,7 @@ export function runWorker(
   return new Promise((resolve, reject) => {
     const timeout = options?.timeout ?? 60_000;
     const pythonPath =
-      options?.pythonPath ?? process.env.AURORA_PYTHON_PATH ?? 'python3';
+      options?.pythonPath ?? getConfig().AURORA_PYTHON_PATH;
     const workersDir = resolvePath(
       import.meta.dirname ?? '.',
       '../../aurora-workers',
@@ -97,7 +98,7 @@ export function runWorker(
       try {
         const result = JSON.parse(stdout.trim()) as WorkerResponse;
         resolve(result);
-      } catch {
+      } catch {  /* intentional: parse may fail */
         reject(new Error(`Worker returned invalid JSON: ${stdout}`));
       }
     });
@@ -121,7 +122,7 @@ export async function isWorkerAvailable(
   pythonPath?: string,
 ): Promise<boolean> {
   const python =
-    pythonPath ?? process.env.AURORA_PYTHON_PATH ?? 'python3';
+    pythonPath ?? getConfig().AURORA_PYTHON_PATH;
   try {
     const { stdout } = await execFileAsync(
       python,
@@ -129,7 +130,8 @@ export async function isWorkerAvailable(
       { timeout: 5000 },
     );
     return stdout.trim() === 'ok';
-  } catch {
+  } catch (err) {
+    console.error('[worker-bridge] worker bridge request failed:', err);
     return false;
   }
 }

@@ -35,7 +35,7 @@ export async function emergencySave(options: EmergencySaveOptions): Promise<Emer
   try {
     const result = await execFileAsync('git', ['status', '--porcelain'], { cwd: workspaceDir });
     status = result.stdout.trim();
-  } catch {
+  } catch {  /* intentional: best-effort emergency save */
     return { saved: false, message: 'Failed to check git status' };
   }
 
@@ -51,7 +51,7 @@ export async function emergencySave(options: EmergencySaveOptions): Promise<Emer
     await execFileAsync('git', ['commit', '-m', commitMessage], { cwd: workspaceDir });
     const hashResult = await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: workspaceDir });
     commitHash = hashResult.stdout.trim();
-  } catch {
+  } catch {  /* intentional: best-effort emergency save */
     return { saved: false, message: 'Failed to commit changes' };
   }
 
@@ -60,7 +60,7 @@ export async function emergencySave(options: EmergencySaveOptions): Promise<Emer
   try {
     const branchResult = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: workspaceDir });
     branchName = branchResult.stdout.trim();
-  } catch {
+  } catch {  /* intentional: best-effort emergency save */
     // non-fatal
   }
 
@@ -90,7 +90,7 @@ git diff main
 `;
   try {
     await fs.writeFile(path.join(runDir, 'WARNING.md'), warningContent, 'utf-8');
-  } catch {
+  } catch {  /* intentional: best-effort emergency save */
     // non-fatal
   }
 
@@ -111,7 +111,7 @@ git cherry-pick ${commitHash || '<commit-hash>'}
 `;
   try {
     await fs.writeFile(path.join(workspaceDir, 'recovery.md'), recoveryContent, 'utf-8');
-  } catch {
+  } catch {  /* intentional: best-effort emergency save */
     // non-fatal
   }
 
@@ -130,7 +130,7 @@ git cherry-pick ${commitHash || '<commit-hash>'}
       }, null, 2),
       'utf-8'
     );
-  } catch {
+  } catch {  /* intentional: best-effort emergency save */
     // non-fatal
   }
 

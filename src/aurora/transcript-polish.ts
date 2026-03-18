@@ -1,6 +1,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { loadAuroraGraph, saveAuroraGraph, updateAuroraNode } from './aurora-graph.js';
 import { ensureOllama, getOllamaUrl } from '../core/ollama.js';
+import { getConfig } from '../core/config.js';
 import { createAgentClient } from '../core/agent-client.js';
 import { DEFAULT_MODEL_CONFIG } from '../core/model-registry.js';
 import type { AuroraNode } from './aurora-schema.js';
@@ -10,7 +11,7 @@ import type { AuroraNode } from './aurora-schema.js';
 export interface PolishOptions {
   /** LLM backend to use. Default: 'ollama'. */
   polishModel?: 'ollama' | 'claude';
-  /** Ollama model name. Default: env OLLAMA_MODEL_POLISH || 'gemma3'. */
+  /** Ollama model name. Default: env OLLAMA_MODEL_POLISH. */
   ollamaModel?: string;
   /** Number of segments per batch. Default: 8. */
   batchSize?: number;
@@ -133,7 +134,7 @@ export async function polishBatch(
   }
 
   // Ollama path
-  const ollamaModel = options?.ollamaModel ?? process.env.OLLAMA_MODEL_POLISH ?? 'gemma3';
+  const ollamaModel = options?.ollamaModel ?? getConfig().OLLAMA_MODEL_POLISH;
   const baseUrl = getOllamaUrl();
 
   const resp = await fetch(`${baseUrl}/api/chat`, {
@@ -172,7 +173,7 @@ export async function polishTranscript(
 
   // Ensure Ollama is available when using it
   if (backend === 'ollama') {
-    const ollamaModel = options?.ollamaModel ?? process.env.OLLAMA_MODEL_POLISH ?? 'gemma3';
+    const ollamaModel = options?.ollamaModel ?? getConfig().OLLAMA_MODEL_POLISH;
     const available = await ensureOllama(ollamaModel);
     if (!available) {
       throw new Error('Ollama not available — cannot polish transcript');

@@ -51,7 +51,7 @@ async function readJsonSafe<T>(filePath: string): Promise<T | null> {
   try {
     const content = await fs.readFile(filePath, 'utf-8');
     return JSON.parse(content) as T;
-  } catch {
+  } catch {  /* intentional: safe fallback for missing/malformed file */
     return null;
   }
 }
@@ -59,7 +59,7 @@ async function readJsonSafe<T>(filePath: string): Promise<T | null> {
 async function readTextSafe(filePath: string): Promise<string> {
   try {
     return await fs.readFile(filePath, 'utf-8');
-  } catch {
+  } catch {  /* intentional: safe fallback for missing/malformed file */
     return '';
   }
 }
@@ -72,7 +72,7 @@ async function readJsonlSafe<T>(filePath: string): Promise<T[]> {
       .split('\n')
       .filter(Boolean)
       .map((line) => JSON.parse(line) as T);
-  } catch {
+  } catch {  /* intentional: safe fallback for missing/malformed file */
     return [];
   }
 }
@@ -649,7 +649,7 @@ export async function backfillAllRuns(
       .filter((e) => e.isDirectory() && !e.name.endsWith('-resume'))
       .map((e) => e.name)
       .sort();
-  } catch {
+  } catch {  /* intentional: runs directory may not exist */
     return { processed: 0, dimensions: 0 };
   }
 
@@ -660,7 +660,7 @@ export async function backfillAllRuns(
 
     try {
       await fs.access(metricsPath);
-    } catch {
+    } catch {  /* intentional: file may not exist */
       continue;
     }
 

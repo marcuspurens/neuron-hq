@@ -186,7 +186,7 @@ export class BriefAgent {
         timeout: 5000,
       });
       parts.push('## File tree (top 80 files)\n```\n' + tree.trim() + '\n```');
-    } catch {
+    } catch {  /* intentional: file tree command may fail */
       parts.push('## File tree\n(could not read)');
     }
 
@@ -197,7 +197,7 @@ export class BriefAgent {
         timeout: 5000,
       });
       parts.push('## Recent git history\n```\n' + log.trim() + '\n```');
-    } catch {
+    } catch {  /* intentional: git log may fail */
       parts.push('## Recent git history\n(could not read)');
     }
 
@@ -224,7 +224,7 @@ export class BriefAgent {
           return `### ${f}\n\n${content}`;
         })
         .join('\n\n---\n\n');
-    } catch {
+    } catch {  /* intentional: no example briefs directory */
       return '(no example briefs found)';
     }
   }

@@ -97,7 +97,8 @@ async function importRuns(pool: Pool): Promise<void> {
   try {
     const dirEntries = await fs.readdir(runsDir, { withFileTypes: true });
     entries = dirEntries.filter((e) => e.isDirectory()).map((e) => e.name).sort();
-  } catch {
+  } catch (err) {
+    console.error('[db-import] reading run metrics failed:', err);
     console.log(chalk.yellow('  Runs: No runs directory found, skipping'));
     return;
   }
@@ -120,7 +121,7 @@ async function importRuns(pool: Pool): Promise<void> {
         if (report.includes('GREEN')) status = 'green';
         else if (report.includes('RED')) status = 'red';
         else if (report.includes('YELLOW')) status = 'yellow';
-      } catch { /* no report */ }
+      } catch { /* intentional: no report */ }
 
       const targetName = manifest.target_name ?? runid.replace(/^\d{8}-\d{4}-/, '');
 
@@ -141,7 +142,8 @@ async function importRuns(pool: Pool): Promise<void> {
         ],
       );
       runCount++;
-    } catch {
+    } catch (err) {
+      console.error('[db-import] reading run brief failed:', err);
       const targetName = runid.replace(/^\d{8}-\d{4}-/, '').replace(/-resume$/, '');
       await pool.query(
         `INSERT INTO runs (runid, target_name, started_at)
@@ -170,7 +172,7 @@ async function importRuns(pool: Pool): Promise<void> {
         ],
       );
       usageCount++;
-    } catch { /* no usage.json */ }
+    } catch { /* intentional: no usage.json */ }
 
     // Import metrics
     try {
@@ -203,7 +205,7 @@ async function importRuns(pool: Pool): Promise<void> {
         ],
       );
       metricsCount++;
-    } catch { /* no metrics.json */ }
+    } catch { /* intentional: no metrics.json */ }
   }
 
   console.log(`  Runs: ${runCount} runs, ${usageCount} usage, ${metricsCount} metrics imported`);
@@ -219,7 +221,8 @@ async function importAudit(pool: Pool): Promise<void> {
   try {
     const dirEntries = await fs.readdir(runsDir, { withFileTypes: true });
     entries = dirEntries.filter((e) => e.isDirectory()).map((e) => e.name).sort();
-  } catch {
+  } catch (err) {
+    console.error('[db-import] inserting run data failed:', err);
     return;
   }
 
@@ -262,7 +265,7 @@ async function importAudit(pool: Pool): Promise<void> {
         );
         totalEntries++;
       }
-    } catch { /* no audit.jsonl */ }
+    } catch { /* intentional: no audit.jsonl */ }
   }
 
   console.log(`  Audit: ${totalEntries} entries imported`);
@@ -275,7 +278,8 @@ async function importTaskScores(pool: Pool): Promise<void> {
   try {
     const dirEntries = await fs.readdir(runsDir, { withFileTypes: true });
     entries = dirEntries.filter((e) => e.isDirectory()).map((e) => e.name).sort();
-  } catch {
+  } catch (err) {
+    console.error('[db-import] reading run knowledge failed:', err);
     return;
   }
 
@@ -315,7 +319,7 @@ async function importTaskScores(pool: Pool): Promise<void> {
         );
         totalScores++;
       }
-    } catch { /* no task_scores.jsonl */ }
+    } catch { /* intentional: no task_scores.jsonl */ }
   }
 
   console.log(`  Task scores: ${totalScores} entries imported`);

@@ -15,7 +15,7 @@ import { RunIdSchema, type RunId, type StoplightStatus } from '../core/types.js'
 async function tryRead(filePath: string): Promise<string | null> {
   try {
     return await fs.readFile(filePath, 'utf-8');
-  } catch {
+  } catch {  /* intentional: run directory may not exist */
     return null;
   }
 }
@@ -40,7 +40,7 @@ export async function resumeCommand(runid: string, options: { hours: string; mod
     try {
       const manifestContent = await fs.readFile(manifestPath, 'utf-8');
       manifest = JSON.parse(manifestContent);
-    } catch {
+    } catch {  /* intentional: manifest may not exist */
       spinner.fail(chalk.red(`Run '${runid}' not found`));
       console.log(`List runs: ${chalk.cyan('npx tsx src/cli.ts status')}`);
       process.exit(1);
@@ -93,7 +93,7 @@ export async function resumeCommand(runid: string, options: { hours: string; mod
       const { AgentModelMapSchema } = await import('../core/model-registry.js');
       try {
         ctx.agentModelMap = AgentModelMapSchema.parse(agentModelsRaw);
-      } catch {
+      } catch {  /* intentional: previous state may not exist */
         // Invalid config — skip, agents will use defaults
       }
     }
@@ -108,8 +108,8 @@ export async function resumeCommand(runid: string, options: { hours: string; mod
     try {
       await fs.unlink(stopPath);
       console.log(chalk.yellow('  Removed STOP file from previous e-stop.'));
-    } catch {
-      // STOP file doesn't exist — that's fine
+    } catch (err) {
+      console.error('[resume] resume state restore failed:', err);
     }
 
     // Load previous run context for Manager
@@ -163,7 +163,7 @@ export async function resumeCommand(runid: string, options: { hours: string; mod
 
         console.log(chalk.red('\n⛔ Run stopped by user (STOP file detected). Run ID: ' + newRunId));
         const reportPath = path.join(ctx.runDir, 'report.md');
-        try { await fs.access(reportPath); } catch {
+        try { await fs.access(reportPath); } catch {  /* intentional: report file may not exist */
           await fs.writeFile(reportPath, '# STOPPED BY USER\n\nRun was stopped via STOP file (e-stop).\n');
         }
         process.exit(1);

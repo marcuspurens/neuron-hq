@@ -264,7 +264,7 @@ async function collectKnowledgeStats(): Promise<KnowledgeStats> {
     try {
       const { rows } = await pool.query(sql);
       stats[key] = (rows[0]?.count as number) ?? 0;
-    } catch {
+    } catch {  /* intentional: run data may be incomplete */
       // Table may not exist — keep zero default
     }
   }
@@ -297,8 +297,8 @@ export async function collectDashboardData(): Promise<DashboardData> {
     for (const b of beliefs.slice(0, 10)) {
       historyMap[b.dimension] = await getBeliefHistory(b.dimension, 50);
     }
-  } catch {
-    // V1 data unavailable — keep defaults
+  } catch (err) {
+    console.error('[dashboard-data] dashboard data generation failed:', err);
   }
 
   // V2 data
@@ -316,8 +316,8 @@ export async function collectDashboardData(): Promise<DashboardData> {
         collectKnowledgeStats(),
       ]);
     }
-  } catch {
-    // V2 data unavailable — keep defaults
+  } catch (err) {
+    console.error('[dashboard-data] dashboard data aggregation failed:', err);
   }
 
   return {

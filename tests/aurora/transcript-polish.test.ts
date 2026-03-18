@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { resetConfig } from '../../src/core/config.js';
 
 /* ------------------------------------------------------------------ */
 /*  Mocks                                                              */
@@ -51,6 +52,7 @@ vi.stubGlobal('fetch', mockFetch);
 beforeEach(() => {
   vi.clearAllMocks();
   delete process.env.OLLAMA_MODEL_POLISH;
+  resetConfig();
 
   mockSaveAuroraGraph.mockResolvedValue(undefined);
 
@@ -163,6 +165,7 @@ describe('polishBatch (Ollama)', () => {
 
   it('uses OLLAMA_MODEL_POLISH env var', async () => {
     process.env.OLLAMA_MODEL_POLISH = 'mistral';
+    resetConfig();
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({

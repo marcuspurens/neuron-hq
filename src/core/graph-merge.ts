@@ -142,8 +142,8 @@ export async function mergeNodes(
     if (await isDbAvailable()) {
       await transferCrossRefs(validated.removeNodeId, validated.keepNodeId, 'neuron');
     }
-  } catch {
-    // DB might not be available — merge still succeeds
+  } catch (err) {
+    console.error('[graph-merge] graph merge failed:', err);
   }
 
   return {

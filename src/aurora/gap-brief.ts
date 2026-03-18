@@ -47,7 +47,8 @@ export interface SuggestResearchOptions {
 function getModelConfig(): ModelConfig {
   try {
     return resolveModelConfig('researcher');
-  } catch {
+  } catch (err) {
+    console.error('[gap-brief] loading gap briefs failed:', err);
     return {
       ...DEFAULT_MODEL_CONFIG,
       model: 'claude-haiku-4-5-20251001',
@@ -142,8 +143,8 @@ async function findRelatedGaps(
     }
 
     if (related.length > 0) return related;
-  } catch {
-    // Fall through to keyword fallback
+  } catch (err) {
+    console.error('[gap-brief] gap brief generation failed:', err);
   }
 
   // Keyword fallback
@@ -192,12 +193,12 @@ async function gatherKnownFacts(
           : null;
         const score = calculateFreshnessScore(lastVerified);
         fact.freshnessStatus = freshnessStatus(score, lastVerified);
-      } catch {
+      } catch {  /* intentional: JSON parse may fail */
         // Keep default 'unverified'
       }
     }
-  } catch {
-    // DB not available — all facts stay 'unverified'
+  } catch (err) {
+    console.error('[gap-brief] reading gap brief failed:', err);
   }
 
   return facts.map(({ nodeId: _nodeId, ...rest }) => rest);
@@ -257,7 +258,7 @@ Respond with JSON:
           : ['Research this topic further'],
       };
     }
-  } catch {
+  } catch {  /* intentional: parse may fail */
     // JSON parsing failed — fall through to fallback
   }
 

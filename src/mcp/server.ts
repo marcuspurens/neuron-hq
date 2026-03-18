@@ -59,7 +59,7 @@ function wrapToolsWithNotification(server: McpServer): McpServer {
             typed.content.unshift({ type: 'text', text: notes });
           }
         }
-      } catch {
+      } catch {  /* intentional: best-effort server cleanup */
         // Notification check should never break the tool
       }
 

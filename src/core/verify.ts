@@ -41,7 +41,7 @@ export class Verifier {
         if (pkg.scripts.test) commands.push('pnpm test');
         if (pkg.scripts.build) commands.push('pnpm build');
       }
-    } catch {
+    } catch {  /* intentional: no package.json or unreadable */
       // No package.json or error reading it
     }
 
@@ -54,7 +54,7 @@ export class Verifier {
       commands.push('ruff check .');
       commands.push('mypy .');
       commands.push('pytest');
-    } catch {
+    } catch {  /* intentional: file may not exist */
       // No pyproject.toml
     }
 
@@ -65,7 +65,7 @@ export class Verifier {
 
       commands.push('cargo check');
       commands.push('cargo test');
-    } catch {
+    } catch {  /* intentional: file may not exist */
       // No Cargo.toml
     }
 

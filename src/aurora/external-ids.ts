@@ -56,12 +56,12 @@ async function fetchWithTimeout(
 async function withRetry<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await fn();
-  } catch {
+  } catch {  /* intentional: external-ids file may not exist */
     // First failure — wait 1 s then retry once
     await sleep(1000);
     try {
       return await fn();
-    } catch {
+    } catch {  /* intentional: JSON parse may fail for external-ids */
       return fallback;
     }
   }
@@ -385,7 +385,8 @@ export async function backfillExternalIds(
       } else {
         skipped++;
       }
-    } catch {
+    } catch (err) {
+      console.error('[external-ids] saving external IDs failed:', err);
       failed++;
     }
 
@@ -415,7 +416,8 @@ export async function backfillExternalIds(
         }
         updated++;
       }
-    } catch {
+    } catch (err) {
+      console.error('[external-ids] saving external IDs failed:', err);
       failed++;
     }
     await sleep(1000);

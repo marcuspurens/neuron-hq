@@ -286,13 +286,13 @@ export async function processExtractedText(
               sourceUrl,
             },
           });
-        } catch {
+        } catch {  /* intentional: JSON parse may fail */
           // confidence update failure should not break ingest
         }
       }
     }
-  } catch {
-    // Cross-ref failure should not break ingest
+  } catch (err) {
+    console.error('[intake] intake processing failed:', err);
     // Postgres might not be available, or kg_nodes might be empty
   }
 

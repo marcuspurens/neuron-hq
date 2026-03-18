@@ -107,7 +107,7 @@ export class ImplementerAgent {
         cwd: this.ctx.workspaceDir,
       });
       return stdout.trim().split('\n').filter(f => f.length > 0);
-    } catch {
+    } catch {  /* intentional: questions.md may not exist */
       return [];
     }
   }

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { resetConfig } from '../../src/core/config.js';
 
 /* ------------------------------------------------------------------ */
 /*  Mocks                                                              */
@@ -33,6 +34,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   delete process.env.OLLAMA_URL;
   delete process.env.OLLAMA_MODEL_VISION;
+  resetConfig();
 
   mockReadFile.mockResolvedValue(Buffer.from('fake-image-data'));
 
@@ -109,6 +111,7 @@ describe('analyzeImage', () => {
 
   it('uses OLLAMA_URL env var when set', async () => {
     process.env.OLLAMA_URL = 'http://custom:9999';
+    resetConfig();
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({ response: 'desc', done: true }),
@@ -124,6 +127,7 @@ describe('analyzeImage', () => {
 
   it('uses OLLAMA_MODEL_VISION env var when set', async () => {
     process.env.OLLAMA_MODEL_VISION = 'llava:7b';
+    resetConfig();
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({ response: 'desc', done: true }),

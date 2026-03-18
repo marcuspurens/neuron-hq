@@ -73,7 +73,8 @@ export interface BriefingResult {
 function getModelConfig(): ModelConfig {
   try {
     return resolveModelConfig('researcher');
-  } catch {
+  } catch (err) {
+    console.error('[briefing] briefing generation failed:', err);
     return {
       ...DEFAULT_MODEL_CONFIG,
       model: 'claude-haiku-4-5-20251001',
@@ -144,13 +145,13 @@ export async function briefing(
             fact.freshnessScore,
             lastVerified,
           );
-        } catch {
+        } catch {  /* intentional: JSON parse may fail */
           // Keep defaults (0, 'unverified') on failure
         }
       }
     }
-  } catch {
-    // DB not available — all facts stay as 'unverified'
+  } catch (err) {
+    console.error('[briefing] briefing loading failed:', err);
   }
 
   // Step 3: Map timeline from searchAurora
@@ -188,8 +189,8 @@ export async function briefing(
   let integrityIssues: IntegrityIssue[] = [];
   try {
     integrityIssues = await checkCrossRefIntegrity({ limit: 5 });
-  } catch {
-    // DB might not be available
+  } catch (err) {
+    console.error('[briefing] briefing save failed:', err);
   }
 
   // Step 6: Generate summary with Claude Haiku

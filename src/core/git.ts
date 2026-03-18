@@ -55,7 +55,7 @@ export class GitOperations {
       }
 
       return { additions, deletions };
-    } catch {
+    } catch {  /* intentional: git command may fail */
       return { additions: 0, deletions: 0 };
     }
   }
@@ -102,7 +102,7 @@ export class GitOperations {
     try {
       await execFileAsync('git', ['rev-parse', '--git-dir'], { cwd: path });
       return true;
-    } catch {
+    } catch {  /* intentional: git command may fail */
       return false;
     }
   }
@@ -140,7 +140,7 @@ export class GitOperations {
       // Clean merge — abort to leave repo clean
       await execFileAsync('git', ['merge', '--abort'], { cwd: this.repoPath });
       return [];
-    } catch {
+    } catch {  /* intentional: git command may fail */
       // Conflict detected — get list of conflicting files
       try {
         const { stdout } = await execFileAsync(
@@ -157,7 +157,7 @@ export class GitOperations {
         // Always abort to leave the repo clean
         try {
           await execFileAsync('git', ['merge', '--abort'], { cwd: this.repoPath });
-        } catch {
+        } catch {  /* intentional: best-effort worktree cleanup */
           // Abort may fail if merge state already cleaned up
         }
       }

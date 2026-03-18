@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { statSync } from 'fs';
 import { analyzeImage, ingestImage, isVisionAvailable } from '../aurora/vision.js';
+import { getConfig } from '../core/config.js';
 
 /**
  * CLI command: aurora:describe-image
@@ -11,7 +12,7 @@ export async function auroraDescribeImageCommand(
   filePath: string,
   cmdOptions: { title?: string; prompt?: string; model?: string; describeOnly?: boolean; scope?: string },
 ): Promise<void> {
-  const model = cmdOptions.model ?? process.env.OLLAMA_MODEL_VISION ?? 'qwen3-vl:8b';
+  const model = cmdOptions.model ?? getConfig().OLLAMA_MODEL_VISION;
   console.log(chalk.bold(`\n🔍 Analyzing image with ${model}...`));
 
   // Show file info
@@ -19,7 +20,8 @@ export async function auroraDescribeImageCommand(
     const stats = statSync(filePath);
     const sizeMB = (stats.size / 1024 / 1024).toFixed(1);
     console.log(`   Image: ${filePath} (${sizeMB} MB)`);
-  } catch {
+  } catch (err) {
+    console.error('[aurora-describe-image] image description failed:', err);
     console.log(`   Image: ${filePath}`);
   }
   console.log('');

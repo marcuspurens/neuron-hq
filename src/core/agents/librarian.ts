@@ -357,7 +357,8 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
 
     try {
       return await fs.readFile(filePath, 'utf-8');
-    } catch {
+    } catch (err) {
+      console.error('[librarian] indexing run failed:', err);
       return `(memory/${file}.md not found — file will be created when you write to it)`;
     }
   }
@@ -385,7 +386,7 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
       let existing = '';
       try {
         existing = await fs.readFile(filePath, 'utf-8');
-      } catch {
+      } catch {  /* intentional: knowledge.md may not exist */
         existing =
           '# Techniques — Externa forskningsrön\n\n' +
           'Relevanta rön från AI-forskning och Anthropic-dokumentation.\n' +

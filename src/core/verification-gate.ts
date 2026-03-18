@@ -32,7 +32,7 @@ export function validateImplementerResult(jsonString: string): ValidationResult<
   let parsed: unknown;
   try {
     parsed = JSON.parse(jsonString);
-  } catch {
+  } catch {  /* intentional: parse may fail */
     return { success: false, error: 'Invalid JSON string' };
   }
   const result = ImplementerResultSchema.safeParse(parsed);
@@ -50,7 +50,7 @@ export function validateReviewerResult(jsonString: string): ValidationResult<Rev
   let parsed: unknown;
   try {
     parsed = JSON.parse(jsonString);
-  } catch {
+  } catch {  /* intentional: parse may fail */
     return { success: false, error: 'Invalid JSON string' };
   }
   const result = ReviewerResultSchema.safeParse(parsed);

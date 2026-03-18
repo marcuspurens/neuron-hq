@@ -1,6 +1,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { loadAuroraGraph } from './aurora-graph.js';
 import { ensureOllama, getOllamaUrl } from '../core/ollama.js';
+import { getConfig } from '../core/config.js';
 import { createAgentClient } from '../core/agent-client.js';
 import { DEFAULT_MODEL_CONFIG } from '../core/model-registry.js';
 import type { AuroraNode } from './aurora-schema.js';
@@ -216,13 +217,13 @@ function parseGuesses(responseText: string): SpeakerGuess[] {
   // Try direct JSON parse
   try {
     parsed = JSON.parse(responseText);
-  } catch {
+  } catch {  /* intentional: parse may fail */
     // Try to extract JSON array with regex
     const match = responseText.match(/\[.*\]/s);
     if (!match) return [];
     try {
       parsed = JSON.parse(match[0]);
-    } catch {
+    } catch {  /* intentional: parse may fail */
       return [];
     }
   }
@@ -245,7 +246,7 @@ async function callOllama(
   userMessage: string,
   ollamaModel?: string,
 ): Promise<SpeakerGuessResult> {
-  const model = ollamaModel ?? process.env.OLLAMA_MODEL_POLISH ?? 'gemma3';
+  const model = ollamaModel ?? getConfig().OLLAMA_MODEL_POLISH;
   await ensureOllama(model);
 
   const baseUrl = getOllamaUrl();

@@ -30,7 +30,7 @@ async function cleanupTempFiles(
       const s = await stat(p);
       await unlink(p);
       bytesCleaned += s.size;
-    } catch {
+    } catch {  /* intentional: jobs directory may not exist */
       // File may not exist or already deleted
     }
   }

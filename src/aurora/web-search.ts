@@ -33,7 +33,8 @@ export async function webSearch(query: string, maxResults = 5): Promise<string[]
 
     const html = await response.text();
     return parseSearchResults(html, maxResults);
-  } catch {
+  } catch (err) {
+    console.error('[web-search] web search failed:', err);
     return [];
   }
 }
@@ -79,7 +80,7 @@ export function parseSearchResults(html: string, maxResults = 5): string[] {
 
         urls.push(candidateUrl);
         if (urls.length >= maxResults) return urls;
-      } catch {
+      } catch {  /* intentional: URL fetch may fail */
         // Skip malformed URLs
         continue;
       }

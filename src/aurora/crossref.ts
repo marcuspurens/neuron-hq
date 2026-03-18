@@ -78,11 +78,12 @@ async function fetchWithTimeout(
 async function withRetry<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await fn();
-  } catch {
+  } catch (err) {
+    console.error('[crossref] crossref API call failed:', err);
     await sleep(1000);
     try {
       return await fn();
-    } catch {
+    } catch {  /* intentional: JSON parse may fail for crossref */
       return fallback;
     }
   }

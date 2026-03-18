@@ -124,7 +124,7 @@ export class ReviewerAgent {
         if (scanResult.has_critical) {
           securityContext += '\n\n⚠️ CRITICAL security findings detected — this MUST be RED unless findings are false positives.';
         }
-      } catch {
+      } catch {  /* intentional: implementer result may not exist */
         securityContext = '\n## Automated Security Scan\n\n⚠️ Could not read diff for security scan.';
       }
     }
@@ -170,7 +170,8 @@ Block if policy is violated or verification fails.
     const briefPath = path.join(this.ctx.runDir, 'brief.md');
     try {
       return await fs.readFile(briefPath, 'utf-8');
-    } catch {
+    } catch (err) {
+      console.error('[reviewer] writing reviewer result failed:', err);
       return '(brief.md not found — cannot verify acceptance criteria)';
     }
   }
@@ -182,7 +183,7 @@ Block if policy is violated or verification fails.
     const handoffPath = path.join(this.ctx.runDir, 'implementer_handoff.md');
     try {
       return await fs.readFile(handoffPath, 'utf-8');
-    } catch {
+    } catch {  /* intentional: report.md may not exist yet */
       return null;
     }
   }

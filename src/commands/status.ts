@@ -34,7 +34,7 @@ export async function statusCommand(): Promise<void> {
         }
 
         console.log();
-      } catch {
+      } catch {  /* intentional: manifest may not exist */
         console.log(chalk.red(`✗ ${runid}`));
         console.log(chalk.gray('  (manifest.json not found or invalid)'));
         console.log();

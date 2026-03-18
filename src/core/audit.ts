@@ -24,7 +24,7 @@ export class AuditLogger {
       if (await isDbAvailable()) {
         await this.insertToDb(entry);
       }
-    } catch {
+    } catch {  /* intentional: best-effort audit append */
       // DB write failure is non-fatal — file is the backup
     }
   }

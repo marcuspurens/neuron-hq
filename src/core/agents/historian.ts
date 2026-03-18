@@ -470,8 +470,8 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
       }
 
       return warnings.length > 0 ? `[Semantic Dedup Check]\n${warnings.join('\n')}` : null;
-    } catch {
-      // Non-fatal: if semantic search fails, proceed without dedup check
+    } catch (err) {
+      console.error('[historian] saving historian knowledge failed:', err);
       return null;
     }
   }
@@ -487,8 +487,8 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
     let content: string;
     try {
       content = await fs.readFile(ideasPath, 'utf-8');
-    } catch {
-      // No ideas.md — common, not an error
+    } catch (err) {
+      console.error('[historian] historian audit log failed:', err);
       return;
     }
 
@@ -535,7 +535,7 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
             }
           }
         }
-      } catch {
+      } catch {  /* intentional: knowledge.md may not exist */
         // Semantic search not available — proceed without dedup
       }
 
@@ -651,7 +651,8 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
         files_touched: [absolutePath],
       });
       return content;
-    } catch {
+    } catch (err) {
+      console.error('[historian] updating knowledge graph failed:', err);
       return `(file not found: ${filePath})`;
     }
   }
@@ -674,7 +675,8 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
         files_touched: [filePath],
       });
       return content;
-    } catch {
+    } catch (err) {
+      console.error('[historian] persisting knowledge-graph state failed:', err);
       return `(file not found: ${file}.md)`;
     }
   }
@@ -720,7 +722,7 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
       let existing = '';
       try {
         existing = await fs.readFile(filePath, 'utf-8');
-      } catch {
+      } catch {  /* intentional: knowledge-graph file may not exist */
         existing = MEMORY_FILE_HEADERS[file];
       }
 
@@ -746,7 +748,8 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
     let content: string;
     try {
       content = await fs.readFile(filePath, 'utf-8');
-    } catch {
+    } catch (err) {
+      console.error('[historian] semantic search indexing failed:', err);
       return `Error: errors.md not found`;
     }
 
@@ -788,7 +791,8 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
     let raw: string;
     try {
       raw = await fs.readFile(filePath, 'utf-8');
-    } catch {
+    } catch (err) {
+      console.error('[historian] graph merge failed:', err);
       return `(audit.jsonl not found in ${this.ctx.runDir})`;
     }
 

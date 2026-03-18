@@ -119,7 +119,8 @@ async function listRunsFromFs(args: {
       .map((e) => e.name)
       .sort()
       .reverse();
-  } catch {
+  } catch (err) {
+    console.error('[runs] reading run data failed:', err);
     return { content: [{ type: 'text' as const, text: '[]' }] };
   }
 
@@ -140,7 +141,7 @@ async function listRunsFromFs(args: {
         const usage = JSON.parse(await fs.readFile(usagePath, 'utf-8'));
         const modelKey = getModelShortName(usage.model ?? '');
         cost = calcCost(usage.total_input_tokens ?? 0, usage.total_output_tokens ?? 0, modelKey);
-      } catch {
+      } catch {  /* intentional: JSON parse may fail */
         /* no usage file */
       }
 
@@ -152,7 +153,8 @@ async function listRunsFromFs(args: {
         completed_at: manifest.completed_at,
         cost: Math.round(cost * 100) / 100,
       });
-    } catch {
+    } catch (err) {
+      console.error('[runs] listing runs failed:', err);
       /* skip invalid dirs */
     }
   }
@@ -200,12 +202,14 @@ async function getRunDetail(
   const runDir = path.join(RUNS_DIR, runid);
   try {
     runData.brief = await fs.readFile(path.join(runDir, 'brief.md'), 'utf-8');
-  } catch {
+  } catch (err) {
+    console.error('[runs] reading run details failed:', err);
     /* no brief */
   }
   try {
     runData.report = await fs.readFile(path.join(runDir, 'report.md'), 'utf-8');
-  } catch {
+  } catch (err) {
+    console.error('[runs] reading run digest failed:', err);
     /* no report */
   }
 

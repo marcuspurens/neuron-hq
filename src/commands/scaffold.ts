@@ -46,7 +46,7 @@ export async function scaffoldCommand(
 
         console.log(chalk.cyan('→ Running tests (pytest)...'));
         execSync('pytest', { cwd: projectDir, stdio: 'pipe' });
-      } catch {
+      } catch {  /* intentional: target config may not exist */
         console.log(chalk.yellow('  ⚠ Python setup/tests had issues (non-fatal)'));
       }
     }

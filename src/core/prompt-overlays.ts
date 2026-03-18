@@ -62,14 +62,14 @@ export async function loadOverlay(
   // Try role-specific overlay first
   try {
     return await readFile(path.join(overlayDir, `${config.role}.md`), 'utf-8');
-  } catch {
+  } catch {  /* intentional: overlay file may not exist */
     // Role-specific file not found, try default
   }
 
   // Fall back to default overlay
   try {
     return await readFile(path.join(overlayDir, 'default.md'), 'utf-8');
-  } catch {
+  } catch {  /* intentional: overlay file may not exist */
     return undefined;
   }
 }

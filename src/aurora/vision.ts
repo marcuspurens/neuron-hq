@@ -2,13 +2,14 @@ import { readFile } from 'fs/promises';
 import { extname, resolve, basename } from 'path';
 import { processExtractedText, type IngestOptions, type IngestResult } from './intake.js';
 import { ensureOllama, getOllamaUrl } from '../core/ollama.js';
+import { getConfig } from '../core/config.js';
 
 // --- Types ---
 
 export interface VisionOptions extends IngestOptions {
   /** Custom prompt for the vision model. */
   prompt?: string;
-  /** Ollama model to use. Default: env OLLAMA_MODEL_VISION or 'qwen3-vl:8b'. */
+  /** Ollama model to use. Default: env OLLAMA_MODEL_VISION. */
   model?: string;
   /** Custom document title. Default: filename. */
   title?: string;
@@ -52,7 +53,7 @@ export async function analyzeImage(
   const base64Image = imageBuffer.toString('base64');
 
   const baseUrl = getOllamaUrl();
-  const model = options?.model ?? process.env.OLLAMA_MODEL_VISION ?? 'qwen3-vl:8b';
+  const model = options?.model ?? getConfig().OLLAMA_MODEL_VISION;
   const prompt = options?.prompt ?? DEFAULT_PROMPT;
 
   await ensureOllama(model);
@@ -81,7 +82,7 @@ export async function analyzeImage(
  * Check if the vision model is available in Ollama.
  */
 export async function isVisionAvailable(model?: string): Promise<boolean> {
-  const modelName = model ?? process.env.OLLAMA_MODEL_VISION ?? 'qwen3-vl:8b';
+  const modelName = model ?? getConfig().OLLAMA_MODEL_VISION;
   return ensureOllama(modelName);
 }
 

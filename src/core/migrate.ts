@@ -73,7 +73,7 @@ export async function getMigrationFiles(): Promise<string[]> {
   try {
     const files = await fs.readdir(MIGRATIONS_DIR);
     return files.filter((f) => f.endsWith('.sql')).sort();
-  } catch {
+  } catch {  /* intentional: migrations dir may not exist */
     return [];
   }
 }
@@ -87,7 +87,7 @@ export async function getAppliedMigrations(pool: Pool): Promise<string[]> {
       'SELECT name FROM migrations ORDER BY name',
     );
     return rows.map((r: { name: string }) => r.name);
-  } catch {
+  } catch {  /* intentional: migrations table may not exist yet */
     return [];
   }
 }

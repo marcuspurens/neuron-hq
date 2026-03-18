@@ -53,7 +53,7 @@ export async function countMemoryRuns(memoryDir: string): Promise<number> {
     const content = await fs.readFile(runsFile, 'utf-8');
     const matches = content.match(/^## Körning /gm);
     return matches ? matches.length : 0;
-  } catch {
+  } catch {  /* intentional: target config file may not exist */
     return 0;
   }
 }
@@ -66,7 +66,7 @@ export async function countCompletedRuns(runsDir: string): Promise<number> {
   try {
     const entries = await fs.readdir(runsDir, { withFileTypes: true });
     return entries.filter(e => e.isDirectory() && !e.name.endsWith('-resume')).length;
-  } catch {
+  } catch {  /* intentional: target config file may not exist */
     return 0;
   }
 }
@@ -114,7 +114,7 @@ export async function checkEstop(baseDir: string, audit: AuditLogger): Promise<v
   const stopPath = path.join(baseDir, 'STOP');
   try {
     await fs.access(stopPath);
-  } catch {
+  } catch {  /* intentional: file may not exist */
     return; // No STOP file, continue
   }
   // STOP file exists — log and throw
@@ -261,8 +261,8 @@ export class RunOrchestrator {
     try {
       createRunTrace(runid, { brief: processedBrief, briefTitle, target: target.name, hours });
       registerEventBusListeners(eventBus);
-    } catch {
-      // Langfuse failure must never affect the run
+    } catch (err) {
+      console.error('[run] saving run manifest failed:', err);
     }
 
     // Dashboard disabled — replaced by Langfuse observability (session 95)
@@ -356,14 +356,14 @@ export class RunOrchestrator {
         JSON.stringify(metrics, null, 2),
         'utf-8'
       );
-    } catch {
+    } catch {  /* intentional: best-effort file write */
       // Non-fatal: metrics computation failure should not break finalization
     }
 
     // Compute task-level scores (informational only)
     try {
       await computeAllTaskScores(ctx.runDir);
-    } catch {
+    } catch {  /* intentional: best-effort file write */
       // Non-fatal — task scores are informational
     }
 
@@ -371,7 +371,7 @@ export class RunOrchestrator {
     try {
       const { generateDigest } = await import('./run-digest.js');
       await generateDigest(ctx.runDir);
-    } catch {
+    } catch {  /* intentional: best-effort file write */
       // Non-fatal: digest generation failure should not break finalization
     }
 
@@ -385,7 +385,7 @@ export class RunOrchestrator {
           await updateRunBeliefs(outcomes, ctx.runid);
         }
       }
-    } catch {
+    } catch {  /* intentional: best-effort metrics save */
       // Non-fatal — run statistics are informational
     }
 
@@ -397,7 +397,7 @@ export class RunOrchestrator {
       try {
         const checksum = await ManifestManager.checksumFile(filePath);
         checksums[path.basename(filePath)] = checksum;
-      } catch {
+      } catch {  /* intentional: best-effort file write */
         // File might not exist (e.g., sources.md if no research)
       }
     }
@@ -408,7 +408,7 @@ export class RunOrchestrator {
     try {
       const baseDir = path.resolve(ctx.runDir, '..', '..');
       await updateCostTracking(baseDir);
-    } catch {
+    } catch {  /* intentional: best-effort file write */
       // Non-fatal — cost tracking is informational
     }
 
@@ -461,14 +461,14 @@ export class RunOrchestrator {
         const kmReportPath = path.join(ctx.runDir, 'km-report.json');
         await fs.writeFile(kmReportPath, JSON.stringify(report, null, 2), 'utf-8');
       }
-    } catch {
+    } catch {  /* intentional: best-effort file write */
       // Non-fatal: auto-KM failure should not break finalization
     }
 
     // Close dashboard server (safety net — it auto-closes on run:end too)
     try {
       ctx.dashboardServer?.close();
-    } catch {
+    } catch {  /* intentional: best-effort file write */
       // Non-fatal
     }
 
@@ -483,7 +483,7 @@ export class RunOrchestrator {
         const preserveNote = `Workspace preserved at: ${ctx.workspaceDir}\nReason: ${ctx.maxIterationsReached ? 'Max iterations reached' : 'Emergency save detected'}\n`;
         await fs.appendFile(path.join(ctx.runDir, 'WARNING.md'), `\n---\n\n## Workspace Bevarad\n\n${preserveNote}`, 'utf-8').catch(() => {});
       }
-    } catch {
+    } catch {  /* intentional: file may not exist */
       // Non-fatal — workspace preservation check should not break finalization
     }
 
@@ -506,7 +506,7 @@ export class RunOrchestrator {
         });
       }
       await shutdownLangfuse();
-    } catch {
+    } catch {  /* intentional: best-effort file write */
       // Langfuse failure must never affect the run
     }
   }
@@ -528,7 +528,7 @@ export class RunOrchestrator {
     // Verify old workspace exists
     try {
       await fs.access(workspaceDir);
-    } catch {
+    } catch {  /* intentional: file may not exist */
       throw new Error(
         `Workspace for run '${oldRunId}' not found at: ${workspaceDir}\n` +
         `The workspace may have been deleted after the original run completed.`
@@ -562,7 +562,7 @@ export class RunOrchestrator {
     try {
       const briefContent = await fs.readFile(oldBriefPath, 'utf-8');
       await artifacts.writeBrief(briefContent);
-    } catch {
+    } catch {  /* intentional: best-effort file write */
       await artifacts.writeBrief(`# Resumed Run\n\nResumed from: ${oldRunId}\n\nNo brief found in previous run.`);
     }
 

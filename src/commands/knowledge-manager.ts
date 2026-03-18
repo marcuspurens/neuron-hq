@@ -53,8 +53,8 @@ export async function knowledgeManagerCommand(
         cycleNumber: report.cycleNumber,
         stoppedBy: report.stoppedBy,
       });
-    } catch {
-      // Non-fatal: logging failure should not break CLI output
+    } catch (err) {
+      console.error('[knowledge-manager] knowledge manager command failed:', err);
     }
 
     console.log(chalk.bold('\n🧠 Knowledge Manager Report\n'));

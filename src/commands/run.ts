@@ -9,11 +9,16 @@ import { ManagerAgent } from '../core/agents/manager.js';
 import { BASE_DIR } from '../cli.js';
 import { scaffoldProject, type ScaffoldOptions } from '../core/scaffold.js';
 import type { RunConfig, StoplightStatus } from '../core/types.js';
+import { installShutdownHandlers, onShutdown } from '../core/shutdown.js';
+import { closePool } from '../core/db.js';
 
 export async function runCommand(
   targetName: string,
   options: { hours: string; brief: string; scaffold?: string; model?: string; autoKm?: boolean }
 ): Promise<void> {
+  installShutdownHandlers();
+  onShutdown(() => closePool());
+
   const spinner = ora('Initializing neuron run...').start();
 
   try {
@@ -35,7 +40,7 @@ export async function runCommand(
       try {
         await fs.access(projectDir);
         // Directory exists, don't scaffold
-      } catch {
+      } catch {  /* intentional: file may not exist */
         // Directory doesn't exist, scaffold it
         spinner.text = `Scaffolding ${targetName}...`;
         await scaffoldProject({ name: targetName, language, template, targetDir });
@@ -99,7 +104,7 @@ export async function runCommand(
       const { AgentModelMapSchema } = await import('../core/model-registry.js');
       try {
         ctx.agentModelMap = AgentModelMapSchema.parse(agentModelsRaw);
-      } catch {
+      } catch {  /* intentional: target config may not exist */
         // Invalid config — skip, agents will use defaults
       }
     }
@@ -120,7 +125,7 @@ export async function runCommand(
       console.log(chalk.yellow('    Remove it before starting a new run:'));
       console.log(chalk.yellow(`    rm ${stopFilePath}`));
       process.exit(1);
-    } catch {
+    } catch {  /* intentional: file may not exist */
       // No STOP file — continue normally
     }
 
@@ -190,7 +195,7 @@ export async function runCommand(
         const reportPath = path.join(ctx.runDir, 'report.md');
         try {
           await fs.access(reportPath);
-        } catch {
+        } catch {  /* intentional: file may not exist */
           await fs.writeFile(reportPath, '# STOPPED BY USER\n\nRun was stopped via STOP file (e-stop).\n');
         }
 
@@ -223,7 +228,8 @@ export async function runCommand(
       const contentStart = existing.indexOf('\n# ');
       reportContent = contentStart > 0 ? existing.slice(contentStart + 1) : existing;
       reviewerRan = true;
-    } catch {
+    } catch (err) {
+      console.error('[run] run cleanup failed:', err);
       reportContent = [
         '# Run Report',
         '',

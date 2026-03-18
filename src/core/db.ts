@@ -1,17 +1,19 @@
 import { Pool, PoolConfig } from 'pg';
+import { getConfig } from './config.js';
 
 let pool: Pool | null = null;
 
 /**
  * Get or create the singleton Postgres connection pool.
- * Uses DATABASE_URL env var or defaults to local Postgres.
+ * Uses DATABASE_URL from centralized config or defaults to local Postgres.
  */
 export function getPool(): Pool {
   if (!pool) {
+    const cfg = getConfig();
     const config: PoolConfig = {
       connectionString:
-        process.env.DATABASE_URL || 'postgresql://localhost:5432/neuron',
-      max: 5,
+        cfg.DATABASE_URL || 'postgresql://localhost:5432/neuron',
+      max: cfg.DB_POOL_MAX,
     };
     pool = new Pool(config);
   }
