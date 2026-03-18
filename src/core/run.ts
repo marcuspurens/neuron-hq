@@ -16,7 +16,7 @@ import type { AgentModelMap } from './model-registry.js';
 import { eventBus } from './event-bus.js';
 import type { DashboardServer } from './dashboard-server.js';
 import { createRunTrace, getRunTrace, shutdownLangfuse, registerEventBusListeners } from './langfuse.js';
-import { createLogger } from './logger.js';
+import { createLogger, setTraceId } from './logger.js';
 
 const logger = createLogger('run');
 
@@ -194,6 +194,8 @@ export class RunOrchestrator {
     // Initialize components
     const { artifacts, audit, manifest, usage, redactor, verifier } =
       await this._buildContext({ runDir, workspaceDir, runid });
+
+    setTraceId(runid);
 
     // Clone or copy target repo to workspace
     await this.prepareWorkspace(target, workspaceDir);

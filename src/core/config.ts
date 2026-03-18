@@ -17,6 +17,8 @@ const ConfigSchema = z.object({
   LANGFUSE_PUBLIC_KEY: z.string().optional(),
   LANGFUSE_SECRET_KEY: z.string().optional(),
   LANGFUSE_BASE_URL: z.string().default('http://localhost:3000'),
+  // Logging
+  LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   // API - note: ANTHROPIC_API_KEY is NOT here because agent-client.ts
   // uses dynamic env var names via config.apiKeyEnv
 });
