@@ -33,6 +33,31 @@ vi.mock('../../src/core/db.js', () => ({
   closePool: vi.fn(),
 }));
 
+vi.mock('../../src/aurora/cross-ref.js', () => ({
+  findNeuronMatchesForAurora: vi.fn().mockResolvedValue([]),
+  createCrossRef: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../../src/aurora/speaker-identity.js', () => ({
+  autoTagSpeakers: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock('../../src/aurora/voiceprint.js', () => ({
+  renameSpeaker: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../../src/core/ollama.js', () => ({
+  ensureOllama: vi.fn().mockResolvedValue(false),
+}));
+
+vi.mock('../../src/aurora/transcript-polish.js', () => ({
+  polishTranscript: vi.fn().mockResolvedValue({ rawText: '', correctedText: '', batchCount: 0 }),
+}));
+
+vi.mock('../../src/aurora/speaker-guesser.js', () => ({
+  guessSpeakers: vi.fn().mockResolvedValue({ guesses: [], modelUsed: 'mock' }),
+}));
+
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */

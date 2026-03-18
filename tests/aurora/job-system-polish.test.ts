@@ -51,6 +51,19 @@ vi.mock('../../src/core/db.js', () => ({
   closePool: vi.fn(),
 }));
 
+vi.mock('../../src/core/ollama.js', () => ({
+  ensureOllama: vi.fn().mockResolvedValue(false),
+  getOllamaUrl: vi.fn().mockReturnValue('http://localhost:11434'),
+}));
+
+vi.mock('../../src/aurora/transcript-polish.js', () => ({
+  polishTranscript: vi.fn().mockResolvedValue({ rawText: '', correctedText: '', batchCount: 0 }),
+}));
+
+vi.mock('../../src/aurora/speaker-guesser.js', () => ({
+  guessSpeakers: vi.fn().mockResolvedValue({ guesses: [], modelUsed: 'mock' }),
+}));
+
 // Mocks for CLI command tests
 const mockGetJobs = vi.fn();
 const mockGetJobStats = vi.fn();
@@ -126,8 +139,8 @@ describe('onProgress callback', () => {
       (c: [ProgressUpdate]) => ({ step: c[0].step, progress: c[0].progress }),
     );
 
-    // Should have start (0) and end (1.0) for: downloading, transcribing, chunking, embedding
-    const expectedSteps = ['downloading', 'transcribing', 'chunking', 'embedding'];
+    // Should have start (0) and end (1.0) for: downloading, transcribing, chunking, embedding, polishing
+    const expectedSteps = ['downloading', 'transcribing', 'chunking', 'embedding', 'polishing'];
     for (const step of expectedSteps) {
       const stepCalls = calls.filter((c: { step: string }) => c.step === step);
       expect(stepCalls.length).toBeGreaterThanOrEqual(2);
@@ -135,8 +148,8 @@ describe('onProgress callback', () => {
       expect(stepCalls[stepCalls.length - 1].progress).toBe(1.0);
     }
 
-    // Total calls: 4 steps x 2 (start + end) = 8
-    expect(progressSpy).toHaveBeenCalledTimes(8);
+    // Total calls: 5 steps x 2 (start + end) = 10
+    expect(progressSpy).toHaveBeenCalledTimes(10);
   });
 
   it('onProgress is optional — ingest works without it', async () => {

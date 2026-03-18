@@ -18,6 +18,10 @@ import type { AuroraNode } from './aurora-schema.js';
 import { findNeuronMatchesForAurora, createCrossRef } from './cross-ref.js';
 import { autoTagSpeakers } from './speaker-identity.js';
 import { renameSpeaker } from './voiceprint.js';
+import { polishTranscript } from './transcript-polish.js';
+import { guessSpeakers } from './speaker-guesser.js';
+import type { SpeakerGuess } from './speaker-guesser.js';
+import { ensureOllama } from '../core/ollama.js';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -25,7 +29,7 @@ import { renameSpeaker } from './voiceprint.js';
 
 /** Progress update emitted at the start and end of each pipeline step. */
 export interface ProgressUpdate {
-  step: 'downloading' | 'transcribing' | 'diarizing' | 'chunking' | 'embedding';
+  step: 'downloading' | 'transcribing' | 'diarizing' | 'chunking' | 'embedding' | 'polishing' | 'identifying';
   progress: number; // 0.0 to 1.0
   stepElapsedMs: number;
   backend?: string;
@@ -40,6 +44,12 @@ export interface VideoIngestOptions {
   language?: string;
   /** Optional callback invoked at the start and end of each pipeline step. */
   onProgress?: (update: ProgressUpdate) => void;
+  /** Polish transcript via LLM (default: true if Ollama is available). */
+  polish?: boolean;
+  /** Identify speakers via LLM (default: true if Ollama is available). */
+  identifySpeakers?: boolean;
+  /** Model for polish/identify: 'ollama' (default) or 'claude'. */
+  polishModel?: 'ollama' | 'claude';
 }
 
 export interface VideoIngestResult {
@@ -65,6 +75,10 @@ export interface VideoIngestResult {
   audioPath?: string;
   /** Path to the temporary video file (for cleanup). */
   videoPath?: string;
+  /** Whether the transcript was LLM-polished. */
+  polished: boolean;
+  /** AI-guessed speaker identities (null if not performed). */
+  speakerGuesses: SpeakerGuess[] | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -173,6 +187,8 @@ export async function ingestVideo(
       platform: (existing.properties.platform as string) ?? 'unknown',
       crossRefsCreated: 0,
       crossRefMatches: [],
+      polished: false,
+      speakerGuesses: null,
     };
   }
 
@@ -422,6 +438,44 @@ export async function ingestVideo(
     // Cross-ref failure should not break ingest
   }
 
+  // 10. Optional: Polish transcript via LLM
+  let polished = false;
+  if (options?.polish !== false) {
+    stepStart = Date.now();
+    options?.onProgress?.({ step: 'polishing', progress: 0, stepElapsedMs: 0 });
+    try {
+      const ollamaReady = await ensureOllama();
+      if (ollamaReady || options?.polishModel === 'claude') {
+        await polishTranscript(transcriptNodeId, {
+          polishModel: options?.polishModel,
+        });
+        polished = true;
+      }
+    } catch (err) {
+      console.error(`[polish] Skipping — ${err instanceof Error ? err.message : err}`);
+    }
+    options?.onProgress?.({ step: 'polishing', progress: 1.0, stepElapsedMs: Date.now() - stepStart });
+  }
+
+  // 11. Optional: Identify speakers via LLM
+  let speakerGuesses: SpeakerGuess[] | null = null;
+  if (options?.identifySpeakers !== false && options?.diarize) {
+    stepStart = Date.now();
+    options?.onProgress?.({ step: 'identifying', progress: 0, stepElapsedMs: 0 });
+    try {
+      const ollamaReady = await ensureOllama();
+      if (ollamaReady || options?.polishModel === 'claude') {
+        const guessResult = await guessSpeakers(transcriptNodeId, {
+          model: options?.polishModel,
+        });
+        speakerGuesses = guessResult.guesses;
+      }
+    } catch (err) {
+      console.error(`[identify-speakers] Skipping — ${err instanceof Error ? err.message : err}`);
+    }
+    options?.onProgress?.({ step: 'identifying', progress: 1.0, stepElapsedMs: Date.now() - stepStart });
+  }
+
   return {
     transcriptNodeId,
     chunksCreated: chunks.length,
@@ -435,5 +489,7 @@ export async function ingestVideo(
     modelUsed,
     audioPath: extractMeta.audioPath as string | undefined,
     videoPath: extractMeta.videoPath as string | undefined,
+    polished,
+    speakerGuesses,
   };
 }

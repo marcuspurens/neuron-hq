@@ -51,6 +51,8 @@ import { auroraIngestBookCommand } from './commands/aurora-ingest-book.js';
 import { auroraDescribeImageCommand } from './commands/aurora-describe-image.js';
 import { jobsCommand } from './commands/jobs.js';
 import { jobStatsCommand } from './commands/job-stats.js';
+import { auroraPolishCommand } from './commands/aurora-polish.js';
+import { auroraIdentifySpeakersCommand } from './commands/aurora-identify-speakers.js';
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
@@ -230,8 +232,25 @@ program
   .option('--whisper-model <model>', 'Whisper model: tiny|small|medium|large', 'small')
   .option('--language <lang>', 'Language code (e.g. sv, en) — skip auto-detection')
   .option('--no-keep-audio', 'Do not save audio file (audio is saved by default to Neuron Lab/audio/)')
+  .option('--no-polish', 'Skip LLM transcript polishing')
+  .option('--no-identify-speakers', 'Skip AI speaker identification')
+  .option('--polish-model <model>', 'Model for polish/identify: ollama or claude')
   .action(auroraIngestVideoCommand);
 
+
+program
+  .command('aurora:polish <nodeId>')
+  .description('LLM-polish a transcript (fix spelling, names, punctuation)')
+  .option('--polish-model <model>', 'Model: ollama (default) or claude')
+  .option('--ollama-model <model>', 'Specific Ollama model name')
+  .action(auroraPolishCommand);
+
+program
+  .command('aurora:identify-speakers <nodeId>')
+  .description('AI-guess speaker identities from transcript context')
+  .option('--model <model>', 'Model: ollama (default) or claude')
+  .option('--ollama-model <model>', 'Specific Ollama model name')
+  .action(auroraIdentifySpeakersCommand);
 
 program
   .command('aurora:ingest-image <path>')

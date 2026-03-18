@@ -41,6 +41,19 @@ vi.mock('../../src/core/db.js', () => ({
   closePool: vi.fn(),
 }));
 
+vi.mock('../../src/core/ollama.js', () => ({
+  ensureOllama: vi.fn().mockResolvedValue(false),
+  getOllamaUrl: vi.fn().mockReturnValue('http://localhost:11434'),
+}));
+
+vi.mock('../../src/aurora/transcript-polish.js', () => ({
+  polishTranscript: vi.fn().mockResolvedValue({ rawText: '', correctedText: '', batchCount: 0 }),
+}));
+
+vi.mock('../../src/aurora/speaker-guesser.js', () => ({
+  guessSpeakers: vi.fn().mockResolvedValue({ guesses: [], modelUsed: 'mock' }),
+}));
+
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */

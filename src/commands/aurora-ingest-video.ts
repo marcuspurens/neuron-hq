@@ -20,6 +20,9 @@ export async function auroraIngestVideoCommand(
     whisperModel?: string;
     language?: string;
     keepAudio?: boolean;
+    polish?: boolean;
+    identifySpeakers?: boolean;
+    polishModel?: string;
   },
 ): Promise<void> {
   console.log(chalk.bold('\n🎬 Ingesting video...'));
@@ -40,6 +43,8 @@ export async function auroraIngestVideoCommand(
     diarizing: '🗣️ ',
     chunking: '✂️ ',
     embedding: '🧠',
+    polishing: '✨',
+    identifying: '🗣️',
   };
 
   const options: VideoIngestOptions = {
@@ -48,6 +53,9 @@ export async function auroraIngestVideoCommand(
     maxChunks: cmdOptions.maxChunks ? parseInt(cmdOptions.maxChunks, 10) : undefined,
     whisperModel: cmdOptions.whisperModel,
     language: cmdOptions.language,
+    polish: cmdOptions.polish,
+    identifySpeakers: cmdOptions.identifySpeakers,
+    polishModel: cmdOptions.polishModel as VideoIngestOptions['polishModel'],
     onProgress: (update: ProgressUpdate) => {
       const emoji = stepEmojis[update.step] ?? '▶️';
       if (update.progress === 0) {
@@ -89,6 +97,16 @@ export async function auroraIngestVideoCommand(
       console.log(chalk.cyan(`  🔗 ${result.crossRefsCreated} cross-reference${result.crossRefsCreated > 1 ? 's' : ''} created:`));
       for (const match of result.crossRefMatches) {
         console.log(`     → [${match.similarity.toFixed(2)}] ${match.relationship} "${match.neuronTitle}"`);
+      }
+    }
+    if (result.polished) {
+      console.log(chalk.cyan('  ✨ Transcript polished via LLM'));
+    }
+    if (result.speakerGuesses && result.speakerGuesses.length > 0) {
+      console.log(chalk.cyan('  🗣️  Speaker guesses:'));
+      for (const g of result.speakerGuesses) {
+        const name = g.name || '(unknown)';
+        console.log(`     ${g.speakerLabel}: ${name} (${g.confidence}%) — ${g.role}`);
       }
     }
     console.log('');
