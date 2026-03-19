@@ -96,17 +96,16 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
-### 1.5 Manager prompt-fix ⬜
+### 1.5 Manager prompt-fix ✅ S103 · 2026-03-19
 
 **Vad det ger dig:** Manager slutar känna "tidspress" och fattar beslut baserat på data istället för intuition. Agenterna vet hur mycket resurser de faktiskt har.
 
-**Tekniskt:**
-- Ta bort alla hårdkodade iterationsnummer i prompts
-- Injicera aktuella limits dynamiskt: `Du har {{maxIterations}} iterationer`
-- Ersätt "budget"-tänk med "fokusera på kvalitet"
-- Granska alla agent-prompts för utdaterade resursbegränsningar
-
-**Effort:** 1 liten körning (eller direkt i session) · **Brief:** `prompt-refresh`
+**Gjort:**
+- Manager: "hard limit of 50" → dynamisk referens till `policy/limits.yaml` + procentbaserade trösklar
+- Manager: "No time pressure"-instruktion tillagd, beslut baserat på data
+- Implementer: "55/65 iterations" → dynamisk 75%-tröskel
+- Haiku Manager overlay: "if time is limited" → "if scope is small"
+- Alla hårdkodade iterationsnummer borta från prompts
 
 ---
 
@@ -340,31 +339,31 @@ Fas 4: Produkt                ← andra kan använda det
 
 ## Sammanfattning: alla steg
 
-| # | Vad | Fas | Effort | Beroenden |
-|---|-----|-----|--------|-----------|
-| 1.1 | Robust input-pipeline | 1 | 1-2 körn | — |
-| 1.2 | OB-1c: taggar & synk | 1 | 1-2 körn | — |
-| 1.3 | Morgon-briefing | 1 | 1-2 körn | 1.2 |
-| 1.4 | Loggkörningsbok | 1 | 2 körn | — |
-| 1.5 | Manager prompt-fix | 1 | <1 körn | — |
-| 1.6 | neuron_help tool | 1 | 1 körn | — |
-| 2.1 | HippoRAG PPR | 2 | 1-2 körn | — |
-| 2.2 | Feedback-loop i prompts | 2 | 1-2 körn | — |
-| 2.3 | Namnbyte Researcher ↔ Librarian | 2 | 1 körn | — |
-| 2.4 | Idékonsolidering | 2 | 1 körn | — |
-| 2.5 | Grafintegritet watchman | 2 | 1 körn | — |
-| 3.1 | Reviewer severity levels | 3 | 1-2 körn | — |
-| 3.2 | A-MEM | 3 | 2-3 körn | 2.1 |
-| 3.3 | Research före implementation | 3 | 1 körn | 2.3 |
-| 3.4 | Schemalagda agent-samtal | 3 | 2-3 körn | 2.3, server |
-| 3.5 | Dynamisk diff-limit | 3 | 1 körn | — |
-| 3.6 | Prompt-audit | 3 | 1 körn | — |
-| 4.1 | Docker-compose | 4 | 2 körn | — |
-| 4.2 | Webb-UI | 4 | 5-10 körn | — |
-| 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 |
-| 4.4 | Server | 4 | 2 körn | 4.1 |
+| # | Vad | Fas | Effort | Beroenden | Klar |
+|---|-----|-----|--------|-----------|------|
+| 1.1 | Robust input-pipeline | 1 | 1-2 körn | — | ⬜ |
+| 1.2 | OB-1c: taggar & synk | 1 | 1-2 körn | — | ⬜ |
+| 1.3 | Morgon-briefing | 1 | 1-2 körn | 1.2 | ⬜ |
+| 1.4 | Loggkörningsbok | 1 | 2 körn | — | ⬜ |
+| 1.5 | Manager prompt-fix | 1 | <1 körn | — | ✅ S103 2026-03-19 |
+| 1.6 | neuron_help tool | 1 | 1 körn | — | ⬜ |
+| 2.1 | HippoRAG PPR | 2 | 1-2 körn | — | ⬜ |
+| 2.2 | Feedback-loop i prompts | 2 | 1-2 körn | — | ⬜ |
+| 2.3 | Namnbyte Researcher ↔ Librarian | 2 | 1 körn | — | ⬜ |
+| 2.4 | Idékonsolidering | 2 | 1 körn | — | ⬜ |
+| 2.5 | Grafintegritet watchman | 2 | 1 körn | — | ⬜ |
+| 3.1 | Reviewer severity levels | 3 | 1-2 körn | — | ⬜ |
+| 3.2 | A-MEM | 3 | 2-3 körn | 2.1 | ⬜ |
+| 3.3 | Research före implementation | 3 | 1 körn | 2.3 | ⬜ |
+| 3.4 | Schemalagda agent-samtal | 3 | 2-3 körn | 2.3, server | ⬜ |
+| 3.5 | Dynamisk diff-limit | 3 | 1 körn | — | ⬜ |
+| 3.6 | Prompt-audit | 3 | 1 körn | — | ⬜ |
+| 4.1 | Docker-compose | 4 | 2 körn | — | ⬜ |
+| 4.2 | Webb-UI | 4 | 5-10 körn | — | ⬜ |
+| 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
+| 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~30-45 körningar för allt.
+**Totalt:** ~30-45 körningar. **Klar:** 1/21
 
 ---
 

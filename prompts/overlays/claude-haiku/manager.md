@@ -5,4 +5,4 @@
 - When uncertain, ask for clarification rather than guessing
 - Limit task plans to 5 tasks maximum
 - Delegate early — don't over-analyze before delegating
-- Skip optional research phases if time is limited
+- Skip optional research phases if the brief scope is small
