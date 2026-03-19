@@ -1,18 +1,18 @@
 # Neuron HQ — Körningshistorik & Kostnader
 
-Genererad: 2026-03-18 21:27  
-Antal körningar: 163  
+Genererad: 2026-03-19 14:02  
+Antal körningar: 166  
 Prismodell: Sonnet 4.5 — $3/MTok input, $15/MTok output
 
 ## Sammanfattning
 
 | Mått | Värde |
 |------|-------|
-| Körningar | 163 |
-| GREEN | 104 |
-| Totala tokens | 981.7M |
-| Total kostnad | $3073.50 |
-| Snitt per körning | $18.86 |
+| Körningar | 166 |
+| GREEN | 107 |
+| Totala tokens | 1010.1M |
+| Total kostnad | $3162.46 |
+| Snitt per körning | $19.05 |
 | Billigaste | $0.00 |
 | Dyraste | $68.28 |
 
@@ -183,17 +183,20 @@ Prismodell: Sonnet 4.5 — $3/MTok input, $15/MTok output
 | 161 | 2026-03-18 | 14:22 | CR-1c: Strukturerad loggning — log… | GREEN | Sonnet 4.5 | 18.1M | 0.12M | 18.2M | $56.03 | 6 | 37m |
 | 162 | 2026-03-18 | 19:14 | CR-1d: Logger-förbättringar — LOG_… | GREEN | Sonnet 4.5 | 2.3M | 0.04M | 2.3M | $7.35 | 6 | 15m |
 | 163 | 2026-03-18 | 20:38 | E5: Idé-rankning i kunskapsgrafen | GREEN | Sonnet 4.5 | 16.2M | 0.14M | 16.4M | $50.90 | 7 | 49m |
+| 164 | 2026-03-19 | 11:21 | R1.1: Robust Input-Pipeline | GREEN | Sonnet 4.5 | 10.8M | 0.14M | 11.0M | $34.52 | 6 | 37m |
+| 165 | 2026-03-19 | 12:34 | OB-1c: Obsidian Import — Taggar, K… | GREEN | Sonnet 4.5 | 9.0M | 0.09M | 9.1M | $28.34 | 7 | 33m |
+| 166 | 2026-03-19 | 13:27 | OB-1d: Obsidian Re-export & MCP-st… | GREEN | Sonnet 4.5 | 8.3M | 0.08M | 8.4M | $26.11 | 6 | 36m |
 
 ## Kostnad per agent (genomsnitt)
 
 | Agent | Snitt tokens | Kostnad/körning | Andel |
 |-------|------------:|----------------:|------:|
-| manager | 1.86M | $5.74 | 30.3% |
-| implementer | 2.18M | $6.93 | 32.5% |
-| reviewer | 1.08M | $3.33 | 15.9% |
-| tester | 0.20M | $0.62 | 2.9% |
+| manager | 1.87M | $5.79 | 30.2% |
+| implementer | 2.21M | $7.03 | 32.7% |
+| reviewer | 1.09M | $3.36 | 15.9% |
+| tester | 0.20M | $0.61 | 2.8% |
 | merger | 0.22M | $0.73 | 3.3% |
-| researcher | 0.93M | $2.97 | 3.0% |
-| historian | 0.60M | $1.84 | 9.2% |
-| librarian | 0.46M | $1.44 | 1.4% |
-| consolidator | 1.65M | $5.07 | 1.5% |
+| researcher | 0.93M | $2.97 | 2.9% |
+| historian | 0.61M | $1.87 | 9.3% |
+| librarian | 0.45M | $1.43 | 1.4% |
+| consolidator | 1.65M | $5.07 | 1.4% |

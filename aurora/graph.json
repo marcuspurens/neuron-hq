@@ -2052,6 +2052,34 @@
       "scope": "personal",
       "created": "2026-03-18T21:47:21.375Z",
       "updated": "2026-03-18T21:47:21.375Z"
+    },
+    {
+      "id": "8d755f53-6d79-46e5-ba25-53e19d02e9ff",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-19T11:01:01.044Z",
+      "updated": "2026-03-19T11:01:01.044Z"
+    },
+    {
+      "id": "6dbef938-349a-4fb4-b2df-694b18c71f9b",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-19T11:01:22.711Z",
+      "updated": "2026-03-19T11:01:22.711Z"
     }
   ],
   "edges": [
@@ -2368,5 +2396,5 @@
       }
     }
   ],
-  "lastUpdated": "2026-03-18T21:47:21.375Z"
+  "lastUpdated": "2026-03-19T11:01:22.711Z"
 }

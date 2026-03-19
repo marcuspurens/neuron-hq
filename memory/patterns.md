@@ -2137,3 +2137,220 @@ await pool.query(
 **Senast bekräftad:** 20260318-2038
 
 ---
+
+## Centraliserad felmeddelande-mappning för multi-steg-pipelines
+**Kontext:** R1.1 Robust Input Pipeline. Aurora-ingest har 6 kritiska steg (extract_video, transcribe_audio, diarize_audio, extract_url, autoEmbedAuroraNodes, findNeuronMatchesForAurora) — varje kan misslyckas på olika sätt.
+**Lösning:** Skapa en `PipelineError`-klass med `step`, `userMessage`, `suggestion`, `originalError`. Hårdkoda en STEP_ERRORS-mappning med svenska meddelanden och användarförslag för varje steg. Implementera `wrapPipelineStep(fn, step, errors)` som wrappas runt varje steg. CLI/MCP visar `userMessage + suggestion`, loggar rå error på debug-nivå.
+**Effekt:** Användare ser igenkännbara svenska felmeddelanden i stället för Python-tracebacks. Underhållning enkel — en fil (pipeline-errors.ts) innehåller all mappning. Konsistent felhantering över CLI, MCP, tests.
+**Keywords:** error-handling, user-experience, pipeline, swedish-messages, centralized-config
+**Relaterat:** patterns.md#Progressiv-rapport-byggning-för-partiella-pipeline-fel
+**Körningar:** #20260319-1121-neuron-hq
+**Senast bekräftad:** 20260319-1121-neuron-hq
+
+---
+
+## Progressiv rapport-byggning för partiella pipeline-fel
+**Kontext:** Pipeline-rapporten måste visa vilka steg som lyckades, vilka som misslyckades, och vilka som skippades vid partiellt fel. Retroaktiv konstruktion (efter alla steg) gör detta svårt — vi vet inte hur långt vi kom.
+**Lösning:** Bygg pipeline_report stegvis under körning. För varje steg, lägg till `{ step, status, duration, metadata }` i report-objektet. Vid fel, markera det misslyckade steget som `status: "error"` med error-meddelande, och markera alla efterföljande steg som `status: "skipped"`. Spara rapporten alltid på noden, även vid fel.
+**Effekt:** Användare kan se exakt var pipelines stannade och vilka metadata som samlades in före felet. Pipeline-rapport kan visas i `aurora:show`-kommandot. Debuggning blir möjlig utan att behöva loggar.
+**Keywords:** pipeline, error-handling, partial-completion, metadata, reporting
+**Relaterat:** patterns.md#Centraliserad-felmeddelande-mappning-för-multi-steg-pipelines
+**Körningar:** #20260319-1121-neuron-hq
+**Senast bekräftad:** 20260319-1121-neuron-hq
+
+---
+
+## Parallell våguppdelning för oberoende implementeringsuppgifter
+**Kontext:** Brief R1.1 hade 6 relativt oberoende implementeringsuppgifter: PipelineError-klass (T1), retry-logik (T2), video-wrapping (T3), intake-wrapping (T4), CLI-adapters (T5), MCP-adapters (T6).
+**Lösning:** Gruppera uppgifter i vågsteg där senare vågor är beroende av tidigare. T1–T2 deltas inte av T3–T4 (samma filer lästa, olika ändringar). T3–T4 väntar på T1–T2 för PipelineError-typer. T5–T6 väntar på T3–T4. Tydliga handoff-gränser möjliggör detta.
+**Effekt:** 3 vågsteg på 2h15m totalt (vs sekventiell 1h50m för 1 implementer). Ingen kontest-kö, inga merge-konflikter. Implementers kunde arbeta parallellt utan att blockera varandra.
+**Keywords:** parallelization, task-splitting, wave-based-execution, merge-strategy
+**Relaterat:** patterns.md#Centraliserad-felmeddelande-mappning-för-multi-steg-pipelines
+**Körningar:** #20260319-1121-neuron-hq
+**Senast bekräftad:** 20260319-1121-neuron-hq
+
+---
+
+## Centraliserad felmeddelande-mappning med wrapPipelineStep()-utility
+**Kontext:** Multi-step-pipelines (Aurora ingest: 6 steg) där varje steg kan misslyckas med olika root causes. Användarupplevelse degrades om rå Python-tracebacks exponerats.
+**Lösning:** PipelineError-klass med `step`, `userMessage`, `suggestion`, `originalError`. Mappning av steg→svenska meddelanden i STEP_ERRORS konstant. `wrapPipelineStep(fn, step, errors)` höger-ordnings-funktion som wrappas runt varje steg för konsekvent felhantering.
+**Effekt:** Användare ser igenkännbara svenska meddelanden. En fil (pipeline-errors.ts) innehåller all mappning — enkel underhållning. Konsekvent felhantering över CLI, MCP, tests.
+**Keywords:** error-handling, user-experience, pipeline, localization, dry-principle
+**Relaterat:** patterns.md#Progressiv-rapport-byggning-för-partiella-pipeline-fel
+**Körningar:** #20260319-1121-neuron-hq
+**Senast bekräftad:** 20260319-1121-neuron-hq
+
+---
+
+## Progressiv rapport-byggning för partiella pipeline-fel
+**Kontext:** Pipeline-rapport måste visa status för alla steg — lyckade, misslyckade, och skippade. Retroaktiv konstruktion (efter alla steg) kan inte korrekt modellera partiella fel.
+**Lösning:** Bygg rapport stegvis under körning. För varje steg, lägg till `{ step, status, duration, metadata }` i report-objektet. Vid fel: markera det misslyckade steget som `status: "error"` med error-text, och alla efterföljande steg som `status: "skipped"`. Spara rapport alltid på noden, även vid fel.
+**Effekt:** Användare kan se exakt var pipelines stannade och vilka metadata som samlades in före felet. Rapport synlig i `aurora:show` utan att behöva gräva i loggar.
+**Keywords:** pipeline, error-handling, partial-completion, metadata, progressive-construction
+**Relaterat:** patterns.md#Centraliserad-felmeddelande-mappning-för-multi-steg-pipelines
+**Körningar:** #20260319-1121-neuron-hq
+**Senast bekräftad:** 20260319-1121-neuron-hq
+
+---
+
+## Vågbaserad parallelisering för oberoende implementeringsuppgifter
+**Kontext:** Brief med 6 oberoende implementeringsuppgifter som delvis kan paralleliseras. T1–T2 (setup) bör slutföras före T3–T4 (core), som bör slutföras före T5–T6 (adapters).
+**Lösning:** Gruppera uppgifter i 3 sekventiella vågor. T1–T2 startas parallelt, vänd tills completion. T3–T4 startas parallelt efter T1–T2. T5–T6 startas parallelt efter T3–T4. Tydliga handoff-gränser mellan vågor minskar merge-konflikter.
+**Effekt:** 3 vågor à ~20–37 minuter vardera (totalt ~80 min) för 6 implementers. Jämfört med sekventiell (180 min) sparas ~60%. Zero merge-konflikter inom vågorna.
+**Keywords:** parallelization, task-splitting, wave-based-execution, merge-strategy
+**Relaterat:** patterns.md#Centraliserad-felmeddelande-mappning-för-multi-steg-pipelines
+**Körningar:** #20260319-1121-neuron-hq
+**Senast bekräftad:** 20260319-1121-neuron-hq
+
+---
+
+## PipelineError-klass för användarvänliga felmeddelanden
+**Kontext:** R1.1 implementering i neuron-hq — behövde konvertera Python-tracebacks och tekniska fel till svenska användarmeddelanden
+**Lösning:** Skapade `src/aurora/pipeline-errors.ts` med en `PipelineError`-klass (Error-subklass) som har properties: `step`, `userMessage`, `suggestion`, `originalError`. En hardkodad STEP_ERRORS-mappning definierar svenska meddelanden för alla sex pipeline-steg (extract_video, transcribe_audio, diarize_audio, extract_url, autoEmbedAuroraNodes, findNeuronMatchesForAurora). En utility-funktion `wrapPipelineStep()` wrappas omkring varje steg för att fånga fel och konvertera dem till PipelineError.
+**Effekt:** Användare ser tydliga svenska meddelanden (t.ex. "Transkribering misslyckades: Ljudfilen kunde inte hittas") + förslag på vad de kan göra, medan tekniska detaljer loggas för felsökning. CLI och MCP-tools visar bara användarmeddelandet, inte raw error stack.
+**Keywords:** error-handling, user-friendly-messages, pipeline-robustness, swedish-ux, arctic-dream-target
+**Relaterat:** patterns.md#Exponentiell backoff för API-retry
+**Körningar:** #20260319-1121-neuron-hq
+**Senast bekräftad:** 20260319-1121-neuron-hq
+
+---
+
+## Progress-metadata för realtid-feedback i långkörande pipelines
+**Kontext:** R1.1 implementering — behövde ge detaljerad steg-för-steg-feedback under video-ingest
+**Lösning:** Utökade `onProgress`-callbacken i `ingestVideo()` för att inkludera metadata-objekt per steg: stepNumber, totalSteps, stepName, metadata (ord, talare, chunks, vektorer, korsreferenser, filstorlek, varaktighet). Informationen byggas progressivt under körning när varje steg slutförs. CLI-adapter formaterar detta med emojis, stegnummer och sammanfattningar för läsbar output.
+**Effekt:** Användare ser [`1/7 ⬇️  Laddar ner video... OK (245 MB, 34s)`] istället för bara start/slut. Detta lär användaren vad pipeline gör och ger konfidentiellt feedback vid felslag (vilka steg återstod).
+**Keywords:** progress-feedback, metadata-passing, user-experience, pipeline-visibility
+**Relaterat:** patterns.md#PipelineError-klass för användarvänliga felmeddelanden
+**Körningar:** #20260319-1121-neuron-hq
+**Senast bekräftad:** 20260319-1121-neuron-hq
+
+---
+
+## Exponentiell backoff för API-retry utan externa bibliotek
+**Kontext:** R1.1 implementering — embedding-batchar kunde misslyckas på rate-limit eller tillfälliga nätverksfel
+**Lösning:** Implementerade retry-loop i `autoEmbedAuroraNodes()` med max 2 retries, exponentiell backoff (2s → 4s) med `setTimeout`. Vid slutligt misslyckande loggas node IDs som saknar embedding för senare diagnostik.
+**Effekt:** Transient API-fel hanteras automatiskt utan att användaren behöver göra något manuellt. Implementationen är enkel (ingen extern retry-bibliotek) och testbar. Exponentiell backoff förhindrar att vi bombarderar API:et.
+**Keywords:** retry-logic, exponential-backoff, api-resilience, error-recovery
+**Relaterat:** patterns.md#PipelineError-klass för användarvänliga felmeddelanden
+**Körningar:** #20260319-1121-neuron-hq
+**Senast bekräftad:** 20260319-1121-neuron-hq
+
+---
+
+## PipelineError-klass för användarcentrerade felmeddelanden i Aurora
+**Kontext:** R1.1 implementering — Aurora-pipeline producerade Python-tracebacks som användare inte förstod, krävde omformulering till svenska
+**Lösning:** Skapade `src/aurora/pipeline-errors.ts` med PipelineError-subklass och STEP_ERRORS-mappning (6 steg: extract_video, transcribe_audio, diarize_audio, extract_url, autoEmbedAuroraNodes, findNeuronMatchesForAurora). Varje steg mappades till svenskt felmeddelande + användarförslag (t.ex. "Transkribering misslyckades: Ljudfilen kunde inte hittas. Prova: kontrollera att yt-dlp laddade ner videon korrekt"). wrapPipelineStep()-utility wrappade alla steg för automatisk konvertering.
+**Effekt:** Användare ser tydliga svenska instruktioner istället för raw Python-errors. Tekniska detaljer loggas för felsökning. CLI och MCP-tools visar bara användarmeddelandet.
+**Keywords:** error-handling, user-experience, aurora-pipeline, pipeline-errors, swedish-ux
+**Relaterat:** patterns.md#Exponentiell backoff för API-retry
+**Körningar:** #20260319-1121-neuron-hq
+**Senast bekräftad:** 20260319-1121-neuron-hq
+
+---
+
+## Progressiv progress-metadata för realtid pipeline-feedback
+**Kontext:** R1.1 implementering — Aurora-ingest visade bara start/slut, användare ville se detaljerad steg-för-steg-förlopp
+**Lösning:** Utökade onProgress-callbacken i `ingestVideo()` för att inkludera metadata per steg: stepNumber, totalSteps, stepName, och stegspecifika metriker (filstorlek, ordantal, talareantal, chunks, vektorer, korsreferenser). Metadata bygges progressivt när varje steg slutförs, aldrig retroaktivt. CLI-adapter formaterar output med emojis och sammanfattningar.
+**Effekt:** Användare ser [`1/7 ⬇️  Laddar ner video... OK (245 MB, 34s)`] istället för bara status. Lär användaren vad pipeline gör, ger konfidentiellt feedback vid fel (vilka steg återstod).
+**Keywords:** progress-feedback, pipeline-visibility, metadata, user-experience, realtime-feedback
+**Relaterat:** patterns.md#PipelineError-klass för användarcentrerade felmeddelanden i Aurora
+**Körningar:** #20260319-1121-neuron-hq
+**Senast bekräftad:** 20260319-1121-neuron-hq
+
+---
+
+## Exponentiell backoff-retry för externa API-fel
+**Kontext:** R1.1 implementering — embedding-batchar kunde misslyckas på transient rate-limit eller nätverksfel
+**Lösning:** Implementerade retry-loop i `autoEmbedAuroraNodes()` med max 2 retries, exponentiell backoff (2s → 4s) med setTimeout. Vid slutligt misslyckande loggas node IDs som saknar embedding för diagnostik. Implementering är enkel TypeScript, ingen extern retry-bibliotek.
+**Effekt:** Transient API-fel hanteras automatiskt. Exponentiell backoff förhindrar att vi bombarderar API:et. Användare behöver ingen manuell intervention för tillfälliga anslutningsfel.
+**Keywords:** retry-logic, exponential-backoff, api-resilience, error-recovery, transient-failure
+**Relaterat:** patterns.md#PipelineError-klass för användarcentrerade felmeddelanden i Aurora
+**Körningar:** #20260319-1121-neuron-hq
+**Senast bekräftad:** 20260319-1121-neuron-hq
+
+---
+
+## Robust Markdown Parser via Separated Concerns (Frontmatter + Content)
+**Kontext:** Run 20260319-1234-neuron-hq implementerade obsidian-import med säker YAML-parsning, tagg-extraktion och kommentar-hämtning från markdown-filer.
+**Lösning:** Separera parsningslogik i tre oberoende, testbara funktioner:
+1. `extractSpeakers()` — använd gray-matter för YAML-frontmatter, returnera null vid korrupthet (logga varning)
+2. `extractTags()` — fixta regex för `### HH:MM:SS — Speaker #tag`, filtrera mot whitelist av kända taggar, ignorera okända
+3. `extractComments()` — fixta HTML-kommentarregex, koppla till närmaste föregående tidskod, hoppa över om ingen match
+
+**Effekt:** 
+- Ren, testbar kod (51 tester, alla gröna, 0 regressioner i 3258 befintliga tester)
+- Robusthet: hanterar edge cases (korrupt YAML, saknade speakers, okända taggar, misalignerade tidskoder) utan krasch
+- Återanvändbarhet: parser-modulen är renrumsfunktioner, lätt att testa isolerat och säkerställa idempotens (ersättning, inte append)
+
+**Keywords:** parser, markdown, YAML, gray-matter, separation-of-concerns, testing, idempotence
+**Relaterat:** patterns.md#, techniques.md#StructMemEval
+**Körningar:** #20260319-1234-neuron-hq
+**Senast bekräftad:** 20260319-1234-neuron-hq
+
+---
+
+## MCP-verktyg för två-vägs datautbyte med externa vault
+**Kontext:** OB-1d körning — Obsidian export/import MCP-tools för highlights och kommentarer
+**Lösning:** Skapade två asymmetriska MCP-tools: aurora_obsidian_export (bulk-export av alla noder) och aurora_obsidian_import (läs tags/comments/speakers från vault). Verktygen returnerar statistik ({exported, filesProcessed, highlights, comments, speakersRenamed}) för debugging och audit.
+**Effekt:** Möjliggör två-vägs datautbyte mellan Aurora-grafen och Obsidian. Returnvärden (istället för void) gör verktygets effekt mätbar för Claude Desktop-användare och möjliggör retry-logik baserad på statistik.
+**Keywords:** mcp-tools, obsidian-integration, two-way-sync, return-type-change, statistics-reporting
+**Relaterat:** patterns.md#Obsidian callout format för highlights
+**Körningar:** #20260319-1327-neuron-hq
+**Senast bekräftad:** 20260319-1327-neuron-hq
+
+---
+
+## Obsidian callout format för highlights — immediatepraktisk märkning
+**Kontext:** OB-1d — highlights från Aurora renderas tillbaka i Obsidian-export
+**Lösning:** Highlights renderas som Obsidian callout-syntax: `> [!important] #highlight\n> ### HH:MM:SS — Speaker\n> Quoted text`. Kommentarer som HTML-kommentarer under segment: `<!-- kommentar: text -->`.
+**Effekt:** Highlights blir omedelbar synliga och redigerbara i Obsidian, medan HTML-kommentarer är non-intrusive. Round-trip bevaras — export → tagga → import → export igen behåller alla markers utan dubblering.
+**Keywords:** obsidian-callouts, highlights, markdown-rendering, round-trip-stability
+**Relaterat:** patterns.md#MCP-verktyg för två-vägs datautbyte
+**Körningar:** #20260319-1327-neuron-hq
+**Senast bekräftad:** 20260319-1327-neuron-hq
+
+---
+
+## MCP-verktyg för två-vägs datautbyte med externa vault
+**Kontext:** OB-1d körning — Obsidian export/import MCP-tools för highlights och kommentarer
+**Lösning:** Skapade två asymmetriska MCP-tools: aurora_obsidian_export (bulk-export av alla noder) och aurora_obsidian_import (läs tags/comments/speakers från vault). Verktygen returnerar statistik ({exported, filesProcessed, highlights, comments, speakersRenamed}) för debugging och audit.
+**Effekt:** Möjliggör två-vägs datautbyte mellan Aurora-grafen och Obsidian. Returnvärden (istället för void) gör verktygets effekt mätbar för Claude Desktop-användare och möjliggör retry-logik baserad på statistik.
+**Keywords:** mcp-tools, obsidian-integration, two-way-sync, return-type-change, statistics-reporting
+**Relaterat:** patterns.md#Obsidian callout format för highlights
+**Körningar:** #20260319-1327-neuron-hq
+**Senast bekräftad:** 20260319-1327-neuron-hq
+
+---
+
+## Obsidian callout format för highlights — omedelbar praktisk märkning
+**Kontext:** OB-1d — highlights från Aurora renderas tillbaka i Obsidian-export
+**Lösning:** Highlights renderas som Obsidian callout-syntax: `> [!important] #highlight\n> ### HH:MM:SS — Speaker\n> Quoted text`. Kommentarer som HTML-kommentarer under segment: `<!-- kommentar: text -->`.
+**Effekt:** Highlights blir omedelbar synliga och redigerbara i Obsidian, medan HTML-kommentarer är non-intrusive. Round-trip bevaras — export → tagga → import → export igen behåller alla markers utan dubblering.
+**Keywords:** obsidian-callouts, highlights, markdown-rendering, round-trip-stability
+**Relaterat:** patterns.md#MCP-verktyg för två-vägs datautbyte
+**Körningar:** #20260319-1327-neuron-hq
+**Senast bekräftad:** 20260319-1327-neuron-hq
+
+---
+
+## MCP-tools med scope-registrering och return-types
+**Kontext:** Körning 20260319-1327-neuron-hq — implementering av aurora_obsidian_export och aurora_obsidian_import
+**Lösning:** (1) Definiera tools i egen fil (src/mcp/tools/aurora-obsidian.ts) med explicit return-types; (2) Registrera i scopes.ts via `registerAuroraObsidianTools(server)`; (3) Uppdatera scopes-testfilen för att reflektera ny scope-count
+**Effekt:** MCP-tools blir enkla att testa, scope-registrering är konsistent, och return-types möjliggör statistik-rapportering från Claude Desktop
+**Keywords:** MCP, scope-registration, return-types, tool-registration
+**Relaterat:** AGENTS.md#Implementer, brief.md#Del B
+**Körningar:** #20260319-1327-neuron-hq
+**Senast bekräftad:** 20260319-1327-neuron-hq
+
+---
+
+## Round-trip test för export/import cykler
+**Kontext:** Körning 20260319-1327-neuron-hq — validering av Obsidian highlights/comments persistence
+**Lösning:** Skapa test som: (1) exporterar data med highlights, (2) re-importerar samma data, (3) exporterar igen, (4) räknar markörer och bekräftar ingen dubblering
+**Effekt:** Fångar subtila dubblering-buggar och bekräftar att annotations bevaras genom cykler. Enkel att implementera med regex-räkning eller marquee-assertion.
+**Keywords:** round-trip, export-import, idempotence, annotations, obsidian
+**Relaterat:** brief.md#AC3
+**Körningar:** #20260319-1327-neuron-hq
+**Senast bekräftad:** 20260319-1327-neuron-hq
+
+---

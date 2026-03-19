@@ -87,6 +87,4 @@ Exponera som MCP tools:
 
 ## Agentinställningar
 
-- Manager: max 120 iterationer
-- Implementer: max 50 iterationer
-- Reviewer: max 20 iterationer
+Använd standardgränser från `policy/limits.yaml`.

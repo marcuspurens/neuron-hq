@@ -909,3 +909,23 @@ Uppdateras av Librarian-agenten.
 **Relaterat:** techniques.md#Wink, techniques.md#TraceCoder, techniques.md#PARC
 
 ---
+
+## AgentFactory: A Self-Evolving Framework Through Executable Subagent Accumulation and Reuse (2026)
+**Källa:** arxiv:2603.18000 | Zhang Zhang et al.
+**Kärna:** AgentFactory är ett självevolvande ramverk som bevarar framgångsrika uppgiftslösningar som körbar Python-kod för subagenter istället för endast textuella reflektioner eller prompts. Dessa subagenter förfinas kontinuerligt baserat på exekveringsfeedback och blir allt robustare och effektivare när fler uppgifter möts. Sparade subagenter är rena Python-funktioner med standardiserad dokumentation, vilket möjliggör portabilitet över alla Python-kapabla system.
+**Nyckelresultat:** Möjliggör kontinuerlig kapacitetsackumulering — biblioteket av körbar subagenter växer och förbättras över tid, vilket progressivt reducerar ansträngningen för liknande uppgifter utan manuell intervention.
+**Relevans för Neuron HQ:** Direkt applicerbart på hur Historian-agenten lagrar framgångsmönster. Istället för att lagra mönster som textuella beskrivningar i patterns.md kunde vi lagra dem som körbar Python-kod (små hjälpfunktioner, kodsnippets) som Implementer-agenten kan direkt använda eller bygga vidare på. En CodeSnippets.py-fil som växer med varje framgångsrik implementering kunde accelerera framtida uppgifter exponentiellt.
+**Keywords:** self-evolution, executable-code, subagent, capability-accumulation, agent, code-reuse
+**Relaterat:** techniques.md#Live-Evo, techniques.md#TALM, techniques.md#Hybrid-Gym
+
+---
+
+## TDAD: Test-Driven Agentic Development (2026)
+**Källa:** arxiv:2603.17973 | Pepe Alonso
+**Kärna:** TDAD kombinerar AST-baserad kod-test-graf-konstruktion med viktad påverkansanalys för att identifiera vilka tester som sannolikt påverkas av en föreslagen ändring. Istället för blint att köra alla tester kan GraphRAG-arbetsflödet prioritera tester som är mest relevanta för en specifik ändring. En överraskande upptäckt: TDD-prompting enbart ökade regressioner för mindre modeller, vilket visar att mindre modeller drar större nytta av kontextuell information (vilka tester att verifiera) än från procedurala instruktioner (hur man gör TDD).
+**Nyckelresultat:** Reducerade testlevel-regressioner med 70% (från 6.08% till 1.82%) och förbättrade resolution från 24% till 32% när det distribuerades som en agentfärdighet. En autonom förbättringslinga höjde resolution från 12% till 60% på en 10-instanses delmängd med 0% regression.
+**Relevans för Neuron HQ:** Direkten applicerbar på vår Tester-agent. Istället för att köra alla tester sekventiellt kunde Tester analysera vilket testkontinuerande som är störst påverkat av Implementers ändringar och fokusera där först. GraphRAG-arbetflödet är särskilt relevant — visualisera kodförändringen som en graf, hämta test-coverage-grafen, beräkna påverkan. Insikten att kontextuell information överträffar procedurala instruktioner motiverar att ge Tester explicit vägledning om vilka tester som är kritiska för ett givet påverkansdomän.
+**Keywords:** testing, regression-detection, graph-based-impact-analysis, TDD, test-prioritization, agent
+**Relaterat:** techniques.md#Do-Autonomous-Agents-Contribute-Test-Code, techniques.md#Are-Coding-Agents-Generating-Over-Mocked-Tests, techniques.md#Wink
+
+---

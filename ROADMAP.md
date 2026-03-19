@@ -15,10 +15,10 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3174 |
-| Körningar | 164 |
-| MCP-tools | 38 |
-| Sessioner | 103 |
+| Tester | 3273 |
+| Körningar | 167 |
+| MCP-tools | 40 |
+| Sessioner | 104 |
 | Agenter | 11 |
 | Idé-noder | 878 |
 | Code Review | ★★★★☆ (Fas 1 klar) |
@@ -40,7 +40,7 @@ Fas 4: Produkt                ← andra kan använda det
 
 > **Mål:** Du (Marcus) använder Neuron dagligen. Kunskap flödar in smidigt, du ser vad som händer, och systemet pratar med dig varje morgon.
 
-### 1.1 Robust input-pipeline ⬜
+### 1.1 Robust input-pipeline ✅ S104 · 2026-03-19
 
 **Vad det ger dig:** Du skickar en YouTube-länk → systemet berättar steg för steg vad som händer → du ser resultatet i Obsidian. Om något går fel, säger systemet *vad* som gick fel på svenska (inte Python-tracebacks).
 
@@ -54,7 +54,7 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
-### 1.2 OB-1c: Obsidian taggar & synk ⬜
+### 1.2 OB-1c: Obsidian taggar & synk ✅ S104 · 2026-03-19
 
 **Vad det ger dig:** Du markerar text i Obsidian, taggar med `#key-insight` eller `#follow-up` → Aurora vet vad du tycker är viktigt. Dina kommentarer flödar tillbaka.
 
@@ -341,8 +341,8 @@ Fas 4: Produkt                ← andra kan använda det
 
 | # | Vad | Fas | Effort | Beroenden | Klar |
 |---|-----|-----|--------|-----------|------|
-| 1.1 | Robust input-pipeline | 1 | 1-2 körn | — | ⬜ |
-| 1.2 | OB-1c: taggar & synk | 1 | 1-2 körn | — | ⬜ |
+| 1.1 | Robust input-pipeline | 1 | 1-2 körn | — | ✅ S104 2026-03-19 |
+| 1.2 | OB-1c: taggar & synk | 1 | 1-2 körn | — | ✅ S104 2026-03-19 |
 | 1.3 | Morgon-briefing | 1 | 1-2 körn | 1.2 | ⬜ |
 | 1.4 | Loggkörningsbok | 1 | 2 körn | — | ⬜ |
 | 1.5 | Manager prompt-fix | 1 | <1 körn | — | ✅ S103 2026-03-19 |
@@ -363,7 +363,7 @@ Fas 4: Produkt                ← andra kan använda det
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
 | 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~30-45 körningar. **Klar:** 1/21
+**Totalt:** ~30-45 körningar. **Klar:** 3/21
 
 ---
 
