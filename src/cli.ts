@@ -709,6 +709,16 @@ program
     await obsidianExportCommand(options);
   });
 
+// Obsidian import
+program
+  .command('obsidian-import')
+  .description('Import tagged/annotated Obsidian files back into Aurora knowledge graph')
+  .option('--vault <path>', 'Obsidian vault path (or set AURORA_OBSIDIAN_VAULT env)')
+  .action(async (options: { vault?: string }) => {
+    const { obsidianImportCommand } = await import('./commands/obsidian-import.js');
+    await obsidianImportCommand(options);
+  });
+
 // Ideas command
 program
   .command('ideas')

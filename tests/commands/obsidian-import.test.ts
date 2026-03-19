@@ -1,0 +1,518 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Mock fs/promises
+const mockReaddir = vi.fn();
+const mockReadFile = vi.fn();
+const mockStat = vi.fn();
+
+vi.mock('fs/promises', () => ({
+  readdir: (...args: unknown[]) => mockReaddir(...args),
+  readFile: (...args: unknown[]) => mockReadFile(...args),
+  stat: (...args: unknown[]) => mockStat(...args),
+}));
+
+// Mock aurora-graph
+const mockLoadAuroraGraph = vi.fn();
+const mockUpdateAuroraNode = vi.fn();
+const mockSaveAuroraGraph = vi.fn();
+
+vi.mock('../../src/aurora/aurora-graph.js', () => ({
+  loadAuroraGraph: (...args: unknown[]) => mockLoadAuroraGraph(...args),
+  updateAuroraNode: (...args: unknown[]) => mockUpdateAuroraNode(...args),
+  saveAuroraGraph: (...args: unknown[]) => mockSaveAuroraGraph(...args),
+  findAuroraNodes: vi.fn().mockReturnValue([]),
+}));
+
+// Mock voiceprint
+const mockRenameSpeaker = vi.fn();
+
+vi.mock('../../src/aurora/voiceprint.js', () => ({
+  renameSpeaker: (...args: unknown[]) => mockRenameSpeaker(...args),
+}));
+
+// Mock obsidian-parser (selective — use real parseObsidianFile for integration-like tests)
+vi.mock('../../src/aurora/obsidian-parser.js', async () => {
+  const actual = await vi.importActual<typeof import('../../src/aurora/obsidian-parser.js')>(
+    '../../src/aurora/obsidian-parser.js',
+  );
+  return {
+    ...actual,
+  };
+});
+
+import { obsidianImportCommand } from '../../src/commands/obsidian-import.js';
+
+function makeGraph(nodes: Record<string, unknown>[] = []) {
+  return {
+    nodes: nodes.map((n) => ({
+      id: 'node-1',
+      type: 'transcript',
+      title: 'Test',
+      properties: {},
+      confidence: 0.8,
+      scope: 'personal',
+      sourceUrl: null,
+      created: '2026-01-01T00:00:00.000Z',
+      updated: '2026-01-01T00:00:00.000Z',
+      ...n,
+    })),
+    edges: [],
+    lastUpdated: '2026-01-01T00:00:00.000Z',
+  };
+}
+
+describe('obsidian-import', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockSaveAuroraGraph.mockResolvedValue(undefined);
+    mockRenameSpeaker.mockResolvedValue({ oldName: '', newName: '', voicePrintId: '' });
+  });
+
+  it('prints error if vault directory does not exist', async () => {
+    mockStat.mockRejectedValue(new Error('ENOENT'));
+
+    await obsidianImportCommand({ vault: '/nonexistent' });
+
+    expect(console.error).toHaveBeenCalled();
+    expect(mockLoadAuroraGraph).not.toHaveBeenCalled();
+  });
+
+  it('prints warning if no .md files found', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue([]);
+
+    await obsidianImportCommand({ vault: '/test-vault' });
+
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining('No .md files'),
+    );
+    expect(mockLoadAuroraGraph).not.toHaveBeenCalled();
+  });
+
+  it('processes a file with highlights and comments', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue(['test.md']);
+
+    const mdContent = [
+      '---',
+      'id: trans-1',
+      'speakers:',
+      '  SPEAKER_00:',
+      '    name: "Alice"',
+      '    confidence: 0.9',
+      '    role: "host"',
+      '---',
+      '',
+      '### 00:01:00 \u2014 SPEAKER_00 #highlight',
+      'Some text here',
+      '<!-- kommentar: Great point about AI -->',
+      '',
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(mdContent);
+
+    const graph = makeGraph([
+      {
+        id: 'trans-1',
+        type: 'transcript',
+        properties: {
+          rawSegments: [
+            { start_ms: 59000, end_ms: 65000, text: 'Hello' },
+            { start_ms: 120000, end_ms: 125000, text: 'World' },
+          ],
+        },
+      },
+      {
+        id: 'vp-1',
+        type: 'voice_print',
+        title: 'Speaker: SPEAKER_00',
+        properties: {
+          videoNodeId: 'trans-1',
+          speakerLabel: 'SPEAKER_00',
+        },
+      },
+    ]);
+
+    mockLoadAuroraGraph.mockResolvedValue(graph);
+
+    // updateAuroraNode should return a new graph with the update applied
+    const updatedGraph = { ...graph };
+    mockUpdateAuroraNode.mockReturnValue(updatedGraph);
+
+    await obsidianImportCommand({ vault: '/test-vault' });
+
+    // Should have loaded graph
+    expect(mockLoadAuroraGraph).toHaveBeenCalledOnce();
+
+    // Should have updated the node with highlights and comments
+    expect(mockUpdateAuroraNode).toHaveBeenCalledOnce();
+    const updateCall = mockUpdateAuroraNode.mock.calls[0];
+    expect(updateCall[1]).toBe('trans-1');
+    const props = updateCall[2].properties;
+    expect(props.highlights).toHaveLength(1);
+    expect(props.highlights[0].tag).toBe('highlight');
+    expect(props.comments).toHaveLength(1);
+    expect(props.comments[0].text).toBe('Great point about AI');
+
+    // Should have saved graph once
+    expect(mockSaveAuroraGraph).toHaveBeenCalledOnce();
+
+    // Should have renamed speaker (SPEAKER_00 → Alice)
+    expect(mockRenameSpeaker).toHaveBeenCalledWith('vp-1', 'Alice');
+  });
+
+  it('skips file when node not found in graph', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue(['test.md']);
+
+    const mdContent = [
+      '---',
+      'id: nonexistent-node',
+      '---',
+      '',
+      'Some body text',
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(mdContent);
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph([]));
+
+    await obsidianImportCommand({ vault: '/test-vault' });
+
+    // Should not call updateAuroraNode since node was not found
+    expect(mockUpdateAuroraNode).not.toHaveBeenCalled();
+    // Should still save graph (even if nothing changed)
+    expect(mockSaveAuroraGraph).toHaveBeenCalledOnce();
+  });
+
+  it('is idempotent — running twice produces same result', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue(['test.md']);
+
+    const mdContent = [
+      '---',
+      'id: trans-1',
+      '---',
+      '',
+      '### 00:00:30 \u2014 Speaker #key-insight',
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(mdContent);
+
+    // Graph already has highlights from a previous run
+    const graph = makeGraph([
+      {
+        id: 'trans-1',
+        type: 'transcript',
+        properties: {
+          rawSegments: [{ start_ms: 30000, end_ms: 35000, text: 'Text' }],
+          highlights: [{ segment_start_ms: 30000, tag: 'key-insight' }],
+          comments: [],
+        },
+      },
+    ]);
+
+    mockLoadAuroraGraph.mockResolvedValue(graph);
+    mockUpdateAuroraNode.mockReturnValue(graph);
+
+    await obsidianImportCommand({ vault: '/test-vault' });
+
+    // Should replace (not append) highlights
+    const updateCall = mockUpdateAuroraNode.mock.calls[0];
+    const props = updateCall[2].properties;
+    expect(props.highlights).toHaveLength(1);
+    expect(props.highlights[0].tag).toBe('key-insight');
+  });
+
+  // --- New edge case tests ---
+
+  it('imports tags and comments but skips speaker rename when no speakers block', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue(['no-speakers.md']);
+
+    const mdContent = [
+      '---',
+      'id: trans-2',
+      '---',
+      '',
+      '### 00:00:30 \u2014 Speaker #quote',
+      'Some quoted text',
+      '<!-- kommentar: Notable quote -->',
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(mdContent);
+
+    const graph = makeGraph([
+      {
+        id: 'trans-2',
+        type: 'transcript',
+        properties: {
+          rawSegments: [{ start_ms: 30000, end_ms: 35000, text: 'Quote' }],
+        },
+      },
+    ]);
+
+    mockLoadAuroraGraph.mockResolvedValue(graph);
+    mockUpdateAuroraNode.mockReturnValue(graph);
+
+    await obsidianImportCommand({ vault: '/test-vault' });
+
+    // Should update node with highlights and comments
+    expect(mockUpdateAuroraNode).toHaveBeenCalledOnce();
+    const updateCall = mockUpdateAuroraNode.mock.calls[0];
+    expect(updateCall[1]).toBe('trans-2');
+    const props = updateCall[2].properties;
+    expect(props.highlights).toHaveLength(1);
+    expect(props.highlights[0].tag).toBe('quote');
+    expect(props.comments).toHaveLength(1);
+    expect(props.comments[0].text).toBe('Notable quote');
+
+    // Should NOT call renameSpeaker (no speakers in frontmatter)
+    expect(mockRenameSpeaker).not.toHaveBeenCalled();
+  });
+
+  it('skips file with corrupt frontmatter without crashing', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue(['corrupt.md']);
+
+    const mdContent = '---\n{{invalid yaml\n---\nBody text';
+    mockReadFile.mockResolvedValue(mdContent);
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph([]));
+
+    await obsidianImportCommand({ vault: '/test-vault' });
+
+    // parseObsidianFile returns null → no graph updates
+    expect(mockUpdateAuroraNode).not.toHaveBeenCalled();
+    expect(mockRenameSpeaker).not.toHaveBeenCalled();
+    // Graph is still saved (command completes normally)
+    expect(mockSaveAuroraGraph).toHaveBeenCalledOnce();
+  });
+
+  it('silently ignores file without id in frontmatter', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue(['no-id.md']);
+
+    const mdContent = [
+      '---',
+      'type: transcript',
+      'title: Some Title',
+      '---',
+      '',
+      'Some body text',
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(mdContent);
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph([]));
+
+    await obsidianImportCommand({ vault: '/test-vault' });
+
+    // parseObsidianFile returns null → no graph updates
+    expect(mockUpdateAuroraNode).not.toHaveBeenCalled();
+    expect(mockRenameSpeaker).not.toHaveBeenCalled();
+    expect(mockSaveAuroraGraph).toHaveBeenCalledOnce();
+  });
+
+  it('does not add highlight when timecode is >5s from any segment', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue(['far-timecode.md']);
+
+    const mdContent = [
+      '---',
+      'id: trans-3',
+      '---',
+      '',
+      '### 01:00:00 \u2014 Speaker #highlight',
+      'Text far from any segment',
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(mdContent);
+
+    const graph = makeGraph([
+      {
+        id: 'trans-3',
+        type: 'transcript',
+        properties: {
+          rawSegments: [
+            { start_ms: 1000, end_ms: 2000, text: 'Seg 1' },
+            { start_ms: 2000, end_ms: 3000, text: 'Seg 2' },
+          ],
+        },
+      },
+    ]);
+
+    mockLoadAuroraGraph.mockResolvedValue(graph);
+    mockUpdateAuroraNode.mockReturnValue(graph);
+
+    await obsidianImportCommand({ vault: '/test-vault' });
+
+    // Should still call updateAuroraNode but with empty highlights
+    expect(mockUpdateAuroraNode).toHaveBeenCalledOnce();
+    const updateCall = mockUpdateAuroraNode.mock.calls[0];
+    const props = updateCall[2].properties;
+    expect(props.highlights).toHaveLength(0);
+  });
+
+  it('does not rename speaker when name already matches speakerLabel', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue(['already-renamed.md']);
+
+    const mdContent = [
+      '---',
+      'id: trans-4',
+      'speakers:',
+      '  SPEAKER_00:',
+      '    name: "Alice"',
+      '    confidence: 0.9',
+      '    role: "host"',
+      '---',
+      '',
+      '### 00:00:30 \u2014 Alice',
+      'Some text',
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(mdContent);
+
+    const graph = makeGraph([
+      {
+        id: 'trans-4',
+        type: 'transcript',
+        properties: {
+          rawSegments: [{ start_ms: 30000, end_ms: 35000, text: 'Text' }],
+        },
+      },
+      {
+        id: 'vp-2',
+        type: 'voice_print',
+        title: 'Speaker: Alice',
+        properties: {
+          videoNodeId: 'trans-4',
+          speakerLabel: 'Alice',
+        },
+      },
+    ]);
+
+    mockLoadAuroraGraph.mockResolvedValue(graph);
+    mockUpdateAuroraNode.mockReturnValue(graph);
+
+    await obsidianImportCommand({ vault: '/test-vault' });
+
+    // Should NOT call renameSpeaker — name already matches speakerLabel
+    expect(mockRenameSpeaker).not.toHaveBeenCalled();
+  });
+
+  it('does not rename speaker when name is empty string', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue(['empty-name.md']);
+
+    const mdContent = [
+      '---',
+      'id: trans-5',
+      'speakers:',
+      '  SPEAKER_00:',
+      '    name: ""',
+      '    confidence: 0.7',
+      '    role: ""',
+      '---',
+      '',
+      '### 00:00:10 \u2014 SPEAKER_00',
+      'Some text',
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(mdContent);
+
+    const graph = makeGraph([
+      {
+        id: 'trans-5',
+        type: 'transcript',
+        properties: {
+          rawSegments: [{ start_ms: 10000, end_ms: 15000, text: 'Text' }],
+        },
+      },
+      {
+        id: 'vp-3',
+        type: 'voice_print',
+        title: 'Speaker: SPEAKER_00',
+        properties: {
+          videoNodeId: 'trans-5',
+          speakerLabel: 'SPEAKER_00',
+        },
+      },
+    ]);
+
+    mockLoadAuroraGraph.mockResolvedValue(graph);
+    mockUpdateAuroraNode.mockReturnValue(graph);
+
+    await obsidianImportCommand({ vault: '/test-vault' });
+
+    // Should NOT call renameSpeaker — empty name is skipped
+    expect(mockRenameSpeaker).not.toHaveBeenCalled();
+  });
+
+  it('processes multiple files in vault and saves graph once', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue(['file-a.md', 'file-b.md']);
+
+    const mdContentA = [
+      '---',
+      'id: trans-a',
+      '---',
+      '',
+      '### 00:00:10 \u2014 Speaker #highlight',
+      'Text A',
+    ].join('\n');
+
+    const mdContentB = [
+      '---',
+      'id: trans-b',
+      '---',
+      '',
+      '### 00:00:20 \u2014 Speaker #quote',
+      'Text B',
+    ].join('\n');
+
+    mockReadFile
+      .mockResolvedValueOnce(mdContentA)
+      .mockResolvedValueOnce(mdContentB);
+
+    const graph = makeGraph([
+      {
+        id: 'trans-a',
+        type: 'transcript',
+        properties: {
+          rawSegments: [{ start_ms: 10000, end_ms: 15000, text: 'A' }],
+        },
+      },
+      {
+        id: 'trans-b',
+        type: 'transcript',
+        properties: {
+          rawSegments: [{ start_ms: 20000, end_ms: 25000, text: 'B' }],
+        },
+      },
+    ]);
+
+    mockLoadAuroraGraph.mockResolvedValue(graph);
+    mockUpdateAuroraNode.mockImplementation((g) => g);
+
+    await obsidianImportCommand({ vault: '/test-vault' });
+
+    // Both files should be processed
+    expect(mockUpdateAuroraNode).toHaveBeenCalledTimes(2);
+
+    // Verify first file update
+    const firstCall = mockUpdateAuroraNode.mock.calls[0];
+    expect(firstCall[1]).toBe('trans-a');
+    expect(firstCall[2].properties.highlights).toHaveLength(1);
+    expect(firstCall[2].properties.highlights[0].tag).toBe('highlight');
+
+    // Verify second file update
+    const secondCall = mockUpdateAuroraNode.mock.calls[1];
+    expect(secondCall[1]).toBe('trans-b');
+    expect(secondCall[2].properties.highlights).toHaveLength(1);
+    expect(secondCall[2].properties.highlights[0].tag).toBe('quote');
+
+    // Graph saved only once
+    expect(mockSaveAuroraGraph).toHaveBeenCalledOnce();
+  });
+});
