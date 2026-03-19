@@ -230,6 +230,10 @@ export async function obsidianImportCommand(options: {
         if (!fm || fm.type !== 'morning-briefing') continue;
 
         const briefingDate = fm.id?.replace('briefing-', '') || '';
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(briefingDate)) {
+          logger.warn('Invalid briefing date format, skipping file', { id: fm.id, briefingDate });
+          continue;
+        }
 
         // Extract the body (after frontmatter)
         const bodyMatch = content.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);

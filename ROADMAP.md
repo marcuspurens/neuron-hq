@@ -1,6 +1,6 @@
 # Neuron HQ — Roadmap
 
-> **Senast uppdaterad:** 2026-03-19 · Session 103
+> **Senast uppdaterad:** 2026-03-19 · Session 105
 > **Källa:** Djupsamtal S102 + Marcus ~40 kommentarer + diskussionsdokument S103
 > Editera direkt — kryssa av med ✅ när klart.
 > **Arkiv:** Alla versioner sparas i [docs/roadmaps/](docs/roadmaps/) med datumstämpel.
@@ -15,10 +15,10 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3273 |
-| Körningar | 167 |
-| MCP-tools | 40 |
-| Sessioner | 104 |
+| Tester | 3305 |
+| Körningar | 168 |
+| MCP-tools | 41 |
+| Sessioner | 105 |
 | Agenter | 11 |
 | Idé-noder | 878 |
 | Code Review | ★★★★☆ (Fas 1 klar) |
@@ -77,19 +77,16 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
-### 1.3 Morgon-briefing i Obsidian ⬜
+### 1.3 Morgon-briefing i Obsidian ✅ S105 · 2026-03-19
 
 **Vad det ger dig:** Varje morgon 08:00 dyker en ny fil upp i Obsidian: "Vad har hänt sedan igår? Vilka idéer har blivit mer relevanta? 3 frågor till dig." Du *måste* kommentera — 👍/👎 + text. Dina svar flödar tillbaka till Aurora.
 
-**Tekniskt:**
-- Scheduler som genererar `briefing-YYYY-MM-DD.md`
-- Sammanfattar: körningar, nya idéer, inaktuella källor, föreslagna steg
-- Max 3 frågor till Marcus
-- Import av Marcus-svar som feedback-noder i Aurora
-
-**Förutsättning:** OB-1c (synk) bör vara klart först, eller datorn igång kl 08:00.
-
-**Effort:** 1-2 körningar · **Brief:** `morning-briefing`
+**Gjort:** Körning 168, +32 tester, 9/9 AC
+- CLI: `morning-briefing` genererar `briefing-YYYY-MM-DD.md` i Obsidian vault (Briefings/)
+- Sektioner: Nya noder, Körningar, Kunskapshälsa, 3 AI-genererade frågor (Haiku)
+- Feedback-loop: `obsidian-import` plockar upp `<!-- svar: -->` som feedback-noder med edge till fråge-noden
+- MCP-tool: `aurora_morning_briefing`
+- Fallback: regelbaserade frågor om Haiku-anrop misslyckas
 
 ---
 
@@ -354,7 +351,7 @@ Fas 4: Produkt                ← andra kan använda det
 | 1.1 | Robust input-pipeline | 1 | 1-2 körn | — | ✅ S104 2026-03-19 |
 | 1.2 | OB-1c: taggar & synk | 1 | 1-2 körn | — | ✅ S104 2026-03-19 |
 | 1.2b | OB-1d: re-export & MCP | 1 | 1 körn | 1.2 | ✅ S104 2026-03-19 |
-| 1.3 | Morgon-briefing | 1 | 1-2 körn | 1.2 | ⬜ |
+| 1.3 | Morgon-briefing | 1 | 1-2 körn | 1.2 | ✅ S105 2026-03-19 |
 | 1.4 | Loggkörningsbok | 1 | 2 körn | — | ⬜ |
 | 1.5 | Manager prompt-fix | 1 | <1 körn | — | ✅ S103 2026-03-19 |
 | 1.6 | neuron_help tool | 1 | 1 körn | — | ⬜ |
@@ -374,7 +371,7 @@ Fas 4: Produkt                ← andra kan använda det
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
 | 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~30-45 körningar. **Klar:** 4/22
+**Totalt:** ~30-45 körningar. **Klar:** 5/22
 
 ---
 
