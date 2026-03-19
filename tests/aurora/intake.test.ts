@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createHash } from 'crypto';
 import type { AuroraGraph } from '../../src/aurora/aurora-schema.js';
+import { PipelineError } from '../../src/aurora/pipeline-errors.js';
 
 /* ------------------------------------------------------------------ */
 /*  Mocks                                                              */
@@ -105,8 +106,8 @@ describe('ingestUrl', () => {
     expect(result.title).toBe(title);
     expect(result.chunkCount).toBe(result.chunkNodeIds.length);
 
-    // saveAuroraGraph called once
-    expect(mockSaveAuroraGraph).toHaveBeenCalledTimes(1);
+    // saveAuroraGraph called twice (initial save + pipeline report update)
+    expect(mockSaveAuroraGraph).toHaveBeenCalledTimes(2);
 
     // autoEmbedAuroraNodes called with [docId, ...chunkIds]
     expect(mockAutoEmbedAuroraNodes).toHaveBeenCalledTimes(1);
@@ -114,7 +115,7 @@ describe('ingestUrl', () => {
     expect(embedArg[0]).toBe(result.documentNodeId);
     expect(embedArg.slice(1)).toEqual(result.chunkNodeIds);
 
-    // Inspect the graph passed to saveAuroraGraph
+    // Inspect the graph passed to first saveAuroraGraph call
     const savedGraph = mockSaveAuroraGraph.mock.calls[0][0] as AuroraGraph;
 
     // Should have doc node + chunk nodes
@@ -142,14 +143,14 @@ describe('ingestUrl', () => {
     }
   });
 
-  it('throws on worker error with clear message', async () => {
+  it('throws PipelineError on worker error', async () => {
     mockRunWorker.mockResolvedValue({
       ok: false,
       error: 'Network timeout',
     });
 
     await expect(ingestUrl('https://bad.example.com')).rejects.toThrow(
-      'Network timeout',
+      PipelineError,
     );
   });
 });
@@ -256,10 +257,11 @@ describe('deduplication', () => {
 
     // First call — graph starts empty
     const result1 = await ingestUrl('https://example.com');
-    expect(mockSaveAuroraGraph).toHaveBeenCalledTimes(1);
+    // saveAuroraGraph called twice: initial save + pipeline report update
+    expect(mockSaveAuroraGraph).toHaveBeenCalledTimes(2);
 
-    // Capture the saved graph and use it as the loaded graph for the next call
-    const savedGraph = mockSaveAuroraGraph.mock.calls[0][0] as AuroraGraph;
+    // Capture the last saved graph (with report) and use it for the next call
+    const savedGraph = mockSaveAuroraGraph.mock.calls[1][0] as AuroraGraph;
     mockLoadAuroraGraph.mockResolvedValue(savedGraph);
 
     // Second call — same text, graph already has the doc node
@@ -269,7 +271,7 @@ describe('deduplication', () => {
     expect(result2.documentNodeId).toBe(result1.documentNodeId);
 
     // saveAuroraGraph should NOT have been called again (dedup short-circuit)
-    expect(mockSaveAuroraGraph).toHaveBeenCalledTimes(1);
+    expect(mockSaveAuroraGraph).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -335,11 +337,11 @@ describe('options', () => {
 });
 
 /* ------------------------------------------------------------------ */
-/*  9. Worker error → throws (covered above, extra test here)          */
+/*  9. Worker error → throws PipelineError for ingestUrl               */
 /* ------------------------------------------------------------------ */
 
 describe('worker error handling', () => {
-  it('ingestUrl throws with clear error message from worker', async () => {
+  it('ingestUrl throws PipelineError with Swedish message from worker', async () => {
     mockRunWorker.mockResolvedValue({
       ok: false,
       error: 'Network timeout',
@@ -347,7 +349,7 @@ describe('worker error handling', () => {
 
     await expect(
       ingestUrl('https://example.com/fail'),
-    ).rejects.toThrow('Network timeout');
+    ).rejects.toThrow(PipelineError);
   });
 
   it('ingestDocument throws with clear error message from worker', async () => {
@@ -426,5 +428,67 @@ describe('graph structure', () => {
       (n) => n.id === result.documentNodeId,
     );
     expect(docNode?.sourceUrl).toBe('https://example.com/source');
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  PipelineError handling                                             */
+/* ------------------------------------------------------------------ */
+
+describe('PipelineError handling', () => {
+  it('throws PipelineError with Swedish message when extract_url fails', async () => {
+    mockRunWorker.mockResolvedValueOnce({
+      ok: false,
+      error: 'Connection timeout',
+      title: '',
+      text: '',
+      metadata: {},
+    });
+    try {
+      await ingestUrl('https://example.com/broken');
+      expect.fail('Should have thrown');
+    } catch (err) {
+      expect(err).toBeInstanceOf(PipelineError);
+      expect((err as PipelineError).step).toBe('extract_url');
+      expect((err as PipelineError).userMessage).toContain('kunde inte hämtas');
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  Pipeline report                                                    */
+/* ------------------------------------------------------------------ */
+
+describe('Pipeline report', () => {
+  it('includes pipeline_report in successful result', async () => {
+    const longText = generateText(50);
+    mockRunWorker.mockResolvedValue({
+      ok: true,
+      title: 'Test Article',
+      text: longText,
+      metadata: { source_type: 'url', word_count: longText.split(/\s+/).length },
+    });
+    const result = await ingestUrl('https://example.com/article');
+    expect(result.pipeline_report).toBeDefined();
+    expect(result.pipeline_report!.details.extract?.status).toBe('ok');
+    expect(result.pipeline_report!.details.chunk?.status).toBe('ok');
+  });
+
+  it('saves pipeline_report on document node properties', async () => {
+    const longText = generateText(50);
+    mockRunWorker.mockResolvedValue({
+      ok: true,
+      title: 'Report Article',
+      text: longText,
+      metadata: { source_type: 'url' },
+    });
+    await ingestUrl('https://example.com/with-report');
+    // Check that saveAuroraGraph was called and the graph has pipeline_report
+    // The second save call contains the updated graph with the report
+    const savedGraph = mockSaveAuroraGraph.mock.calls[1]?.[0] as AuroraGraph;
+    expect(savedGraph).toBeDefined();
+    const docNode = savedGraph.nodes.find((n: { id: string }) => n.id.startsWith('doc_'));
+    expect(docNode?.properties?.pipeline_report).toBeDefined();
+    expect(docNode.properties.pipeline_report.details.extract?.status).toBe('ok');
   });
 });

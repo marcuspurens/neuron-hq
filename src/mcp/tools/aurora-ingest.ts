@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { ingestUrl, ingestDocument } from '../../aurora/intake.js';
 import type { IngestOptions } from '../../aurora/intake.js';
+import { PipelineError } from '../../aurora/pipeline-errors.js';
 
 /** Register the aurora_ingest_url MCP tool. */
 export function registerAuroraIngestUrlTool(server: McpServer): void {
@@ -33,11 +34,14 @@ export function registerAuroraIngestUrlTool(server: McpServer): void {
           ],
         };
       } catch (err) {
+        const message = err instanceof PipelineError
+          ? `❌ ${err.userMessage}\nProva: ${err.suggestion}`
+          : `Error: ${(err as Error).message}`;
         return {
           content: [
             {
               type: 'text' as const,
-              text: `Error: ${(err as Error).message}`,
+              text: message,
             },
           ],
           isError: true,
@@ -77,11 +81,14 @@ export function registerAuroraIngestDocTool(server: McpServer): void {
           ],
         };
       } catch (err) {
+        const message = err instanceof PipelineError
+          ? `❌ ${err.userMessage}\nProva: ${err.suggestion}`
+          : `Error: ${(err as Error).message}`;
         return {
           content: [
             {
               type: 'text' as const,
-              text: `Error: ${(err as Error).message}`,
+              text: message,
             },
           ],
           isError: true,

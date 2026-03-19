@@ -8,6 +8,7 @@ vi.mock('../../../src/aurora/intake.js', () => ({
 }));
 
 import { registerAuroraIngestTools } from '../../../src/mcp/tools/aurora-ingest.js';
+import { PipelineError } from '../../../src/aurora/pipeline-errors.js';
 
 type ToolHandler = (
   args: Record<string, unknown>,
@@ -111,5 +112,37 @@ describe('aurora_ingest MCP tools', () => {
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('Error:');
+  });
+
+  it('aurora_ingest_url shows Swedish message for PipelineError', async () => {
+    const pipelineErr = new PipelineError(
+      'extract_url',
+      'Webbsidan kunde inte hämtas.',
+      'Kontrollera att URL:en är giltig och tillgänglig.',
+      new Error('ECONNREFUSED'),
+    );
+    mockIngestUrl.mockRejectedValue(pipelineErr);
+
+    const result = await toolHandlers['aurora_ingest_url']({ url: 'https://bad.com' });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('❌ Webbsidan kunde inte hämtas.');
+    expect(result.content[0].text).toContain('Prova: Kontrollera att URL:en är giltig');
+  });
+
+  it('aurora_ingest_doc shows Swedish message for PipelineError', async () => {
+    const pipelineErr = new PipelineError(
+      'autoEmbedAuroraNodes',
+      'Embedding-generering misslyckades.',
+      'Kontrollera att Ollama körs (ollama serve) och att modellen är nedladdad.',
+      new Error('Connection refused'),
+    );
+    mockIngestDocument.mockRejectedValue(pipelineErr);
+
+    const result = await toolHandlers['aurora_ingest_doc']({ path: './doc.md' });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('❌ Embedding-generering misslyckades.');
+    expect(result.content[0].text).toContain('Prova: Kontrollera att Ollama körs');
   });
 });

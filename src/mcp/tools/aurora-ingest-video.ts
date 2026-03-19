@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { startVideoIngestJob } from '../../aurora/job-runner.js';
+import { PipelineError } from '../../aurora/pipeline-errors.js';
 
 /** Register aurora_ingest_video MCP tool (async — returns job ID immediately). */
 export function registerAuroraIngestVideoTool(server: McpServer): void {
@@ -84,11 +85,14 @@ export function registerAuroraIngestVideoTool(server: McpServer): void {
           ],
         };
       } catch (err) {
+        const message = err instanceof PipelineError
+          ? `❌ ${err.userMessage}\nProva: ${err.suggestion}`
+          : `Error: ${(err as Error).message}`;
         return {
           content: [
             {
               type: 'text' as const,
-              text: `Error: ${(err as Error).message}`,
+              text: message,
             },
           ],
           isError: true,

@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AuroraGraph } from '../../src/aurora/aurora-schema.js';
+import { PipelineError } from '../../src/aurora/pipeline-errors.js';
+import type { ProgressUpdate } from '../../src/aurora/video.js';
 
 /* ------------------------------------------------------------------ */
 /*  Mocks                                                              */
@@ -378,18 +380,19 @@ describe('ingestVideo', () => {
 
     expect(mockRunWorker).not.toHaveBeenCalled();
     expect(result.chunksCreated).toBe(0);
-    expect(result.voicePrintsCreated).toBe(0);
+    expect(result.title).toBe('Existing Video');
   });
 
-  it('dedup returns early if non-YouTube video already ingested', async () => {
+  it('dedup returns early if video already ingested (non-YouTube)', async () => {
     const svtUrl = 'https://www.svt.se/nyheter/test-article';
-    const nodeId = videoNodeId(svtUrl);
+    const svtNodeId = videoNodeId(svtUrl);
+
     const graphWithExisting: AuroraGraph = {
       nodes: [
         {
-          id: nodeId,
+          id: svtNodeId,
           type: 'transcript',
-          title: 'Existing SVT Video',
+          title: 'SVT Existing',
           properties: { duration: 300, platform: 'svtplay' },
           confidence: 0.9,
           scope: 'personal',
@@ -409,7 +412,7 @@ describe('ingestVideo', () => {
     expect(result.chunksCreated).toBe(0);
   });
 
-  it('handles worker error gracefully', async () => {
+  it('handles worker error gracefully (throws PipelineError)', async () => {
     mockRunWorker.mockResolvedValueOnce({
       ok: false,
       error: 'download failed',
@@ -417,7 +420,7 @@ describe('ingestVideo', () => {
 
     await expect(
       ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ'),
-    ).rejects.toThrow('download failed');
+    ).rejects.toThrow(PipelineError);
   });
 
   it('sends extract_video action to worker', async () => {
@@ -576,4 +579,132 @@ describe('ingestVideo', () => {
     }
   });
 
+});
+
+/* ------------------------------------------------------------------ */
+/*  PipelineError handling                                             */
+/* ------------------------------------------------------------------ */
+
+describe('PipelineError handling', () => {
+  beforeEach(() => {
+    mockRunWorker.mockReset();
+    mockLoadAuroraGraph.mockReset();
+    mockSaveAuroraGraph.mockReset();
+    mockAutoEmbedAuroraNodes.mockReset();
+    mockLoadAuroraGraph.mockResolvedValue(emptyGraph());
+    mockSaveAuroraGraph.mockResolvedValue(undefined);
+    mockAutoEmbedAuroraNodes.mockResolvedValue(undefined);
+  });
+
+  it('throws PipelineError with Swedish message when extract_video fails', async () => {
+    mockRunWorker.mockResolvedValueOnce({ ok: false, error: 'yt-dlp not found' });
+    try {
+      await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      expect.fail('Should have thrown');
+    } catch (err) {
+      expect(err).toBeInstanceOf(PipelineError);
+      expect((err as PipelineError).step).toBe('extract_video');
+      expect((err as PipelineError).userMessage).toContain('kunde inte laddas ner');
+      expect((err as PipelineError).suggestion).toBeTruthy();
+    }
+  });
+
+  it('throws PipelineError when transcribe_audio fails', async () => {
+    // First call: extract succeeds
+    mockRunWorker.mockResolvedValueOnce(extractVideoResponse);
+    // Second call: transcribe fails
+    mockRunWorker.mockResolvedValueOnce({ ok: false, error: 'Whisper OOM' });
+    try {
+      await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      expect.fail('Should have thrown');
+    } catch (err) {
+      expect(err).toBeInstanceOf(PipelineError);
+      expect((err as PipelineError).step).toBe('transcribe_audio');
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  Pipeline report                                                    */
+/* ------------------------------------------------------------------ */
+
+describe('Pipeline report', () => {
+  beforeEach(() => {
+    mockRunWorker.mockReset();
+    mockLoadAuroraGraph.mockReset();
+    mockSaveAuroraGraph.mockReset();
+    mockAutoEmbedAuroraNodes.mockReset();
+    mockLoadAuroraGraph.mockResolvedValue(emptyGraph());
+    mockSaveAuroraGraph.mockResolvedValue(undefined);
+    mockAutoEmbedAuroraNodes.mockResolvedValue(undefined);
+  });
+
+  it('includes pipeline_report in successful result', async () => {
+    mockRunWorker.mockResolvedValueOnce(extractVideoResponse);
+    mockRunWorker.mockResolvedValueOnce(transcribeResponse);
+    mockRunWorker.mockResolvedValueOnce(diarizeResponse);
+    const result = await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ', { diarize: true });
+    expect(result.pipeline_report).toBeDefined();
+    expect(result.pipeline_report!.details.download?.status).toBe('ok');
+    expect(result.pipeline_report!.details.transcribe?.status).toBe('ok');
+    expect(result.pipeline_report!.steps_completed).toBeGreaterThanOrEqual(5);
+  });
+
+  it('marks diarize as skipped when diarize option is false', async () => {
+    mockRunWorker.mockResolvedValueOnce(extractVideoResponse);
+    mockRunWorker.mockResolvedValueOnce(transcribeResponse);
+    const result = await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    expect(result.pipeline_report).toBeDefined();
+    expect(result.pipeline_report!.details.diarize?.status).toBe('skipped');
+  });
+
+  it('includes word count in transcribe report details', async () => {
+    mockRunWorker.mockResolvedValueOnce(extractVideoResponse);
+    mockRunWorker.mockResolvedValueOnce(transcribeResponse);
+    const result = await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    expect(result.pipeline_report!.details.transcribe?.words).toBeGreaterThan(0);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  Progress metadata                                                  */
+/* ------------------------------------------------------------------ */
+
+describe('Progress metadata', () => {
+  beforeEach(() => {
+    mockRunWorker.mockReset();
+    mockLoadAuroraGraph.mockReset();
+    mockSaveAuroraGraph.mockReset();
+    mockAutoEmbedAuroraNodes.mockReset();
+    mockLoadAuroraGraph.mockResolvedValue(emptyGraph());
+    mockSaveAuroraGraph.mockResolvedValue(undefined);
+    mockAutoEmbedAuroraNodes.mockResolvedValue(undefined);
+  });
+
+  it('onProgress receives stepNumber and metadata', async () => {
+    const progressUpdates: ProgressUpdate[] = [];
+    mockRunWorker.mockResolvedValueOnce(extractVideoResponse);
+    mockRunWorker.mockResolvedValueOnce(transcribeResponse);
+    mockRunWorker.mockResolvedValueOnce(diarizeResponse);
+    await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ', {
+      diarize: true,
+      onProgress: (u) => progressUpdates.push(u),
+    });
+    const completedUpdates = progressUpdates.filter(u => u.progress >= 1.0);
+    expect(completedUpdates.some(u => u.stepNumber !== undefined)).toBe(true);
+    expect(completedUpdates.some(u => u.totalSteps !== undefined)).toBe(true);
+  });
+
+  it('onProgress totalSteps is 7', async () => {
+    const progressUpdates: ProgressUpdate[] = [];
+    mockRunWorker.mockResolvedValueOnce(extractVideoResponse);
+    mockRunWorker.mockResolvedValueOnce(transcribeResponse);
+    await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ', {
+      onProgress: (u) => progressUpdates.push(u),
+    });
+    const withTotal = progressUpdates.filter(u => u.totalSteps !== undefined);
+    for (const u of withTotal) {
+      expect(u.totalSteps).toBe(7);
+    }
+  });
 });

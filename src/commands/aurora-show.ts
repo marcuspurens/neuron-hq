@@ -94,6 +94,38 @@ export async function auroraShowCommand(nodeId: string): Promise<void> {
     await renderTimelineSummary(pool, nodeId, rawSegments);
   }
 
+  // Pipeline report
+  const pipelineReport = props.pipeline_report as {
+    steps_completed: number;
+    steps_total: number;
+    duration_seconds: number;
+    details: Record<string, { status: string; message?: string; [key: string]: unknown }>;
+  } | undefined;
+
+  if (pipelineReport) {
+    console.log('');
+    console.log(chalk.bold(`  Pipeline-rapport (${pipelineReport.steps_completed}/${pipelineReport.steps_total} steg, ${pipelineReport.duration_seconds}s)`));
+    const statusIcon = (s: string): string => s === 'ok' ? chalk.green('✓') : s === 'error' ? chalk.red('✗') : chalk.dim('–');
+    const entries = Object.entries(pipelineReport.details);
+    for (let i = 0; i < entries.length; i++) {
+      const [stepName, detail] = entries[i];
+      const isLast = i === entries.length - 1;
+      const prefix = isLast ? '└─' : '├─';
+      const parts: string[] = [];
+      if (detail.duration_s) parts.push(`${detail.duration_s}s`);
+      if (detail.words) parts.push(`${detail.words} ord`);
+      if (detail.speakers !== undefined) parts.push(`${detail.speakers} talare`);
+      if (detail.chunks) parts.push(`${detail.chunks} chunks`);
+      if (detail.vectors) parts.push(`${detail.vectors} vektorer`);
+      if (detail.matches !== undefined) parts.push(`${detail.matches} kopplingar`);
+      if (detail.model) parts.push(`modell: ${detail.model}`);
+      if (detail.message) parts.push(detail.message);
+      let info = '';
+      if (parts.length > 0) info = ` (${parts.join(', ')})`;
+      console.log(`  ${prefix} ${statusIcon(detail.status)} ${stepName}${info}`);
+    }
+  }
+
   // Transcript (text)
   const text = props.text as string | undefined;
   if (text) {

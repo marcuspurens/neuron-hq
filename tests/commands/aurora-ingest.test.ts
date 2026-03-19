@@ -15,6 +15,7 @@ vi.mock('../../src/aurora/intake.js', () => ({
 }));
 
 import { auroraIngestCommand } from '../../src/commands/aurora-ingest.js';
+import { PipelineError } from '../../src/aurora/pipeline-errors.js';
 
 describe('aurora:ingest command', () => {
   let consoleOutput: string[];
@@ -124,5 +125,35 @@ describe('aurora:ingest command', () => {
       'https://example.com',
       expect.objectContaining({ maxChunks: 5 }),
     );
+  });
+
+  it('shows Swedish PipelineError message with suggestion', async () => {
+    mockIsWorkerAvailable.mockResolvedValue(true);
+    const pipeErr = new PipelineError(
+      'extract_url',
+      'Webbsidan kunde inte hämtas.',
+      'Kontrollera att URL:en är giltig och tillgänglig.',
+      new Error('HTTP 404'),
+    );
+    mockIngestUrl.mockRejectedValue(pipeErr);
+
+    await auroraIngestCommand('https://bad-url.com', {});
+
+    const errOut = consoleErrors.join('\n');
+    expect(errOut).toContain('Webbsidan kunde inte hämtas.');
+    expect(errOut).toContain('Prova:');
+    expect(errOut).toContain('Kontrollera att URL:en');
+    expect(errOut).toContain('Teknisk detalj: HTTP 404');
+  });
+
+  it('shows Swedish generic error for non-PipelineError', async () => {
+    mockIsWorkerAvailable.mockResolvedValue(true);
+    mockIngestUrl.mockRejectedValue(new Error('Connection reset'));
+
+    await auroraIngestCommand('https://bad-url.com', {});
+
+    const errOut = consoleErrors.join('\n');
+    expect(errOut).toContain('Fel:');
+    expect(errOut).toContain('Connection reset');
   });
 });

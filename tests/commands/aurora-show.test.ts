@@ -191,3 +191,102 @@ describe('aurora:show command – timeline', () => {
     expect(output).toMatch(/SPEAKER_01.*00:00:30/);
   });
 });
+
+describe('aurora:show command – pipeline report', () => {
+  let consoleOutput: string[];
+
+  beforeEach(() => {
+    mockQuery.mockReset();
+    consoleOutput = [];
+    vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      consoleOutput.push(args.map(String).join(' '));
+    });
+  });
+
+  it('displays pipeline report when pipeline_report exists', async () => {
+    const node = fakeTranscriptNode({
+      pipeline_report: {
+        steps_completed: 5,
+        steps_total: 7,
+        duration_seconds: 42,
+        details: {
+          download: { status: 'ok', duration_s: 3, size_mb: 15 },
+          transcribe: { status: 'ok', duration_s: 20, words: 1200, model: 'large-v3' },
+          diarize: { status: 'ok', duration_s: 10, speakers: 2 },
+          chunk: { status: 'ok', duration_s: 1, chunks: 8 },
+          embed: { status: 'error', message: 'Ollama unreachable' },
+        },
+      },
+    });
+    setupDefaultMocks(node, fakeVoicePrintRows());
+
+    await auroraShowCommand('node-1');
+
+    const output = consoleOutput.join('\n');
+    expect(output).toContain('Pipeline-rapport');
+    expect(output).toContain('5/7 steg');
+    expect(output).toContain('42s');
+    expect(output).toContain('download');
+    expect(output).toContain('transcribe');
+    expect(output).toContain('1200 ord');
+    expect(output).toContain('2 talare');
+    expect(output).toContain('8 chunks');
+    expect(output).toContain('Ollama unreachable');
+    expect(output).toContain('modell: large-v3');
+  });
+
+  it('does NOT display pipeline report when pipeline_report is absent', async () => {
+    const node = fakeTranscriptNode({ pipeline_report: undefined });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [node] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: fakeVoicePrintRows() });
+
+    await auroraShowCommand('node-1');
+
+    const output = consoleOutput.join('\n');
+    expect(output).not.toContain('Pipeline-rapport');
+  });
+
+  it('uses tree-line formatting for pipeline report steps', async () => {
+    const node = fakeTranscriptNode({
+      pipeline_report: {
+        steps_completed: 2,
+        steps_total: 2,
+        duration_seconds: 5,
+        details: {
+          download: { status: 'ok', duration_s: 2 },
+          transcribe: { status: 'ok', duration_s: 3 },
+        },
+      },
+    });
+    setupDefaultMocks(node, fakeVoicePrintRows());
+
+    await auroraShowCommand('node-1');
+
+    const output = consoleOutput.join('\n');
+    // First step uses ├─, last uses └─
+    expect(output).toContain('├─');
+    expect(output).toContain('└─');
+  });
+
+  it('shows kopplingar for matches in pipeline report', async () => {
+    const node = fakeTranscriptNode({
+      pipeline_report: {
+        steps_completed: 1,
+        steps_total: 1,
+        duration_seconds: 2,
+        details: {
+          crossref: { status: 'ok', matches: 3 },
+        },
+      },
+    });
+    setupDefaultMocks(node, fakeVoicePrintRows());
+
+    await auroraShowCommand('node-1');
+
+    const output = consoleOutput.join('\n');
+    expect(output).toContain('3 kopplingar');
+  });
+});

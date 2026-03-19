@@ -6,6 +6,7 @@ vi.mock('../../../src/aurora/job-runner.js', () => ({
 }));
 
 import { registerAuroraIngestVideoTool } from '../../../src/mcp/tools/aurora-ingest-video.js';
+import { PipelineError } from '../../../src/aurora/pipeline-errors.js';
 
 type ToolHandler = (
   args: Record<string, unknown>,
@@ -100,6 +101,23 @@ describe('aurora_ingest_video MCP tool', () => {
     });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('DB connection failed');
+  });
+
+  it('shows Swedish message for PipelineError', async () => {
+    const pipelineErr = new PipelineError(
+      'extract_video',
+      'Videon kunde inte laddas ner.',
+      'Kontrollera att URL:en är giltig och att yt-dlp är installerat.',
+      new Error('yt-dlp not found'),
+    );
+    mockStartVideoIngestJob.mockRejectedValue(pipelineErr);
+
+    const result = await toolHandlers['aurora_ingest_video']({
+      url: 'https://www.youtube.com/watch?v=abc123',
+    });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('❌ Videon kunde inte laddas ner.');
+    expect(result.content[0].text).toContain('Prova: Kontrollera att URL:en är giltig');
   });
 
   it('passes all options to startVideoIngestJob', async () => {

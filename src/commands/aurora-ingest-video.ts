@@ -3,6 +3,7 @@ import { copyFile, mkdir } from 'fs/promises';
 import { join, basename } from 'path';
 import { isWorkerAvailable } from '../aurora/worker-bridge.js';
 import { ingestVideo } from '../aurora/video.js';
+import { PipelineError } from '../aurora/pipeline-errors.js';
 import type { VideoIngestOptions, ProgressUpdate } from '../aurora/video.js';
 
 const AUDIO_DIR = '/Users/mpmac/Documents/Neuron Lab/audio';
@@ -37,12 +38,26 @@ export async function auroraIngestVideoCommand(
     return;
   }
 
+  const stepLabels: Record<string, string> = {
+    downloading: 'Laddar ner video',
+    transcribing: 'Transkriberar',
+    diarizing: 'Talaridentifiering',
+    chunking: 'Chunkning',
+    embedding: 'Embedding',
+    crossreferencing: 'Korsreferenser',
+    saving: 'Sparar till databas',
+    polishing: 'Polerar transkript',
+    identifying: 'Identifierar talare',
+  };
+
   const stepEmojis: Record<string, string> = {
     downloading: '⬇️ ',
     transcribing: '🎤',
-    diarizing: '🗣️ ',
+    diarizing: '👥',
     chunking: '✂️ ',
-    embedding: '🧠',
+    embedding: '🧮',
+    crossreferencing: '🔗',
+    saving: '💾',
     polishing: '✨',
     identifying: '🗣️',
   };
@@ -58,10 +73,24 @@ export async function auroraIngestVideoCommand(
     polishModel: cmdOptions.polishModel as VideoIngestOptions['polishModel'],
     onProgress: (update: ProgressUpdate) => {
       const emoji = stepEmojis[update.step] ?? '▶️';
+      const label = stepLabels[update.step] ?? update.step;
       if (update.progress === 0) {
-        console.log(`  ${emoji} ${update.step}...`);
+        const stepNum = update.stepNumber ? `[${update.stepNumber}/${update.totalSteps}]` : '';
+        process.stdout.write(`  ${stepNum} ${emoji} ${label}...`);
       } else if (update.progress >= 1.0) {
-        console.log(`  ${emoji} ${update.step} done (${(update.stepElapsedMs / 1000).toFixed(1)}s)`);
+        const elapsed = `${(update.stepElapsedMs / 1000).toFixed(1)}s`;
+        let metaSummary = '';
+        if (update.metadata) {
+          const parts: string[] = [];
+          if (update.metadata.size_mb) parts.push(`${update.metadata.size_mb} MB`);
+          if (update.metadata.words) parts.push(`${update.metadata.words} ord`);
+          if (update.metadata.speakers !== undefined) parts.push(`${update.metadata.speakers} talare`);
+          if (update.metadata.chunks) parts.push(`${update.metadata.chunks} chunks`);
+          if (update.metadata.vectors) parts.push(`${update.metadata.vectors} vektorer`);
+          if (update.metadata.matches !== undefined) parts.push(`${update.metadata.matches} kopplingar`);
+          if (parts.length > 0) metaSummary = ` (${parts.join(', ')})`;
+        }
+        console.log(` OK${metaSummary} ${chalk.dim(elapsed)}`);
       }
     },
   };
@@ -111,6 +140,15 @@ export async function auroraIngestVideoCommand(
     }
     console.log('');
   } catch (err) {
-    console.error(chalk.red(`\n  ❌ Error: ${err instanceof Error ? err.message : err}\n`));
+    if (err instanceof PipelineError) {
+      console.error(chalk.red(`\n  ❌ ${err.userMessage}`));
+      console.error(chalk.yellow(`     Prova: ${err.suggestion}`));
+      // Log technical detail for debugging
+      if (err.originalError) {
+        console.error(chalk.dim(`     Teknisk detalj: ${err.originalError.message}`));
+      }
+    } else {
+      console.error(chalk.red(`\n  ❌ Fel: ${err instanceof Error ? err.message : err}\n`));
+    }
   }
 }

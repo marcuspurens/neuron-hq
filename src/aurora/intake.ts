@@ -14,11 +14,14 @@ import {
   loadAuroraGraph,
   saveAuroraGraph,
   autoEmbedAuroraNodes,
+  updateAuroraNode,
 } from './aurora-graph.js';
 import type { AuroraNodeType, AuroraScope, AuroraNode } from './aurora-schema.js';
 import { isVideoUrl, ingestVideo } from './video.js';
 import { findNeuronMatchesForAurora, createCrossRef } from './cross-ref.js';
 import { updateConfidence, classifySource } from './bayesian-confidence.js';
+import { PipelineError, wrapPipelineStep } from './pipeline-errors.js';
+import type { PipelineReport } from './pipeline-errors.js';
 
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:intake');
@@ -60,6 +63,8 @@ export interface IngestResult {
     similarity: number;
     relationship: string;
   }>;
+  /** Pipeline execution report with per-step status and metadata. */
+  pipeline_report?: PipelineReport;
 }
 
 /* ------------------------------------------------------------------ */
@@ -90,10 +95,12 @@ export async function ingestUrl(
     };
   }
 
-  const result = await runWorker({ action: 'extract_url', source: url });
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
+  const result = await wrapPipelineStep('extract_url', async () => {
+    const r = await runWorker({ action: 'extract_url', source: url });
+    if (!r.ok) throw new Error(r.error);
+    return r;
+  });
+
   return processExtractedText(
     result.title,
     result.text,
@@ -161,6 +168,18 @@ export async function processExtractedText(
   metadata: Record<string, unknown>,
   options: IngestOptions,
 ): Promise<IngestResult> {
+  const pipelineStart = Date.now();
+  const report: PipelineReport = {
+    steps_completed: 0,
+    steps_total: 5,
+    duration_seconds: 0,
+    details: {},
+  };
+
+  // Extract step already succeeded (caller handled it)
+  report.details.extract = { status: 'ok' };
+  report.steps_completed++;
+
   const hash = createHash('sha256').update(text).digest('hex').slice(0, 12);
   const docId = `doc_${hash}`;
 
@@ -245,9 +264,30 @@ export async function processExtractedText(
     });
   }
 
+  // Chunk report
+  report.details.chunk = {
+    status: 'ok',
+    chunks: totalChunks,
+    avg_words: totalChunks > 0
+      ? Math.round(chunks.reduce((s, c) => s + c.wordCount, 0) / totalChunks)
+      : 0,
+  };
+  report.steps_completed++;
+
   // --- Persist and embed ---
   await saveAuroraGraph(graph);
-  await autoEmbedAuroraNodes([docId, ...chunkNodeIds]);
+
+  try {
+    await autoEmbedAuroraNodes([docId, ...chunkNodeIds]);
+    report.details.embed = { status: 'ok', vectors: 1 + chunkNodeIds.length };
+    report.steps_completed++;
+  } catch (err) {
+    report.details.embed = {
+      status: 'error',
+      message: err instanceof PipelineError ? err.userMessage : String(err),
+    };
+    // Don't re-throw — embedding failure is non-fatal for intake
+  }
 
   // --- Auto cross-ref: find Neuron matches for the new document ---
   let crossRefsCreated = 0;
@@ -294,10 +334,27 @@ export async function processExtractedText(
         }
       }
     }
+    report.details.crossref = { status: 'ok', matches: crossRefMatches.length };
+    report.steps_completed++;
   } catch (err) {
     logger.error('[intake] intake processing failed', { error: String(err) });
+    report.details.crossref = {
+      status: 'error',
+      message: err instanceof PipelineError ? err.userMessage : String(err),
+    };
     // Postgres might not be available, or kg_nodes might be empty
   }
+
+  // --- Save report ---
+  report.details.save = { status: 'ok' };
+  report.steps_completed++;
+  report.duration_seconds = Math.round((Date.now() - pipelineStart) / 1000);
+
+  // Update doc node with pipeline report
+  graph = updateAuroraNode(graph, docId, {
+    properties: { ...docNode.properties, pipeline_report: report },
+  });
+  await saveAuroraGraph(graph);
 
   // --- Return result ---
   const wordCount =
@@ -311,5 +368,6 @@ export async function processExtractedText(
     chunkCount: chunkNodeIds.length,
     crossRefsCreated,
     crossRefMatches,
+    pipeline_report: report,
   };
 }

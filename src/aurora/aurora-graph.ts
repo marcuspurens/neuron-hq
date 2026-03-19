@@ -17,6 +17,11 @@ import {
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:graph');
 
+/** Internal sleep helper for retry backoff. */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // --- Default path ---
 const DEFAULT_GRAPH_PATH = path.resolve(
   import.meta.dirname ?? '.',
@@ -337,25 +342,39 @@ export async function autoEmbedAuroraNodes(nodeIds: string[]): Promise<void> {
       `${node.type}: ${node.title}. ${JSON.stringify(node.properties)}`
     );
 
-    // Process in batches of 20
+    // Process in batches of 20 with retry
     const BATCH_SIZE = 20;
+    const MAX_RETRIES = 2;
+    const BACKOFF_BASE_MS = 2000;
+
     for (let i = 0; i < texts.length; i += BATCH_SIZE) {
       const batchTexts = texts.slice(i, i + BATCH_SIZE);
       const batchRows = rows.slice(i, i + BATCH_SIZE);
-      try {
-        const embeddings = await provider.embedBatch(batchTexts);
-        const ids = batchRows.map((r: Record<string, unknown>) => r.id as string);
-        const vectors = embeddings.map((e: number[]) => `[${e.join(",")}]`);
+      const batchIds = batchRows.map((r: Record<string, unknown>) => r.id as string);
 
-        await pool.query(
-          `UPDATE aurora_nodes AS n
-           SET embedding = v.emb::vector
-           FROM unnest($1::text[], $2::text[]) AS v(id, emb)
-           WHERE n.id = v.id`,
-          [ids, vectors],
-        );
-      } catch (err) {
-        logger.warn('Warning: Failed to embed batch starting at index', { i, error: String(err) });
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const embeddings = await provider.embedBatch(batchTexts);
+          const ids = batchIds;
+          const vectors = embeddings.map((e: number[]) => `[${e.join(",")}]`);
+
+          await pool.query(
+            `UPDATE aurora_nodes AS n
+             SET embedding = v.emb::vector
+             FROM unnest($1::text[], $2::text[]) AS v(id, emb)
+             WHERE n.id = v.id`,
+            [ids, vectors],
+          );
+          break;
+        } catch (err) {
+          if (attempt < MAX_RETRIES) {
+            const delayMs = BACKOFF_BASE_MS * Math.pow(2, attempt);
+            logger.warn(`Embedding batch failed (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${delayMs}ms...`, { i, error: String(err) });
+            await sleep(delayMs);
+          } else {
+            logger.error(`Embedding batch failed after ${MAX_RETRIES + 1} attempts. Nodes missing embedding:`, { nodeIds: batchIds, error: String(err) });
+          }
+        }
       }
     }
   } catch (err) {

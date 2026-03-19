@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { isWorkerAvailable } from '../aurora/worker-bridge.js';
 import { ingestUrl, ingestDocument } from '../aurora/intake.js';
+import { PipelineError } from '../aurora/pipeline-errors.js';
 import type { IngestOptions } from '../aurora/intake.js';
 
 /**
@@ -58,6 +59,14 @@ export async function auroraIngestCommand(
     }
     console.log('');
   } catch (err) {
-    console.error(chalk.red(`\n  ❌ Error: ${err instanceof Error ? err.message : err}\n`));
+    if (err instanceof PipelineError) {
+      console.error(chalk.red(`\n  ❌ ${err.userMessage}`));
+      console.error(chalk.yellow(`     Prova: ${err.suggestion}`));
+      if (err.originalError) {
+        console.error(chalk.dim(`     Teknisk detalj: ${err.originalError.message}`));
+      }
+    } else {
+      console.error(chalk.red(`\n  ❌ Fel: ${err instanceof Error ? err.message : err}\n`));
+    }
   }
 }
