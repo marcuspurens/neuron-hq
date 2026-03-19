@@ -18,6 +18,8 @@ import type { DashboardServer } from './dashboard-server.js';
 import { createRunTrace, getRunTrace, shutdownLangfuse, registerEventBusListeners } from './langfuse.js';
 import { createLogger, setTraceId } from './logger.js';
 
+import { NarrativeCollector } from './narrative-collector.js';
+
 const logger = createLogger('run');
 
 export interface RunContext {
@@ -41,6 +43,7 @@ export interface RunContext {
   defaultModelOverride?: string;  // CLI --model override
   dashboardServer?: DashboardServer | null;
   maxIterationsReached?: boolean;
+  narrativeCollector?: NarrativeCollector;
 }
 
 /** Directories to skip when copying a target repo to workspace. */
@@ -262,6 +265,10 @@ export class RunOrchestrator {
       startTime: new Date().toISOString(),
     });
 
+    // Start narrative collector
+    const narrativeCollector = new NarrativeCollector();
+    narrativeCollector.start(runid);
+
     // Create Langfuse trace for this run (non-fatal)
     try {
       createRunTrace(runid, { brief: processedBrief, briefTitle, target: target.name, hours });
@@ -291,6 +298,7 @@ export class RunOrchestrator {
       startTime: new Date(),
       endTime,
       dashboardServer,
+      narrativeCollector,
     };
   }
 
@@ -490,6 +498,11 @@ export class RunOrchestrator {
       }
     } catch {  /* intentional: file may not exist */
       // Non-fatal — workspace preservation check should not break finalization
+    }
+
+    // Stop narrative collector before run:end so it doesn't capture its own stop event
+    if (ctx.narrativeCollector) {
+      ctx.narrativeCollector.stop();
     }
 
     eventBus.safeEmit('run:end', {

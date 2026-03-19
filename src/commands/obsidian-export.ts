@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { writeFile, mkdir, rm } from 'fs/promises';
+import { writeFile, mkdir, rm, readFile, access } from 'fs/promises';
 import { join } from 'path';
 import { getPool } from '../core/db.js';
 import {
@@ -489,4 +489,56 @@ export async function obsidianExportCommand(cmdOptions: {
     console.error(chalk.red(`\n  ❌ Error: ${err instanceof Error ? err.message : err}\n`));
     return { exported: 0 };
   }
+}
+
+
+/**
+ * Export a run narrative to the Obsidian vault's Korningar/ folder.
+ * If run-narrative.md doesn't exist in runDir, silently returns null.
+ */
+export async function exportRunNarrative(options: {
+  runDir: string;
+  runId: string;
+  vault?: string;
+}): Promise<string | null> {
+  const vaultPath = options.vault || DEFAULT_VAULT;
+  const korningarDir = join(vaultPath, 'Korningar');
+  const narrativePath = join(options.runDir, 'run-narrative.md');
+
+  // Check if narrative exists
+  try {
+    await access(narrativePath);
+  } catch {
+    // run-narrative.md doesn't exist - skip silently
+    return null;
+  }
+
+  // Read the narrative
+  let content = await readFile(narrativePath, 'utf-8');
+
+  // Add Obsidian tags to frontmatter
+  // Extract stoplight from existing frontmatter
+  const stoplightMatch = content.match(/^stoplight:\s*(\w+)/m);
+  const stoplight = (stoplightMatch?.[1] ?? 'unknown').toLowerCase();
+
+  // Insert tags after the frontmatter opening
+  if (content.startsWith('---')) {
+    const endIdx = content.indexOf('---', 3);
+    if (endIdx !== -1) {
+      const frontmatter = content.slice(0, endIdx);
+      const body = content.slice(endIdx);
+      // Add tags line before closing ---
+      content = frontmatter + `tags: [korning, ${stoplight}]\n` + body;
+    }
+  }
+
+  // Ensure Korningar directory exists
+  await mkdir(korningarDir, { recursive: true });
+
+  // Write file
+  const filename = `korning-${options.runId}.md`;
+  const filePath = join(korningarDir, filename);
+  await writeFile(filePath, content, 'utf-8');
+
+  return filePath;
 }

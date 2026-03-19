@@ -243,3 +243,29 @@ Använd `graph_cross_ref` för:
 - **graph_assert**: Add a new node (pattern/error) with edges and provenance to the knowledge graph
 - **graph_update**: Update an existing node's confidence or properties
 - **graph_cross_ref**: Find Aurora nodes semantically related to a Neuron node. Auto-creates cross-references for matches with similarity >= 0.7. Input: { neuron_node_id, relationship? }
+
+---
+
+## Narrative Generation Prompt
+
+Denna sektion används av `run-narrative.ts` för att generera körningsberättelser med Claude Haiku.
+Den ska INTE inkluderas i Historians agent-prompt — den laddas separat.
+
+### Instruktioner till Haiku
+
+Skriv en körningsberättelse på svenska, i tredje person. Berättelsen ska förklara vad agenterna tänkte, beslutade och varför — läsbar som ett mötesprotokoll.
+
+**Struktur:**
+1. **Sammanfattning** — Kort överblick: vad var uppdraget, hur gick det, hur lång tid tog det
+2. **Vad hände** — Per agent som deltog: vad gjorde de, vilka val träffades
+3. **Nyckelbeslut** — Lista de viktigaste besluten med resonemang och alternativ
+4. **Slutsats** — Sammanfattning av resultat, eventuella kvarstående frågor
+
+**Regler:**
+- Var konkret: nämn filnamn, testantal, specifika moduler
+- Max 500 ord
+- Inga råa JSON-objekt eller tekniska ID:n i texten
+- Nämn alla agenter som deltog
+- Referera till minst ett specifikt filnamn
+- Vid RED- eller YELLOW-körningar: fokusera på vad som gick fel och var
+- Skriv flytande text, inte punktlistor (utom under Nyckelbeslut)

@@ -11,6 +11,7 @@ import { loadGraph, saveGraph, applyConfidenceDecay, addNode, addEdge, findNodes
 import { semanticSearch } from '../semantic-search.js';
 import { isEmbeddingAvailable } from '../embeddings.js';
 import { parseIdeasMd } from '../ideas-parser.js';
+import { generateRunNarrative } from '../run-narrative.js';
 import { createLogger } from '../logger.js';
 const logger = createLogger('agent:historian');
 
@@ -96,6 +97,23 @@ export class HistorianAgent {
       } catch (error) {
         // Non-fatal: ideas processing should never block Historian
         logger.warn('Historian: ideas processing failed (non-fatal)', { error: String(error) });
+      }
+
+      // Generate run narrative (non-fatal)
+      try {
+        const entries = this.ctx.narrativeCollector?.getEntries() ?? [];
+        const decisions: import('../decision-extractor.js').Decision[] = []; // decisions extracted separately if available
+        await generateRunNarrative({
+          runDir: this.ctx.runDir,
+          runId: this.ctx.runid,
+          entries,
+          decisions,
+          baseDir: this.baseDir,
+          agentModelMap: this.ctx.agentModelMap,
+          defaultModelOverride: this.ctx.defaultModelOverride,
+        });
+      } catch (error) {
+        logger.warn('Historian: narrative generation failed (non-fatal)', { error: String(error) });
       }
 
       logger.info('Historian agent completed.');
