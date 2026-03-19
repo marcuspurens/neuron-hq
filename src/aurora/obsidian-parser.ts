@@ -34,6 +34,15 @@ export interface ParsedObsidianFile {
   comments: Comment[];
 }
 
+export interface BriefingAnswer {
+  questionIndex: number;
+  questionText: string;
+  answer: string;
+  questionNodeId: string | null;
+  questionCategory: 'gap' | 'stale' | 'idea' | null;
+  sentiment: 'positive' | 'negative' | 'neutral';
+}
+
 // --- Known tags for highlight extraction ---
 
 const KNOWN_TAGS = new Set(['highlight', 'key-insight', 'quote', 'follow-up']);
@@ -48,6 +57,20 @@ const TAG_RE = /#([\w-]+)/g;
 
 /** Matches `<!-- kommentar: text -->`. */
 const COMMENT_RE = /<!--\s*kommentar:\s*(.*?)\s*-->/g;
+
+// --- Briefing feedback regex patterns ---
+
+/** Matches `### Fråga N: question text` headers. */
+const QUESTION_HEADER_RE = /^###\s+Fråga\s+(\d+):\s+(.+)$/;
+
+/** Matches `<!-- question_node_id: id -->`. */
+const QUESTION_NODE_ID_RE = /<!--\s*question_node_id:\s*(.*?)\s*-->/;
+
+/** Matches `<!-- question_category: category -->`. */
+const QUESTION_CATEGORY_RE = /<!--\s*question_category:\s*(.*?)\s*-->/;
+
+/** Matches `<!-- svar: answer text -->`. */
+const ANSWER_RE = /<!--\s*svar:\s*(.*?)\s*-->/;
 
 // --- Exported functions ---
 
@@ -193,6 +216,96 @@ export function matchSegmentTime(
     return closestMs;
   }
   return null;
+}
+
+// --- Briefing feedback functions ---
+
+const VALID_CATEGORIES = new Set(['gap', 'stale', 'idea']);
+
+/**
+ * Analyse the sentiment of a briefing answer text.
+ *
+ * - Contains 👍 → 'positive'
+ * - Starts with 'ja' or 'yes' (case-insensitive) → 'positive'
+ * - Contains 👎 → 'negative'
+ * - Starts with 'nej' or 'no' (case-insensitive) → 'negative'
+ * - Otherwise → 'neutral'
+ */
+export function parseSentiment(
+  text: string,
+): 'positive' | 'negative' | 'neutral' {
+  if (text.includes('\u{1F44D}')) return 'positive';
+  if (/^(ja|yes)\b/i.test(text.trim())) return 'positive';
+  if (text.includes('\u{1F44E}')) return 'negative';
+  if (/^(nej|no)\b/i.test(text.trim())) return 'negative';
+  return 'neutral';
+}
+
+/**
+ * Parse the markdown body of a morning-briefing file to extract user answers.
+ *
+ * Scans for `### Fråga N: text` headers, then collects metadata comments
+ * (question_node_id, question_category) and the `<!-- svar: ... -->` answer.
+ * Empty answers are skipped.
+ */
+export function extractBriefingAnswers(
+  markdownBody: string,
+): BriefingAnswer[] {
+  const results: BriefingAnswer[] = [];
+  const lines = markdownBody.split('\n');
+
+  let currentIndex: number | null = null;
+  let currentText = '';
+  let currentNodeId: string | null = null;
+  let currentCategory: 'gap' | 'stale' | 'idea' | null = null;
+
+  for (const line of lines) {
+    // Check for question header
+    const headerMatch = QUESTION_HEADER_RE.exec(line);
+    if (headerMatch) {
+      currentIndex = parseInt(headerMatch[1], 10);
+      currentText = headerMatch[2];
+      currentNodeId = null;
+      currentCategory = null;
+      continue;
+    }
+
+    // Check for question_node_id comment
+    const nodeIdMatch = QUESTION_NODE_ID_RE.exec(line);
+    if (nodeIdMatch && currentIndex !== null) {
+      const id = nodeIdMatch[1].trim();
+      currentNodeId = id.length > 0 ? id : null;
+      continue;
+    }
+
+    // Check for question_category comment
+    const categoryMatch = QUESTION_CATEGORY_RE.exec(line);
+    if (categoryMatch && currentIndex !== null) {
+      const cat = categoryMatch[1].trim();
+      currentCategory = VALID_CATEGORIES.has(cat)
+        ? (cat as 'gap' | 'stale' | 'idea')
+        : null;
+      continue;
+    }
+
+    // Check for answer comment
+    const answerMatch = ANSWER_RE.exec(line);
+    if (answerMatch && currentIndex !== null) {
+      const answer = answerMatch[1].trim();
+      if (answer.length === 0) continue; // Skip empty answers
+
+      results.push({
+        questionIndex: currentIndex,
+        questionText: currentText,
+        answer,
+        questionNodeId: currentNodeId,
+        questionCategory: currentCategory,
+        sentiment: parseSentiment(answer),
+      });
+    }
+  }
+
+  return results;
 }
 
 /**

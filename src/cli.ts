@@ -719,6 +719,18 @@ program
     await obsidianImportCommand(options);
   });
 
+// Morning briefing
+program
+  .command('morning-briefing')
+  .description('Generate daily morning briefing as Obsidian markdown')
+  .option('--vault <path>', 'Obsidian vault path (or set AURORA_OBSIDIAN_VAULT env)')
+  .option('--date <date>', 'Generate for specific date (YYYY-MM-DD)')
+  .option('--force', 'Overwrite existing briefing for the same date')
+  .action(async (options: { vault?: string; date?: string; force?: boolean }) => {
+    const { morningBriefingCommand } = await import('./commands/morning-briefing.js');
+    await morningBriefingCommand(options);
+  });
+
 // Ideas command
 program
   .command('ideas')

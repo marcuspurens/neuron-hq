@@ -6,6 +6,8 @@ import {
   extractComments,
   matchSegmentTime,
   parseObsidianFile,
+  parseSentiment,
+  extractBriefingAnswers,
 } from '../../src/aurora/obsidian-parser.js';
 
 // Mock the logger to suppress output during tests
@@ -372,5 +374,78 @@ describe('parseObsidianFile', () => {
   it('returns null for content without frontmatter', () => {
     const content = 'no frontmatter at all';
     expect(parseObsidianFile(content)).toBeNull();
+  });
+});
+
+// --- New tests for briefing feedback parsing ---
+
+describe('parseSentiment', () => {
+  it('returns positive for thumbs-up emoji', () => {
+    expect(parseSentiment('👍 Bra ide!')).toBe('positive');
+    expect(parseSentiment('Det var 👍')).toBe('positive');
+  });
+
+  it('returns positive when text starts with ja or yes (case-insensitive)', () => {
+    expect(parseSentiment('Ja, det stämmer')).toBe('positive');
+    expect(parseSentiment('ja det stämmer')).toBe('positive');
+    expect(parseSentiment('Yes, absolutely')).toBe('positive');
+    expect(parseSentiment('YES please')).toBe('positive');
+  });
+
+  it('returns negative for thumbs-down emoji or text starting with nej/no', () => {
+    expect(parseSentiment('👎 Dålig ide')).toBe('negative');
+    expect(parseSentiment('Nej, inte relevant')).toBe('negative');
+    expect(parseSentiment('nej tack')).toBe('negative');
+    expect(parseSentiment('No, skip this')).toBe('negative');
+    expect(parseSentiment('NO way')).toBe('negative');
+  });
+
+  it('returns neutral for plain text without sentiment signals', () => {
+    expect(parseSentiment('Kanske, vi får se')).toBe('neutral');
+    expect(parseSentiment('Intressant perspektiv')).toBe('neutral');
+    expect(parseSentiment('Behöver mer info')).toBe('neutral');
+  });
+});
+
+describe('extractBriefingAnswers', () => {
+  it('parses question with svar, node_id, and category correctly', () => {
+    const body = [
+      '### Fråga 1: Vill du utforska gap-noden "AI-etik"?',
+      '<!-- question_node_id: node-abc-123 -->',
+      '<!-- question_category: gap -->',
+      '<!-- svar: Ja, det vore intressant -->',
+    ].join('\n');
+
+    const result = extractBriefingAnswers(body);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({
+      questionIndex: 1,
+      questionText: 'Vill du utforska gap-noden "AI-etik"?',
+      answer: 'Ja, det vore intressant',
+      questionNodeId: 'node-abc-123',
+      questionCategory: 'gap',
+      sentiment: 'positive',
+    });
+  });
+
+  it('skips empty svar comments', () => {
+    const body = [
+      '### Fråga 1: Första frågan',
+      '<!-- question_node_id: node-1 -->',
+      '<!-- question_category: stale -->',
+      '<!-- svar: -->',
+      '',
+      '### Fråga 2: Andra frågan',
+      '<!-- question_node_id: node-2 -->',
+      '<!-- question_category: idea -->',
+      '<!-- svar: Nej, inte relevant -->',
+    ].join('\n');
+
+    const result = extractBriefingAnswers(body);
+    expect(result).toHaveLength(1);
+    expect(result[0].questionIndex).toBe(2);
+    expect(result[0].answer).toBe('Nej, inte relevant');
+    expect(result[0].sentiment).toBe('negative');
+    expect(result[0].questionCategory).toBe('idea');
   });
 });

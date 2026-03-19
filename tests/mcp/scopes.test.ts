@@ -42,6 +42,9 @@ vi.mock('../../src/mcp/tools/aurora-briefing.js', () => ({
 vi.mock('../../src/mcp/tools/aurora-suggest-research.js', () => ({
   registerAuroraSuggestResearchTool: vi.fn(),
 }));
+vi.mock('../../src/mcp/tools/aurora-morning-briefing.js', () => ({
+  registerAuroraMorningBriefingTool: vi.fn(),
+}));
 vi.mock('../../src/mcp/tools/aurora-learn-conversation.js', () => ({
   registerAuroraLearnConversationTool: vi.fn(),
 }));

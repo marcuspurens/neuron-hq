@@ -10,6 +10,7 @@ import { registerAuroraStatusTool } from './tools/aurora-status.js';
 import { registerAuroraTimelineTool } from './tools/aurora-timeline.js';
 import { registerAuroraBriefingTool } from './tools/aurora-briefing.js';
 import { registerAuroraSuggestResearchTool } from './tools/aurora-suggest-research.js';
+import { registerAuroraMorningBriefingTool } from './tools/aurora-morning-briefing.js';
 
 /* ---- aurora-memory (consolidated) ---- */
 import { registerAuroraMemoryConsolidatedTool } from './tools/aurora-memory.js';
@@ -130,6 +131,7 @@ export const SCOPES: Record<string, ServerScope> = {
       registerAuroraTimelineTool(server);
       registerAuroraBriefingTool(server);
       registerAuroraSuggestResearchTool(server);
+      registerAuroraMorningBriefingTool(server);
 
       server.prompt(
         'full-briefing',

@@ -5,6 +5,7 @@ import { createLogger } from '../core/logger.js';
 import {
   parseObsidianFile,
   matchSegmentTime,
+  extractBriefingAnswers,
   type Highlight,
   type Comment,
 } from '../aurora/obsidian-parser.js';
@@ -14,6 +15,7 @@ import {
   saveAuroraGraph,
 } from '../aurora/aurora-graph.js';
 import { renameSpeaker } from '../aurora/voiceprint.js';
+import { getPool } from '../core/db.js';
 
 const logger = createLogger('obsidian:import');
 
@@ -29,11 +31,32 @@ export interface ObsidianImportResult {
   highlights: number;
   comments: number;
   speakersRenamed: number;
+  feedbackNodes: number;
+}
+
+/**
+ * Extract simple key-value frontmatter from a markdown string.
+ * Returns null if no frontmatter block is found.
+ */
+function extractFrontmatter(content: string): Record<string, string> | null {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return null;
+  const result: Record<string, string> = {};
+  for (const line of match[1].split('\n')) {
+    const colonIdx = line.indexOf(':');
+    if (colonIdx > 0) {
+      const key = line.slice(0, colonIdx).trim();
+      const value = line.slice(colonIdx + 1).trim();
+      result[key] = value;
+    }
+  }
+  return result;
 }
 
 /**
  * Import tagged/annotated Obsidian markdown files back into the Aurora
- * knowledge graph. Processes highlights, comments, and speaker renames.
+ * knowledge graph. Processes highlights, comments, speaker renames,
+ * and morning-briefing feedback.
  */
 export async function obsidianImportCommand(options: {
   vault?: string;
@@ -49,11 +72,11 @@ export async function obsidianImportCommand(options: {
     const dirStat = await stat(auroraDir);
     if (!dirStat.isDirectory()) {
       console.error(chalk.red(`Not a directory: ${auroraDir}`));
-      return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0 };
+      return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0, feedbackNodes: 0 };
     }
   } catch {
     console.error(chalk.red(`Aurora directory not found: ${auroraDir}`));
-    return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0 };
+    return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0, feedbackNodes: 0 };
   }
 
   console.log(chalk.bold('\n📥 Obsidian Import\n'));
@@ -67,12 +90,12 @@ export async function obsidianImportCommand(options: {
   } catch (err) {
     console.error(chalk.red(`Failed to read directory: ${auroraDir}`));
     logger.warn('readdir failed', { error: String(err) });
-    return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0 };
+    return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0, feedbackNodes: 0 };
   }
 
   if (files.length === 0) {
     console.log(chalk.yellow('  No .md files found in Aurora directory.'));
-    return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0 };
+    return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0, feedbackNodes: 0 };
   }
 
   // 3. Load graph once
@@ -184,6 +207,146 @@ export async function obsidianImportCommand(options: {
     totalComments += matchedComments.length;
   }
 
+  // 4b. Process briefing files from Briefings/ subdirectory
+  let totalFeedback = 0;
+  const briefingsDir = join(vaultPath, 'Briefings');
+  try {
+    const briefingsDirStat = await stat(briefingsDir);
+    if (briefingsDirStat.isDirectory()) {
+      const briefingFiles = (await readdir(briefingsDir)).filter((f) => f.endsWith('.md'));
+
+      for (const file of briefingFiles) {
+        const filePath = join(briefingsDir, file);
+        let content: string;
+        try {
+          content = await readFile(filePath, 'utf-8');
+        } catch (err) {
+          logger.warn('Failed to read briefing file, skipping', { file, error: String(err) });
+          continue;
+        }
+
+        // Check if this is a morning-briefing file
+        const fm = extractFrontmatter(content);
+        if (!fm || fm.type !== 'morning-briefing') continue;
+
+        const briefingDate = fm.id?.replace('briefing-', '') || '';
+
+        // Extract the body (after frontmatter)
+        const bodyMatch = content.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
+        const body = bodyMatch ? bodyMatch[1] : content;
+
+        const answers = extractBriefingAnswers(body);
+
+        const pool = getPool();
+
+        for (const answer of answers) {
+          if (!answer.answer.trim()) continue;
+
+          try {
+            // Truncate question for title (max 80 chars)
+            const shortQuestion = answer.questionText.length > 60
+              ? answer.questionText.slice(0, 57) + '...'
+              : answer.questionText;
+            const title = `Feedback: ${shortQuestion}`.slice(0, 80);
+
+            const feedbackContent = `${answer.questionText}\n\nSvar: ${answer.answer}`;
+
+            // Idempotency: check if feedback node already exists
+            const existing = await pool.query(
+              `SELECT id FROM aurora_nodes
+               WHERE type = 'fact'
+               AND properties->>'source' = 'morning-briefing'
+               AND properties->>'briefing_date' = $1
+               AND properties->>'question_node_id' = $2
+               LIMIT 1`,
+              [briefingDate, answer.questionNodeId || ''],
+            );
+
+            if (existing.rows.length > 0) {
+              // Update existing node
+              await pool.query(
+                `UPDATE aurora_nodes SET
+                  properties = properties || $1::jsonb,
+                  updated = NOW()
+                 WHERE id = $2`,
+                [
+                  JSON.stringify({
+                    sentiment: answer.sentiment,
+                    feedback_text: feedbackContent,
+                  }),
+                  existing.rows[0].id,
+                ],
+              );
+              logger.info('Updated existing feedback node', { id: existing.rows[0].id, briefingDate });
+            } else {
+              // Create new feedback node
+              const nodeId = `feedback-${briefingDate}-${answer.questionIndex}`;
+              await pool.query(
+                `INSERT INTO aurora_nodes (id, title, type, properties, scope, confidence)
+                 VALUES ($1, $2, 'fact', $3, 'personal', 1.0)
+                 ON CONFLICT (id) DO UPDATE SET
+                   properties = EXCLUDED.properties,
+                   updated = NOW()`,
+                [
+                  nodeId,
+                  title,
+                  JSON.stringify({
+                    subtype: 'feedback',
+                    source: 'morning-briefing',
+                    briefing_date: briefingDate,
+                    sentiment: answer.sentiment,
+                    question_category: answer.questionCategory || 'unknown',
+                    question_node_id: answer.questionNodeId || '',
+                    feedback_text: feedbackContent,
+                  }),
+                ],
+              );
+
+              // Create edge if question_node_id exists in DB
+              if (answer.questionNodeId) {
+                const targetExists = await pool.query(
+                  'SELECT id FROM aurora_nodes WHERE id = $1 LIMIT 1',
+                  [answer.questionNodeId],
+                );
+
+                if (targetExists.rows.length > 0) {
+                  await pool.query(
+                    `INSERT INTO aurora_edges (from_id, to_id, type, metadata)
+                     VALUES ($1, $2, 'related_to', $3)
+                     ON CONFLICT (from_id, to_id, type) DO NOTHING`,
+                    [
+                      nodeId,
+                      answer.questionNodeId,
+                      JSON.stringify({ source: 'morning-briefing-feedback' }),
+                    ],
+                  );
+                } else {
+                  logger.warn('question_node_id not found in DB, skipping edge', {
+                    nodeId: answer.questionNodeId,
+                    briefingDate,
+                  });
+                }
+              }
+
+              totalFeedback++;
+            }
+          } catch (err) {
+            logger.warn('Failed to process briefing answer, skipping', {
+              file,
+              questionIndex: answer.questionIndex,
+              error: String(err),
+            });
+          }
+        }
+
+        filesProcessed++;
+      }
+    }
+  } catch (err) {
+    // Briefings/ dir doesn't exist — that's OK, skip silently
+    logger.debug('No Briefings/ directory found, skipping briefing import', { error: String(err) });
+  }
+
   // 5. Save graph once
   await saveAuroraGraph(graph);
 
@@ -208,5 +371,6 @@ export async function obsidianImportCommand(options: {
   console.log(`     Highlights:      ${totalHighlights}`);
   console.log(`     Comments:        ${totalComments}`);
   console.log(`     Speakers renamed: ${speakersRenamed}`);
-  return { filesProcessed, highlights: totalHighlights, comments: totalComments, speakersRenamed };
+  console.log(`     Feedback nodes:  ${totalFeedback}`);
+  return { filesProcessed, highlights: totalHighlights, comments: totalComments, speakersRenamed, feedbackNodes: totalFeedback };
 }
