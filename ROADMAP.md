@@ -44,13 +44,11 @@ Fas 4: Produkt                ← andra kan använda det
 
 **Vad det ger dig:** Du skickar en YouTube-länk → systemet berättar steg för steg vad som händer → du ser resultatet i Obsidian. Om något går fel, säger systemet *vad* som gick fel på svenska (inte Python-tracebacks).
 
-**Tekniskt:**
-- Felhantering i varje pipeline-steg (retry, tydligt felmeddelande)
-- Statusvy under körning: `[3/7] 👥 Diarization... OK (3 talare)`
-- Detaljerad logg sparas som fil (chunkning, embeddings, vektorer — för dig att lära dig)
-- MCP-tool `aurora:ingest-video` funkar direkt i Claude Desktop
-
-**Effort:** 1-2 körningar · **Brief:** `ingest-robustness`
+**Gjort:** Körning 165, +33 tester, 16/16 AC
+- PipelineError-klass med svenska felmeddelanden för 6 pipeline-steg
+- Progress-metadata: stegnummer, totalSteps, metadata per steg (ord, talare, chunks)
+- Retry för embedding: max 2 försök med exponential backoff (2s→4s)
+- Pipeline-rapport sparas på noder, visas i `aurora:show`
 
 ---
 
@@ -58,12 +56,24 @@ Fas 4: Produkt                ← andra kan använda det
 
 **Vad det ger dig:** Du markerar text i Obsidian, taggar med `#key-insight` eller `#follow-up` → Aurora vet vad du tycker är viktigt. Dina kommentarer flödar tillbaka.
 
-**Tekniskt:**
-- Tagga noder i Obsidian → importera taggar till Aurora
-- Tvåvägs-synk: Obsidian ↔ Aurora
-- Stöd för `#key-insight`, `#follow-up`, `#question`, `#disagree`
+**Gjort:** Körning 166, +51 tester, 10/10 AC
+- Nytt CLI: `obsidian-import` — läser Obsidian-filer och synkar till Aurora
+- Parsningsmodul (`obsidian-parser.ts`): frontmatter, taggar, HTML-kommentarer
+- Talarnamn uppdateras via `renameSpeaker()` (voice_print-noder)
+- Highlights/comments sparas som arrays på transkript-nodens properties
+- Idempotent import, edge cases hanterade
 
-**Effort:** 1-2 körningar · **Brief:** `ob-1c-tags-sync`
+---
+
+### 1.2b OB-1d: Obsidian re-export & MCP ✅ S104 · 2026-03-19
+
+**Vad det ger dig:** När du exporterar igen syns dina taggar och kommentarer. Plus att import/export fungerar direkt i Claude Desktop via MCP.
+
+**Gjort:** Körning 167, +15 tester, 6/6 AC
+- Highlights renderas som Obsidian callouts vid export
+- Kommentarer renderas som HTML-kommentarer under rätt segment
+- Round-trip fungerar utan dubbletter
+- Nya MCP-tools: `aurora_obsidian_export`, `aurora_obsidian_import`
 
 ---
 
@@ -343,6 +353,7 @@ Fas 4: Produkt                ← andra kan använda det
 |---|-----|-----|--------|-----------|------|
 | 1.1 | Robust input-pipeline | 1 | 1-2 körn | — | ✅ S104 2026-03-19 |
 | 1.2 | OB-1c: taggar & synk | 1 | 1-2 körn | — | ✅ S104 2026-03-19 |
+| 1.2b | OB-1d: re-export & MCP | 1 | 1 körn | 1.2 | ✅ S104 2026-03-19 |
 | 1.3 | Morgon-briefing | 1 | 1-2 körn | 1.2 | ⬜ |
 | 1.4 | Loggkörningsbok | 1 | 2 körn | — | ⬜ |
 | 1.5 | Manager prompt-fix | 1 | <1 körn | — | ✅ S103 2026-03-19 |
@@ -363,7 +374,7 @@ Fas 4: Produkt                ← andra kan använda det
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
 | 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~30-45 körningar. **Klar:** 3/21
+**Totalt:** ~30-45 körningar. **Klar:** 4/22
 
 ---
 
