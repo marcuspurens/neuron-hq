@@ -48,15 +48,58 @@ Genomför en code review av hela `src/`-katalogen och `aurora-workers/`. Identif
 - Stora datamängder som laddas i minnet utan streaming
 - Saknade timeouts på externa anrop
 
+### 6. Beroenden & supply chain
+
+- Oanvända npm-paket i `package.json` (bloat)
+- Föråldrade beroenden med kända CVE:er (`pnpm audit`)
+- Pinnade vs lösa versioner
+
+### 7. Resurshantering & cleanup
+
+- Stängs databasanslutningar korrekt vid fel?
+- Avslutas child processes (Python workers, Ollama) vid crash/avbrott?
+- Finns graceful shutdown-logik? Vad händer vid Ctrl+C mitt i en körning?
+- Hanteras temporära filer (cleanup efter sig)?
+- API-felhantering: retry-logik, rate limiting, exponential backoff vid Anthropic API-anrop?
+
+### 8. Concurrency & race conditions
+
+- Parallella agenter som skriver till samma filer/DB-rader
+- Race conditions i audit.jsonl (append-only men utan lås?)
+- Ollama auto-start: vad händer om två processer kallar `ensureOllama()` samtidigt?
+
+### 9. Databasschema & queries
+
+- Saknas index på vanliga sökvägar?
+- Migreringsordning — kan de köras idempotent?
+- Transaktioner runt multi-steg-operationer
+
+### 10. Loggning & observerbarhet
+
+- Blandas `console.log` / `console.error` / strukturerad loggning?
+- Finns det tillräckligt med kontext i loggar för att felsöka en misslyckad körning?
+- Loggas känslig data (tokens, API-svar)?
+
+### 11. Konfigurationshantering
+
+- Hur många env-variabler finns? Dokumenterade?
+- Defaults — vad händer om en env-var saknas? Kraschar det eller tyst fallback?
+- Spridda `process.env`-läsningar vs centraliserad config
+
+### 12. Idempotens & återhämtning
+
+- Kan en körning säkert startas om efter avbrott?
+- Lämnar misslyckade körningar kvar halvfärdigt state?
+
 ## Struktur — granska i denna ordning
 
 | # | Katalog | Filer | Fokus |
 |---|---------|-------|-------|
-| 1 | `src/core/` | ~30 filer | Säkerhet, policy-enforcement, db-access |
+| 1 | `src/core/` (exkl. `agents/`) | ~20 filer | Säkerhet, policy-enforcement, db-access, config |
 | 2 | `src/aurora/` | ~25 filer | Ingest-pipeline, graph, embedding, vision |
 | 3 | `src/core/agents/` | ~10 filer | Agent-loopar, tool-dispatch, sandboxning |
 | 4 | `src/mcp/` | ~20 filer | MCP-tools, input-validering |
-| 5 | `src/commands/` | ~15 filer | CLI-kommandon, argument-parsning |
+| 5 | `src/commands/` + `src/cli.ts` | ~15 filer | CLI-kommandon, argument-parsning, entry points |
 | 6 | `aurora-workers/` | 12 filer | Python-workers, extern process-hantering |
 
 ## Output — rapport i `runs/<runid>/report.md`
@@ -73,7 +116,7 @@ Varje finding ska ha:
 ```markdown
 #### [SEVERITY] Kort beskrivning
 - **Fil:** `src/path/to/file.ts:123`
-- **Kategori:** Säkerhet / Kodkvalitet / Arkitektur / Testbarhet / Prestanda
+- **Kategori:** Säkerhet / Kodkvalitet / Arkitektur / Testbarhet / Prestanda / Beroenden / Resurshantering / Concurrency / Databas / Loggning / Konfiguration / Idempotens
 - **Beskrivning:** Vad problemet är
 - **Rekommendation:** Konkret förslag på åtgärd
 - **Effort:** S/M/L
@@ -108,7 +151,7 @@ Rapporten ska finnas i `runs/<runid>/report.md` och innehålla alla sektioner ov
 | Krav | Verifiering |
 |------|-------------|
 | Alla 6 kataloggrupper granskade | Rapport listar findings från alla |
-| Minst 20 findings totalt | Räkna i rapporten |
+| Minst 30 findings totalt | Räkna i rapporten |
 | Varje finding har fil, kategori, severity, rekommendation | Manuell kontroll |
 | Topp-10 åtgärdslista finns | Manuell kontroll |
 | Positiva observationer (≥5) | Manuell kontroll |
@@ -120,6 +163,9 @@ Rapporten ska finnas i `runs/<runid>/report.md` och innehålla alla sektioner ov
 
 ## Agentinställningar
 
-- Manager: max 200 iterationer (stor kodbas, 184 filer)
-- Implementer: max 120 iterationer per modul (mycket läsning)
-- Reviewer: max 30 iterationer
+- Manager: max 230 iterationer (stor kodbas, 184 filer, 12 granskningsområden)
+- Implementer: max 150 iterationer per modul (mycket läsning, fler kategorier)
+- Researcher: max 70 iterationer (djupanalys av beroenden, concurrency, config)
+- Reviewer: max 60 iterationer (fler findings att verifiera)
+- Historian: max 50 iterationer (stor rapport att dokumentera)
+- Librarian: max 50 iterationer (många findings att katalogisera)

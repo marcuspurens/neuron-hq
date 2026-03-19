@@ -3,11 +3,6 @@
 > **Senast uppdaterad:** 2026-03-19 · Session 103
 > **Källa:** Djupsamtal S102 + Marcus ~40 kommentarer + diskussionsdokument S103
 > Editera direkt — kryssa av med ✅ när klart.
-> **Arkiv:** Alla versioner sparas i [docs/roadmaps/](docs/roadmaps/) med datumstämpel.
-
-| Version | Datum | Session | Anledning |
-|---------|-------|---------|-----------|
-| [ROADMAP-2026-03-19](docs/roadmaps/ROADMAP-2026-03-19-session103.md) | 2026-03-19 | 103 | Ny roadmap baserad på S102 djupsamtal |
 
 ---
 

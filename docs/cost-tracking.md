@@ -1,18 +1,18 @@
 # Neuron HQ — Körningshistorik & Kostnader
 
-Genererad: 2026-03-18 07:32  
-Antal körningar: 156  
+Genererad: 2026-03-18 21:27  
+Antal körningar: 163  
 Prismodell: Sonnet 4.5 — $3/MTok input, $15/MTok output
 
 ## Sammanfattning
 
 | Mått | Värde |
 |------|-------|
-| Körningar | 156 |
-| GREEN | 98 |
-| Totala tokens | 894.0M |
-| Total kostnad | $2799.86 |
-| Snitt per körning | $17.95 |
+| Körningar | 163 |
+| GREEN | 104 |
+| Totala tokens | 981.7M |
+| Total kostnad | $3073.50 |
+| Snitt per körning | $18.86 |
 | Billigaste | $0.00 |
 | Dyraste | $68.28 |
 
@@ -176,17 +176,24 @@ Prismodell: Sonnet 4.5 — $3/MTok input, $15/MTok output
 | 154 | 2026-03-16 | 21:16 | RT-3d-fix: Dashboard-bugfixar — Re… | GREEN | Sonnet 4.5 | 17.1M | 0.11M | 17.2M | $52.89 | 6 | 47m |
 | 155 | 2026-03-16 | 22:17 | RT-3e: Brief-panel, Kostnad per ag… | GREEN | Sonnet 4.5 | 15.6M | 0.12M | 15.7M | $48.62 | 9 | 35m |
 | 156 | 2026-03-18 | 07:01 | OB-1a: Spara segmentdata & Bygg ta… | GREEN | Sonnet 4.5 | 7.3M | 0.07M | 7.3M | $22.78 | 6 | 31m |
+| 157 | 2026-03-18 | 08:34 | OB-1b: LLM-korrekturläsning & AI-g… | GREEN | Sonnet 4.5 | 9.0M | 0.11M | 9.1M | $28.51 | 6 | 37m |
+| 158 | 2026-03-18 | 09:41 | CR-1: Fullständig code review av N… | ? | Sonnet 4.5 | 21.0M | 0.26M | 21.3M | $66.93 | 5 | 93m |
+| 159 | 2026-03-18 | 11:19 | CR-1a: Fixa CRITICAL säkerhetsprob… | GREEN | Sonnet 4.5 | 7.3M | 0.09M | 7.4M | $23.17 | 6 | 27m |
+| 160 | 2026-03-18 | 13:06 | CR-1b: Härdning — Graceful shutdow… | GREEN | Sonnet 4.5 | 13.0M | 0.12M | 13.1M | $40.74 | 9 | 42m |
+| 161 | 2026-03-18 | 14:22 | CR-1c: Strukturerad loggning — log… | GREEN | Sonnet 4.5 | 18.1M | 0.12M | 18.2M | $56.03 | 6 | 37m |
+| 162 | 2026-03-18 | 19:14 | CR-1d: Logger-förbättringar — LOG_… | GREEN | Sonnet 4.5 | 2.3M | 0.04M | 2.3M | $7.35 | 6 | 15m |
+| 163 | 2026-03-18 | 20:38 | E5: Idé-rankning i kunskapsgrafen | GREEN | Sonnet 4.5 | 16.2M | 0.14M | 16.4M | $50.90 | 7 | 49m |
 
 ## Kostnad per agent (genomsnitt)
 
 | Agent | Snitt tokens | Kostnad/körning | Andel |
 |-------|------------:|----------------:|------:|
-| manager | 1.78M | $5.51 | 30.5% |
-| implementer | 1.99M | $6.34 | 31.0% |
-| reviewer | 1.07M | $3.30 | 16.5% |
-| tester | 0.19M | $0.59 | 2.9% |
-| merger | 0.21M | $0.71 | 3.4% |
-| researcher | 0.95M | $3.02 | 3.1% |
-| historian | 0.60M | $1.84 | 9.7% |
-| librarian | 0.45M | $1.43 | 1.4% |
-| consolidator | 1.61M | $4.97 | 1.4% |
+| manager | 1.86M | $5.74 | 30.3% |
+| implementer | 2.18M | $6.93 | 32.5% |
+| reviewer | 1.08M | $3.33 | 15.9% |
+| tester | 0.20M | $0.62 | 2.9% |
+| merger | 0.22M | $0.73 | 3.3% |
+| researcher | 0.93M | $2.97 | 3.0% |
+| historian | 0.60M | $1.84 | 9.2% |
+| librarian | 0.46M | $1.44 | 1.4% |
+| consolidator | 1.65M | $5.07 | 1.5% |

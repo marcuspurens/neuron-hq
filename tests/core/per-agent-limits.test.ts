@@ -16,8 +16,8 @@ describe('Per-agent iteration limits', () => {
     policy = await createPolicyEnforcer(policyDir, BASE_DIR);
   });
 
-  it('loads max_iterations_manager as 100 from real policy', () => {
-    expect(policy.getLimits().max_iterations_manager).toBe(100);
+  it('loads max_iterations_manager as 230 from real policy', () => {
+    expect(policy.getLimits().max_iterations_manager).toBe(230);
   });
 
   it('loads max_iterations_tester as 30 from real policy', () => {
@@ -30,12 +30,12 @@ describe('Per-agent iteration limits', () => {
 
   it('loads all per-agent limits from real policy', () => {
     const limits = policy.getLimits();
-    expect(limits.max_iterations_implementer).toBe(70);
-    expect(limits.max_iterations_reviewer).toBe(50);
+    expect(limits.max_iterations_implementer).toBe(150);
+    expect(limits.max_iterations_reviewer).toBe(60);
     expect(limits.max_iterations_merger).toBe(30);
-    expect(limits.max_iterations_historian).toBe(30);
-    expect(limits.max_iterations_librarian).toBe(30);
-    expect(limits.max_iterations_researcher).toBe(40);
+    expect(limits.max_iterations_historian).toBe(50);
+    expect(limits.max_iterations_librarian).toBe(50);
+    expect(limits.max_iterations_researcher).toBe(70);
   });
 
   it('loads max_parallel_implementers as 3 from real policy', () => {

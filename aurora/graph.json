@@ -2038,6 +2038,20 @@
       "scope": "personal",
       "created": "2026-03-18T08:22:39.089Z",
       "updated": "2026-03-18T08:22:39.089Z"
+    },
+    {
+      "id": "fdd4b972-c519-473d-9d1a-0cfc86f3afcc",
+      "type": "research",
+      "title": "What is X?",
+      "properties": {
+        "text": "What is X?",
+        "gapType": "unanswered",
+        "frequency": 1
+      },
+      "confidence": 0.5,
+      "scope": "personal",
+      "created": "2026-03-18T21:47:21.375Z",
+      "updated": "2026-03-18T21:47:21.375Z"
     }
   ],
   "edges": [
@@ -2354,5 +2368,5 @@
       }
     }
   ],
-  "lastUpdated": "2026-03-18T08:22:39.089Z"
+  "lastUpdated": "2026-03-18T21:47:21.375Z"
 }

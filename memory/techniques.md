@@ -889,3 +889,23 @@ Uppdateras av Librarian-agenten.
 **Relaterat:** techniques.md#MemGPT, techniques.md#Focus, techniques.md#CMV, techniques.md#BudgetMem
 
 ---
+
+## Chronos: Temporal-Aware Conversational Agents with Structured Event Retrieval for Long-Term Memory (2026)
+**Källa:** arxiv:2603.16862 | Sahil Sen et al.
+**Kärna:** Chronos är ett temporal-medvetet minnesramverk för långtidskonversationer (veckor till månader). Systemet dekomponerar raw dialoghistorik till SVO-event-tupler (subject-verb-object) med löst datetime-intervall och entitetsalias, indexerar dem i en strukturerad event-kalender samt en turn-kalender. Vid hämtning använder Chronos dynamisk prompting för att generera retrieval-vägledning — agenten vet vad den ska söka, hur den ska filtrera över tid, och hur den ska resonera multi-hop-frågor genom iterativ tool-calling.
+**Nyckelresultat:** 92,6% (Chronos Low) till 95,6% (Chronos High) accuracy på LongMemEvalS-benchmark med 500 frågor. Events-kalendern ger 58,9% förbättring över baseline. +7,67% förbättring över tidigare state-of-the-art.
+**Relevans för Neuron HQ:** Direkt applicerbar på vår Historian-agent för temporala minnessystem. Istället för att behandla alla mönster och fel lika kunde vi dekomponera runs.md-poster till tidsstämplade event-tupler och indexera dem semantiskt. Den dynamiska retrieval-vägledningen passar vår multi-agent-arkitektur — agenter kan fråga "vilka mönster från förra veckan gäller här?" istället för att göra enkel keyword-sökning.
+**Keywords:** temporal-memory, long-term-conversation, event-extraction, structured-retrieval, agent, memory
+**Relaterat:** techniques.md#xMemory, techniques.md#Live-Evo, techniques.md#MIRIX
+
+---
+
+## LEAFE: Learning Feedback-Grounded Agency from Reflective Experience (2026)
+**Källa:** arxiv:2603.16843 | Rui Ge et al.
+**Kärna:** LEAFE är ett ramverk som lär LLM-agenter att internalisera recovery-förmåga från reflektiv erfarenhet. Istället för att bara optimera för slutresultat fångar LEAFE miljöfeedback: agenten sammanfattar feedback till handlingsbar erfarenhet, backtrackar till tidigare beslutspunkter, och utforskar alternativa grenar med reviderade åtgärder. Denna erfarenhet distilleras sedan in i modellen genom supervised fine-tuning, vilket ger agenten bättre återhämtningsförmåga i framtida interaktioner.
+**Nyckelresultat:** 14% förbättring på Pass@128 på diverse kodnings- och agentuppgifter. Konsekvent bättre Pass@1 än baseline. Överträffar outcome-driven baslinjer (GRPO) och andra experience-based metoder.
+**Relevans för Neuron HQ:** Direkt applicerbar på vår Tester → Implementer-loop. Istället för att bara ge "FAIL"/"PASS"-signaler kunde Implementer-agenten lära sig att själv reflektera över varför ett försök misslyckades, backtracka till ett tidigare beslutspunkt, och försöka en annan strategi. Denna self-reflective recovery-förmåga minskar behovet av Manager-intervention och möjliggör mer autonom felkorrigering.
+**Keywords:** reinforcement-learning, reflective-experience, recovery-agency, feedback-grounded, coding-agents
+**Relaterat:** techniques.md#Wink, techniques.md#TraceCoder, techniques.md#PARC
+
+---

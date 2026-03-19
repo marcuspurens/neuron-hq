@@ -1973,3 +1973,167 @@ await pool.query(
 **Senast bekräftad:** 20260318-0701
 
 ---
+
+## Batch-baserad LLM-korrigering med kontextinjection
+**Kontext:** OB-1b transcript-polishing för Aurora videoingest
+**Lösning:** Gruppera Whisper-segment i batchar om 5-10 meningar, skicka [videotitel + kanal] + [föregående] + [batch] + [nästa] till LLM för korrigering. Spara `correctedText` separat från `rawText`.
+**Effekt:** Reducerar LLM API-anrop (8 anrop för 80 meningar istället för 80), samtidigt som kontextinjection förbättrar stavningsfixxing för namn och tekniska termer. Exemplet: "claude code" → "Claude Code" fixas genom att LLM ser videotitel som innehåller "Claude".
+**Keywords:** LLM, transcript, batching, context-injection, cost-optimization
+**Relaterat:** patterns.md#Graceful-fallback-till-lokal-modell
+**Körningar:** #20260318-0834-neuron-hq
+**Senast bekräftad:** 20260318-0834-neuron-hq
+
+---
+
+## Multimodal speaker-gissning från metadata + innehål
+**Kontext:** OB-1b speaker identification för Aurora
+**Lösning:** Kombinera tre datasignaler för att gissa talare: (1) videotitel + kanalnamn från yt-dlp metadata, (2) transkriptinnehål (t.ex. "we at Anthropic"), (3) talarmönster (intervjuare ställer frågor, gäst svarar). Output: namn + confidence (0-100) + roll + reason.
+**Effekt:** Fungerar väl för bekanta talare (CEO, forskare nämnd i titel); fallback för okända talare. Exemplet: titel "Anthropic CEO Explains" + talaren säger "we at Anthropic" → hög confidence för "Dario Amodei". Intervjuare identifieras genom frågmönster utan namn.
+**Keywords:** speaker-identification, multimodal-inference, metadata, confidence-scoring
+**Relaterat:** patterns.md#Batch-baserad-LLM-korrigering-med-kontextinjection
+**Körningar:** #20260318-0834-neuron-hq
+**Senast bekräftad:** 20260318-0834-neuron-hq
+
+---
+
+## Batch-baserad LLM-korrigering med kontextinjection
+**Kontext:** OB-1b transcript-polishing för Aurora videoingest
+**Lösning:** Gruppera Whisper-segment i batchar om 5-10 meningar, skicka [videotitel + kanal] + [föregående] + [batch] + [nästa] till LLM för korrigering. Spara `correctedText` separat från `rawText`.
+**Effekt:** Reducerar LLM API-anrop (8 anrop för 80 meningar istället för 80), samtidigt som kontextinjection förbättrar stavningsfixxing för namn och tekniska termer. Exemplet: "claude code" → "Claude Code" fixas genom att LLM ser videotitel som innehåller "Claude".
+**Keywords:** LLM, transcript, batching, context-injection, cost-optimization
+**Relaterat:** patterns.md#Graceful-fallback-till-lokal-modell
+**Körningar:** #20260318-0834-neuron-hq
+**Senast bekräftad:** 20260318-0834-neuron-hq
+
+---
+
+## Multimodal speaker-gissning från metadata + innehål
+**Kontext:** OB-1b speaker identification för Aurora
+**Lösning:** Kombinera tre datasignaler för att gissa talare: (1) videotitel + kanalnamn från yt-dlp metadata, (2) transkriptinnehål (t.ex. "we at Anthropic"), (3) talarmönster (intervjuare ställer frågor, gäst svarar). Output: namn + confidence (0-100) + roll + reason.
+**Effekt:** Fungerar väl för bekanta talare (CEO, forskare nämnd i titel); fallback för okända talare. Exemplet: titel "Anthropic CEO Explains" + talaren säger "we at Anthropic" → hög confidence för "Dario Amodei". Intervjuare identifieras genom frågmönster utan namn.
+**Keywords:** speaker-identification, multimodal-inference, metadata, confidence-scoring
+**Relaterat:** patterns.md#Batch-baserad-LLM-korrigering-med-kontextinjection
+**Körningar:** #20260318-0834-neuron-hq
+**Senast bekräftad:** 20260318-0834-neuron-hq
+
+---
+
+## Strukturerad kodgranskningsrapport med spot-check verifikation
+**Kontext:** Granskade 35 700 rader TypeScript + 830 rader Python över 184 filer, 12 grankningsområden (säkerhet, arkitektur, testbarhet, prestanda, resurshantering)
+**Lösning:** Använde mallstruktur för findings (Fil:rad, Kategori, Severity, Rekommendation, Effort) tillsammans med top-10 prioriterad åtgärdslista. Reviewer verifierade rapport genom spot-checks: slumpmässiga grep-kommandon mot faktisk kod för att bekräfta shell injection, path traversal, silent catch-blocks, race conditions, console.log-fördelning, type assertions.
+**Effekt:** 100% träffsäkerhet på spot-checks (8/8 bekräftade), 33 väldokumenterade findings, 3 CRITICAL säkerhetsbristor identifierade, actionbar prioritering för framtida åtgärd. Strukturerade mallar gör rapport navigerbar och omedelbar implementerbar.
+**Keywords:** code-review, security-audit, spot-check, findings-structure, prioritization, shell-injection, path-traversal, race-conditions
+**Relaterat:** 
+**Körningar:** #20260318-0941-neuron-hq
+**Senast bekräftad:** 20260318-0941-neuron-hq
+
+---
+
+## Spot-check verifikation för code review-rapporter
+**Kontext:** Stora kodgranskningsrapporter (33+ findings) från Implementer kräver validering innan Reviewer godkänner leveransen
+**Lösning:** Reviewer väljer 8 slumpmässiga findings och verifierar varje via grep-kommando mot faktisk kod i target-repot. Exempel: "shell injection i git.ts:35" → `grep -n "execAsync(\`" src/core/git.ts` → bekräfta att förekomsten finns och är problematisk
+**Effekt:** 100% träffsäkerhet på spot-checks identifierar rapportörarnas noggrannhet utan att granska alla 33 findings individuellt. Minimalt overhead (8 greps) för att fånga systematiska misclassifications eller hallucinationer
+**Keywords:** code-review, spot-check, verification, findings-validation, shell-injection, path-traversal, race-condition
+**Relaterat:** 
+**Körningar:** #20260318-0941-neuron-hq
+**Senast bekräftad:** 20260318-0941-neuron-hq
+
+---
+
+## Migrera execAsync template literals till execFileAsync argument-arrays
+**Kontext:** Code review CR-1a identifierade shell injection i git.ts och emergency-save.ts. 21+ anrop med `execAsync(\`git ...\`)` behövde migreras.
+**Lösning:** Ersätt varje `execAsync(\`git checkout -b ${branchName}\`)` med `execFileAsync('git', ['checkout', '-b', branchName])`. Importera `execFile` från `child_process`, wrappa med `promisify()`. Ta bort shell-escaping-logik (på denna nivå onödig med execFile).
+**Effekt:** Eliminerar shell injection genom att argument passeras direkt till git-processen utan shell-tolkning. Template literals kan aldrig "bryta ut" ur argument-array.
+**Keywords:** shell injection, child_process, execFile, security, git operations
+**Relaterat:** patterns.md#Promise gate för race-condition-fri resursinitialisering
+**Körningar:** #20260318-1119-neuron-hq
+**Senast bekräftad:** 20260318-1119-neuron-hq
+
+---
+
+## Promise-gate för race-condition-fri resursinitialisering
+**Kontext:** ensureOllama() i src/core/ollama.ts använde en boolean flag (`ollamaVerified`) utan låsmekanism, vilket tillät parallella anrop att starta två Ollama-processer.
+**Lösning:** Byt från `let ollamaVerified = false;` till `let ollamaReady: Promise<boolean> | null = null;`. I ensureOllama(), om `ollamaReady` är null, sätt den till `doEnsureOllama(model)` Promise och returnera samma Promise för alla parallella anrop.
+**Effekt:** Första anropet startar initializeringen, alla andra anrop väntar på samma Promise. Garanterar att initializering körs exakt en gång oavsett antalet parallela anrop. Enklare än Mutex eller Lock-primitiver.
+**Keywords:** race condition, concurrency, initialization, Promise, lazy evaluation
+**Relaterat:** patterns.md#Migrera execAsync template literals till execFileAsync argument-arrays
+**Körningar:** #20260318-1119-neuron-hq
+**Senast bekräftad:** 20260318-1119-neuron-hq
+
+---
+
+## Använd path.resolve() + startsWith() för path traversal-säker validering
+**Kontext:** start.ts använde `path.normalize() + startsWith('briefs/')` för att validera att filvägen låg inom briefs/-katalogen, men detta kan kringgås. runs.ts använde ingen validering på runid-parametern alls.
+**Lösning:** (1) För runid: lägg till Zod-regex `z.string().regex(/^[a-zA-Z0-9_-]+$/)` för whitelist-validering. (2) För path: `const resolved = path.resolve(BASE_DIR, args.brief); if (!resolved.startsWith(path.resolve(BASE_DIR, 'briefs/'))) throw Error(...)`. Aldrig förlita dig på normalize() + startsWith() på relativa vägar.
+**Effekt:** Whitelist-regex eliminerar directory traversal direkt. Absolute path + startsWith på resolved sökvägar blockerar symlink-attacks och normalization bypasses.
+**Keywords:** path traversal, validation, security, directory escape, Zod
+**Relaterat:** none
+**Körningar:** #20260318-1119-neuron-hq
+**Senast bekräftad:** 20260318-1119-neuron-hq
+
+---
+
+## Använd tempfile.TemporaryDirectory() context manager för automatic cleanup
+**Kontext:** extract_video.py i aurora-workers skapade temporära mappar med `tempfile.mkdtemp()` men rensade aldrig dem, vilket ledde till att gigabyte ackumulerades i /tmp.
+**Lösning:** Byt `tmpdir = tempfile.mkdtemp()` till `with tempfile.TemporaryDirectory(prefix="aurora_vid_") as tmpdir:` och flytta all logik inuti with-blocket. Python garanterar automatic cleanup vid exit.
+**Effekt:** Eliminerar resource leak helt. Context manager är standardpatternen i Python och gör koden tydligare.
+**Keywords:** tempfile, resource leak, cleanup, context manager, Python
+**Relaterat:** none
+**Körningar:** #20260318-1119-neuron-hq
+**Senast bekräftad:** 20260318-1119-neuron-hq
+
+---
+
+## Error serialization via explicit property extraction
+**Kontext:** Logging system needs to serialize Error objects that JSON.stringify fails on (Error properties are non-enumerable).
+**Lösning:** Create `serializeExtra()` function that checks instanceof Error and explicitly extracts name, message, stack, plus any custom properties via Object.getOwnPropertyNames().
+**Effekt:** Errors log correctly with full context; debugging time reduced because stack traces are present. Pattern is composable — serializeExtra() runs before redact() for security.
+**Keywords:** error-serialization, logging, JSON-compatibility, debugging
+**Relaterat:** patterns.md#Structured logging with JSON redaction
+**Körningar:** #20260318-1914-neuron-hq
+**Senast bekräftad:** 20260318-1914-neuron-hq
+
+---
+
+## Trace ID for log correlation across run lifecycle
+**Kontext:** Production logging needs to correlate all log entries from a single run/request for debugging and monitoring.
+**Lösning:** Maintain global `traceId` variable, exported as `setTraceId()` and `getTraceId()`. Set once at run start (e.g., from run.ts calling setTraceId(runId)). Include in all LogEntry output if set.
+**Effekt:** Logs are automatically correlated — no boilerplate needed in individual log calls. Enables filtering logs by run, and is prerequisite for external log aggregation (e.g., Langfuse, Datadog).
+**Keywords:** trace-id, correlation, log-aggregation, observability
+**Relaterat:** patterns.md#Structured logging with JSON redaction
+**Körningar:** #20260318-1914-neuron-hq
+**Senast bekräftad:** 20260318-1914-neuron-hq
+
+---
+
+## LogWriter interface for testable and extensible output
+**Kontext:** Logging needs to be both testable (without spying on stderr) and future-proof (for file writers, Langfuse, etc.).
+**Lösning:** Define `LogWriter` interface with single `write(entry: LogEntry)` method. Provide `StderrWriter` default. Export `setLogWriter()` for test injection.
+**Effekt:** Tests become simpler — inject a mock LogWriter instead of mocking stderr. New writers (file, network, multi-target) can be added later without changing logger.ts. Follows dependency injection pattern.
+**Keywords:** interface-abstraction, dependency-injection, testability, extensibility, logging
+**Relaterat:** patterns.md#Structured logging with JSON redaction
+**Körningar:** #20260318-1914-neuron-hq
+**Senast bekräftad:** 20260318-1914-neuron-hq
+
+---
+
+## Lazy initialization of config-based logger settings
+**Kontext:** Logger needs to read environment variables (LOG_LEVEL) but config must not require eager module initialization.
+**Lösning:** Create `ensureInit()` function that runs on first log() call. Reads config via getConfig() and sets minLevel once. setLogLevel() override still works and skips re-init.
+**Effekt:** Avoids circular dependency risks; config is guaranteed to be ready by first actual log call. Tests can mock setLogLevel() without touching env vars.
+**Keywords:** lazy-init, config, environment-variables, initialization-order
+**Körningar:** #20260318-1914-neuron-hq
+**Senast bekräftad:** 20260318-1914-neuron-hq
+
+---
+
+## Additiv kodarkitektur för säkra stora features
+**Kontext:** Körning 20260318-2038 implementerade 10 idé-rankningsuppgifter med 1800 LOC ny kod, utan att modifiera befintlig kärnlogik.
+**Lösning:** Strukturera nya features som rena funktionsappender i befintliga filer + nya dedikerade moduler. Minimera *ändringar* i befintlig kod (endast 4 rader i `historian.ts`, 22 rader i `manager.ts` för kontextintegration).
+**Effekt:** Risken sjönk från "Medium" till "Low–Medium" — befintlig testning skyddade mot regressioner, och enkla rollbacks möjliggjordes. Implementörerna kunde arbeta parallellt på oberoende funktioner utan merge-konflikter. Lågt kognitiv belastning vid review.
+**Keywords:** architecture, refactoring, risk-reduction, parallelization, testing
+**Relaterat:** patterns.md#Idempotent-backfill-operationer
+**Körningar:** #20260318-2038
+**Senast bekräftad:** 20260318-2038
+
+---

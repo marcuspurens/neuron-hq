@@ -8,14 +8,14 @@ verification_timeout_seconds: 1800  # 30 minutes for full test suite
 
 # Iteration limits
 max_iterations_per_run: 50  # Maximum agent iterations before forced stop
-max_iterations_manager: 100
-max_iterations_implementer: 70
-max_iterations_reviewer: 50
+max_iterations_manager: 230
+max_iterations_implementer: 150
+max_iterations_reviewer: 60
 max_iterations_tester: 30
 max_iterations_merger: 30
-max_iterations_historian: 30
-max_iterations_librarian: 30
-max_iterations_researcher: 40
+max_iterations_historian: 50
+max_iterations_librarian: 50
+max_iterations_researcher: 70
 max_wip_features: 1  # Work in progress limit (focus on one thing at a time)
 max_parallel_implementers: 3    # Max 3 simultaneous Implementers per wave
 max_iterations_consolidator: 30
