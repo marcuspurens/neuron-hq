@@ -44,6 +44,9 @@ import { registerAuroraCrossRefConsolidatedTool } from './tools/aurora-cross-ref
 import { registerAuroraConfidenceTool } from './tools/aurora-confidence.js';
 import { registerAuroraCheckDepsTool } from './tools/aurora-check-deps.js';
 
+/* ---- aurora-obsidian ---- */
+import { registerAuroraObsidianTools } from './tools/aurora-obsidian.js';
+
 /* ---- neuron-runs ---- */
 import { registerRunsTool } from './tools/runs.js';
 import { registerStartTool } from './tools/start.js';
@@ -320,6 +323,15 @@ export const SCOPES: Record<string, ServerScope> = {
             `Hitta källor om "${args.topic}" med aurora_freshness (action: check). Kontrollera deras färskhetsstatus och rapportera eventuella problem.`,
           ),
       );
+    },
+  },
+
+  'aurora-obsidian': {
+    name: 'aurora-obsidian',
+    description:
+      'Obsidian vault integration — export Aurora nodes and import annotations.',
+    registerTools(server: McpServer): void {
+      registerAuroraObsidianTools(server);
     },
   },
 

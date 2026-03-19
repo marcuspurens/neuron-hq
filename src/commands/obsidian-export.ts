@@ -131,6 +131,75 @@ function buildTimelineSection(blocks: TimelineBlock[]): string[] {
   }
   return lines;
 }
+/** Highlight annotation on a timeline segment. */
+interface HighlightAnnotation {
+  segment_start_ms: number;
+  tag: string;
+}
+
+/** Comment annotation on a timeline segment. */
+interface CommentAnnotation {
+  segment_start_ms: number;
+  text: string;
+}
+
+/** Build timeline section with highlight callouts and comment annotations. */
+function buildTimelineSectionWithAnnotations(
+  blocks: TimelineBlock[],
+  highlights: HighlightAnnotation[],
+  comments: CommentAnnotation[],
+): string[] {
+  // If no annotations, delegate to original
+  if (highlights.length === 0 && comments.length === 0) {
+    return buildTimelineSection(blocks);
+  }
+
+  const lines: string[] = ['## Tidslinje', ''];
+
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+    const isLast = i === blocks.length - 1;
+
+    // Match annotations: start_ms >= block.start_ms && < block.end_ms
+    // For last block: use <= for end_ms
+    const matchesBlock = (ms: number): boolean => {
+      if (isLast) {
+        return ms >= block.start_ms && ms <= block.end_ms;
+      }
+      return ms >= block.start_ms && ms < block.end_ms;
+    };
+
+    const blockHighlights = highlights.filter((h) => matchesBlock(h.segment_start_ms));
+    const blockComments = comments.filter((c) => matchesBlock(c.segment_start_ms));
+
+    const heading = `### ${formatMs(block.start_ms)} \u2014 ${block.speaker}`;
+
+    if (blockHighlights.length > 0) {
+      // Render as Obsidian callout
+      const tag = blockHighlights[0].tag || 'highlight';
+      lines.push(`> [!important] #${tag}`);
+      lines.push(`> ${heading}`);
+      // Wrap text lines in callout
+      const textLines = block.text.split('\n');
+      for (const tl of textLines) {
+        lines.push(`> ${tl}`);
+      }
+      lines.push('');
+    } else {
+      lines.push(heading);
+      lines.push(block.text);
+      lines.push('');
+    }
+
+    // Append comments after the block
+    for (const c of blockComments) {
+      lines.push(`<!-- kommentar: ${c.text} -->`);
+      lines.push('');
+    }
+  }
+
+  return lines;
+}
 
 function buildNodeFilenameMap(nodes: AuroraNode[]): Map<string, string> {
   const map = new Map<string, string>();
@@ -219,7 +288,7 @@ function buildVideoChunkIds(
 export async function obsidianExportCommand(cmdOptions: {
   vault?: string;
   clean?: boolean;
-}): Promise<void> {
+}): Promise<{ exported: number }> {
   const vaultPath = cmdOptions.vault || DEFAULT_VAULT;
   const nodesDir = join(vaultPath, 'Aurora');
   const pool = getPool();
@@ -236,7 +305,7 @@ export async function obsidianExportCommand(cmdOptions: {
 
     if (nodes.length === 0) {
       console.log(chalk.yellow('  No nodes to export.'));
-      return;
+      return { exported: 0 };
     }
 
     // Fetch all edges
@@ -324,8 +393,16 @@ export async function obsidianExportCommand(cmdOptions: {
         lines.push(...buildSpeakerTable(speakerMap));
         lines.push('');
 
-        // Timeline
-        lines.push(...buildTimelineSection(timelineBlocks));
+        // Collect annotations from properties
+        const highlights = Array.isArray(props.highlights)
+          ? (props.highlights as Array<{ segment_start_ms: number; tag: string }>)
+          : [];
+        const comments = Array.isArray(props.comments)
+          ? (props.comments as Array<{ segment_start_ms: number; text: string }>)
+          : [];
+
+        // Timeline (with annotations if present)
+        lines.push(...buildTimelineSectionWithAnnotations(timelineBlocks, highlights, comments));
       } else {
         // --- Standard non-video export (unchanged) ---
         lines.push(formatFrontmatter(node));
@@ -407,7 +484,9 @@ export async function obsidianExportCommand(cmdOptions: {
     console.log(
       `\n  Öppna Obsidian → "${vaultPath}" för att se grafvyn.\n`,
     );
+    return { exported: written };
   } catch (err) {
     console.error(chalk.red(`\n  ❌ Error: ${err instanceof Error ? err.message : err}\n`));
+    return { exported: 0 };
   }
 }

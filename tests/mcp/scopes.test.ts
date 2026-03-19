@@ -78,6 +78,9 @@ vi.mock('../../src/mcp/tools/aurora-confidence.js', () => ({
 vi.mock('../../src/mcp/tools/aurora-check-deps.js', () => ({
   registerAuroraCheckDepsTool: vi.fn(),
 }));
+vi.mock('../../src/mcp/tools/aurora-obsidian.js', () => ({
+  registerAuroraObsidianTools: vi.fn(),
+}));
 vi.mock('../../src/mcp/tools/runs.js', () => ({
   registerRunsTool: vi.fn(),
 }));
@@ -125,8 +128,8 @@ describe('SCOPES registry', () => {
     vi.clearAllMocks();
   });
 
-  it('defines exactly 10 scopes', () => {
-    expect(Object.keys(SCOPES)).toHaveLength(10);
+  it('defines exactly 11 scopes', () => {
+    expect(Object.keys(SCOPES)).toHaveLength(11);
   });
 
   it('has the expected scope names', () => {
@@ -139,6 +142,7 @@ describe('SCOPES registry', () => {
       'aurora-media',
       'aurora-library',
       'aurora-quality',
+      'aurora-obsidian',
       'neuron-runs',
       'neuron-analytics',
     ];

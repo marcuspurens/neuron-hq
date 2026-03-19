@@ -24,13 +24,20 @@ interface SpeakerRename {
   newName: string;
 }
 
+export interface ObsidianImportResult {
+  filesProcessed: number;
+  highlights: number;
+  comments: number;
+  speakersRenamed: number;
+}
+
 /**
  * Import tagged/annotated Obsidian markdown files back into the Aurora
  * knowledge graph. Processes highlights, comments, and speaker renames.
  */
 export async function obsidianImportCommand(options: {
   vault?: string;
-}): Promise<void> {
+}): Promise<ObsidianImportResult> {
   const vaultPath =
     options.vault ||
     process.env.AURORA_OBSIDIAN_VAULT ||
@@ -42,11 +49,11 @@ export async function obsidianImportCommand(options: {
     const dirStat = await stat(auroraDir);
     if (!dirStat.isDirectory()) {
       console.error(chalk.red(`Not a directory: ${auroraDir}`));
-      return;
+      return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0 };
     }
   } catch {
     console.error(chalk.red(`Aurora directory not found: ${auroraDir}`));
-    return;
+    return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0 };
   }
 
   console.log(chalk.bold('\n📥 Obsidian Import\n'));
@@ -60,12 +67,12 @@ export async function obsidianImportCommand(options: {
   } catch (err) {
     console.error(chalk.red(`Failed to read directory: ${auroraDir}`));
     logger.warn('readdir failed', { error: String(err) });
-    return;
+    return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0 };
   }
 
   if (files.length === 0) {
     console.log(chalk.yellow('  No .md files found in Aurora directory.'));
-    return;
+    return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0 };
   }
 
   // 3. Load graph once
@@ -201,4 +208,5 @@ export async function obsidianImportCommand(options: {
   console.log(`     Highlights:      ${totalHighlights}`);
   console.log(`     Comments:        ${totalComments}`);
   console.log(`     Speakers renamed: ${speakersRenamed}`);
+  return { filesProcessed, highlights: totalHighlights, comments: totalComments, speakersRenamed };
 }
