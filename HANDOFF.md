@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-03-17T0130-session95-langfuse-observability.md](docs/handoffs/HANDOFF-2026-03-17T0130-session95-langfuse-observability.md)
+Senaste handoff: [HANDOFF-2026-03-19T1400-session104-tre-grona.md](docs/handoffs/HANDOFF-2026-03-19T1400-session104-tre-grona.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -93,5 +93,6 @@ Senaste handoff: [HANDOFF-2026-03-17T0130-session95-langfuse-observability.md](d
 | 2026-03-16 | 20:00 | 93 | RT-3 Explainability | [länk](docs/handoffs/HANDOFF-2026-03-16T2000-session93-rt3-explainability.md) |
 | 2026-03-16 | 22:00 | 94 | TD-5 + Dashboard fixes | [länk](docs/handoffs/HANDOFF-2026-03-16T2200-session94-td5-dashboard-fixes.md) |
 | 2026-03-17 | 01:30 | 95 | **Langfuse observability** — ersätter custom dashboard | [länk](docs/handoffs/HANDOFF-2026-03-17T0130-session95-langfuse-observability.md) |
+| 2026-03-19 | 14:00 | 104 | **Tre gröna körningar** — R1.1 + OB-1c + OB-1d | [länk](docs/handoffs/HANDOFF-2026-03-19T1400-session104-tre-grona.md) |
 
-> **Not:** Session 1, 6, 79 och 92 saknas — handoffs skapades inte vid dessa tillfällen.
+> **Not:** Session 1, 6, 79, 92 och 96-103 saknas — handoffs skapades inte vid dessa tillfällen.
