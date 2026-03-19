@@ -1,4 +1,69 @@
 import { describe, it, expect, vi } from 'vitest';
+
+// Mock gray-matter before importing obsidian-parser (which depends on it).
+// vi.mock is hoisted by vitest, but we declare it at the top for clarity.
+vi.mock('gray-matter', () => ({
+  default: (str: string) => {
+    if (typeof str !== 'string' || !str.startsWith('---')) {
+      return { data: {}, content: str || '' };
+    }
+    const match = str.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+    if (!match) return { data: {}, content: str };
+    const yamlBlock = match[1];
+    const content = match[2] || '';
+    // Parse simple YAML (supports up to 3 levels of nesting)
+    const data: Record<string, unknown> = {};
+    let currentKey = '';
+    let currentObj: Record<string, unknown> | null = null;
+    let subKey = '';
+    let subObj: Record<string, unknown> | null = null;
+
+    const parseValue = (val: string): unknown => {
+      const trimmed = val.replace(/^["']|["']$/g, '');
+      if (trimmed === '') return '';
+      if (!isNaN(Number(trimmed)) && trimmed !== '') return Number(trimmed);
+      return trimmed;
+    };
+
+    for (const line of yamlBlock.split('\n')) {
+      // Top level key: value  (no leading spaces)
+      const topMatch = line.match(/^(\w[\w_-]*):\s*(.*)$/);
+      // Second level (2-space indent) — key with no value (sub-object)
+      const midMatch = line.match(/^  (\w[\w_-]*):\s*$/);
+      // Second level (2-space indent) — key: value
+      const midValMatch = line.match(/^  (\w[\w_-]*):\s+(.+)$/);
+      // Third level (4-space indent) — key: value
+      const deepMatch = line.match(/^    (\w[\w_-]*):\s+(.+)$/);
+
+      if (topMatch) {
+        currentObj = null;
+        subObj = null;
+        const [, key, val] = topMatch;
+        if (val) {
+          data[key] = parseValue(val);
+        } else {
+          data[key] = {};
+          currentKey = key;
+          currentObj = data[key] as Record<string, unknown>;
+        }
+      } else if (midMatch && currentObj) {
+        const [, key] = midMatch;
+        currentObj[key] = {};
+        subKey = key;
+        subObj = currentObj[key] as Record<string, unknown>;
+      } else if (midValMatch && currentObj) {
+        const [, key, val] = midValMatch;
+        currentObj[key] = parseValue(val);
+        subObj = null;
+      } else if (deepMatch && subObj) {
+        const [, key, val] = deepMatch;
+        subObj[key] = parseValue(val);
+      }
+    }
+    return { data, content };
+  },
+}));
+
 import {
   parseTimecodeToMs,
   extractSpeakers,
@@ -381,19 +446,19 @@ describe('parseObsidianFile', () => {
 
 describe('parseSentiment', () => {
   it('returns positive for thumbs-up emoji', () => {
-    expect(parseSentiment('👍 Bra ide!')).toBe('positive');
-    expect(parseSentiment('Det var 👍')).toBe('positive');
+    expect(parseSentiment('\u{1F44D} Bra ide!')).toBe('positive');
+    expect(parseSentiment('Det var \u{1F44D}')).toBe('positive');
   });
 
   it('returns positive when text starts with ja or yes (case-insensitive)', () => {
-    expect(parseSentiment('Ja, det stämmer')).toBe('positive');
-    expect(parseSentiment('ja det stämmer')).toBe('positive');
+    expect(parseSentiment('Ja, det st\u00e4mmer')).toBe('positive');
+    expect(parseSentiment('ja det st\u00e4mmer')).toBe('positive');
     expect(parseSentiment('Yes, absolutely')).toBe('positive');
     expect(parseSentiment('YES please')).toBe('positive');
   });
 
   it('returns negative for thumbs-down emoji or text starting with nej/no', () => {
-    expect(parseSentiment('👎 Dålig ide')).toBe('negative');
+    expect(parseSentiment('\u{1F44E} D\u00e5lig ide')).toBe('negative');
     expect(parseSentiment('Nej, inte relevant')).toBe('negative');
     expect(parseSentiment('nej tack')).toBe('negative');
     expect(parseSentiment('No, skip this')).toBe('negative');
@@ -401,16 +466,16 @@ describe('parseSentiment', () => {
   });
 
   it('returns neutral for plain text without sentiment signals', () => {
-    expect(parseSentiment('Kanske, vi får se')).toBe('neutral');
+    expect(parseSentiment('Kanske, vi f\u00e5r se')).toBe('neutral');
     expect(parseSentiment('Intressant perspektiv')).toBe('neutral');
-    expect(parseSentiment('Behöver mer info')).toBe('neutral');
+    expect(parseSentiment('Beh\u00f6ver mer info')).toBe('neutral');
   });
 });
 
 describe('extractBriefingAnswers', () => {
   it('parses question with svar, node_id, and category correctly', () => {
     const body = [
-      '### Fråga 1: Vill du utforska gap-noden "AI-etik"?',
+      '### Fr\u00e5ga 1: Vill du utforska gap-noden "AI-etik"?',
       '<!-- question_node_id: node-abc-123 -->',
       '<!-- question_category: gap -->',
       '<!-- svar: Ja, det vore intressant -->',
@@ -430,12 +495,12 @@ describe('extractBriefingAnswers', () => {
 
   it('skips empty svar comments', () => {
     const body = [
-      '### Fråga 1: Första frågan',
+      '### Fr\u00e5ga 1: F\u00f6rsta fr\u00e5gan',
       '<!-- question_node_id: node-1 -->',
       '<!-- question_category: stale -->',
       '<!-- svar: -->',
       '',
-      '### Fråga 2: Andra frågan',
+      '### Fr\u00e5ga 2: Andra fr\u00e5gan',
       '<!-- question_node_id: node-2 -->',
       '<!-- question_category: idea -->',
       '<!-- svar: Nej, inte relevant -->',

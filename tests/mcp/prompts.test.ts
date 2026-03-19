@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
+/* ---- Mock gray-matter (not installed, pulled in transitively via obsidian-parser) ---- */
+vi.mock('gray-matter', () => ({
+  default: () => ({ data: {}, content: '' }),
+}));
+
 /* ---- Mock all tool modules to prevent DB imports ---- */
 vi.mock('../../src/mcp/tools/aurora-search.js', () => ({ registerAuroraSearchTool: vi.fn() }));
 vi.mock('../../src/mcp/tools/aurora-ask.js', () => ({ registerAuroraAskTool: vi.fn() }));

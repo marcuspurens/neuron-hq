@@ -1,5 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// Mock gray-matter (not installed — obsidian-parser imports it).
+// Provide a minimal implementation that splits YAML frontmatter and parses it.
+vi.mock('gray-matter', async () => {
+  const yaml = await import('js-yaml');
+  return {
+    default: (input: string) => {
+      const match = input.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+      if (!match) return { data: {}, content: input };
+      try {
+        const data = yaml.load(match[1]) as Record<string, unknown>;
+        return { data: data ?? {}, content: match[2] };
+      } catch {
+        throw new Error('Invalid YAML');
+      }
+    },
+  };
+});
+
 // Mock fs/promises
 const mockReaddir = vi.fn();
 const mockReadFile = vi.fn();

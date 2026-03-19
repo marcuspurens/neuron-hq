@@ -235,7 +235,7 @@ async function queryKnowledgeGaps(): Promise<KnowledgeGap[]> {
   try {
     const pool = getPool();
     const { rows } = await pool.query(
-      `SELECT id, title, content FROM aurora_nodes WHERE type = 'research' AND properties->>'gapType' = 'unanswered' ORDER BY created DESC LIMIT 3`,
+      `SELECT id, title, COALESCE(properties->>'description', '') as content FROM aurora_nodes WHERE type = 'research' AND properties->>'gapType' = 'unanswered' ORDER BY created DESC LIMIT 3`,
     );
     return rows.map((r: Record<string, unknown>) => ({
       title: r.title as string,
@@ -546,29 +546,14 @@ export async function generateMorningBriefing(
 
   await mkdir(briefingsDir, { recursive: true });
 
-  // If file already exists and force is not set, return existing
+  // If file already exists and force is not set, throw
   if (!options.force) {
     try {
       await access(filePath);
-      const existingMarkdown = await readFile(filePath, 'utf-8');
-      logger.info('Briefing redan genererad för idag', { date: dateStr });
-      return {
-        markdown: existingMarkdown,
-        filePath,
-        data: {
-          date: dateStr,
-          periodStart,
-          periodEnd,
-          newNodes: [],
-          runs: [],
-          newIdeas: [],
-          staleSources: [],
-          agingCount: 0,
-          knowledgeGaps: [],
-          questions: [],
-        },
-      };
-    } catch {
+      throw new Error(`Briefing redan genererad för idag (${dateStr})`);
+    } catch (err) {
+      // Re-throw our own error, ignore file-not-found
+      if (err instanceof Error && err.message.includes('redan genererad')) throw err;
       // File doesn't exist, proceed
     }
   }

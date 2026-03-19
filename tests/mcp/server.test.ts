@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+
+/* ---- Mock gray-matter (not installed, pulled in transitively via obsidian-parser) ---- */
+vi.mock('gray-matter', () => ({
+  default: () => ({ data: {}, content: '' }),
+}));
+
 // Mock all tool registration functions
 vi.mock('../../src/mcp/tools/runs.js', () => ({
   registerRunsTool: vi.fn(),
