@@ -276,16 +276,26 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
-### 3.6 Prompt-audit: "verifiera, anta aldrig" ⬜
+### 3.6 Agentintervjuer — Opus samtalar med varje agent ⬜
 
-**Vad det ger dig:** Alla agenter granskas — var *antar* de istället för att *verifiera*? Samma princip som Reviewers "alltid köra, aldrig anta" sprids till alla.
+**Vad det ger dig:** Opus intervjuar varje agent en-och-en om dess prompt, beteende och blinda fläckar. Samma metod som avslöjade Brief Agents "kan aldrig säga klart"-problem (S109) — applicerad på alla 11 agenter. Resultatet: förbättrade prompts, dokumenterade insikter, och en unik perspektiv-serie om hur LLM-agenter "upplever" sina instruktioner.
 
-**Tekniskt:**
-- Gå igenom varje agents prompt
-- Identifiera ställen där agenten antar istället för verifierar
-- Lägg till verifieringssteg
+**Per agent sparas:**
+- Prompt FÖRE intervju (git snapshot)
+- Intervju-dokument (Opus ↔ Agent) i `docs/samtal/`
+- Prompt EFTER intervju (förbättrad, committad)
+- Diff & analys: vad ändrades, varför det spelar roll i en LLM-värld
+- Bonus: människa-kod vs LLM-kod — hur kodkonventioner anpassats för människor och hur de bör anpassas för LLM:er
+- Fria tankar från agenten
 
-**Effort:** 1 körning · **Brief:** `prompt-verification-audit`
+**Ordning (2-3 per session):**
+1. Manager — dirigerar allt, störst påverkan
+2. Reviewer — kvalitetsgrind, samma risk som Brief Agent
+3. Implementer — den som bygger
+4. Researcher + Librarian — informerar namnbytet (2.3)
+5. Historian, Tester, Merger, Consolidator, Knowledge Manager
+
+**Effort:** 3-5 sessioner (manuellt, inte körningar) · Ersätter gamla 3.6 "prompt-audit"
 
 ---
 
@@ -360,7 +370,7 @@ Fas 4: Produkt                ← andra kan använda det
 | 3.3 | Research före implementation | 3 | 1 körn | 2.3 | ⬜ |
 | 3.4 | Schemalagda agent-samtal | 3 | 2-3 körn | 2.3, server | ⬜ |
 | 3.5 | Dynamisk diff-limit | 3 | 1 körn | — | ⬜ |
-| 3.6 | Prompt-audit | 3 | 1 körn | — | ⬜ |
+| 3.6 | Agentintervjuer (prompt-förbättring) | 3 | 3-5 sess | — | ⬜ |
 | 4.1 | Docker-compose | 4 | 2 körn | — | ⬜ |
 | 4.2 | Webb-UI | 4 | 5-10 körn | — | ⬜ |
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
