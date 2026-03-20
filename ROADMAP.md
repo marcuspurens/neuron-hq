@@ -1,6 +1,6 @@
 # Neuron HQ — Roadmap
 
-> **Senast uppdaterad:** 2026-03-20 · Session 108
+> **Senast uppdaterad:** 2026-03-20 · Session 110
 > **Källa:** Djupsamtal S102 + Marcus ~40 kommentarer + diskussionsdokument S103
 > Editera direkt — kryssa av med ✅ när klart.
 > **Arkiv:** Alla versioner sparas i [docs/roadmaps/](docs/roadmaps/) med datumstämpel.
@@ -15,12 +15,12 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3400 |
-| Körningar | 170 |
-| MCP-tools | 43 |
-| Sessioner | 108 |
+| Tester | 3433 |
+| Körningar | 171 |
+| MCP-tools | 44 |
+| Sessioner | 110 |
 | Agenter | 11 |
-| Idé-noder | 878 |
+| Idé-noder | 924 |
 | Code Review | ★★★★☆ (Fas 1 klar) |
 
 ---
@@ -129,16 +129,15 @@ Fas 4: Produkt                ← andra kan använda det
 
 > **Mål:** Systemet navigerar kunskap intelligent. Istället för keyword-matchning, förstår det kopplingar, drar slutsatser, och håller sin kunskapsbas frisk.
 
-### 2.1 HippoRAG — grafbaserad navigering ⬜
+### 2.1 HippoRAG — grafbaserad navigering ✅ S110 · 2026-03-20
 
 **Vad det ger dig:** När systemet söker kunskap hittar det relevanta saker baserat på *kopplingar i grafen* (som en hjärna), inte bara textlikhet. En idé om "agent-minne" kopplas automatiskt till HippoRAG, A-MEM och Letta — oavsett om orden matchar.
 
-**Tekniskt:**
-- Personalized PageRank (PPR) på befintlig graf
-- Ersätt Jaccard-likhet i `related_ideas` med PPR-score
-- ~200 rader matematik + integration med befintlig sökning
-
-**Effort:** 1-2 körningar · **Brief:** `hipporag-ppr`
+**Gjort:** Körning 171, +33 tester, 32/32 AC
+- `ppr.ts`: PPR-algoritm (power iteration, α=0.5, dangling node-hantering)
+- `linkRelatedIdeas()` omskriven till PPR+Jaccard hybrid (PPR först, Jaccard fallback för isolerade noder)
+- `pprQuery()` API + `graph_ppr` som agent-tool och MCP-tool
+- Kanonisk edge-nyckel förhindrar dubbletter, maxEdgesPerNode=3
 
 ---
 
@@ -351,7 +350,7 @@ Fas 4: Produkt                ← andra kan använda det
 | 1.4 | Loggkörningsbok | 1 | 2 körn | — | ✅ S106 2026-03-20 |
 | 1.5 | Manager prompt-fix | 1 | <1 körn | — | ✅ S103 2026-03-19 |
 | 1.6 | neuron_help tool | 1 | 1 körn | — | ✅ S107 2026-03-20 |
-| 2.1 | HippoRAG PPR | 2 | 1-2 körn | — | ⬜ |
+| 2.1 | HippoRAG PPR | 2 | 1-2 körn | — | ✅ S110 2026-03-20 |
 | 2.2 | Feedback-loop i prompts | 2 | 1-2 körn | — | ⬜ |
 | 2.3 | Namnbyte Researcher ↔ Librarian | 2 | 1 körn | — | ⬜ |
 | 2.4 | Idékonsolidering | 2 | 1 körn | — | ⬜ |
@@ -367,7 +366,7 @@ Fas 4: Produkt                ← andra kan använda det
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
 | 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~30-45 körningar. **Klar:** 7/22
+**Totalt:** ~30-45 körningar. **Klar:** 8/22
 
 ---
 
@@ -505,4 +504,4 @@ Fas 4: Produkt                ← andra kan använda det
 
 ## Idébank
 
-878 idéer i kunskapsgrafen. Konsolidering planerad i punkt 2.4.
+924 idéer i kunskapsgrafen. Konsolidering planerad i punkt 2.4.
