@@ -13,6 +13,8 @@ import {
   computePriority,
   rankIdeas,
   linkRelatedIdeas,
+  graphToAdjacency,
+  pprQuery,
   type KnowledgeGraph,
   type KGNode,
   type KGEdge,
@@ -777,5 +779,283 @@ describe('linkRelatedIdeas', () => {
     };
     const result = linkRelatedIdeas(graph);
     expect(result.edges).toHaveLength(0);
+  });
+
+  it('AC10: PPR finds transitive connections in linear chain', () => {
+    const nodes: KGNode[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map((letter, i) =>
+      makeIdeaNode(`idea-${letter}`, `concept-${letter}-unique-${i}`, `description-${letter}-singular-${i}`)
+    );
+    const edges: KGEdge[] = [];
+    for (let i = 0; i < 7; i++) {
+      edges.push({
+        from: `idea-${String.fromCharCode(65 + i)}`,
+        to: `idea-${String.fromCharCode(66 + i)}`,
+        type: 'related_to',
+        metadata: {},
+      });
+    }
+    const graph: KnowledgeGraph = {
+      version: '1.0', nodes, edges, lastUpdated: '2026-01-01T00:00:00Z',
+    };
+    const result = linkRelatedIdeas(graph, { maxEdgesPerNode: 3 });
+    const newEdges = result.edges.filter(e =>
+      e.type === 'related_to' && !edges.some(orig =>
+        (orig.from === e.from && orig.to === e.to) || (orig.from === e.to && orig.to === e.from)
+      )
+    );
+    // (a) At least one new non-adjacent edge
+    expect(newEdges.length).toBeGreaterThan(0);
+    // (b) A<->H should NOT be created (7 hops, too far for PPR alpha=0.5)
+    const ahEdge = result.edges.find(e =>
+      (e.from === 'idea-A' && e.to === 'idea-H') ||
+      (e.from === 'idea-H' && e.to === 'idea-A')
+    );
+    expect(ahEdge).toBeUndefined();
+  });
+
+  it('AC11: Jaccard fallback for isolated node with text overlap', () => {
+    const graph: KnowledgeGraph = {
+      version: '1.0',
+      nodes: [
+        makeIdeaNode('idea-001', 'Machine learning optimization', 'Deep learning model optimization techniques'),
+        makeIdeaNode('idea-002', 'Machine learning training', 'Deep learning model training approaches'),
+      ],
+      edges: [],
+      lastUpdated: '2026-01-01T00:00:00Z',
+    };
+    const result = linkRelatedIdeas(graph);
+    const relatedEdges = result.edges.filter(e => e.type === 'related_to');
+    expect(relatedEdges.length).toBeGreaterThan(0);
+  });
+
+  it('AC12: maxEdgesPerNode respected for nodes already at limit', () => {
+    const graph: KnowledgeGraph = {
+      version: '1.0',
+      nodes: [
+        makeIdeaNode('idea-001', 'Central node', 'Hub'),
+        makeIdeaNode('idea-002', 'Spoke one', 'Alpha'),
+        makeIdeaNode('idea-003', 'Spoke two', 'Beta'),
+        makeIdeaNode('idea-004', 'Spoke three', 'Gamma'),
+        makeIdeaNode('idea-005', 'New node connected', 'Delta'),
+      ],
+      edges: [
+        { from: 'idea-001', to: 'idea-002', type: 'related_to', metadata: {} },
+        { from: 'idea-001', to: 'idea-003', type: 'related_to', metadata: {} },
+        { from: 'idea-001', to: 'idea-004', type: 'related_to', metadata: {} },
+        { from: 'idea-002', to: 'idea-005', type: 'related_to', metadata: {} },
+      ],
+      lastUpdated: '2026-01-01T00:00:00Z',
+    };
+    const result = linkRelatedIdeas(graph, { maxEdgesPerNode: 3 });
+    const idea001Edges = result.edges.filter(e =>
+      e.type === 'related_to' && (e.from === 'idea-001' || e.to === 'idea-001')
+    );
+    expect(idea001Edges.length).toBeLessThanOrEqual(3);
+  });
+
+  it('AC13: idempotent — running twice yields same edge count', () => {
+    const graph: KnowledgeGraph = {
+      version: '1.0',
+      nodes: [
+        makeIdeaNode('idea-001', 'Alpha concept', 'First idea about alpha'),
+        makeIdeaNode('idea-002', 'Beta concept', 'Second idea about beta'),
+        makeIdeaNode('idea-003', 'Gamma concept', 'Third idea about gamma'),
+      ],
+      edges: [
+        { from: 'idea-001', to: 'idea-002', type: 'related_to', metadata: {} },
+      ],
+      lastUpdated: '2026-01-01T00:00:00Z',
+    };
+    const first = linkRelatedIdeas(graph, { maxEdgesPerNode: 3 });
+    const second = linkRelatedIdeas(first, { maxEdgesPerNode: 3 });
+    expect(second.edges.length).toBe(first.edges.length);
+  });
+
+  it('AC14b: completes without error and produces valid graph', () => {
+    const graph: KnowledgeGraph = {
+      version: '1.0',
+      nodes: [
+        makeIdeaNode('idea-001', 'Test node A', 'Alpha beta gamma'),
+        makeIdeaNode('idea-002', 'Test node B', 'Delta epsilon zeta'),
+      ],
+      edges: [
+        { from: 'idea-001', to: 'idea-002', type: 'related_to', metadata: {} },
+      ],
+      lastUpdated: '2026-01-01T00:00:00Z',
+    };
+    // This should not throw and should complete
+    const result = linkRelatedIdeas(graph);
+    expect(result).toBeDefined();
+    expect(result.nodes.length).toBe(2);
+  });
+
+  it('AC32b: linkRelatedIdeas with 200 idea nodes completes within 30s', { timeout: 60_000 }, () => {
+    const N = 200;
+    const nodes: KGNode[] = [];
+    const edges: KGEdge[] = [];
+    for (let i = 0; i < N; i++) {
+      nodes.push(makeIdeaNode(
+        `idea-${String(i).padStart(3, '0')}`,
+        `Concept ${i}`,
+        `Unique description ${i}`,
+      ));
+      edges.push({
+        from: `idea-${String(i).padStart(3, '0')}`,
+        to: `idea-${String((i + 1) % N).padStart(3, '0')}`,
+        type: 'related_to',
+        metadata: {},
+      });
+      edges.push({
+        from: `idea-${String(i).padStart(3, '0')}`,
+        to: `idea-${String((i + 7) % N).padStart(3, '0')}`,
+        type: 'related_to',
+        metadata: {},
+      });
+    }
+    const graph: KnowledgeGraph = {
+      version: '1.0', nodes, edges, lastUpdated: '2026-01-01T00:00:00Z',
+    };
+    const start = performance.now();
+    const result = linkRelatedIdeas(graph, { maxEdgesPerNode: 3 });
+    const elapsed = performance.now() - start;
+    expect(elapsed).toBeLessThan(30_000);
+    expect(result.nodes.length).toBe(N);
+  });
+});
+
+
+describe('graphToAdjacency', () => {
+  function makeIdeaNode(id: string, title: string, description: string): KGNode {
+    return {
+      id, type: 'idea', title,
+      properties: { description, impact: 3, effort: 3, risk: 3, status: 'proposed' },
+      confidence: 0.5, scope: 'project-specific', model: null,
+      created: '2026-01-01T00:00:00Z', updated: '2026-01-01T00:00:00Z',
+    };
+  }
+
+  it('AC10b: converts graph edges to bidirectional directed edges', () => {
+    const graph: KnowledgeGraph = {
+      version: '1.0',
+      nodes: [
+        makeIdeaNode('a', 'Node A', 'Desc A'),
+        makeIdeaNode('b', 'Node B', 'Desc B'),
+        makeIdeaNode('c', 'Node C', 'Desc C'),
+      ],
+      edges: [
+        { from: 'a', to: 'b', type: 'related_to', metadata: {} },
+      ],
+      lastUpdated: '2026-01-01T00:00:00Z',
+    };
+    const adj = graphToAdjacency(graph);
+    expect(adj.nodes).toHaveLength(3);
+    expect(adj.nodes).toContain('c');
+    expect(adj.edges).toHaveLength(2);
+    expect(adj.edges).toContainEqual({ from: 'a', to: 'b' });
+    expect(adj.edges).toContainEqual({ from: 'b', to: 'a' });
+  });
+
+  it('AC10c: handles empty graph', () => {
+    const graph = createEmptyGraph();
+    const adj = graphToAdjacency(graph);
+    expect(adj.nodes).toEqual([]);
+    expect(adj.edges).toEqual([]);
+  });
+});
+
+describe('pprQuery', () => {
+  function makeIdeaNode(id: string, title: string, description: string): KGNode {
+    return {
+      id, type: 'idea', title,
+      properties: { description, impact: 3, effort: 3, risk: 3, status: 'proposed' },
+      confidence: 0.5, scope: 'project-specific', model: null,
+      created: '2026-01-01T00:00:00Z', updated: '2026-01-01T00:00:00Z',
+    };
+  }
+
+  function buildTestGraph(): KnowledgeGraph {
+    return {
+      version: '1.0',
+      nodes: [
+        makeIdeaNode('idea-001', 'First concept', 'Alpha'),
+        makeIdeaNode('idea-002', 'Second concept', 'Beta'),
+        makeIdeaNode('idea-003', 'Third concept', 'Gamma'),
+        {
+          id: 'pattern-001', type: 'pattern', title: 'Some pattern',
+          properties: {}, confidence: 0.8, scope: 'universal', model: null,
+          created: '2026-01-01T00:00:00Z', updated: '2026-01-01T00:00:00Z',
+        },
+      ],
+      edges: [
+        { from: 'idea-001', to: 'idea-002', type: 'related_to', metadata: {} },
+        { from: 'idea-002', to: 'idea-003', type: 'related_to', metadata: {} },
+        { from: 'idea-002', to: 'pattern-001', type: 'discovered_in', metadata: {} },
+      ],
+      lastUpdated: '2026-01-01T00:00:00Z',
+    };
+  }
+
+  it('AC16: returns sorted results with seed excluded', () => {
+    const graph = buildTestGraph();
+    const results = pprQuery(graph, ['idea-001']);
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.find(r => r.node.id === 'idea-001')).toBeUndefined();
+    for (let i = 1; i < results.length; i++) {
+      expect(results[i - 1].score).toBeGreaterThanOrEqual(results[i].score);
+    }
+  });
+
+  it('AC17: excludeTypes filters results', () => {
+    const graph = buildTestGraph();
+    const results = pprQuery(graph, ['idea-001'], { excludeTypes: ['pattern'] });
+    expect(results.find(r => r.node.type === 'pattern')).toBeUndefined();
+  });
+
+  it('AC18: limit caps results', () => {
+    const graph = buildTestGraph();
+    const results = pprQuery(graph, ['idea-001'], { limit: 1 });
+    expect(results.length).toBeLessThanOrEqual(1);
+  });
+
+  it('AC19: single-node graph returns empty list', () => {
+    const graph: KnowledgeGraph = {
+      version: '1.0',
+      nodes: [makeIdeaNode('idea-001', 'Only node', 'Alone')],
+      edges: [],
+      lastUpdated: '2026-01-01T00:00:00Z',
+    };
+    const results = pprQuery(graph, ['idea-001']);
+    expect(results).toEqual([]);
+  });
+
+  it('AC20: non-existent seed throws', () => {
+    const graph = buildTestGraph();
+    expect(() => pprQuery(graph, ['nonexistent'])).toThrow('Node not found: nonexistent');
+  });
+
+  it('AC20: empty seeds throws', () => {
+    const graph = buildTestGraph();
+    expect(() => pprQuery(graph, [])).toThrow('At least one seed node required');
+  });
+
+  it('AC20b: multiple seeds in different clusters', () => {
+    const graph: KnowledgeGraph = {
+      version: '1.0',
+      nodes: [
+        makeIdeaNode('idea-001', 'Cluster A node 1', 'Alpha'),
+        makeIdeaNode('idea-002', 'Cluster A node 2', 'Beta'),
+        makeIdeaNode('idea-003', 'Cluster B node 1', 'Gamma'),
+        makeIdeaNode('idea-004', 'Cluster B node 2', 'Delta'),
+      ],
+      edges: [
+        { from: 'idea-001', to: 'idea-002', type: 'related_to', metadata: {} },
+        { from: 'idea-003', to: 'idea-004', type: 'related_to', metadata: {} },
+      ],
+      lastUpdated: '2026-01-01T00:00:00Z',
+    };
+    const results = pprQuery(graph, ['idea-001', 'idea-003']);
+    const resultIds = results.map(r => r.node.id);
+    expect(resultIds).toContain('idea-002');
+    expect(resultIds).toContain('idea-004');
   });
 });

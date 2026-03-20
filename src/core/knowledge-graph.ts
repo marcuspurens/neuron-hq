@@ -5,6 +5,7 @@ import { getPool, isDbAvailable } from './db.js';
 import { isEmbeddingAvailable, getEmbeddingProvider } from './embeddings.js';
 import { createLogger } from './logger.js';
 import { parseIdeasMd } from './ideas-parser.js';
+import { personalizedPageRank } from './ppr.js';
 
 const logger = createLogger('graph');
 
@@ -729,14 +730,85 @@ function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
 }
 
 /**
- * Link related idea nodes via related_to edges based on text similarity.
- * Only creates idea-to-idea edges. Checks for existing edges to prevent duplicates.
+ * Convert a KnowledgeGraph to adjacency format for PPR.
+ * Includes ALL nodes and ALL edge types. Each graph edge becomes 2 directed edges (A->B + B->A).
+ * Exported for testability.
+ */
+export function graphToAdjacency(graph: KnowledgeGraph): { nodes: string[]; edges: Array<{ from: string; to: string }> } {
+  const nodes = graph.nodes.map(n => n.id);
+  const edges: Array<{ from: string; to: string }> = [];
+  for (const e of graph.edges) {
+    edges.push({ from: e.from, to: e.to });
+    edges.push({ from: e.to, to: e.from });
+  }
+  return { nodes, edges };
+}
+
+/**
+ * Run PPR on the graph from seed nodes, returning ranked results.
+ *
+ * @throws Error('At least one seed node required') if seedNodeIds is empty
+ * @throws Error('Node not found: <id>') if a seed node does not exist in the graph
+ */
+export function pprQuery(
+  graph: KnowledgeGraph,
+  seedNodeIds: string[],
+  options?: {
+    limit?: number;
+    minScore?: number;
+    excludeTypes?: NodeType[];
+    excludeIds?: string[];
+  },
+): Array<{ node: KGNode; score: number }> {
+  if (seedNodeIds.length === 0) {
+    throw new Error('At least one seed node required');
+  }
+
+  for (const id of seedNodeIds) {
+    if (!graph.nodes.find(n => n.id === id)) {
+      throw new Error(`Node not found: ${id}`);
+    }
+  }
+
+  const limit = options?.limit ?? 10;
+  const minScore = options?.minScore ?? 0.01;
+  const excludeTypes = new Set(options?.excludeTypes ?? []);
+  const excludeIds = new Set([...seedNodeIds, ...(options?.excludeIds ?? [])]);
+
+  const { nodes, edges } = graphToAdjacency(graph);
+
+  const seeds = new Map<string, number>();
+  for (const id of seedNodeIds) {
+    seeds.set(id, 1 / seedNodeIds.length);
+  }
+
+  const pprResults = personalizedPageRank(nodes, edges, seeds);
+
+  const results: Array<{ node: KGNode; score: number }> = [];
+  for (const pr of pprResults) {
+    if (excludeIds.has(pr.nodeId)) continue;
+    if (pr.score < minScore) continue;
+    const node = graph.nodes.find(n => n.id === pr.nodeId);
+    if (!node) continue;
+    if (excludeTypes.has(node.type)) continue;
+    results.push({ node, score: pr.score });
+    if (results.length >= limit) break;
+  }
+
+  return results;
+}
+
+/**
+ * Link related idea nodes via PPR graph structure + Jaccard text fallback.
+ * Only creates idea-to-idea related_to edges. Checks for existing edges to prevent duplicates.
  * Returns a new graph with added edges.
+ *
+ * Not thread-safe (uses Set-based edge dedup). Currently called sequentially by historian agent.
  */
 export function linkRelatedIdeas(
   graph: KnowledgeGraph,
   options?: {
-    similarityThreshold?: number;  // 0-1, default 0.3
+    similarityThreshold?: number;  // Jaccard threshold, default 0.3
     maxEdgesPerNode?: number;      // default 3
   },
 ): KnowledgeGraph {
@@ -746,72 +818,127 @@ export function linkRelatedIdeas(
   const ideas = graph.nodes.filter(n => n.type === 'idea');
   if (ideas.length < 2) return graph;
 
-  // Pre-tokenize all ideas
-  const tokenized = ideas.map(idea => ({
-    id: idea.id,
-    tokens: tokenize(`${idea.title} ${(idea.properties.description as string) || ''}`),
-  }));
+  // Build adjacency once for all PPR runs
+  const adjacency = graphToAdjacency(graph);
 
-  // Track how many related_to edges each idea node has
-  const edgeCounts = new Map<string, number>();
+  // Track existing related_to edge counts at START (only related_to, not derived_from etc.)
+  const ideaIds = new Set(ideas.map(n => n.id));
+  const startEdgeCounts = new Map<string, number>();
+  const existingEdgeSet = new Set<string>();
+
   for (const idea of ideas) {
-    const existing = graph.edges.filter(e =>
-      e.type === 'related_to' &&
-      (e.from === idea.id || e.to === idea.id) &&
-      ideas.some(i => i.id === (e.from === idea.id ? e.to : e.from))
-    ).length;
-    edgeCounts.set(idea.id, existing);
+    let count = 0;
+    for (const e of graph.edges) {
+      if (e.type === 'related_to' && (e.from === idea.id || e.to === idea.id)) {
+        const other = e.from === idea.id ? e.to : e.from;
+        if (ideaIds.has(other)) {
+          count++;
+          const key = [e.from < e.to ? e.from : e.to, e.from < e.to ? e.to : e.from].join(':');
+          existingEdgeSet.add(key);
+        }
+      }
+    }
+    startEdgeCounts.set(idea.id, count);
   }
 
-  // Collect candidate edges with similarity scores
-  const candidates: Array<{ from: string; to: string; similarity: number }> = [];
+  // Track edges created in this run
+  const newEdgeSet = new Set<string>();
+  const edgeCounts = new Map(startEdgeCounts);
 
-  for (let i = 0; i < tokenized.length; i++) {
-    for (let j = i + 1; j < tokenized.length; j++) {
-      const sim = jaccardSimilarity(tokenized[i].tokens, tokenized[j].tokens);
-      if (sim >= threshold) {
-        candidates.push({
-          from: tokenized[i].id,
-          to: tokenized[j].id,
-          similarity: sim,
-        });
+  const now = new Date().toISOString();
+  let result = graph;
+  let pprNodes = 0;
+  let jaccardFallbacks = 0;
+  let newEdgesCount = 0;
+
+  // Sort by node ID for deterministic iteration
+  const sortedIdeas = [...ideas].sort((a, b) => a.id.localeCompare(b.id));
+
+  // Pre-tokenize all ideas for potential Jaccard fallback
+  const tokenized = new Map<string, Set<string>>();
+  for (const idea of ideas) {
+    tokenized.set(idea.id, tokenize(`${idea.title} ${(idea.properties.description as string) || ''}`));
+  }
+
+  for (const idea of sortedIdeas) {
+    // Skip if already at maxEdges at START
+    if ((startEdgeCounts.get(idea.id) || 0) >= maxEdges) continue;
+
+    // Run PPR with this node as seed
+    const seeds = new Map<string, number>([[idea.id, 1.0]]);
+    const pprResults = personalizedPageRank(adjacency.nodes, adjacency.edges, seeds);
+
+    // Filter PPR results
+    const pprCandidates: Array<{ id: string; score: number }> = [];
+    for (const pr of pprResults) {
+      if (pr.nodeId === idea.id) continue;
+      if (!ideaIds.has(pr.nodeId)) continue;
+      if (pr.score < 0.01) continue;
+      const key = [idea.id < pr.nodeId ? idea.id : pr.nodeId, idea.id < pr.nodeId ? pr.nodeId : idea.id].join(':');
+      if (existingEdgeSet.has(key) || newEdgeSet.has(key)) continue;
+      pprCandidates.push({ id: pr.nodeId, score: pr.score });
+      if (pprCandidates.length >= 10) break;
+    }
+
+    if (pprCandidates.length > 0) pprNodes++;
+
+    // Jaccard fallback: if node had < 2 related_to edges at start AND PPR gave < 2 candidates
+    let jaccardCandidates: Array<{ id: string; score: number }> = [];
+    const startRelatedCount = startEdgeCounts.get(idea.id) || 0;
+    if (startRelatedCount < 2 && pprCandidates.length < 2) {
+      jaccardFallbacks++;
+      const ideaTokens = tokenized.get(idea.id)!;
+      const scored: Array<{ id: string; score: number }> = [];
+      for (const other of ideas) {
+        if (other.id === idea.id) continue;
+        const key = [idea.id < other.id ? idea.id : other.id, idea.id < other.id ? other.id : idea.id].join(':');
+        if (existingEdgeSet.has(key) || newEdgeSet.has(key)) continue;
+        const sim = jaccardSimilarity(ideaTokens, tokenized.get(other.id)!);
+        if (sim >= threshold) {
+          scored.push({ id: other.id, score: sim });
+        }
       }
+      scored.sort((a, b) => b.score - a.score);
+      jaccardCandidates = scored.slice(0, 10);
+    }
+
+    // Merge candidates: PPR first, then Jaccard additions
+    const allCandidates = [...pprCandidates];
+    const addedIds = new Set(pprCandidates.map(c => c.id));
+    for (const jc of jaccardCandidates) {
+      if (!addedIds.has(jc.id)) {
+        allCandidates.push(jc);
+        addedIds.add(jc.id);
+      }
+    }
+
+    // Create edges respecting maxEdgesPerNode
+    for (const candidate of allCandidates) {
+      const fromCount = edgeCounts.get(idea.id) || 0;
+      const toCount = edgeCounts.get(candidate.id) || 0;
+      if (fromCount >= maxEdges || toCount >= maxEdges) continue;
+
+      const key = [idea.id < candidate.id ? idea.id : candidate.id, idea.id < candidate.id ? candidate.id : idea.id].join(':');
+      if (existingEdgeSet.has(key) || newEdgeSet.has(key)) continue;
+
+      result = addEdge(result, {
+        from: idea.id,
+        to: candidate.id,
+        type: 'related_to',
+        metadata: {
+          agent: 'linkRelatedIdeas',
+          timestamp: now,
+        },
+      });
+
+      newEdgeSet.add(key);
+      edgeCounts.set(idea.id, fromCount + 1);
+      edgeCounts.set(candidate.id, toCount + 1);
+      newEdgesCount++;
     }
   }
 
-  // Sort by similarity (highest first) to prioritize best matches
-  candidates.sort((a, b) => b.similarity - a.similarity);
-
-  let result = graph;
-  const now = new Date().toISOString();
-
-  for (const candidate of candidates) {
-    const fromCount = edgeCounts.get(candidate.from) || 0;
-    const toCount = edgeCounts.get(candidate.to) || 0;
-
-    // Skip if either node is at max edges
-    if (fromCount >= maxEdges || toCount >= maxEdges) continue;
-
-    // Skip if edge already exists (check result.edges which grows as we add)
-    if (result.edges.some(e =>
-      (e.from === candidate.from && e.to === candidate.to) ||
-      (e.from === candidate.to && e.to === candidate.from)
-    )) continue;
-
-    // Add the edge
-    result = addEdge(result, {
-      from: candidate.from,
-      to: candidate.to,
-      type: 'related_to',
-      metadata: {
-        agent: 'linkRelatedIdeas',
-        timestamp: now,
-      },
-    });
-
-    edgeCounts.set(candidate.from, fromCount + 1);
-    edgeCounts.set(candidate.to, toCount + 1);
-  }
+  logger.info('linkRelatedIdeas completed', { pprNodes, jaccardFallbacks, newEdges: newEdgesCount });
 
   return result;
 }

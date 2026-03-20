@@ -7,6 +7,7 @@ import {
   addNode,
   addEdge,
   updateNode,
+  pprQuery,
   type KnowledgeGraph,
   type KGNode,
   type NodeType,
@@ -216,18 +217,48 @@ export function graphToolDefinitions(): Anthropic.Tool[] {
         required: ['neuron_node_id'],
       },
     },
+    {
+      name: 'graph_ppr',
+      description:
+        'Find related nodes using graph structure (Personalized PageRank). ' +
+        'Starts from seed nodes and walks the graph — finds connections that keyword search misses.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          seed_ids: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Node IDs to start from (at least 1)',
+          },
+          limit: {
+            type: 'number',
+            description: 'Max results (default 10)',
+          },
+          type: {
+            type: 'string',
+            enum: ['pattern', 'error', 'technique', 'run', 'agent', 'idea'],
+            description: 'Filter result type',
+          },
+          min_score: {
+            type: 'number',
+            description: 'Minimum PPR score threshold (default 0.01)',
+          },
+        },
+        required: ['seed_ids'],
+      },
+    },
   ];
 }
 
 /** Check if a tool name is one of the graph tools. */
 export function isGraphTool(name: string): boolean {
-  return ['graph_query', 'graph_traverse', 'graph_assert', 'graph_update', 'graph_semantic_search', 'graph_cross_ref'].includes(name);
+  return ['graph_query', 'graph_traverse', 'graph_assert', 'graph_update', 'graph_semantic_search', 'graph_cross_ref', 'graph_ppr'].includes(name);
 }
 
 /** Return only the read-only graph tools (query + traverse + semantic search). */
 export function graphReadToolDefinitions(): Anthropic.Messages.Tool[] {
   return graphToolDefinitions().filter((t) =>
-    ['graph_query', 'graph_traverse', 'graph_semantic_search'].includes(t.name),
+    ['graph_query', 'graph_traverse', 'graph_semantic_search', 'graph_ppr'].includes(t.name),
   );
 }
 
@@ -266,6 +297,8 @@ export async function executeGraphTool(
       return executeGraphSemanticSearch(input, ctx);
     case 'graph_cross_ref':
       return executeGraphCrossRef(input, ctx);
+    case 'graph_ppr':
+      return executeGraphPpr(input, ctx);
     default:
       throw new Error(`Unknown graph tool: ${toolName}`);
   }
@@ -556,4 +589,43 @@ async function executeGraphCrossRef(
       error: `Failed to search Aurora: ${error instanceof Error ? error.message : error}`,
     });
   }
+}
+
+async function executeGraphPpr(
+  input: Record<string, unknown>,
+  ctx: GraphToolContext,
+): Promise<string> {
+  const graph = await loadGraph(ctx.graphPath);
+  const seedIds = input.seed_ids as string[];
+  const limit = input.limit as number | undefined;
+  const type = input.type as NodeType | undefined;
+  const minScore = input.min_score as number | undefined;
+
+  // pprQuery throws on invalid input - let it propagate for agent tools
+  const results = pprQuery(graph, seedIds, {
+    limit: limit ? limit * 3 : 30,
+    minScore,
+  });
+
+  // Filter by type if specified (post-filter since pprQuery only supports excludeTypes)
+  const filtered = type ? results.filter(r => r.node.type === type) : results;
+  const limited = filtered.slice(0, limit ?? 10);
+
+  const output = limited.map(r => ({
+    id: r.node.id,
+    title: r.node.title,
+    type: r.node.type,
+    score: r.score,
+    confidence: r.node.confidence,
+  }));
+
+  await ctx.audit.log({
+    ts: new Date().toISOString(),
+    role: ctx.agent as AuditEntry['role'],
+    tool: 'graph_ppr',
+    allowed: true,
+    note: `PPR from ${seedIds.join(',')} returned ${output.length} nodes`,
+  });
+
+  return JSON.stringify(output, null, 2);
 }

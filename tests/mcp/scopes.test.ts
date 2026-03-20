@@ -111,6 +111,9 @@ vi.mock('../../src/mcp/tools/ideas.js', () => ({
 vi.mock('../../src/mcp/tools/neuron-help.js', () => ({
   registerNeuronHelpTool: vi.fn(),
 }));
+vi.mock('../../src/mcp/tools/graph-ppr.js', () => ({
+  registerGraphPprTool: vi.fn(),
+}));
 
 /* Mock job-runner — needed by wrapToolsWithNotification in server.ts */
 vi.mock('../../src/aurora/job-runner.js', () => ({

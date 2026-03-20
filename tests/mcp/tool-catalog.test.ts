@@ -16,13 +16,13 @@ describe('VALID_CATEGORIES', () => {
 });
 
 describe('TOOL_CATALOG', () => {
-  it('contains exactly 43 entries (37 MCP + 6 CLI-only)', () => {
-    expect(TOOL_CATALOG).toHaveLength(43);
+  it('contains exactly 44 entries (38 MCP + 6 CLI-only)', () => {
+    expect(TOOL_CATALOG).toHaveLength(44);
   });
 
-  it('has 37 MCP tools (with exampleMcp)', () => {
+  it('has 38 MCP tools (with exampleMcp)', () => {
     const mcpTools = TOOL_CATALOG.filter(t => t.exampleMcp !== undefined);
-    expect(mcpTools).toHaveLength(37);
+    expect(mcpTools).toHaveLength(38);
   });
 
   it('has 6 CLI-only tools (without exampleMcp)', () => {
@@ -79,7 +79,7 @@ describe('TOOL_CATALOG', () => {
     }
   });
 
-  it('contains all 37 expected MCP tool names', () => {
+  it('contains all 38 expected MCP tool names', () => {
     const expectedMcpNames = [
       'aurora_search', 'aurora_ask', 'aurora_status',
       'aurora_timeline', 'aurora_briefing', 'aurora_suggest_research', 'aurora_morning_briefing',
@@ -91,7 +91,7 @@ describe('TOOL_CATALOG', () => {
       'aurora_freshness', 'aurora_cross_ref', 'aurora_confidence_history', 'aurora_check_deps',
       'aurora_obsidian_export', 'aurora_obsidian_import',
       'neuron_runs', 'neuron_start', 'neuron_costs',
-      'neuron_dashboard', 'neuron_run_statistics', 'neuron_knowledge', 'neuron_crossref', 'neuron_ideas',
+      'neuron_dashboard', 'neuron_run_statistics', 'neuron_knowledge', 'neuron_crossref', 'neuron_ideas', 'graph_ppr',
     ];
     const catalogNames = TOOL_CATALOG.map(t => t.name);
     for (const name of expectedMcpNames) {

@@ -79,9 +79,9 @@ describe('graph-tools', () => {
   // ── graphToolDefinitions ──────────────────────────────────────────
 
   describe('graphToolDefinitions', () => {
-    it('returns 6 tools with the expected names', () => {
+    it('returns 7 tools with the expected names', () => {
       const tools = graphToolDefinitions();
-      expect(tools).toHaveLength(6);
+      expect(tools).toHaveLength(7);
       const names = tools.map((t) => t.name);
       expect(names).toEqual([
         'graph_query',
@@ -90,6 +90,7 @@ describe('graph-tools', () => {
         'graph_update',
         'graph_semantic_search',
         'graph_cross_ref',
+        'graph_ppr',
       ]);
     });
 
@@ -114,18 +115,18 @@ describe('graph-tools', () => {
   // ── graphReadToolDefinitions ──────────────────────────────────────
 
   describe('graphReadToolDefinitions', () => {
-    it('returns only 3 read-only tools', () => {
+    it('returns only 4 read-only tools', () => {
       const tools = graphReadToolDefinitions();
-      expect(tools).toHaveLength(3);
+      expect(tools).toHaveLength(4);
       const names = tools.map((t) => t.name);
-      expect(names).toEqual(['graph_query', 'graph_traverse', 'graph_semantic_search']);
+      expect(names).toEqual(['graph_query', 'graph_traverse', 'graph_semantic_search', 'graph_ppr']);
     });
   });
 
   // ── isGraphTool ───────────────────────────────────────────────────
 
   describe('isGraphTool', () => {
-    it('returns true for all 6 graph tool names', () => {
+    it('returns true for all 7 graph tool names', () => {
       const toolNames = [
         'graph_query',
         'graph_traverse',
@@ -133,6 +134,7 @@ describe('graph-tools', () => {
         'graph_update',
         'graph_semantic_search',
         'graph_cross_ref',
+        'graph_ppr',
       ];
       for (const name of toolNames) {
         expect(isGraphTool(name)).toBe(true);
@@ -396,6 +398,100 @@ describe('graph-tools', () => {
       expect(parsed.error).toContain('Aurora unavailable');
       expect(parsed.matches).toEqual([]);
       expect(parsed.crossRefsCreated).toEqual([]);
+    });
+  });
+  // ── executeGraphPpr ─────────────────────────────────────────────
+
+  describe('executeGraphPpr', () => {
+    it('returns related nodes via PPR from seed', async () => {
+      let graph = createEmptyGraph();
+      graph = addNode(graph, makeNode({ id: 'pattern-001', title: 'Seed Pattern' }));
+      graph = addNode(graph, makeNode({ id: 'error-001', type: 'error', title: 'Related Error' }));
+      graph = addEdge(graph, {
+        from: 'pattern-001',
+        to: 'error-001',
+        type: 'solves',
+        metadata: {},
+      });
+      await saveGraph(graph, graphPath);
+
+      const result = await executeGraphTool(
+        'graph_ppr',
+        { seed_ids: ['pattern-001'] },
+        ctx,
+      );
+      const nodes = JSON.parse(result);
+      // Should return error-001 (connected via edge), but not seed itself
+      expect(Array.isArray(nodes)).toBe(true);
+      const ids = nodes.map((n: { id: string }) => n.id);
+      expect(ids).not.toContain('pattern-001'); // seeds excluded by pprQuery
+      expect(ids).toContain('error-001');
+    });
+
+    it('filters by type when specified', async () => {
+      let graph = createEmptyGraph();
+      graph = addNode(graph, makeNode({ id: 'pattern-001', title: 'Seed' }));
+      graph = addNode(graph, makeNode({ id: 'error-001', type: 'error', title: 'Error' }));
+      graph = addNode(graph, makeNode({ id: 'technique-001', type: 'technique', title: 'Tech' }));
+      graph = addEdge(graph, { from: 'pattern-001', to: 'error-001', type: 'solves', metadata: {} });
+      graph = addEdge(graph, { from: 'pattern-001', to: 'technique-001', type: 'related_to', metadata: {} });
+      await saveGraph(graph, graphPath);
+
+      const result = await executeGraphTool(
+        'graph_ppr',
+        { seed_ids: ['pattern-001'], type: 'error' },
+        ctx,
+      );
+      const nodes = JSON.parse(result);
+      expect(nodes.every((n: { type: string }) => n.type === 'error')).toBe(true);
+    });
+
+    it('respects limit parameter', async () => {
+      let graph = createEmptyGraph();
+      graph = addNode(graph, makeNode({ id: 'pattern-001', title: 'Seed' }));
+      for (let i = 1; i <= 5; i++) {
+        const nodeId = `error-${String(i).padStart(3, '0')}`;
+        graph = addNode(graph, makeNode({ id: nodeId, type: 'error', title: `Error ${i}` }));
+        graph = addEdge(graph, { from: 'pattern-001', to: nodeId, type: 'solves', metadata: {} });
+      }
+      await saveGraph(graph, graphPath);
+
+      const result = await executeGraphTool(
+        'graph_ppr',
+        { seed_ids: ['pattern-001'], limit: 2 },
+        ctx,
+      );
+      const nodes = JSON.parse(result);
+      expect(nodes.length).toBeLessThanOrEqual(2);
+    });
+
+    it('throws on empty seed_ids', async () => {
+      await saveGraph(createEmptyGraph(), graphPath);
+      await expect(
+        executeGraphTool('graph_ppr', { seed_ids: [] }, ctx),
+      ).rejects.toThrow('At least one seed node required');
+    });
+
+    it('returns score and confidence for each result', async () => {
+      let graph = createEmptyGraph();
+      graph = addNode(graph, makeNode({ id: 'pattern-001', title: 'Seed' }));
+      graph = addNode(graph, makeNode({ id: 'error-001', type: 'error', title: 'E1', confidence: 0.8 }));
+      graph = addEdge(graph, { from: 'pattern-001', to: 'error-001', type: 'solves', metadata: {} });
+      await saveGraph(graph, graphPath);
+
+      const result = await executeGraphTool(
+        'graph_ppr',
+        { seed_ids: ['pattern-001'] },
+        ctx,
+      );
+      const nodes = JSON.parse(result);
+      if (nodes.length > 0) {
+        expect(nodes[0]).toHaveProperty('score');
+        expect(nodes[0]).toHaveProperty('confidence');
+        expect(nodes[0]).toHaveProperty('id');
+        expect(nodes[0]).toHaveProperty('title');
+        expect(nodes[0]).toHaveProperty('type');
+      }
     });
   });
 });

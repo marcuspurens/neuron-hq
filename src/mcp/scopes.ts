@@ -60,6 +60,7 @@ import { registerKnowledgeTool } from './tools/knowledge.js';
 import { registerCrossRefLookupTool } from './tools/crossref-lookup.js';
 import { registerIdeasTool } from './tools/ideas.js';
 import { registerNeuronHelpTool } from './tools/neuron-help.js';
+import { registerGraphPprTool } from './tools/graph-ppr.js';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -383,6 +384,7 @@ export const SCOPES: Record<string, ServerScope> = {
       registerCrossRefLookupTool(server);
       registerIdeasTool(server);
       registerNeuronHelpTool(server);
+      registerGraphPprTool(server);
 
       server.prompt(
         'dashboard',

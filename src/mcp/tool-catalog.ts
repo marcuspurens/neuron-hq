@@ -343,6 +343,13 @@ export const TOOL_CATALOG: ToolEntry[] = [
     exampleMcp: '{}',
     exampleCli: 'npx tsx src/cli.ts ideas',
   },
+  {
+    name: 'graph_ppr',
+    description: 'Hitta relaterade noder via grafstruktur med Personalized PageRank (PPR)',
+    category: 'analys',
+    keywords: ['graf', 'pagerank', 'ppr', 'relaterade', 'kopplingar', 'graph', 'related'],
+    exampleMcp: '{ "seed_ids": ["idea-042"], "limit": 5 }',
+  },
 
   // ── CLI-only commands (no MCP equivalent) ────────────────────────
   {
