@@ -4,12 +4,12 @@ import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import * as readline from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
-import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { execSync } from 'node:child_process';
 import { TargetsManager } from '../targets.js';
 import { trimMessages, withRetry } from './agent-utils.js';
 import { createLogger } from '../logger.js';
+import { buildRepoContext, loadExampleBriefs } from './brief-context.js';
 const logger = createLogger('agent:brief');
 
 /**
@@ -56,14 +56,14 @@ export class BriefAgent {
       const { client: anthropic, model: briefModel, maxTokens: briefMaxTokens } = createAgentClient(config);
       this.briefModel = briefModel;
       this.briefMaxTokens = briefMaxTokens;
-      const systemPrompt = this.loadSystemPrompt();
+      const systemPrompt = readFileSync(join(this.baseDir, 'prompts', 'brief-agent.md'), 'utf-8');
       const overlay = await loadOverlay(this.baseDir, {
         model: this.briefModel,
         role: 'brief-agent',
       });
       const overlayedSystemPrompt = mergePromptWithOverlay(systemPrompt, overlay);
-      const repoContext = this.getRepoContext();
-      const exampleBriefs = this.loadExampleBriefs();
+      const repoContext = buildRepoContext(this.baseDir);
+      const exampleBriefs = loadExampleBriefs(this.baseDir);
       const today = new Date().toISOString().slice(0, 10);
 
       const fullSystemPrompt = [
@@ -176,59 +176,6 @@ export class BriefAgent {
     writeFileSync(fullPath, briefContent, 'utf-8');
 
     return fullPath;
-  }
-
-  private getRepoContext(): string {
-    const parts: string[] = [];
-
-    try {
-      const tree = execSync('find . -maxdepth 3 -type f | head -80', {
-        cwd: this.baseDir,
-        encoding: 'utf-8',
-        timeout: 5000,
-      });
-      parts.push('## File tree (top 80 files)\n```\n' + tree.trim() + '\n```');
-    } catch {  /* intentional: file tree command may fail */
-      parts.push('## File tree\n(could not read)');
-    }
-
-    try {
-      const log = execSync('git log --oneline -5', {
-        cwd: this.baseDir,
-        encoding: 'utf-8',
-        timeout: 5000,
-      });
-      parts.push('## Recent git history\n```\n' + log.trim() + '\n```');
-    } catch {  /* intentional: git log may fail */
-      parts.push('## Recent git history\n(could not read)');
-    }
-
-    return parts.join('\n\n');
-  }
-
-  private loadSystemPrompt(): string {
-    const promptPath = join(this.baseDir, 'prompts', 'brief-agent.md');
-    return readFileSync(promptPath, 'utf-8');
-  }
-
-  private loadExampleBriefs(): string {
-    const briefsDir = join(this.baseDir, 'briefs');
-    try {
-      const files = readdirSync(briefsDir)
-        .filter((f) => f.endsWith('.md'))
-        .sort()
-        .reverse()
-        .slice(0, 2);
-
-      return files
-        .map((f) => {
-          const content = readFileSync(join(briefsDir, f), 'utf-8');
-          return `### ${f}\n\n${content}`;
-        })
-        .join('\n\n---\n\n');
-    } catch {  /* intentional: no example briefs directory */
-      return '(no example briefs found)';
-    }
   }
 }
 

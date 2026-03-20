@@ -33,6 +33,7 @@ import {
 } from './commands/index.js';
 import { scaffoldCommand } from './commands/scaffold.js';
 import { runBriefAgent } from './core/agents/brief-agent.js';
+import { runBriefReview } from './core/agents/brief-reviewer.js';
 import { auroraStatusCommand } from './commands/aurora-status.js';
 import { auroraDecayCommand } from './commands/aurora-decay.js';
 import { auroraIngestCommand } from './commands/aurora-ingest.js';
@@ -123,6 +124,15 @@ program
   .description('Start an interactive session to create a brief')
   .action(async (target: string) => {
     await runBriefAgent(target);
+  });
+
+program
+  .command('brief-review <target> <briefFile>')
+  .description('Review a brief file using Brief Reviewer (non-interactive, multi-turn)')
+  .option('--reply <text>', 'Author response to continue the review dialogue')
+  .option('--conversation <path>', 'Path to existing conversation file for multi-turn')
+  .action(async (target: string, briefFile: string, opts: { reply?: string; conversation?: string }) => {
+    await runBriefReview(target, briefFile, opts);
   });
 
 // Monitor command
