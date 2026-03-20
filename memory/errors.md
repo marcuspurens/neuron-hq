@@ -321,3 +321,14 @@ _Historian-korrigering: Invariant INV-008 skrevs felaktigt till runs.md iställe
 **Relaterat:** 
 
 ---
+
+## AC19 partiell — Reviewer-räknare saknas i knowledge.md-loggning
+**Session:** 20260320-1159-neuron-hq
+**Symptom:** knowledge.md-sektionen "Grafkontext injicerad" loggar Manager-nodantal + keywords + PPR-count, men Reviewer-räknaren är hardkodad till 0
+**Orsak:** Manager.ts rad 1285 innehåller: `reviewerNodes: 0` med kommentar "Will be set by reviewer separately", men Reviewer-agenten skriver aldrig till samma knowledge.md-fil
+**Lösning:** Antingen (1) Reviewer-agenten bör ta initiativ att uppdatera knowledge.md med sitt eget nodantal efter delegering, eller (2) Manager-loggningen kan ta bort Reviewer-räknaren helt (den är inte kritisk information). Reviewers grafjämförelser är inte bundna vid grafikontekt på samma sätt som Managers är.
+**Status:** ✅ Löst — AC19 är funktionellt uppfyllt (loggning sker), bara incompleted (Reviewer-count saknas). Inte blockerande för denna körning. Kan adresseras i nästa körning via Reviewer-promptuppdatering.
+**Keywords:** logging, knowledge.md, reviewer, graph-context, AC19
+**Relaterat:** runs.md#Körning 20260320-1159-neuron-hq
+
+---

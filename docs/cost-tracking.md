@@ -1,18 +1,18 @@
 # Neuron HQ — Körningshistorik & Kostnader
 
-Genererad: 2026-03-20 06:54  
-Antal körningar: 169  
+Genererad: 2026-03-20 12:37  
+Antal körningar: 171  
 Prismodell: Sonnet 4.5 — $3/MTok input, $15/MTok output
 
 ## Sammanfattning
 
 | Mått | Värde |
 |------|-------|
-| Körningar | 169 |
-| GREEN | 110 |
-| Totala tokens | 1054.2M |
-| Total kostnad | $3298.48 |
-| Snitt per körning | $19.52 |
+| Körningar | 171 |
+| GREEN | 112 |
+| Totala tokens | 1080.1M |
+| Total kostnad | $3379.08 |
+| Snitt per körning | $19.76 |
 | Billigaste | $0.00 |
 | Dyraste | $68.28 |
 
@@ -189,17 +189,19 @@ Prismodell: Sonnet 4.5 — $3/MTok input, $15/MTok output
 | 167 | 2026-03-19 | 16:37 | 1.3: Morgon-briefing i Obsidian | GREEN | Sonnet 4.5 | 14.6M | 0.07M | 14.7M | $44.91 | 8 | 29m |
 | 168 | 2026-03-19 | 21:18 | 1.4: Loggkörningsbok ("Körningsber… | GREEN | Sonnet 4.5 | 19.3M | 0.16M | 19.5M | $60.29 | 8 | 44m |
 | 169 | 2026-03-20 | 06:22 | 1.6: neuron_help — verktygsguide f… | GREEN | Sonnet 4.5 | 9.8M | 0.09M | 9.9M | $30.82 | 6 | 32m |
+| 170 | 2026-03-20 | 10:39 | 2.1 HippoRAG — Personalized PageRa… | GREEN | Sonnet 4.5 | 13.0M | 0.11M | 13.2M | $40.78 | 6 | 40m |
+| 171 | 2026-03-20 | 11:59 | 2.2 Feedback-loop — agenter måste … | GREEN | Sonnet 4.5 | 12.7M | 0.12M | 12.8M | $39.82 | 6 | 38m |
 
 ## Kostnad per agent (genomsnitt)
 
 | Agent | Snitt tokens | Kostnad/körning | Andel |
 |-------|------------:|----------------:|------:|
-| manager | 1.93M | $5.95 | 30.3% |
-| implementer | 2.24M | $7.12 | 32.4% |
-| reviewer | 1.11M | $3.42 | 15.9% |
+| manager | 1.94M | $5.99 | 30.1% |
+| implementer | 2.29M | $7.29 | 32.8% |
+| reviewer | 1.12M | $3.45 | 15.8% |
 | tester | 0.19M | $0.60 | 2.7% |
-| merger | 0.22M | $0.73 | 3.3% |
-| researcher | 0.92M | $2.94 | 2.9% |
-| historian | 0.61M | $1.87 | 9.1% |
-| librarian | 0.45M | $1.41 | 1.4% |
+| merger | 0.22M | $0.74 | 3.2% |
+| researcher | 0.92M | $2.94 | 2.8% |
+| historian | 0.62M | $1.90 | 9.1% |
+| librarian | 0.45M | $1.41 | 1.3% |
 | consolidator | 2.09M | $6.40 | 2.1% |

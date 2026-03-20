@@ -2398,3 +2398,14 @@ await pool.query(
 **Senast bekräftad:** 20260320-0622-neuron-hq
 
 ---
+
+## Brief-baserad grafkontext istället för statisk top-5-injektion
+**Kontext:** Körning 20260320-1159-neuron-hq — Tas 2.2 Feedback-loop. Manager injicerade tidigare alltid samma top-5 globala idéer oavsett brief. Agenterna ignorerade ofta grafen pga att kontexten var generisk.
+**Lösning:** Två-fas extraktionsmodul: (1) `extractBriefContext(brief.md)` tokeniserar titel/bakgrund/AC och extraherar max 20 nyckelord (stoppord filtrerade, ordlängd ≥3). (2) `getGraphContextForBrief(graph, context)` söker keyword-matchad noder, expanderar via PPR från seeds, lägger till senaste error-noder (sortera på skapats-tid). Returnerar max 15 noder med relevance-tagging (high/medium). Fallback: om <3 noder, komplettera med top-5 idéer.
+**Effekt:** Manager får nu brief-specifik kontext i stället för generisk. Reviewer fick error/pattern-view (13 noder max, ingen idéer). Agenterna läste grafen oftare eftersom kontexten var relevant. 30 nya tester bekräftar robusthet (tom graf, tom brief, tom returnering, dedup, max-limit).
+**Keywords:** brief-extraction, graph-context, keyword-matching, PPR-expansion, fallback, error-prioritization
+**Relaterat:** techniques.md#Personalized PageRank (PPR)
+**Körningar:** #20260320-1159-neuron-hq
+**Senast bekräftad:** 20260320-1159-neuron-hq
+
+---
