@@ -108,6 +108,9 @@ vi.mock('../../src/mcp/tools/crossref-lookup.js', () => ({
 vi.mock('../../src/mcp/tools/ideas.js', () => ({
   registerIdeasTool: vi.fn(),
 }));
+vi.mock('../../src/mcp/tools/neuron-help.js', () => ({
+  registerNeuronHelpTool: vi.fn(),
+}));
 
 /* Mock job-runner — needed by wrapToolsWithNotification in server.ts */
 vi.mock('../../src/aurora/job-runner.js', () => ({
@@ -121,6 +124,7 @@ import { registerAuroraSearchTool } from '../../src/mcp/tools/aurora-search.js';
 import { registerAuroraAskTool } from '../../src/mcp/tools/aurora-ask.js';
 import { registerAuroraStatusTool } from '../../src/mcp/tools/aurora-status.js';
 import { registerRunsTool } from '../../src/mcp/tools/runs.js';
+import { registerNeuronHelpTool } from '../../src/mcp/tools/neuron-help.js';
 
 /* ------------------------------------------------------------------ */
 /*  SCOPES registry tests                                              */

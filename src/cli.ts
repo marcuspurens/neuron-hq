@@ -54,6 +54,7 @@ import { jobsCommand } from './commands/jobs.js';
 import { jobStatsCommand } from './commands/job-stats.js';
 import { auroraPolishCommand } from './commands/aurora-polish.js';
 import { auroraIdentifySpeakersCommand } from './commands/aurora-identify-speakers.js';
+import { helpToolsCommand } from './commands/help-tools.js';
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
@@ -759,6 +760,15 @@ program
       link: opts.link ?? false,
       backfill: opts.backfill ?? false,
     });
+  });
+
+// Help tools command
+program
+  .command('help-tools [question...]')
+  .description('Hitta rätt verktyg — beskriv vad du vill göra')
+  .action(async (questionParts: string[]) => {
+    const question = questionParts.length > 0 ? questionParts.join(' ') : undefined;
+    await helpToolsCommand(question, {});
   });
 
 // Only parse when run directly (not when imported by tests)

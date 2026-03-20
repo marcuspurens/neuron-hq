@@ -59,6 +59,7 @@ import { registerRunStatisticsTool } from './tools/run-statistics.js';
 import { registerKnowledgeTool } from './tools/knowledge.js';
 import { registerCrossRefLookupTool } from './tools/crossref-lookup.js';
 import { registerIdeasTool } from './tools/ideas.js';
+import { registerNeuronHelpTool } from './tools/neuron-help.js';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -381,6 +382,7 @@ export const SCOPES: Record<string, ServerScope> = {
       registerKnowledgeTool(server);
       registerCrossRefLookupTool(server);
       registerIdeasTool(server);
+      registerNeuronHelpTool(server);
 
       server.prompt(
         'dashboard',
