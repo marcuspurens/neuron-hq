@@ -36,6 +36,8 @@ import { extractDecisions } from '../decision-extractor.js';
 import { emergencySave } from '../emergency-save.js';
 import { createLogger } from '../logger.js';
 import { loadGraph, rankIdeas } from '../knowledge-graph.js';
+import { extractBriefContext } from '../brief-context-extractor.js';
+import { getGraphContextForBrief, formatGraphContextForManager } from '../graph-context.js';
 const logger = createLogger('agent:manager');
 
 
@@ -56,6 +58,15 @@ export class ManagerAgent {
   private testStatus: { testsExist: boolean; testFramework: string | null } | null = null;
   private _emittedDecisionIds = new Set<string>();
   private _accumulatedThinking = '';
+  private _graphContextLog: {
+    managerNodes: number;
+    reviewerNodes: number;
+    patterns: number;
+    errors: number;
+    ideas: number;
+    keywords: string[];
+    pprCount: number;
+  } | null = null;
 
   constructor(private ctx: RunContext, baseDir: string, librarianAutoTrigger = false, consolidationAutoTrigger = false) {
     this.baseDir = baseDir;
@@ -250,27 +261,47 @@ Stop when time limit approaches or when blockers are encountered.
       // DB not available or other error — skip adaptive hints (graceful degradation)
     }
 
-    // Top ideas from knowledge graph
-    let ideasSection = '';
+    // Brief-based graph context (replaces static top-5 ideas)
+    let graphSection = '';
     try {
       const graphPath = path.join(this.baseDir, 'memory', 'graph.json');
       const graph = await loadGraph(graphPath);
-      const topIdeas = rankIdeas(graph, { limit: 5, status: ['proposed', 'accepted'] });
-      if (topIdeas.length > 0) {
-        const ideaLines = topIdeas.map((idea, i) => {
-          const impact = (idea.properties.impact as number) || 0;
-          const effort = (idea.properties.effort as number) || 0;
-          const priority = (idea.properties.priority as number) || 0;
-          const group = (idea.properties.group as string) || '';
-          return `${i + 1}. **${idea.title}** (impact:${impact} effort:${effort} priority:${priority.toFixed(1)}${group ? ` group:${group}` : ''})`;
-        });
-        ideasSection = `\n\n## Relevant Ideas from Previous Runs\n\nThese are the top-ranked ideas from the knowledge graph. Consider them during planning:\n\n${ideaLines.join('\n')}\n`;
+      const briefContent = await this.ctx.artifacts.readBrief();
+      const briefContext = extractBriefContext(briefContent);
+      const graphResult = getGraphContextForBrief(graph, briefContext);
+
+      // Store graph context info for logging
+      this._graphContextLog = {
+        managerNodes: graphResult.nodes.length,
+        reviewerNodes: 0,  // Will be set by reviewer separately
+        patterns: graphResult.nodes.filter(n => n.node.type === 'pattern').length,
+        errors: graphResult.nodes.filter(n => n.node.type === 'error').length,
+        ideas: graphResult.nodes.filter(n => n.node.type === 'idea').length,
+        keywords: briefContext.keywords.slice(0, 10),
+        pprCount: graphResult.nodes.filter(n => n.source === 'ppr').length,
+      };
+      
+      const totalNodes = graphResult.nodes.length;
+      
+      if (totalNodes >= 3) {
+        // Enough brief-specific context — use it exclusively
+        graphSection = formatGraphContextForManager(graphResult);
+      } else if (totalNodes > 0) {
+        // 1-2 nodes: supplement with top-5 ideas
+        const topIdeas = rankIdeas(graph, { limit: 5, status: ['proposed', 'accepted'] });
+        graphSection = formatGraphContextForManager(graphResult, topIdeas);
+      } else {
+        // 0 nodes: fallback to top-5 ideas (existing behavior)
+        const topIdeas = rankIdeas(graph, { limit: 5, status: ['proposed', 'accepted'] });
+        if (topIdeas.length > 0) {
+          graphSection = formatGraphContextForManager({ nodes: [], summary: 'Inga relevanta noder hittades.' }, topIdeas);
+        }
+        // If no ideas either → graphSection stays empty (AC14: omit section entirely)
       }
-    } catch {  /* intentional: graph not available — skip ideas section */
-      // Graph not available — graceful degradation
+    } catch {  /* intentional: graph not available — skip graph section */
     }
 
-    return `${managerPrompt}\n\n${contextInfo}${previousContext}${adaptiveSection}${ideasSection}`;
+    return `${managerPrompt}\n\n${contextInfo}${previousContext}${adaptiveSection}${graphSection}`;
   }
 
   /**
@@ -1246,6 +1277,24 @@ Stop when time limit approaches or when blockers are encountered.
       ].join('\n');
       await this.ctx.artifacts.writeKnowledge(knowledge);
     });
+
+    // Append graph context log to knowledge.md (AC19, AC20)
+    try {
+      const log = this._graphContextLog;
+      const logLines = [
+        '## Grafkontext injicerad',
+        '',
+      ];
+      if (log) {
+        logLines.push(`- **Manager:** ${log.managerNodes} noder injicerade (${log.patterns} patterns, ${log.errors} errors, ${log.ideas} idéer)`);
+        logLines.push(`- **Keyword-matchade:** ${log.keywords.length > 0 ? log.keywords.join(', ') : '(inga)'}`);
+        logLines.push(`- **PPR-expanderade:** ${log.pprCount} noder via PPR från keyword-seeds`);
+      } else {
+        logLines.push('- **Manager:** 0 noder injicerade (graf ej tillgänglig)');
+      }
+      await this.ctx.artifacts.appendKnowledge(logLines.join('\n'));
+    } catch {  /* intentional: non-critical — do not fail the run if logging fails */
+    }
 
     // sources.md: write if researcher didn't already write it
     await this.writeIfAbsent(path.join('research', 'sources.md'), async () => {

@@ -126,6 +126,12 @@ Status: ❌ NOT VERIFIED
 - Document completion
 <!-- /ARCHIVE: two-phase -->
 
+## Kända errors från grafen
+
+Om sektionen "Kända problem och mönster" finns i din systemprompt, **kontrollera att implementationen inte upprepar kända errors listade ovan.** För varje listat error:
+1. Verifiera att det aktuella ändringen inte introducerar samma problem
+2. Om det gör det, flagga som YELLOW eller RED beroende på allvarlighet
+
 ## Blocking Criteria
 
 **MUST BLOCK if**:

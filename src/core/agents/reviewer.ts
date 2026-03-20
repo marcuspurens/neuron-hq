@@ -12,6 +12,10 @@ import { promisify } from 'util';
 import { loadPromptHierarchy, buildHierarchicalPrompt } from '../prompt-hierarchy.js';
 import { loadOverlay } from '../prompt-overlays.js';
 import { scanDiff, formatScanReport } from '../security-scan.js';
+import { extractBriefContext } from '../brief-context-extractor.js';
+import { getGraphContextForBrief } from '../graph-context.js';
+import { loadGraph } from '../knowledge-graph.js';
+import type { NodeType } from '../knowledge-graph.js';
 import { createLogger } from '../logger.js';
 const logger = createLogger('agent:reviewer');
 
@@ -131,6 +135,37 @@ export class ReviewerAgent {
       }
     }
 
+    // Brief-based graph context: errors and patterns only
+    let graphContextSection = '';
+    try {
+      const graphPath = path.join(this.baseDir, 'memory', 'graph.json');
+      const graph = await loadGraph(graphPath);
+      const briefContext = extractBriefContext(briefContent);
+      // Reviewer only sees errors and patterns — filter nodeTypes
+      const reviewerContext = {
+        ...briefContext,
+        nodeTypes: briefContext.nodeTypes.filter(t => t === 'error' || t === 'pattern') as NodeType[],
+      };
+      const graphResult = getGraphContextForBrief(graph, reviewerContext, {
+        maxNodes: 10,
+      });
+
+      if (graphResult.nodes.length > 0) {
+        const lines: string[] = [];
+        lines.push('\n## Kända problem och mönster\n');
+        lines.push('Dessa errors och patterns från tidigare körningar kan vara relevanta:\n');
+        for (const entry of graphResult.nodes) {
+          const n = entry.node;
+          const prefix = n.type === 'error' ? '[E]' : '[P]';
+          const desc = (n.properties.description as string) || '';
+          const descShort = desc.length > 80 ? desc.substring(0, 77) + '...' : desc;
+          lines.push(`- ${prefix} **${n.title}** — ${descShort}`);
+        }
+        graphContextSection = lines.join('\n');
+      }
+    } catch {  /* intentional: graph not available — skip context */
+    }
+
     const contextInfo = `
 # Run Context
 
@@ -156,7 +191,7 @@ export class ReviewerAgent {
 # Brief (Acceptance Criteria to Verify)
 
 ${briefContent}
-${handoffContent ? `\n# Implementer Handoff\n\n${handoffContent}\n` : ''}${securityContext}
+${handoffContent ? `\n# Implementer Handoff\n\n${handoffContent}\n` : ''}${securityContext}${graphContextSection}
 # Your Mission
 
 Review the current state of the workspace. For every acceptance criterion in the brief above,

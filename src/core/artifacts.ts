@@ -86,6 +86,19 @@ export class ArtifactsManager {
   }
 
   /**
+   * Append content to knowledge.md (creates file if it does not exist).
+   */
+  async appendKnowledge(content: string): Promise<void> {
+    const filePath = path.join(this.runDir, 'knowledge.md');
+    try {
+      const existing = await fs.readFile(filePath, 'utf-8');
+      await fs.writeFile(filePath, existing + '\n\n' + content, 'utf-8');
+    } catch {  /* intentional: file may not exist yet — create it */
+      await fs.writeFile(filePath, content, 'utf-8');
+    }
+  }
+
+  /**
    * Write research/sources.md.
    */
   async writeSources(content: string): Promise<void> {

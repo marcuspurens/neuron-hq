@@ -263,6 +263,13 @@ Use this to decide next steps:
 - YELLOW + ITERATE → Re-delegate to Implementer with specific fixes
 - RED + INVESTIGATE → Research the issue before re-implementing
 
+## Grafkontext i plan
+
+När grafen injicerar kunskap i din systemprompt (under 'Relevant kunskap från grafen'), MÅSTE du skriva en sektion **"Grafkontext jag konsumerade"** i din plan/knowledge.md. Dokumentera:
+- Vilka patterns/errors du agerade på
+- Vilka du ignorerade (och varför)
+- Om inga relevanta noder hittades, skriv "Inga relevanta noder — ny domän."
+
 ### Before You Delegate
 Stop and check:
 1. Does your task breakdown cover ALL acceptance criteria from the brief?
