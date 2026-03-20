@@ -311,7 +311,7 @@ Stop when time limit approaches or when blockers are encountered.
     const messages: Anthropic.MessageParam[] = [
       {
         role: 'user',
-        content: `Here is your brief:\n\n${brief}\n\nPlease proceed with planning and implementation.${this.librarianAutoTrigger ? '\n\n⚡ Auto-trigger: After Historian has completed, automatically delegate to Librarian for an arxiv knowledge update.' : ''}${this.consolidationAutoTrigger ? '\n\n⚡ Consolidation-trigger: After Historian completes, delegate to Consolidator for knowledge graph consolidation before Librarian.' : ''}`,
+        content: `Here is your brief:\n\n${brief}\n\nPlease proceed with planning and implementation.${this.librarianAutoTrigger ? '\n\n⚡ Auto-trigger: After Historian has completed, automatically delegate to Researcher for an arxiv knowledge update.' : ''}${this.consolidationAutoTrigger ? '\n\n⚡ Consolidation-trigger: After Historian completes, delegate to Consolidator for knowledge graph consolidation before Librarian.' : ''}`,
       },
     ];
 
@@ -579,7 +579,10 @@ Stop when time limit approaches or when blockers are encountered.
       {
         name: 'delegate_to_researcher',
         description:
-          'Delegate research and idea generation to the Researcher agent. Use at the start of a run or when exploring unknowns.',
+          'Delegate external research to the Researcher agent. ' +
+          'The Researcher searches arxiv and documentation for recent AI techniques ' +
+          'and writes new findings to memory/techniques.md. ' +
+          'Call this on milestone runs or when the user requests a knowledge update.',
         input_schema: {
           type: 'object',
           properties: {},
@@ -622,10 +625,10 @@ Stop when time limit approaches or when blockers are encountered.
       {
         name: 'delegate_to_librarian',
         description:
-          'Delegate research to the Librarian agent. ' +
-          'The Librarian searches arxiv and Anthropic docs for recent AI techniques ' +
-          'and writes new findings to memory/techniques.md. ' +
-          'Call this manually when the user requests a knowledge update.',
+          'Delegate per-run research to the Librarian agent. ' +
+          'The Librarian searches the codebase, memory, and web for run-relevant insights ' +
+          'and writes research_brief.md. ' +
+          'Use at the start of a run or when exploring unknowns.',
         input_schema: {
           type: 'object',
           properties: {},
@@ -1129,42 +1132,42 @@ Stop when time limit approaches or when blockers are encountered.
   }
 
   /**
-   * Delegate research to the Researcher agent.
+   * Delegate external research (arxiv, papers) to the Researcher agent.
    */
   private async delegateToResearcher(): Promise<string> {
-    logger.info('Delegating to Researcher agent...');
+    logger.info('Delegating to Researcher agent (external research, arxiv)...');
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
       role: 'manager',
       tool: 'delegate_to_researcher',
       allowed: true,
-      note: 'Delegating research to Researcher agent',
+      note: 'Delegating external research (arxiv, techniques) to Researcher agent',
     });
     eventBus.safeEmit('agent:start', { runid: this.ctx.runid, agent: 'researcher' });
     const researcher = new ResearcherAgent(this.ctx, this.baseDir);
     await researcher.run();
     eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'researcher' });
     this._emitLiveDecisions();
-    return 'Researcher agent completed successfully.';
+    return 'Researcher agent completed. New techniques may have been added to memory/techniques.md.';
   }
 
   /**
-   * Delegate run summary writing to the Historian agent.
+   * Delegate per-run research (codebase, memory, web) to the Librarian agent.
    */
   private async delegateToLibrarian(): Promise<string> {
-    logger.info('Delegating to Librarian agent...');
+    logger.info('Delegating to Librarian agent (per-run research)...');
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
       role: 'manager',
       tool: 'delegate_to_librarian',
       allowed: true,
-      note: 'Delegating research to Librarian agent',
+      note: 'Delegating per-run research to Librarian agent',
     });
     eventBus.safeEmit('agent:start', { runid: this.ctx.runid, agent: 'librarian' });
     const librarian = new LibrarianAgent(this.ctx, this.baseDir);
     await librarian.run();
     eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'librarian' });
-    return 'Librarian agent completed. New techniques may have been added to memory/techniques.md.';
+    return 'Librarian agent completed. See research_brief.md in runs directory.';
   }
 
   private async delegateToConsolidator(): Promise<string> {
