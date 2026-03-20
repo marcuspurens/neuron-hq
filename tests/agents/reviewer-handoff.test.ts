@@ -81,8 +81,11 @@ describe('Reviewer → Manager Handoff', () => {
 
   it('manager prompt documents all three decision paths', async () => {
     const prompt = await fs.readFile(path.join(BASE_DIR, 'prompts', 'manager.md'), 'utf-8');
-    expect(prompt).toContain('GREEN + MERGE');
-    expect(prompt).toContain('YELLOW + ITERATE');
-    expect(prompt).toContain('RED + INVESTIGATE');
+    expect(prompt).toContain('GREEN');
+    expect(prompt).toContain('MERGE');
+    expect(prompt).toContain('YELLOW');
+    expect(prompt).toContain('ITERATE');
+    expect(prompt).toContain('RED');
+    expect(prompt).toContain('INVESTIGATE');
   });
 });

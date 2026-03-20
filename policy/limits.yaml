@@ -53,9 +53,7 @@ agent_models:
   historian:
     provider: anthropic
     model: claude-haiku-4-5-20251001
-  librarian:
-    provider: anthropic
-    model: claude-haiku-4-5-20251001
+  # librarian uses default (Sonnet) — per-run codebase analysis needs stronger model
 
 # Knowledge Manager auto-scheduling
 km_auto:

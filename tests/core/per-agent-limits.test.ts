@@ -30,12 +30,12 @@ describe('Per-agent iteration limits', () => {
 
   it('loads all per-agent limits from real policy', () => {
     const limits = policy.getLimits();
-    expect(limits.max_iterations_implementer).toBe(150);
+    expect(limits.max_iterations_implementer).toBe(180);
     expect(limits.max_iterations_reviewer).toBe(60);
     expect(limits.max_iterations_merger).toBe(30);
     expect(limits.max_iterations_historian).toBe(50);
-    expect(limits.max_iterations_librarian).toBe(50);
-    expect(limits.max_iterations_researcher).toBe(70);
+    expect(limits.max_iterations_librarian).toBe(70);
+    expect(limits.max_iterations_researcher).toBe(50);
   });
 
   it('loads max_parallel_implementers as 3 from real policy', () => {

@@ -229,8 +229,8 @@ describe('Integration: manager.md', () => {
     // The reconstructed prompt should contain all the same headings/keywords
     expect(reconstructed).toContain('Task Planning');
     expect(reconstructed).toContain('Knowledge Graph');
-    expect(reconstructed).toContain('After Researcher Completes');
-    expect(reconstructed).toContain('Auto-trigger Librarian');
+    expect(reconstructed).toContain('After Librarian Completes');
+    expect(reconstructed).toContain('Auto-trigger Researcher');
     expect(reconstructed).toContain('Meta-trigger');
     expect(reconstructed).toContain('no tests');
   });

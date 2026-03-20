@@ -38,9 +38,10 @@ describe('verification-gate', () => {
     expect(prompt).toMatch(/Before You Delegate/);
   });
 
-  it('Implementer prompt contains "Before You Report Done"', () => {
+  it('Implementer prompt contains self-check and quality checklist', () => {
     const prompt = readFileSync(join(__dirname, '../../prompts/implementer.md'), 'utf-8');
-    expect(prompt).toMatch(/Before You Report Done/);
+    expect(prompt).toMatch(/Quality Checklist.*Required Before Marking Done/);
+    expect(prompt).toMatch(/Self-Check/);
   });
 
   it('Reviewer prompt contains "Before You Write Your Verdict"', () => {
