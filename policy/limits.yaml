@@ -9,7 +9,7 @@ verification_timeout_seconds: 1800  # 30 minutes for full test suite
 # Iteration limits
 max_iterations_per_run: 50  # Maximum agent iterations before forced stop
 max_iterations_manager: 230
-max_iterations_implementer: 150
+max_iterations_implementer: 180
 max_iterations_reviewer: 60
 max_iterations_tester: 30
 max_iterations_merger: 30
