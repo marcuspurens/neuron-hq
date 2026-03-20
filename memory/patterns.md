@@ -2354,3 +2354,36 @@ await pool.query(
 **Senast bekräftad:** 20260319-1327-neuron-hq
 
 ---
+
+## Event-collector + AI-with-fallback för robusta genererings-features
+**Kontext:** Körning 20260319-2118. Behov att bygga körningsberättelse-generator som kan hantera variabel mängd data och API-fel utan att kracha.
+**Lösning:** Tvåsteg-arkitektur: (1) Lättviktig event-collector prenumererar på EventBus under körningen, lagrar kronologiska entries med trunkering (max 500, detail ≤200 tecken). (2) Genererings-modul använder AI (Haiku) för syntes, men fallback till regelbaserad rendering när Haiku timeout/fails. Data trimmas intelligent före API-anrop (max 50 entries / 30K tecken) för att hålla inom token-budget.
+**Effekt:** Robusthet — system fungerar även om Haiku är nere eller långsam. Läsbarhet — AI-narrative är bättre än platt lista. Minneseffektivitet — collector är lättviktig (<100KB även i långa körningar).
+**Keywords:** event-collector, fallback, ai-resilience, narrative-generation, eventbus-pattern
+**Relaterat:** patterns.md#Data-trimming för AI-prompts
+**Körningar:** #20260319-2118-neuron-hq
+**Senast bekräftad:** 20260319-2118-neuron-hq
+
+---
+
+## Event-Collector + AI-with-Fallback för robusta genererings-features
+**Kontext:** Körning 20260319-2118-neuron-hq implementerade körningsberättelse-generator (run-narrative.md)
+**Lösning:** Tvåstegs-arkitektur: (1) Lättviktig NarrativeCollector prenumererar på EventBus under körningen, lagrar kronologiska entries med automatisk trunkering (max 500 entries, detail-fält ≤200 tecken). (2) Genererings-modul använder Claude Haiku för AI-syntes med max 2048 tokens och 60s timeout, men fallback till regelbaserad rendering (narrateDecisionSimple + narrateEvent) när Haiku timeout/fails. Data trimmas intelligellt före Haiku-anrop (max 50 entries / 30K tecken) för att hålla inom token-budget.
+**Effekt:** Robusthet — systemet fungerar även om Haiku är nere eller långsam. Läsbarhet — AI-narrative är betydligt bättre än platt lista av events. Minneseffektivitet — collector är lättviktig (<100KB även i långa körningar, 500 entries = ~100KB). Fallback-vägen är produktionsklar — ingen "Sorry, AI failed" message visar för användaren.
+**Keywords:** event-collector, fallback-rendering, ai-resilience, narrative-generation, eventbus, tokenbudget
+**Relaterat:** patterns.md#Separation av concerns: ask (syntes) vs search (hämtning)
+**Körningar:** #20260319-2118-neuron-hq
+**Senast bekräftad:** 20260319-2118-neuron-hq
+
+---
+
+## Event-Collector + AI-with-Fallback för robusta genererings-features
+**Kontext:** Körning 20260319-2118-neuron-hq implementerade körningsberättelse-generator (run-narrative.md)
+**Lösning:** Tvåstegs-arkitektur: (1) Lättviktig NarrativeCollector prenumererar på EventBus under körningen, lagrar kronologiska entries med automatisk trunkering (max 500 entries, detail-fält ≤200 tecken). (2) Genererings-modul använder Claude Haiku för AI-syntes med max 2048 tokens och 60s timeout, men fallback till regelbaserad rendering (narrateDecisionSimple + narrateEvent) när Haiku timeout/fails. Data trimmas intelligellt före Haiku-anrop (max 50 entries / 30K tecken) för att hålla inom token-budget.
+**Effekt:** Robusthet — systemet fungerar även om Haiku är nere eller långsam. Läsbarhet — AI-narrative är betydligt bättre än platt lista av events. Minneseffektivitet — collector är lättviktig (<100KB även i långa körningar, 500 entries = ~100KB). Fallback-vägen är produktionsklar — ingen "Sorry, AI failed" message visar för användaren.
+**Keywords:** event-collector, fallback-rendering, ai-resilience, narrative-generation, eventbus, tokenbudget, separation-of-concerns
+**Relaterat:** patterns.md#Separation av concerns: ask (syntes) vs search (hämtning)
+**Körningar:** #20260319-2118-neuron-hq
+**Senast bekräftad:** 20260319-2118-neuron-hq
+
+---
