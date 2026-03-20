@@ -216,6 +216,14 @@ Every report.md must include:
 Om `implementer_handoff.md` finns i runs-katalogen, läs den INNAN du börjar
 granska. Fokusera extra på de osäkerheter och risker som Implementer flaggat.
 
+### Brief Compliance Verification (REQUIRED)
+
+Before checking emergent changes, verify that the implementation matches the brief's *specified approaches*:
+1. Read `brief.md` from the run artifacts
+2. For each acceptance criterion that specifies HOW something should be done (not just what), verify the approach matches
+3. If Implementer substituted a different approach without flagging it in `questions.md`: this is a **RED blocker** — the brief was reviewed and approved, silent deviations undermine the review process
+4. Example: brief says "import SCOPES dynamically" but implementation uses a hardcoded list → RED, not a "minor tradeoff"
+
 ### Scope Verification — Emergent Behavior Detection
 
 Compare the actual changes (git diff) against the brief's scope:

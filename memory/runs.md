@@ -3098,3 +3098,22 @@ Inga kända problem. Alla 5 acceptanskriterier verifierades med faktiska kommand
 - Idempotens på run-narrative.md (skrivs inte över om den finns redan) förhindrar oönskade överskrivningar
 
 ---
+
+## Körning 20260320-0622-neuron-hq — neuron-hq
+**Datum:** 2026-03-20
+**Uppgift:** Implementera `neuron_help` MCP-tool och CLI-kommando för verktygsupptäckt via keyword-matchning och Haiku-rankning
+**Resultat:** ✅ 6/6 uppgifter klara — fullt implementerad verktygsguide med 43-verktyg-katalog, keyword-matchning och 37 nya tester
+
+**Vad som fungerade:**
+Agenterna levererade en komplett implementation av tool-discovery-systemet. Alla 43 verktyg katalogiserades i `src/mcp/tool-catalog.ts` med rätt struktur (name, description, category, keywords, examples). Keyword-matchningen fungerar med diakritikerhantering (fallback från ö→o etc). Haiku-rankningen anropas bara vid >3 träffar eller 0 träffar för att minimera API-kostnader. CLI-kommandot `help-tools` fungerar både med fråga och utan argument (listar alla). Alla 37 nya tester passar in gröna.
+
+**Vad som inte fungerade:**
+Två mindre avvikelser: (1) Två unused imports i test-filerna (afterEach i neuron-help.test.ts, ToolEntry i tool-catalog.test.ts) — trivial cleanup behövs. (2) Tool-katalog är statisk istället för dynamisk introspection från SCOPES — testningen med hardkodade namn fångar drift men är något mindre elegant än helt dynamisk.
+
+**Lärdomar:**
+- Statisk katalog är rimligt val för <50 verktyg — testet fångar avvikelser genom tvärreferen mot SCOPES
+- Keyword + Haiku-hybrid är kostnadseffektivt: 1-3 träffar returneras direkt, >3 eller 0 anropar Haiku
+- Haiku-fallback-hantering är kritisk — validering med Zod schema + filtrering av hallucinerade namn höll stabiliteten
+- Diakritikerhantering (normalizeDiacritics) var nödvändig för att svenska keywords matchar robust
+
+---

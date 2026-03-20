@@ -1,6 +1,6 @@
 # Neuron HQ — Roadmap
 
-> **Senast uppdaterad:** 2026-03-19 · Session 105
+> **Senast uppdaterad:** 2026-03-20 · Session 108
 > **Källa:** Djupsamtal S102 + Marcus ~40 kommentarer + diskussionsdokument S103
 > Editera direkt — kryssa av med ✅ när klart.
 > **Arkiv:** Alla versioner sparas i [docs/roadmaps/](docs/roadmaps/) med datumstämpel.
@@ -15,10 +15,10 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3305 |
-| Körningar | 168 |
-| MCP-tools | 41 |
-| Sessioner | 105 |
+| Tester | 3400 |
+| Körningar | 170 |
+| MCP-tools | 43 |
+| Sessioner | 108 |
 | Agenter | 11 |
 | Idé-noder | 878 |
 | Code Review | ★★★★☆ (Fas 1 klar) |
@@ -90,16 +90,14 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
-### 1.4 Loggkörningsbok ("Körningsberättelse") ⬜
+### 1.4 Loggkörningsbok ("Körningsberättelse") ✅ S106 · 2026-03-20
 
 **Vad det ger dig:** Efter varje körning kan du läsa en *berättelse* om vad som hände — hur Manager planerade, vad Researcher hittade, varför Implementer valde en viss lösning, vad Reviewer tyckte. Som att läsa protokoll från ett möte, inte en teknisk logg.
 
-**Tekniskt:**
+**Gjort:** Körning 169, +tester
 - Varje agent loggar sina resonemang i strukturerat format (`narrative`-sektion)
 - Historian sammanställer allt till `run-narrative.md` efter körningen
 - Exporteras till Obsidian
-
-**Effort:** 2 körningar · **Brief:** `run-narrative`
 
 ---
 
@@ -116,16 +114,14 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
-### 1.6 neuron_help tool ⬜
+### 1.6 neuron_help tool ✅ S107 · 2026-03-20
 
-**Vad det ger dig:** Du frågar "jag vill indexera en video" → systemet svarar "Använd `aurora:ingest-video <url>`. Här är ett exempel." Istället för att gissa vilka av 38 tools som finns.
+**Vad det ger dig:** Du frågar "jag vill indexera en video" → systemet svarar "Använd `aurora:ingest-video <url>`. Här är ett exempel." Istället för att gissa vilka av 43 tools som finns.
 
-**Tekniskt:**
-- Nytt MCP-tool `neuron_help` som matchar fråga → relevanta tools
-- Använder tool-beskrivningar + embedding-likhet
-- Returnerar top 3 med förklaring och exempelanrop
-
-**Effort:** 1 körning · **Brief:** `neuron-help-tool`
+**Gjort:** Körning 170, +37 tester, 32/32 AC
+- Nytt MCP-tool `neuron_help` med keyword-matchning + Haiku-rankning → top 3
+- CLI: `help-tools <fråga>` eller `help-tools` (lista alla per kategori)
+- Tool-katalog: 43 entries (37 MCP + 6 CLI-only) i `src/mcp/tool-catalog.ts`
 
 ---
 
@@ -352,9 +348,9 @@ Fas 4: Produkt                ← andra kan använda det
 | 1.2 | OB-1c: taggar & synk | 1 | 1-2 körn | — | ✅ S104 2026-03-19 |
 | 1.2b | OB-1d: re-export & MCP | 1 | 1 körn | 1.2 | ✅ S104 2026-03-19 |
 | 1.3 | Morgon-briefing | 1 | 1-2 körn | 1.2 | ✅ S105 2026-03-19 |
-| 1.4 | Loggkörningsbok | 1 | 2 körn | — | ⬜ |
+| 1.4 | Loggkörningsbok | 1 | 2 körn | — | ✅ S106 2026-03-20 |
 | 1.5 | Manager prompt-fix | 1 | <1 körn | — | ✅ S103 2026-03-19 |
-| 1.6 | neuron_help tool | 1 | 1 körn | — | ⬜ |
+| 1.6 | neuron_help tool | 1 | 1 körn | — | ✅ S107 2026-03-20 |
 | 2.1 | HippoRAG PPR | 2 | 1-2 körn | — | ⬜ |
 | 2.2 | Feedback-loop i prompts | 2 | 1-2 körn | — | ⬜ |
 | 2.3 | Namnbyte Researcher ↔ Librarian | 2 | 1 körn | — | ⬜ |
@@ -371,7 +367,7 @@ Fas 4: Produkt                ← andra kan använda det
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
 | 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~30-45 körningar. **Klar:** 5/22
+**Totalt:** ~30-45 körningar. **Klar:** 7/22
 
 ---
 

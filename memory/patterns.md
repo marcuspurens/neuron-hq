@@ -2387,3 +2387,14 @@ await pool.query(
 **Senast bekräftad:** 20260319-2118-neuron-hq
 
 ---
+
+## Hybrid keyword-matching + LLM-rankning för sökning över små kataloger
+**Kontext:** Neuron HQ tool-discovery — behövde matcha användarfrågor (svenska/engelska) mot 40+ verktyg utan embedding-infrastruktur
+**Lösning:** Två-fas matching: (1) tokenisera fråga på whitespace + skiljetecken, lowercase. Räkna unika keyword-träffar per verktyg. (2) Beroende på träffantal: 1-3 träffar → returnera direkt, >3 träffar → skicka top 10 till Haiku för rankning, 0 träffar → skicka alla till Haiku. Diakritikerhantering: primär matchning med intakta diakritiker, fallback till normaliserade (ö→o, ä→a, å→a) om 0 träffar.
+**Effekt:** Balanserad precision/kostnad. Keyword-matchning hanterar 80% av frågorna utan API-anrop. Haiku-rankning på subset hanterar ambiga fall. Diakritikerhantering-fallback löser svenska språket robust. Zod-validering + hallucination-filter höll outputen stabil även när Haiku rankade felaktigt.
+**Keywords:** keyword-matching, hybrid-search, LLM-rankning, cost-optimization, diacritics, Swedish NLP
+**Relaterat:** patterns.md#Fallback-kedjor för AI-anrop
+**Körningar:** #20260320-0622-neuron-hq
+**Senast bekräftad:** 20260320-0622-neuron-hq
+
+---

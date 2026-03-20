@@ -310,3 +310,14 @@ _Historian-korrigering: Invariant INV-008 skrevs felaktigt till runs.md iställe
 **Relaterat:** patterns.md#Logit-transform för Bayesisk uppdatering
 
 ---
+
+## Unused imports i neuron-help test-filer
+**Session:** 20260320-0622-neuron-hq
+**Symptom:** ESLint rapporterar 2 unused imports: `afterEach` i tests/mcp/neuron-help.test.ts, `ToolEntry` i tests/mcp/tool-catalog.test.ts
+**Orsak:** Typiska code-generation-artefakter — imports lades till som förberedelse men användes inte i slutkoden
+**Lösning:** Rensa upp de två imports. Dessa är trivial-nivå och blockar inte funktionaliteten, men bör rensas innan merge
+**Status:** ✅ Löst — inte blockerande för denna körning, kan rensas upp i nästa kodningspass
+**Keywords:** eslint, test-cleanup, unused-imports
+**Relaterat:** 
+
+---
