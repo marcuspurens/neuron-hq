@@ -40,6 +40,9 @@ coverage/
 tmp/
 temp/
 
+# Interview tool state
+.interview/
+
 # Graph data (live data, backed by Postgres)
 aurora/graph.json
 memory/graph.json
