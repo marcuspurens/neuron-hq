@@ -29,7 +29,7 @@ describe('generateAdaptiveHints', () => {
     expect(result.warnings).toHaveLength(1);
     expect(result.warnings[0].dimension).toBe('agent:researcher');
     expect(result.warnings[0].suggestion).toContain('Researcher has low success rate (0.3)');
-    expect(result.warnings[0].suggestion).toContain('very specific search queries');
+    expect(result.warnings[0].suggestion).toContain('very specific topics');
   });
 
   it('generates agent:consolidator warning when confidence < 0.5', () => {
@@ -114,7 +114,7 @@ describe('generateAdaptiveHints', () => {
     const beliefs = [makeBelief('agent:researcher', 0.3)];
     const result = generateAdaptiveHints(beliefs, 'feature');
     expect(result.promptSection).toContain('### ⚠️ Warnings');
-    expect(result.promptSection).toContain('- Consider whether research is truly needed');
+    expect(result.promptSection).toContain('- Consider whether external research (arxiv) is truly needed');
   });
 
   it('includes strengths section when there are strengths', () => {

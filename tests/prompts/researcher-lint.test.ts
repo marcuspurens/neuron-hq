@@ -5,47 +5,43 @@ import { join } from 'path';
 const prompt = readFileSync(join(__dirname, '../../prompts/researcher.md'), 'utf-8');
 
 describe('researcher.md — critical instructions', () => {
-  it('documents three mandatory output files', () => {
-    expect(prompt).toMatch(/ideas\.md/);
-    expect(prompt).toMatch(/knowledge\.md/);
-    expect(prompt).toMatch(/sources\.md/);
+  it('documents the researcher role as external research', () => {
+    expect(prompt).toMatch(/arxiv/i);
+    expect(prompt).toMatch(/fetch_url/);
   });
 
-  it('requires Impact/Effort/Risk framework', () => {
-    expect(prompt).toMatch(/\*\*Impact\*\*/);
-    expect(prompt).toMatch(/\*\*Effort\*\*/);
-    expect(prompt).toMatch(/\*\*Risk\*\*/);
-  });
-
-  it('specifies max constraints for searches and ideas', () => {
-    expect(prompt).toMatch(/[Mm]ax\s+\d+\s+web\s+search/);
-    expect(prompt).toMatch(/[Mm]ax\s+\d+\s+ideas/);
-  });
-
-  it('instructs to prefer recent sources', () => {
-    expect(prompt).toMatch(/2024|recent/i);
-  });
-
-  it('marks all three outputs as mandatory', () => {
-    expect(prompt).toMatch(/mandatory|MANDATORY/);
-  });
-
-  it('instructs to check techniques.md for existing research', () => {
-    expect(prompt).toMatch(/read_memory_file\(file="techniques"\)/);
+  it('instructs to write to techniques.md', () => {
     expect(prompt).toMatch(/techniques\.md/);
+    expect(prompt).toMatch(/write_to_techniques/);
   });
 
-  it('includes Research support field in ideas format', () => {
-    expect(prompt).toMatch(/\*\*Research support\*\*/);
+  it('instructs to check for duplicates using read_memory_file', () => {
+    expect(prompt).toMatch(/read_memory_file/);
+  });
+
+  it('differentiates from Librarian role', () => {
+    expect(prompt).toMatch(/Librarian/);
+    expect(prompt).toMatch(/externally|externt/i);
+  });
+
+  it('instructs to search arxiv API with specific query format', () => {
+    expect(prompt).toMatch(/export\.arxiv\.org\/api\/query/);
+  });
+
+  it('instructs to use graph_assert for new techniques', () => {
+    expect(prompt).toMatch(/graph_assert/);
+  });
+
+  it('mentions INSIGHT_NY tag processing', () => {
+    expect(prompt).toMatch(/INSIGHT_NY/);
   });
 
   it('regression guard: test would fail if critical keyword removed', () => {
-    const modified = prompt.replaceAll('ideas.md', 'REMOVED');
-    expect(modified).not.toMatch(/ideas\.md/);
+    const modified = prompt.replaceAll('techniques.md', 'REMOVED');
+    expect(modified).not.toMatch(/techniques\.md/);
   });
 
-  it('includes META_ANALYSIS mode with meta_analysis.md format', () => {
-    expect(prompt).toMatch(/META_ANALYSIS/);
-    expect(prompt).toMatch(/meta_analysis\.md/);
+  it('instructs to prefer recent sources', () => {
+    expect(prompt).toMatch(/recent|submittedDate/i);
   });
 });

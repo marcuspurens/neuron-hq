@@ -24,7 +24,7 @@ export interface AdaptiveHints {
 function agentSuggestion(name: string, confidence: number): string {
   switch (name) {
     case 'researcher':
-      return `Consider whether research is truly needed. Researcher has low success rate (${confidence}). If you do delegate, provide very specific search queries.`;
+      return `Consider whether external research (arxiv) is truly needed. Researcher has low success rate (${confidence}). If you do delegate, provide very specific topics.`;
     case 'consolidator':
       return `Consolidator has low success rate (${confidence}). Only delegate if knowledge graph truly needs consolidation.`;
     default:

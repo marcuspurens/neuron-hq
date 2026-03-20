@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import path from 'path';
+import fs from 'fs/promises';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { ResearcherAgent } from '../../src/core/agents/researcher.js';
-import { executeSharedBash, executeSharedWriteFile, type AgentToolContext } from '../../src/core/agents/shared-tools.js';
 import { createPolicyEnforcer } from '../../src/core/policy.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -11,13 +12,17 @@ const BASE_DIR = path.resolve(__dirname, '../..');
 
 process.env.ANTHROPIC_API_KEY = 'test-key-for-unit-tests';
 
-function createMockContext(policy: Awaited<ReturnType<typeof createPolicyEnforcer>>) {
+function createMockContext(
+  policy: Awaited<ReturnType<typeof createPolicyEnforcer>>,
+  runDir: string,
+  workspaceDir: string
+) {
   return {
-    runid: '20260221-1200-test' as any,
-    target: { name: 'test-target', path: '/tmp/test', default_branch: 'main' },
+    runid: '20260222-1200-test' as any,
+    target: { name: 'test-target', path: '/tmp/test-target', default_branch: 'main' },
     hours: 1,
-    workspaceDir: '/tmp/workspace',
-    runDir: '/tmp/runs/20260221-1200-test',
+    workspaceDir,
+    runDir,
     policy,
     audit: { log: async () => {} },
     manifest: { addCommand: async () => {} },
@@ -30,13 +35,31 @@ function createMockContext(policy: Awaited<ReturnType<typeof createPolicyEnforce
 
 describe('ResearcherAgent', () => {
   let agent: ResearcherAgent;
-  let toolCtx: AgentToolContext;
+  let policy: Awaited<ReturnType<typeof createPolicyEnforcer>>;
+  let tmpDir: string;
+  let runDir: string;
+  let workspaceDir: string;
+  let memoryDir: string;
 
   beforeAll(async () => {
-    const policy = await createPolicyEnforcer(path.join(BASE_DIR, 'policy'), BASE_DIR);
-    const mockCtx = createMockContext(policy);
-    agent = new ResearcherAgent(mockCtx, BASE_DIR);
-    toolCtx = { ctx: mockCtx, agentRole: 'researcher' };
+    policy = await createPolicyEnforcer(path.join(BASE_DIR, 'policy'), BASE_DIR);
+  });
+
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'researcher-test-'));
+    runDir = path.join(tmpDir, 'runs', '20260222-1200-test');
+    workspaceDir = path.join(tmpDir, 'workspace');
+    memoryDir = path.join(tmpDir, 'memory');
+    await fs.mkdir(runDir, { recursive: true });
+    await fs.mkdir(workspaceDir, { recursive: true });
+
+    agent = new ResearcherAgent(createMockContext(policy, runDir, workspaceDir), BASE_DIR);
+    // Override memoryDir to use temp location
+    (agent as any).memoryDir = memoryDir;
+  });
+
+  afterEach(async () => {
+    await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
   it('can be instantiated', () => {
@@ -53,40 +76,140 @@ describe('ResearcherAgent', () => {
   it('defines the correct tools', () => {
     const tools: Array<{ name: string }> = (agent as any).defineTools();
     const names = tools.map((t) => t.name);
-    expect(names).toContain('bash_exec');
-    expect(names).toContain('read_file');
-    expect(names).toContain('write_file');
-    expect(names).toContain('list_files');
+    expect(names).toContain('fetch_url');
+    expect(names).toContain('read_memory_file');
+    expect(names).toContain('write_to_techniques');
   });
 
-  it('blocks forbidden bash commands', async () => {
-    const result = await executeSharedBash(toolCtx, 'rm -rf /tmp', { truncate: true });
-    expect(result).toMatch(/BLOCKED/);
+  describe('write_to_techniques', () => {
+    it('creates techniques.md with header if it does not exist', async () => {
+      await agent.executeWriteToTechniques({
+        entry: '## Test Paper (2026)\n**Källa:** arxiv:1234\n**Kärna:** Test.\n\n---',
+      });
+
+      const content = await fs.readFile(path.join(memoryDir, 'techniques.md'), 'utf-8');
+      expect(content).toContain('# Techniques');
+      expect(content).toContain('Test Paper');
+    });
+
+    it('appends to existing techniques.md without overwriting', async () => {
+      await fs.mkdir(memoryDir, { recursive: true });
+      await fs.writeFile(
+        path.join(memoryDir, 'techniques.md'),
+        '# Techniques\n\n## Gammal teknik (2025)\n\n---\n'
+      );
+
+      await agent.executeWriteToTechniques({
+        entry: '## Ny teknik (2026)\n\n---',
+      });
+
+      const content = await fs.readFile(path.join(memoryDir, 'techniques.md'), 'utf-8');
+      expect(content).toContain('Gammal teknik');
+      expect(content).toContain('Ny teknik');
+    });
+
+    it('returns success message', async () => {
+      const result = await agent.executeWriteToTechniques({
+        entry: '## Test\n\n---',
+      });
+      expect(result).toContain('techniques.md');
+    });
   });
 
-  it('allows grep for code reading', async () => {
-    // grep is in the allowlist — should not be blocked
-    const policyCheck = (agent as any).ctx.policy.checkBashCommand('grep -r "TODO" .');
-    expect(policyCheck.allowed).toBe(true);
+  describe('read_memory_file', () => {
+    it('reads existing memory file', async () => {
+      await fs.mkdir(memoryDir, { recursive: true });
+      await fs.writeFile(path.join(memoryDir, 'techniques.md'), '# Techniques\n\n## Existing entry\n');
+
+      const result = await agent.executeReadMemoryFile({ file: 'techniques' });
+      expect(result).toContain('Existing entry');
+    });
+
+    it('returns helpful message when file does not exist', async () => {
+      const result = await agent.executeReadMemoryFile({ file: 'techniques' });
+      expect(result).toContain('not found');
+    });
+
+    it('returns error for invalid file name', async () => {
+      const result = await agent.executeReadMemoryFile({ file: 'invalid' });
+      expect(result).toContain('Error');
+    });
   });
 
-  it('blocks file writes outside allowed scope', async () => {
-    const result = await executeSharedWriteFile(
-      toolCtx,
-      '/home/user/malicious.txt',
-      'test',
-      toolCtx.ctx.workspaceDir,
-    );
-    expect(result).toMatch(/BLOCKED/);
+  describe('fetch_url', () => {
+    it('rejects non-http/https URLs', async () => {
+      const result = await agent.executeFetchUrl({ url: 'file:///etc/passwd' });
+      expect(result).toContain('Error');
+      expect(result).toContain('http');
+    });
+
+    it('rejects ftp URLs', async () => {
+      const result = await agent.executeFetchUrl({ url: 'ftp://example.com/file' });
+      expect(result).toContain('Error');
+    });
+
+    it('accepts https URLs (mocked)', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: async () => '<feed><entry><title>Test Paper</title></entry></feed>',
+      });
+      vi.stubGlobal('fetch', mockFetch);
+
+      const result = await agent.executeFetchUrl({ url: 'https://export.arxiv.org/api/query?search_query=test' });
+      expect(result).toContain('Test Paper');
+
+      vi.unstubAllGlobals();
+    });
+
+    it('handles HTTP error responses', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+      });
+      vi.stubGlobal('fetch', mockFetch);
+
+      const result = await agent.executeFetchUrl({ url: 'https://example.com/missing' });
+      expect(result).toContain('404');
+
+      vi.unstubAllGlobals();
+    });
+
+    it('truncates very large responses', async () => {
+      const largeContent = 'x'.repeat(100_000);
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: async () => largeContent,
+      });
+      vi.stubGlobal('fetch', mockFetch);
+
+      const result = await agent.executeFetchUrl({ url: 'https://example.com/large' });
+      expect(result.length).toBeLessThan(60_000);
+      expect(result).toContain('truncated');
+
+      vi.unstubAllGlobals();
+    });
   });
 
-  it('allows file writes to runs directory', async () => {
-    const result = await executeSharedWriteFile(
-      toolCtx,
-      path.join(BASE_DIR, 'runs', '20260221-1200-test', 'ideas.md'),
-      '# Ideas\n\nTest.',
-      toolCtx.ctx.workspaceDir,
-    );
-    expect(result).not.toMatch(/BLOCKED/);
+  describe('integration: full write flow', () => {
+    it('appends multiple entries without overwriting', async () => {
+      await agent.executeWriteToTechniques({
+        entry: '## Alpha Technique (2026)\n**Källa:** arxiv:1111\n**Kärna:** First.\n\n---',
+      });
+      await agent.executeWriteToTechniques({
+        entry: '## Beta Technique (2026)\n**Källa:** arxiv:2222\n**Kärna:** Second.\n\n---',
+      });
+      await agent.executeWriteToTechniques({
+        entry: '## Gamma Technique (2026)\n**Källa:** arxiv:3333\n**Kärna:** Third.\n\n---',
+      });
+
+      const content = await fs.readFile(path.join(memoryDir, 'techniques.md'), 'utf-8');
+      expect(content.startsWith('# Techniques')).toBe(true);
+      expect(content).toContain('Alpha Technique');
+      expect(content).toContain('Beta Technique');
+      expect(content).toContain('Gamma Technique');
+    });
   });
 });

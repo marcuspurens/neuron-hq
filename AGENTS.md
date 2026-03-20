@@ -205,20 +205,22 @@ When uncertain, classify as higher risk.
 - Writes `report.md` with STOPLIGHT (GREEN/YELLOW/RED)
 
 ### Researcher
-- Web search and codebase exploration — max 10 searches per run
-- Delivers `ideas.md` and `knowledge.md` (and `research/sources.md`)
+- External research agent — searches arxiv and Anthropic docs for recent AI research
+- Writes structured entries to `memory/techniques.md`
+- Triggered via `delegate_to_researcher` in the Manager
+- Does NOT read the target codebase — that is the Librarian's job
+
+### Librarian
+- Per-run research agent — reads the target codebase and memory
+- Delivers `ideas.md` (impact/effort/risk) and `research/sources.md` (code references)
 - Does NOT implement — hands off to Implementer via Manager
+- Must complete before Implementer so findings inform implementation
 
 ### Historian
 - Runs at end of every completed run
 - Updates `memory/runs.md`, `memory/errors.md`, `memory/patterns.md`
 - Summarizes learnings for future agents
 - Does NOT modify code or artifacts
-
-### Librarian
-- Runs on milestone runs (every 5th completed run)
-- Synthesizes patterns into `memory/techniques.md`
-- Must complete before Historian so Historian can verify output
 
 ### Tester
 - Focused test coverage agent

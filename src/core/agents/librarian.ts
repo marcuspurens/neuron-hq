@@ -1,39 +1,31 @@
 import { type RunContext } from '../run.js';
-import { withRetry } from './agent-utils.js';
+import { trimMessages, withRetry } from './agent-utils.js';
+import { executeSharedBash, executeSharedReadFile, executeSharedWriteFile, executeSharedListFiles, coreToolDefinitions, type AgentToolContext } from './shared-tools.js';
+import { graphReadToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import fs from 'fs/promises';
 import path from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
-import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import { createLogger } from '../logger.js';
 const logger = createLogger('agent:librarian');
 
-const FETCH_MAX_BYTES = 50_000;
-const FETCH_TIMEOUT_MS = 15_000;
-
 /**
- * Librarian Agent - searches arxiv and Anthropic docs for recent AI research,
- * then writes structured entries to memory/techniques.md.
- * Triggered manually via delegate_to_librarian in the Manager.
+ * Librarian Agent - reads code, generates ideas.md and sources.md.
+ * Per-run research agent that explores the target codebase and memory.
  */
 export class LibrarianAgent {
   private promptPath: string;
-  private baseDir: string;
   private client: Anthropic;
   private model: string;
   private modelMaxTokens: number;
   private maxIterations: number;
-  private memoryDir: string;
+  private baseDir: string;
 
-  constructor(
-    private ctx: RunContext,
-    baseDir: string
-  ) {
+  constructor(private ctx: RunContext, baseDir: string) {
     this.baseDir = baseDir;
     this.promptPath = path.join(baseDir, 'prompts', 'librarian.md');
-    this.memoryDir = path.join(baseDir, 'memory');
 
     const config = resolveModelConfig('librarian', this.ctx.agentModelMap, this.ctx.defaultModelOverride);
     const { client, model, maxTokens } = createAgentClient(config);
@@ -49,8 +41,12 @@ export class LibrarianAgent {
     return await fs.readFile(this.promptPath, 'utf-8');
   }
 
+  private get toolCtx(): AgentToolContext {
+    return { ctx: this.ctx, agentRole: 'librarian' };
+  }
+
   /**
-   * Run the librarian — searches for recent research and updates techniques.md.
+   * Execute the librarian's research loop.
    */
   async run(): Promise<void> {
     await this.ctx.audit.log({
@@ -63,8 +59,10 @@ export class LibrarianAgent {
 
     try {
       const systemPrompt = await this.buildSystemPrompt();
-      await this.runAgentLoop(systemPrompt);
-      logger.info('Librarian agent completed.');
+      const brief = await this.ctx.artifacts.readBrief();
+      await this.runAgentLoop(systemPrompt, brief);
+
+      logger.info('Librarian agent completed successfully.');
     } catch (error) {
       await this.ctx.audit.log({
         ts: new Date().toISOString(),
@@ -85,31 +83,55 @@ export class LibrarianAgent {
     });
     const overlayedPrompt = mergePromptWithOverlay(librarianPrompt, overlay);
 
-    const today = new Date().toISOString().slice(0, 10);
+    const limits = this.ctx.policy.getLimits();
     const contextInfo = `
 # Run Context
 
 - **Run ID**: ${this.ctx.runid}
-- **Date**: ${today}
-- **Memory directory**: ${this.memoryDir}
+- **Target**: ${this.ctx.target.name}
+- **Time limit**: ${this.ctx.hours} hours (ends at ${this.ctx.endTime.toISOString()})
+- **Workspace**: ${this.ctx.workspaceDir}
+- **Run artifacts**: ${this.ctx.runDir}
+- **Max iterations**: ${this.maxIterations}
 
-# Your Task
+# Research Constraints
 
-Search arxiv for recent papers on AI agent memory and autonomous software development.
-Write new findings to memory/techniques.md. Check the existing file first to avoid duplicates.
+- Max web searches: ${limits.max_web_searches_per_run} (not yet implemented — use code reading)
+- Max sources: ${limits.max_sources_per_research}
+- Max ideas: ${limits.max_ideas}
+
+# Available Tools
+
+- **bash_exec**: Execute bash commands (use grep, cat, find for code reading)
+- **read_file**: Read files from the workspace
+- **write_file**: Write ideas.md and sources.md to the runs directory
+- **list_files**: List files in a directory
+
+# Your Mission
+
+Read brief.md and the target codebase to understand what exists.
+Generate ideas.md (impact/effort/risk analysis) and sources.md (code references + docs).
+Focus on high-impact, low-effort opportunities.
 `;
 
     return `${overlayedPrompt}\n\n${contextInfo}`;
   }
 
-  private async runAgentLoop(systemPrompt: string): Promise<void> {
+  private async runAgentLoop(systemPrompt: string, brief: string): Promise<void> {
     const messages: Anthropic.MessageParam[] = [
       {
         role: 'user',
-        content:
-          `Search arxiv for recent papers on agent memory and autonomous coding. ` +
-          `First read the current memory/techniques.md to check what's already there. ` +
-          `Then search for new papers and write entries for any that aren't already documented.`,
+        content: `Based on this brief, please research the target codebase and generate ideas.
+
+**Brief**:
+${brief}
+
+**What to produce**:
+1. Explore the workspace with list_files and read_file to understand existing patterns
+2. Write ${path.join(this.ctx.runDir, 'ideas.md')} with impact/effort/risk analysis (max ${this.ctx.policy.getLimits().max_ideas} ideas)
+3. Write ${path.join(this.ctx.runDir, 'research/sources.md')} with code references and any relevant documentation links (max ${this.ctx.policy.getLimits().max_sources_per_research} sources)
+
+Focus on high-impact, low-effort opportunities that fit the brief.`,
       },
     ];
 
@@ -131,7 +153,7 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
             model: this.model,
             max_tokens: this.modelMaxTokens,
             system: systemPrompt,
-            messages,
+            messages: trimMessages(messages),
             tools: this.defineTools(),
           });
 
@@ -159,7 +181,7 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
 
         if (response.stop_reason === 'end_turn') {
           const hasToolUse = response.content.some(
-            (b: Anthropic.ContentBlock) => b.type === 'tool_use'
+            (block: Anthropic.ContentBlock) => block.type === 'tool_use'
           );
           if (!hasToolUse) {
             logger.info('Librarian finished (no more tool calls).');
@@ -168,6 +190,7 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
         }
 
         const toolResults = await this.executeTools(response.content);
+
         if (toolResults.length > 0) {
           messages.push({ role: 'user', content: toolResults });
         } else {
@@ -188,54 +211,13 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
 
   private defineTools(): Anthropic.Tool[] {
     return [
-      {
-        name: 'fetch_url',
-        description:
-          'Fetch content from a URL (e.g. arxiv API). Returns plain text, truncated at 50 000 chars. ' +
-          'Use for arxiv API queries: https://export.arxiv.org/api/query?search_query=<topic>&max_results=5',
-        input_schema: {
-          type: 'object',
-          properties: {
-            url: {
-              type: 'string',
-              description: 'The URL to fetch',
-            },
-          },
-          required: ['url'],
-        },
-      },
-      {
-        name: 'read_memory_file',
-        description: 'Read the current contents of a memory file (techniques, runs, patterns, or errors).',
-        input_schema: {
-          type: 'object',
-          properties: {
-            file: {
-              type: 'string',
-              enum: ['techniques', 'runs', 'patterns', 'errors'],
-              description: 'Which memory file to read',
-            },
-          },
-          required: ['file'],
-        },
-      },
-      {
-        name: 'write_to_techniques',
-        description:
-          'Append a formatted entry to memory/techniques.md. ' +
-          'Call this once per new paper or technique that is not already documented.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            entry: {
-              type: 'string',
-              description: 'The formatted markdown entry to append (must follow the format from the prompt)',
-            },
-          },
-          required: ['entry'],
-        },
-      },
-      ...graphToolDefinitions(),
+      ...coreToolDefinitions({
+        bash: 'Execute a bash command for code reading. Use grep, cat, find to explore the codebase.',
+        readFile: 'Read the contents of a file.',
+        writeFile: 'Write content to a file. Use to write ideas.md and sources.md to the runs directory.',
+        listFiles: 'List files in a directory.',
+      }),
+      ...graphReadToolDefinitions(),
     ];
   }
 
@@ -253,21 +235,24 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
           let result: string;
 
           switch (block.name) {
-            case 'fetch_url':
-              result = await this.executeFetchUrl(block.input as { url: string });
+            case 'bash_exec':
+              result = await executeSharedBash(this.toolCtx, (block.input as { command: string }).command, { truncate: true });
               break;
-            case 'read_memory_file':
-              result = await this.executeReadMemoryFile(block.input as { file: string });
+            case 'read_file':
+              result = await executeSharedReadFile(this.toolCtx, (block.input as { path: string }).path, { truncate: true });
               break;
-            case 'write_to_techniques':
-              result = await this.executeWriteToTechniques(block.input as { entry: string });
+            case 'write_file': {
+              const writeInput = block.input as { path: string; content: string };
+              result = await executeSharedWriteFile(this.toolCtx, writeInput.path, writeInput.content, this.ctx.workspaceDir);
+              break;
+            }
+            case 'list_files':
+              result = await executeSharedListFiles(this.toolCtx, (block.input as { path?: string }).path);
               break;
             case 'graph_query':
-            case 'graph_traverse':
-            case 'graph_assert':
-            case 'graph_update': {
+            case 'graph_traverse': {
               const graphCtx: GraphToolContext = {
-                graphPath: path.join(this.memoryDir, 'graph.json'),
+                graphPath: path.join(this.baseDir, 'memory', 'graph.json'),
                 runId: this.ctx.runid,
                 agent: 'librarian',
                 audit: this.ctx.audit,
@@ -292,115 +277,5 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
     }
 
     return results;
-  }
-
-  /**
-   * Fetch a URL using Node.js built-in fetch, with timeout and size limit.
-   */
-  async executeFetchUrl(input: { url: string }): Promise<string> {
-    const { url } = input;
-
-    // Basic safety check — only allow http/https
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      return `Error: Only http/https URLs are allowed`;
-    }
-
-    await this.ctx.audit.log({
-      ts: new Date().toISOString(),
-      role: 'librarian',
-      tool: 'fetch_url',
-      allowed: true,
-      note: `Fetching: ${url}`,
-    });
-
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
-      const response = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        return `Error: HTTP ${response.status} ${response.statusText}`;
-      }
-
-      const text = await response.text();
-      const truncated = text.slice(0, FETCH_MAX_BYTES);
-      const suffix = text.length > FETCH_MAX_BYTES ? `\n\n[truncated at ${FETCH_MAX_BYTES} chars]` : '';
-
-      return truncated + suffix;
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        return `Error: Request timed out after ${FETCH_TIMEOUT_MS}ms`;
-      }
-      return `Error fetching URL: ${error instanceof Error ? error.message : String(error)}`;
-    }
-  }
-
-  /**
-   * Read the current contents of a memory file.
-   */
-  async executeReadMemoryFile(input: { file: string }): Promise<string> {
-    const { file } = input;
-    const validFiles = ['techniques', 'runs', 'patterns', 'errors'];
-    if (!validFiles.includes(file)) {
-      return `Error: Invalid memory file "${file}". Must be one of: ${validFiles.join(', ')}`;
-    }
-
-    const filePath = path.join(this.memoryDir, `${file}.md`);
-
-    await this.ctx.audit.log({
-      ts: new Date().toISOString(),
-      role: 'librarian',
-      tool: 'read_memory_file',
-      allowed: true,
-      files_touched: [filePath],
-    });
-
-    try {
-      return await fs.readFile(filePath, 'utf-8');
-    } catch (err) {
-      logger.error('[librarian] indexing run failed', { error: String(err) });
-      return `(memory/${file}.md not found — file will be created when you write to it)`;
-    }
-  }
-
-  /**
-   * Append an entry to memory/techniques.md.
-   * Creates the file with a header if it doesn't exist.
-   */
-  async executeWriteToTechniques(input: { entry: string }): Promise<string> {
-    const { entry } = input;
-    const filePath = path.join(this.memoryDir, 'techniques.md');
-
-    await this.ctx.audit.log({
-      ts: new Date().toISOString(),
-      role: 'librarian',
-      tool: 'write_to_techniques',
-      allowed: true,
-      files_touched: [filePath],
-      note: `Appending technique entry`,
-    });
-
-    try {
-      await fs.mkdir(this.memoryDir, { recursive: true });
-
-      let existing = '';
-      try {
-        existing = await fs.readFile(filePath, 'utf-8');
-      } catch {  /* intentional: knowledge.md may not exist */
-        existing =
-          '# Techniques — Externa forskningsrön\n\n' +
-          'Relevanta rön från AI-forskning och Anthropic-dokumentation.\n' +
-          'Uppdateras av Librarian-agenten.\n\n';
-      }
-
-      const updated = existing.trimEnd() + '\n\n' + entry.trim() + '\n';
-      await fs.writeFile(filePath, updated, 'utf-8');
-
-      return `Entry appended to memory/techniques.md`;
-    } catch (error) {
-      return `Error writing to memory/techniques.md: ${error instanceof Error ? error.message : String(error)}`;
-    }
   }
 }

@@ -33,7 +33,7 @@ describe('generateAdaptiveHints', () => {
     expect(result.warnings[0].dimension).toBe('agent:researcher');
     expect(result.warnings[0].confidence).toBe(0.40);
     expect(result.warnings[0].suggestion).toContain('Researcher has low success rate (0.4)');
-    expect(result.warnings[0].suggestion).toContain('very specific search queries');
+    expect(result.warnings[0].suggestion).toContain('very specific topics');
   });
 
   it('warns about consolidator with low success rate', () => {

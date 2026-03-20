@@ -5,24 +5,27 @@ import { join } from 'path';
 const prompt = readFileSync(join(__dirname, '../../prompts/librarian.md'), 'utf-8');
 
 describe('librarian.md — critical instructions', () => {
-  it('instructs to write to techniques.md', () => {
+  it('documents the librarian role as per-run internal research', () => {
+    expect(prompt).toMatch(/per-run|per run/i);
+    expect(prompt).toMatch(/kodbas|codebase/i);
+  });
+
+  it('instructs to read techniques.md for existing knowledge', () => {
     expect(prompt).toMatch(/techniques\.md/);
-  });
-
-  it('instructs to use write_to_techniques tool', () => {
-    expect(prompt).toMatch(/write_to_techniques/);
-  });
-
-  it('instructs to search arxiv', () => {
-    expect(prompt).toMatch(/arxiv/i);
-  });
-
-  it('instructs to check for duplicates using read_memory_file', () => {
     expect(prompt).toMatch(/read_memory_file/);
   });
 
-  it('limits search scope', () => {
-    expect(prompt).toMatch(/max.*15|15.*papers|3.*topics/i);
+  it('instructs to read the target codebase', () => {
+    expect(prompt).toMatch(/grep|glob|read/i);
+  });
+
+  it('differentiates from Researcher role', () => {
+    expect(prompt).toMatch(/Researcher/);
+    expect(prompt).toMatch(/internally|internt/i);
+  });
+
+  it('produces research_brief.md', () => {
+    expect(prompt).toMatch(/research_brief\.md/);
   });
 
   it('regression guard: test would fail if critical keyword removed', () => {
