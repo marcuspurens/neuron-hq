@@ -223,11 +223,11 @@ function listRoles(): void {
     'manager',
     'implementer',
     'reviewer',
-    'researcher',
+    'researcher',       // External research: arxiv, papers, techniques.md
+    'librarian',        // Per-run research: codebase, memory, web search
     'tester',
     'merger',
     'historian',
-    'librarian',
     'consolidator',
     'brief-agent',
     'knowledge-manager',

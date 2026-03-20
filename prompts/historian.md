@@ -20,12 +20,12 @@ separate memory files depending on the type of information.
    - `report.md` — what the Reviewer found (may be a generic fallback if Reviewer wasn't called — rely on audit.jsonl instead)
    - `questions.md` — blockers encountered
    - `merge_plan.md` or `merge_summary.md` — if a merge happened
-   - If the brief involved **Librarian** (i.e. brief contains `⚡ Auto-trigger:`):
+   - If the brief involved **Researcher** (i.e. brief contains `⚡ Auto-trigger:`):
      call `read_memory_file(file="techniques")` to verify what was written.
      Check that the most recent entry's date matches today's run date.
-     Do NOT rely solely on `grep_audit(query="librarian")` — grep_audit only reflects
+     Do NOT rely solely on `grep_audit(query="researcher")` — grep_audit only reflects
      events up to the point when Historian was called, not the final state.
-     Trust `read_memory_file` as the authoritative source for Librarian output.
+     Trust `read_memory_file` as the authoritative source for Researcher output.
 
 2. **Write a run summary** to `runs` using `write_to_memory`. Required every run.
 
@@ -237,7 +237,7 @@ Använd `graph_cross_ref` för:
 - **write_to_memory**: Write an entry to a specific memory file (runs, patterns, errors, or invariants)
 - **update_error_status**: Update the **Status:** line of an existing ⚠️ entry in errors.md in place. Use this when closing a known error — do NOT use write_to_memory to create a duplicate entry.
 - **search_memory**: Search across all memory files for a keyword — use to find related entries when writing Keywords/Relaterat fields
-- **grep_audit**: Search audit.jsonl for entries matching a keyword. Use this instead of read_file when you only need to verify that an agent ran or that a specific tool was called. Example: `grep_audit(query="librarian")` to count Librarian tool calls.
+- **grep_audit**: Search audit.jsonl for entries matching a keyword. Use this instead of read_file when you only need to verify that an agent ran or that a specific tool was called. Example: `grep_audit(query="researcher")` to count Researcher tool calls.
 - **graph_query**: Search the knowledge graph for nodes by type, keyword, or confidence threshold
 - **graph_traverse**: Follow edges from a node to find related patterns/errors
 - **graph_assert**: Add a new node (pattern/error) with edges and provenance to the knowledge graph

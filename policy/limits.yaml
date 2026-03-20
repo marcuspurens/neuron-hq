@@ -14,8 +14,8 @@ max_iterations_reviewer: 60
 max_iterations_tester: 30
 max_iterations_merger: 30
 max_iterations_historian: 50
-max_iterations_librarian: 50
-max_iterations_researcher: 70
+max_iterations_librarian: 70
+max_iterations_researcher: 50
 max_wip_features: 1  # Work in progress limit (focus on one thing at a time)
 max_parallel_implementers: 3    # Max 3 simultaneous Implementers per wave
 max_iterations_consolidator: 30
