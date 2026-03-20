@@ -155,6 +155,16 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
+### 2.2b Agentintervjuer — Opus samtalar med varje agent ⬜ ← NÄSTA PRIORITET
+
+**Flyttad hit från 3.6.** Bättre prompts förbättrar ALLA framtida körningar. Brief Agent-intervjun (S109-110) visade att en enda rak fråga avslöjade vad 9 rundor av testning missade. Se [3.6](#36-agentintervjuer--opus-samtalar-med-varje-agent-) för fullständig beskrivning.
+
+**Ordning:** Manager → Reviewer → Implementer → Researcher+Librarian → resten
+
+**Effort:** 3-5 sessioner (manuellt, inte körningar)
+
+---
+
 ### 2.3 Namnbyte: Researcher ↔ Librarian ⬜
 
 **Vad det ger dig:** Namnen stämmer med vad de gör. Förvirringen försvinner.
@@ -362,6 +372,7 @@ Fas 4: Produkt                ← andra kan använda det
 | 1.6 | neuron_help tool | 1 | 1 körn | — | ✅ S107 2026-03-20 |
 | 2.1 | HippoRAG PPR | 2 | 1-2 körn | — | ✅ S110 2026-03-20 |
 | 2.2 | Feedback-loop i prompts | 2 | 1-2 körn | — | ⬜ |
+| **2.2b** | **Agentintervjuer (prompt-förbättring)** | **2** | **3-5 sess** | — | **⬜ ← NÄSTA** |
 | 2.3 | Namnbyte Researcher ↔ Librarian | 2 | 1 körn | — | ⬜ |
 | 2.4 | Idékonsolidering | 2 | 1 körn | — | ⬜ |
 | 2.5 | Grafintegritet watchman | 2 | 1 körn | — | ⬜ |
