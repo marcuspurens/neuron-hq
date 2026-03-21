@@ -6,6 +6,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
+import { prependPreamble } from '../preamble.js';
 import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import { createLogger } from '../logger.js';
 const logger = createLogger('agent:researcher');
@@ -99,7 +100,7 @@ Search arxiv for recent papers on AI agent memory and autonomous software develo
 Write new findings to memory/techniques.md. Check the existing file first to avoid duplicates.
 `;
 
-    return `${overlayedPrompt}\n\n${contextInfo}`;
+    return prependPreamble(this.baseDir, `${overlayedPrompt}\n\n${contextInfo}`);
   }
 
   private async runAgentLoop(systemPrompt: string): Promise<void> {

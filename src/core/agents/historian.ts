@@ -6,6 +6,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
+import { prependPreamble } from '../preamble.js';
 import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import { loadGraph, saveGraph, applyConfidenceDecay, addNode, addEdge, findNodes, computePriority, type KGNode } from '../knowledge-graph.js';
 import { semanticSearch } from '../semantic-search.js';
@@ -166,7 +167,7 @@ Artifacts to read:
 If the brief involved Librarian, call read_memory_file(file="techniques") to count how many entries exist and verify what was written.
 `;
 
-    return `${overlayedPrompt}\n\n${contextInfo}`;
+    return prependPreamble(this.baseDir, `${overlayedPrompt}\n\n${contextInfo}`);
   }
 
   private async runAgentLoop(systemPrompt: string): Promise<void> {

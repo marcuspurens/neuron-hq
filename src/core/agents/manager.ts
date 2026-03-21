@@ -22,6 +22,7 @@ import { taskBranchName, type TaskBranchStatus } from '../parallel-coordinator.j
 import { GitOperations } from '../git.js';
 import { loadPromptHierarchy, buildHierarchicalPrompt } from '../prompt-hierarchy.js';
 import { loadOverlay } from '../prompt-overlays.js';
+import { prependPreamble } from '../preamble.js';
 import {
   ImplementerResultSchema,
   ReviewerResultSchema,
@@ -301,7 +302,7 @@ Stop when time limit approaches or when blockers are encountered.
     } catch {  /* intentional: graph not available — skip graph section */
     }
 
-    return `${managerPrompt}\n\n${contextInfo}${previousContext}${adaptiveSection}${graphSection}`;
+    return prependPreamble(this.baseDir, `${managerPrompt}\n\n${contextInfo}${previousContext}${adaptiveSection}${graphSection}`);
   }
 
   /**

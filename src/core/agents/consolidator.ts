@@ -6,6 +6,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
+import { prependPreamble } from '../preamble.js';
 import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import { loadGraph, saveGraph } from '../knowledge-graph.js';
 import { mergeNodes, findDuplicateCandidates, findStaleNodes, findMissingEdges } from '../graph-merge.js';
@@ -102,7 +103,7 @@ Analyze the knowledge graph and perform consolidation:
 5. Write a consolidation_report.md summarizing all changes
 `;
 
-    return `${overlayedPrompt}\n\n${contextInfo}`;
+    return prependPreamble(this.baseDir, `${overlayedPrompt}\n\n${contextInfo}`);
   }
 
   private async runAgentLoop(systemPrompt: string): Promise<void> {

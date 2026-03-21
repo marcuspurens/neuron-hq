@@ -2,6 +2,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
+import { prependPreamble } from '../preamble.js';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { trimMessages, withRetry } from './agent-utils.js';
@@ -73,7 +74,7 @@ export class BriefReviewer {
     const examples = loadExampleBriefs(this.baseDir);
     const today = new Date().toISOString().slice(0, 10);
 
-    return [
+    const assembled = [
       overlayedPrompt,
       '\n\n## Repository Context\n\n',
       `Target: ${this.targetName}\nDate: ${today}\n\n`,
@@ -81,6 +82,7 @@ export class BriefReviewer {
       '\n\n## Example Briefs (for reference)\n\n',
       examples,
     ].join('');
+    return prependPreamble(this.baseDir, assembled);
   }
 
   /**

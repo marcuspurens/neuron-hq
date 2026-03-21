@@ -8,6 +8,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
+import { prependPreamble } from '../preamble.js';
 import { emergencySave } from '../emergency-save.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -129,7 +130,7 @@ export class MergerAgent {
 EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, commit with bash_exec_in_target, write merge_summary.md.
 `;
 
-    return `${overlayedPrompt}\n\n${contextInfo}`;
+    return prependPreamble(this.baseDir, `${overlayedPrompt}\n\n${contextInfo}`);
   }
 
   private async runAgentLoop(systemPrompt: string): Promise<string> {

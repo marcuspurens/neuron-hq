@@ -2,6 +2,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
+import { prependPreamble } from '../preamble.js';
 import * as readline from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -66,7 +67,7 @@ export class BriefAgent {
       const exampleBriefs = loadExampleBriefs(this.baseDir);
       const today = new Date().toISOString().slice(0, 10);
 
-      const fullSystemPrompt = [
+      const assembledPrompt = [
         overlayedSystemPrompt,
         '\n\n## Repository Context\n\n',
         `Target: ${this.targetName}\nDate: ${today}\n\n`,
@@ -74,6 +75,7 @@ export class BriefAgent {
         '\n\n## Example Briefs\n\n',
         exampleBriefs,
       ].join('');
+      const fullSystemPrompt = await prependPreamble(this.baseDir, assembledPrompt);
 
       const messages: Anthropic.MessageParam[] = [];
 

@@ -233,6 +233,16 @@ When uncertain, classify as higher risk.
 - Writes tests for untested behavior, runs full test suite, reports gaps
 - Does not implement features — only tests
 
+### Consolidator
+- Knowledge graph curator — refines, verifies, and improves graph quality
+- Never creates new knowledge nodes — only merges, connects, archives, and reports
+- Three-Gate Test before any merge: same problem, same context, compatible properties
+- Classifies merges as Type A (dedup) or Type B (synthesis) — preserves originals in synthesis
+- Writes `consolidation_report.md` (audit log) and `memory/consolidation_findings.md` (actionable findings)
+- Quality-reviews Historian's output: flags overvalued confidence, vague descriptions, near-duplicates
+- Priority order: gaps > merges > distribute > connections > scope-promotion > quality-review > archive
+- Precondition check: exits early if no new nodes since last consolidation
+
 ### Merger
 - Final safety gate before changes land in the target repo
 - Two-phase operation: PLAN (produce merge_plan.md) → EXECUTE (after Manager approves)
@@ -250,6 +260,7 @@ When uncertain, classify as higher risk.
 - Read `brief.md` from the run artifacts dir
 - Run baseline verification (tests, typecheck, lint)
 - Search memory files for relevant prior patterns: `search_memory(query=...)`
+- Read `memory/consolidation_findings.md` if it exists — contains knowledge gaps and quality warnings from the last graph consolidation
 - Read existing code in affected modules
 
 ### Step 2: Plan (≤ 10 iterations)

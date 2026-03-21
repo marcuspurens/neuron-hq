@@ -7,6 +7,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
+import { prependPreamble } from '../preamble.js';
 import { createLogger } from '../logger.js';
 const logger = createLogger('agent:tester');
 
@@ -98,7 +99,7 @@ Discover the test framework in the workspace, run the full test suite,
 and write test_report.md to the run artifacts directory.
 `;
 
-    return `${overlayedPrompt}\n\n${contextInfo}`;
+    return prependPreamble(this.baseDir, `${overlayedPrompt}\n\n${contextInfo}`);
   }
 
   private async runAgentLoop(systemPrompt: string): Promise<string> {

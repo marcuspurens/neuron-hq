@@ -11,6 +11,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { loadPromptHierarchy, buildHierarchicalPrompt } from '../prompt-hierarchy.js';
 import { loadOverlay } from '../prompt-overlays.js';
+import { prependPreamble } from '../preamble.js';
 import { scanDiff, formatScanReport } from '../security-scan.js';
 import { extractBriefContext } from '../brief-context-extractor.js';
 import { getGraphContextForBrief } from '../graph-context.js';
@@ -200,7 +201,7 @@ assess risk (LOW/MED/HIGH), and write a STOPLIGHT report to report.md.
 Block if policy is violated or verification fails.
 `;
 
-    return `${reviewerPrompt}\n\n${contextInfo}`;
+    return prependPreamble(this.baseDir, `${reviewerPrompt}\n\n${contextInfo}`);
   }
 
   private async loadBrief(): Promise<string> {

@@ -8,6 +8,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
+import { prependPreamble } from '../preamble.js';
 import { createLogger } from '../logger.js';
 const logger = createLogger('agent:librarian');
 
@@ -114,7 +115,7 @@ Generate ideas.md (impact/effort/risk analysis) and sources.md (code references 
 Focus on high-impact, low-effort opportunities.
 `;
 
-    return `${overlayedPrompt}\n\n${contextInfo}`;
+    return prependPreamble(this.baseDir, `${overlayedPrompt}\n\n${contextInfo}`);
   }
 
   private async runAgentLoop(systemPrompt: string, brief: string): Promise<void> {
