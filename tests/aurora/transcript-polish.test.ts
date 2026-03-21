@@ -30,7 +30,7 @@ vi.mock('../../src/core/agent-client.js', () => ({
       },
     },
     model: 'claude-haiku-4-5-20251001',
-    maxTokens: 16384,
+    maxTokens: 128000,
   }),
 }));
 
@@ -38,7 +38,7 @@ vi.mock('../../src/core/model-registry.js', () => ({
   DEFAULT_MODEL_CONFIG: {
     provider: 'anthropic',
     model: 'claude-opus-4-6',
-    maxTokens: 16384,
+    maxTokens: 128000,
   },
 }));
 

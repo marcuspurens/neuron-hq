@@ -21,7 +21,7 @@ describe('createAgentClient', () => {
     const { client, model, maxTokens } = createAgentClient(DEFAULT_MODEL_CONFIG);
     expect(client).toBeDefined();
     expect(model).toBe('claude-opus-4-6');
-    expect(maxTokens).toBe(16384);
+    expect(maxTokens).toBe(128000);
   });
 
   it('returns correct model and maxTokens from config', () => {
@@ -40,7 +40,7 @@ describe('createAgentClient', () => {
     const config: ModelConfig = {
       provider: 'anthropic',
       model: 'claude-opus-4-6',
-      maxTokens: 16384,
+      maxTokens: 128000,
       apiKeyEnv: 'CUSTOM_API_KEY',
     };
     const { client } = createAgentClient(config);
@@ -59,7 +59,7 @@ describe('createAgentClient', () => {
     const config: ModelConfig = {
       provider: 'anthropic',
       model: 'test-model',
-      maxTokens: 16384,
+      maxTokens: 128000,
       apiKeyEnv: 'CUSTOM_KEY',
     };
     expect(() => createAgentClient(config)).toThrow(

@@ -22,6 +22,9 @@ export function createAgentClient(config: ModelConfig): {
   const client = new Anthropic({
     apiKey,
     ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
+    defaultHeaders: {
+      'anthropic-beta': 'output-128k-2025-02-19',
+    },
   });
 
   return {
