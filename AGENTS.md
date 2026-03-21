@@ -243,6 +243,19 @@ When uncertain, classify as higher risk.
 - Priority order: gaps > merges > distribute > connections > scope-promotion > quality-review > archive
 - Precondition check: exits early if no new nodes since last consolidation
 
+### Knowledge Manager
+- Knowledge maintenance agent — maintains Aurora graph by researching gaps and refreshing stale sources
+- Currently a deterministic TypeScript pipeline; hybrid LLM upgrade planned for quality assessment
+- **Honesty over completeness** — reports `unverified` or `partially_resolved` rather than false `resolved`
+- Always `search` before `remember` — never blind-write to the graph
+- Two queues: research queue (gaps + high-confidence stale) and archive queue (low-confidence stale → Consolidator)
+- Never calls `verify-source` without actual content verification — leaves nodes stale rather than falsely verifying
+- Precondition check: reads `memory/km_history.md`, skips gaps attempted ≥3 times, exits early if no new nodes
+- Writes `memory/km_health.md` (graph status, recommendations, "For Historian" section) and `memory/km_history.md` (own run log)
+- Priority: preconditions > scan > research gaps > verify stale > distribute findings > flag for archive
+- Topic chaining (multi-cycle) only chains from genuinely resolved gaps to prevent divergence
+- Defined consumers: Manager (orient step), Historian (verification tasks), self (next run), Marcus (health check)
+
 ### Merger
 - Final safety gate before changes land in the target repo
 - Two-phase operation: PLAN (produce merge_plan.md) → EXECUTE (after Manager approves)
@@ -261,6 +274,7 @@ When uncertain, classify as higher risk.
 - Run baseline verification (tests, typecheck, lint)
 - Search memory files for relevant prior patterns: `search_memory(query=...)`
 - Read `memory/consolidation_findings.md` if it exists — contains knowledge gaps and quality warnings from the last graph consolidation
+- Read `memory/km_health.md` if it exists — contains graph health status, recurring gaps, and recommendations from Knowledge Manager
 - Read existing code in affected modules
 
 ### Step 2: Plan (≤ 10 iterations)

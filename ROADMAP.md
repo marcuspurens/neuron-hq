@@ -1,6 +1,6 @@
 # Neuron HQ — Roadmap
 
-> **Senast uppdaterad:** 2026-03-21 · Session 117
+> **Senast uppdaterad:** 2026-03-21 · Session 119
 > **Källa:** Djupsamtal S102 + Marcus ~40 kommentarer + diskussionsdokument S103
 > Editera direkt — kryssa av med ✅ när klart.
 > **Arkiv:** Alla versioner sparas i [docs/roadmaps/](docs/roadmaps/) med datumstämpel.
@@ -15,10 +15,10 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3530 |
+| Tester | 3552 |
 | Körningar | 172 |
 | MCP-tools | 44 |
-| Sessioner | 117 |
+| Sessioner | 119 |
 | Agenter | 11 |
 | Idé-noder | 924 |
 | Code Review | ★★★★☆ (Fas 1 klar) |
@@ -176,11 +176,11 @@ Fas 4: Produkt                ← andra kan använda det
 
 **Flyttad hit från 3.6.** Bättre prompts förbättrar ALLA framtida körningar. Brief Agent-intervjun (S109-110) visade att en enda rak fråga avslöjade vad 9 rundor av testning missade. Se [3.6](#36-agentintervjuer--opus-samtalar-med-varje-agent-) för fullständig beskrivning.
 
-**Status (S116):** 9/11 klara
+**Status (S119):** 10/11 klara
 - ✅ Brief Agent (S110) · Manager (S111) · Reviewer (S111) · Implementer (S112)
 - ✅ Librarian (S112) · Researcher (S112) · Tester (S114) · Merger (S115)
-- ✅ Historian (S116)
-- ⬜ Consolidator · Knowledge Manager
+- ✅ Historian (S116) · Consolidator (S118)
+- ⬜ Knowledge Manager ← PÅGÅR S119
 
 **Effort:** 3-5 sessioner (manuellt, inte körningar)
 
