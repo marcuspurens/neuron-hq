@@ -44,18 +44,30 @@ Rapport: `docs/samtal/samtal-2026-03-21T1500-alla-11-intervjuer-sammanfattning.m
 ## Tester
 3566/3566 gröna (+14 nya)
 
-## Nästa session — förslag
+## Nästa session (S120) — PLAN
 
-### Alternativ A: Första körning med uppdaterade prompter
-Kör en verklig körning med alla 11 omskrivna prompter + preamble.
-Jämför med körning #172 (senaste).
+### Steg 1: Verifiera KM-prompten (kort)
+Kör en sista feedback-runda med KM: bekräfta att alla 10/10 gap nu är adresserade
+efter de 4 justeringarna. Snabb check, ~5 min.
 
-### Alternativ B: Knowledge Manager hybrid-upgrade
-Implementera LLM-kvalitetsfilter i knowledge-manager.ts baserat på intervjuinsikterna.
-Brief behövs.
+### Steg 2: FÖRE vs EFTER-körning (huvudfokus)
+Den största förändringen i Neuron HQ:s historia:
+- 11 omskrivna prompter (alla agenter)
+- LLM Operating Awareness preamble
+- 128K output tokens + 1M context window
 
-### Alternativ C: 2.2 Feedback-loop
-Fortsätt med roadmap-punkt 2.2 (agenter måste läsa kunskap).
+**Vi behöver en jämförande körning:**
+- Välj samma target som en tidigare körning (t.ex. #172 eller annan)
+- Liknande brief (eller identisk om möjligt)
+- Mätpunkter att jämföra:
+  - Rapport-kvalitet (stoplight, djup, insikter)
+  - Antal iterationer per agent
+  - Kunskapsgrafens tillväxt (nya noder, kvalitet)
+  - Run-narrative (kvalitativt: side-by-side)
+  - Agenternas beteende: följer de de nya instruktionerna?
+  - Använde de preamble-principerna? ("don't satisfice", etc.)
+- Marcus kör CLI → delar rapport → vi analyserar tillsammans
 
-### Alternativ D: 2.4 Idékonsolidering
-924 idéer → kluster med meta-idéer.
+### Steg 3 (efter körningen): Analys + beslut
+Baserat på före/efter: vad förbättrades? Vad är kvar att göra?
+Informerar prioritering: 2.2 Feedback-loop vs 2.4 Idékonsolidering vs annat.
