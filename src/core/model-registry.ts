@@ -7,7 +7,7 @@ export const ModelConfigSchema = z.object({
   model: z.string(),
   baseUrl: z.string().optional(),
   apiKeyEnv: z.string().optional(),
-  maxTokens: z.number().positive().default(8192),
+  maxTokens: z.number().positive().default(16384),
 });
 
 export type ModelConfig = z.infer<typeof ModelConfigSchema>;
@@ -32,7 +32,7 @@ export type AgentModelMap = z.infer<typeof AgentModelMapSchema>;
 export const DEFAULT_MODEL_CONFIG: ModelConfig = {
   provider: 'anthropic',
   model: 'claude-opus-4-6',
-  maxTokens: 8192,
+  maxTokens: 16384,
 };
 
 /**

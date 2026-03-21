@@ -39,12 +39,12 @@ vi.mock('../../src/core/model-registry.js', () => ({
   resolveModelConfig: () => ({
     provider: 'anthropic',
     model: 'claude-haiku-4-5-20251001',
-    maxTokens: 8192,
+    maxTokens: 16384,
   }),
   DEFAULT_MODEL_CONFIG: {
     provider: 'anthropic',
     model: 'claude-opus-4-6',
-    maxTokens: 8192,
+    maxTokens: 16384,
   },
 }));
 

@@ -20,12 +20,12 @@ vi.mock('../../src/core/model-registry.js', () => ({
   resolveModelConfig: () => ({
     provider: 'anthropic' as const,
     model: 'claude-haiku-4-5-20251001',
-    maxTokens: 8192,
+    maxTokens: 16384,
   }),
   DEFAULT_MODEL_CONFIG: {
     provider: 'anthropic' as const,
     model: 'claude-opus-4-6',
-    maxTokens: 8192,
+    maxTokens: 16384,
   },
 }));
 
@@ -76,7 +76,7 @@ function setupClaudeMocks(answerText: string, learnResponse?: string): void {
   mockCreateAgentClient.mockReturnValue({
     client: { messages: { create: mockCreate } },
     model: 'claude-haiku-4-5-20251001',
-    maxTokens: 8192,
+    maxTokens: 16384,
   });
 }
 
@@ -134,7 +134,7 @@ describe('ask() with learn option', () => {
     mockCreateAgentClient.mockReturnValue({
       client: { messages: { create: mockCreate } },
       model: 'claude-haiku-4-5-20251001',
-      maxTokens: 8192,
+      maxTokens: 16384,
     });
 
     const result = await ask('Question?', { learn: true });

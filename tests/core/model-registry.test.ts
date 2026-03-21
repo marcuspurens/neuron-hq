@@ -73,7 +73,7 @@ describe('ModelConfigSchema', () => {
     const result = ModelConfigSchema.safeParse({
       provider: 'anthropic',
       model: 'claude-opus-4-6',
-      maxTokens: 8192,
+      maxTokens: 16384,
     });
     expect(result.success).toBe(true);
   });
@@ -91,7 +91,7 @@ describe('ModelConfigSchema', () => {
       provider: 'anthropic',
       model: 'claude-opus-4-6',
     });
-    expect(result.maxTokens).toBe(8192);
+    expect(result.maxTokens).toBe(16384);
   });
 
   it('accepts openai-compatible provider', () => {
@@ -130,7 +130,7 @@ describe('DEFAULT_MODEL_CONFIG', () => {
   it('has correct default values', () => {
     expect(DEFAULT_MODEL_CONFIG.provider).toBe('anthropic');
     expect(DEFAULT_MODEL_CONFIG.model).toBe('claude-opus-4-6');
-    expect(DEFAULT_MODEL_CONFIG.maxTokens).toBe(8192);
+    expect(DEFAULT_MODEL_CONFIG.maxTokens).toBe(16384);
   });
 });
 
