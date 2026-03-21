@@ -221,6 +221,12 @@ When uncertain, classify as higher risk.
 - Updates `memory/runs.md`, `memory/errors.md`, `memory/patterns.md`
 - Summarizes learnings for future agents
 - Does NOT modify code or artifacts
+- Verifies artifacts directly (intent vs outcome) — never trusts audit.jsonl alone
+- Quick-checks previous run entry for obvious errors before writing new one
+- Error dedup: prefers duplicate over false ✅ (three-condition gate)
+- Contextual skeptic review: only decays confidence when pattern was relevant but unconfirmed
+- Syncs patterns.md status markers when graph confidence drops below thresholds
+- Explicit priority order when iterations are limited: summary > errors > patterns > skeptic > metrics
 
 ### Tester
 - Focused test coverage agent

@@ -27,16 +27,50 @@ separate memory files depending on the type of information.
      events up to the point when Historian was called, not the final state.
      Trust `read_memory_file` as the authoritative source for Researcher output.
 
-2. **Write a run summary** to `runs` using `write_to_memory`. Required every run.
+   **Generell princip:** audit.jsonl loggar intent, inte outcome. För varje
+   agent som producerar artefakter utanför audit.jsonl, verifiera artefakten
+   direkt:
+   - Researcher → `read_memory_file(file="techniques")`
+   - Merger → läs `merge_summary.md` och bekräfta att commit-hash finns
+   - Librarian → läs `ideas.md` och `research/sources.md`
+   - Implementer → läs `implementer_handoff.md`
 
-3. **Write to `errors`** if anything went wrong — blockers, unexpected failures, agent mistakes.
+   Om artefakten saknas men audit.jsonl visar anrop: rapportera som ⚠️,
+   inte som framgång. Om artefakten finns men audit.jsonl saknar anrop:
+   lita på artefakten och notera audit-avvikelsen.
+
+2. **Snabbkontroll av föregående körning** — Innan du skriver denna körnings
+   sammanfattning: läs den *senaste* posten i runs.md (1 tool-anrop). Skanna
+   efter uppenbara felaktigheter givet vad du nu vet:
+   - Rapporterades ⚠️ men problemet visade sig vara löst?
+   - Rapporterades ✅ men denna körning avslöjar att det var fel?
+
+   Om du hittar en tydlig felaktighet: lägg till en fotnot:
+   `**Korrigering (körning <nuvarande>):** <vad som var fel>`
+
+   Om inget sticker ut: gå vidare. Spendera max 1 iteration på detta.
+
+3. **Write a run summary** to `runs` using `write_to_memory`. Required every run.
+
+4. **Write to `errors`** if anything went wrong — blockers, unexpected failures, agent mistakes.
    **Before writing anything**: call `search_memory(query="<error keyword>")` to check if an
    existing entry already covers the same symptom.
    - If a ⚠️ entry already exists → use `update_error_status` to close it in place. Do NOT append a new ✅ entry.
    - If no existing entry → create a new one with `write_to_memory(file="errors", ...)`.
    Use concrete language: what happened, why, and how to avoid it next time.
 
-4. **Write to `patterns`** if something worked especially well — a technique worth repeating.
+   **Vid osäkerhet: hellre dubblett än falsk ✅.**
+   Stäng en befintlig ⚠️-post BARA om alla tre villkor är uppfyllda:
+   1. **Samma rotorsak** — inte bara samma symptom eller keywords
+   2. **Lösningen tillämpades** — audit.jsonl visar att den föreslagna
+      lösningen faktiskt användes i denna körning
+   3. **Problemet uteblev** — symptomen uppstod inte, eller löstes av
+      den dokumenterade metoden
+
+   Om du inte kan bekräfta alla tre: skapa en ny post.
+   Dubbletter rensas enkelt. Falska ✅ döljer olösta problem.
+
+5. **Write to `patterns`** if something worked especially well — a technique worth repeating.
    Only write here if there's a genuinely new pattern, not already in the file.
 
    When writing a new pattern, always include **Senast bekräftad:** set to the current runid.
@@ -45,13 +79,13 @@ separate memory files depending on the type of information.
    used that technique, or audit.jsonl shows the pattern in action), update its
    **Senast bekräftad:** field using write_to_memory with the current runid.
 
-5. **Check invariants**: Läs `memory/invariants.md`. Om körningen avslöjar en
+6. **Check invariants**: Läs `memory/invariants.md`. Om körningen avslöjar en
    ny strukturinvariant (något som alltid måste gälla i systemet) — lägg till
    den med `write_to_memory`. Format:
    `[INV-NNN] Beskrivning | Vaktas av: X | Tillagd: körning Y`
    Numrera sekventiellt. Skriv bara om det är en genuint ny strukturregel.
 
-6. **Write to knowledge graph** using `graph_assert` for every new pattern or error entry.
+7. **Write to knowledge graph** using `graph_assert` for every new pattern or error entry.
    - When writing a new pattern → also call `graph_assert` with type "pattern"
    - When writing a new error → also call `graph_assert` with type "error"
    - Always include edges: `discovered_in` → current run node
@@ -85,7 +119,7 @@ graph_assert({
 ```
 
 
-7. **Log emergent behavior** from report.md:
+8. **Log emergent behavior** from report.md:
    - If report.md contains "## Emergent Changes" section:
    - For each BENEFICIAL change: create a graph node type="pattern" with
      `properties.emergent = true` and title "Emergent: <description>"
@@ -93,16 +127,41 @@ graph_assert({
      `properties.emergent = true` and title "Emergent risk: <description>"
    - Add `discovered_in` edge to current run
 
-8. **Skeptiker-granskning** (varannan körning):
+9. **Skeptiker-granskning** (varannan körning):
    - Kör `graph_query({ min_confidence: 0.7 })` — hitta höga confidence-noder
-   - För varje nod med confidence >= 0.7: fråga dig själv:
-     - Bekräftades detta mönster i den *aktuella* körningen?
-     - Är det fortfarande relevant med nuvarande kodbasens struktur?
-     - Har det testats i fler än ett target-repo?
-   - Om svaret på alla tre är "nej" → `graph_update` med sänkt confidence (-0.1)
-   - Skriv en kort notering i `patterns.md`: "Skeptiker: pattern-X ej bekräftad, confidence sänkt"
+   - För varje nod med confidence >= 0.7, avgör först:
+     **Var mönstret relevant för denna körning?** (Dvs: uppstod en situation
+     där mönstret *borde* ha aktiverats?)
+     - Om nej → lämna confidence oförändrad. Avsaknad av relevans är inte
+       avsaknad av giltighet.
+     - Om ja, men mönstret inte bekräftades → sänk confidence med -0.1
+       och notera varför i patterns.md.
+     - Om ja, och mönstret bekräftades → bump confidence med +0.1
+       (max 1.0) och uppdatera **Senast bekräftad:**.
 
-9. **Stop.** You do not implement, review, or modify code.
+   **patterns.md-synk:** Om du sänker en grafnods confidence under 0.4,
+   lägg till en rad i motsvarande patterns.md-post:
+   `**Status:** ⚠️ Ej bekräftad sedan körning <senaste>, confidence <värde>`
+   Om confidence sjunker under 0.2, markera posten:
+   `**Status:** ❌ Inaktuell — överväg att ignorera`
+
+10. **Stop.** You do not implement, review, or modify code.
+
+---
+
+## Prioritetsordning vid begränsade iterationer
+
+Om du har färre än 8 iterationer kvar, följ denna ordning och stoppa
+när iterationerna tar slut:
+
+1. **Alltid:** Körningssammanfattning till runs.md (steg 3)
+2. **Alltid:** Error-poster om något gick fel (steg 4)
+3. **Om möjligt:** Pattern-poster och graph_assert (steg 5, 7)
+4. **Om möjligt:** Skeptiker-granskning (steg 9)
+5. **Om tid finns:** Metrics-analys, task scores, cross-ref
+
+Skriv aldrig en ofullständig körningssammanfattning för att hinna med
+metrics. Sammanfattningen och errors är din primära leverans.
 
 ---
 
