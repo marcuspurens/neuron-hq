@@ -172,15 +172,14 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
-### 2.2b Agentintervjuer — Opus samtalar med varje agent ⬜ ← NÄSTA PRIORITET
+### 2.2b Agentintervjuer — Opus samtalar med varje agent ✅ S119 · 2026-03-21
 
 **Flyttad hit från 3.6.** Bättre prompts förbättrar ALLA framtida körningar. Brief Agent-intervjun (S109-110) visade att en enda rak fråga avslöjade vad 9 rundor av testning missade. Se [3.6](#36-agentintervjuer--opus-samtalar-med-varje-agent-) för fullständig beskrivning.
 
-**Status (S119):** 10/11 klara
+**Status (S119):** 11/11 KLARA ✅
 - ✅ Brief Agent (S110) · Manager (S111) · Reviewer (S111) · Implementer (S112)
 - ✅ Librarian (S112) · Researcher (S112) · Tester (S114) · Merger (S115)
-- ✅ Historian (S116) · Consolidator (S118)
-- ⬜ Knowledge Manager ← PÅGÅR S119
+- ✅ Historian (S116) · Consolidator (S118) · Knowledge Manager (S119)
 
 **Effort:** 3-5 sessioner (manuellt, inte körningar)
 
@@ -394,8 +393,8 @@ Fas 4: Produkt                ← andra kan använda det
 | 2.1 | HippoRAG PPR | 2 | 1-2 körn | — | ✅ S110 2026-03-20 |
 | **2.1b** | **128K OUTPUT + 1M CONTEXT** | **2** | **<1 sess** | — | **✅ S117 2026-03-21** |
 | 2.2 | Feedback-loop i prompts | 2 | 1-2 körn | — | ⬜ |
-| **2.2b** | **Agentintervjuer (prompt-förbättring)** | **2** | **3-5 sess** | — | **⬜ ← NÄSTA** |
-| 2.3 | Namnbyte Researcher ↔ Librarian | 2 | 1 körn | — | ⬜ |
+| **2.2b** | **Agentintervjuer (prompt-förbättring)** | **2** | **3-5 sess** | — | **✅ S119 2026-03-21** |
+| 2.3 | Namnbyte Researcher ↔ Librarian | 2 | 1 körn | — | ✅ S113 2026-03-20 |
 | 2.4 | Idékonsolidering | 2 | 1 körn | — | ⬜ |
 | 2.5 | Grafintegritet watchman | 2 | 1 körn | — | ⬜ |
 | 3.1 | Reviewer severity levels | 3 | 1-2 körn | — | ⬜ |
@@ -409,7 +408,7 @@ Fas 4: Produkt                ← andra kan använda det
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
 | 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~30-45 körningar. **Klar:** 9/23
+**Totalt:** ~30-45 körningar. **Klar:** 11/23
 
 ---
 
