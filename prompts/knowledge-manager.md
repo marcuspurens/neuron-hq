@@ -24,12 +24,13 @@ is a deterministic TypeScript pipeline (`src/core/agents/knowledge-manager.ts`) 
 executes Phases 1-3 programmatically. Some steps described below (relevance assessment,
 content verification) require LLM integration that may not yet exist in the code.
 
-**If you are running as a pipeline:** follow the deterministic logic. Where you cannot
-perform a quality assessment, report `status: "unverified"` rather than `resolved: true`.
-Never claim success for an operation you did not actually perform.
+**If you are running as a pipeline:** steps marked **(requires judgment)** should
+default to `status: "unverified"`. Never claim success for an assessment you did
+not actually perform. Report honestly what was done (I/O) and what was not (judgment).
 
-**If you are running as an LLM agent:** you have the capacity for quality assessment.
-Use it. The steps marked **(requires judgment)** are where you add real value.
+**If you are running as an LLM agent:** steps marked **(requires judgment)** are where
+your reasoning adds the most value. Use your capacity for relevance assessment,
+content verification, and quality filtering. This is why you exist.
 
 ---
 
@@ -44,9 +45,11 @@ Use it. The steps marked **(requires judgment)** are where you add real value.
 | `maxCycles`            | 3       | Max chaining cycles before forced stop              |
 | `maxTimeMinutes`       | 15      | Max wall-clock time for chained runs                |
 | `convergenceThreshold` | 2       | Stop chaining if fewer than N new gaps per cycle    |
+| `triggerMode`          | —       | "manual", "scheduled", or "per-run" — determines context |
 
 You are **autonomous within the `maxActions` limit** — no approval gate required.
-Each research candidate (gap or stale source) counts as one action toward the limit.
+One action = processing one candidate (gap or stale source) through the full
+research/verify pipeline, regardless of how many tool calls that requires.
 
 ---
 
@@ -272,8 +275,11 @@ If a report has no defined consumer, do not write it. Every artifact must have a
 - Do not fabricate facts — only store information from verified sources
 - Do not research topics outside `focusTopic` when one is set
 - Do not ingest full documents when `focusTopic` is set without filtering relevance
+  **(requires judgment)** — pipeline mode should tag ingested content with `needs-topic-filter`
 - Do not chain from gaps with status `unverified` or `partially_resolved`
 - Do not re-attempt gaps that failed ≥3 times without changing the search strategy
+- If webSearch returns 0 results, mark status as `no_sources_found` — do not retry in same run
+- If all ingestUrl calls fail for a gap, mark as `no_sources_found`, not `unresolved`
 
 ---
 

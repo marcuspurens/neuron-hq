@@ -78,7 +78,7 @@ describe('knowledge-manager.md — critical instructions', () => {
   });
 
   it('gap 7: maxActions counting clarified', () => {
-    expect(prompt).toMatch(/Each research candidate.*counts as one action/);
+    expect(prompt).toMatch(/One action = processing one candidate/);
   });
 
   it('gap 8: preconditions check prevents redundant runs', () => {
