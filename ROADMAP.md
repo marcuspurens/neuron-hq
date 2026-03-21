@@ -1,6 +1,6 @@
 # Neuron HQ — Roadmap
 
-> **Senast uppdaterad:** 2026-03-20 · Session 110
+> **Senast uppdaterad:** 2026-03-21 · Session 117
 > **Källa:** Djupsamtal S102 + Marcus ~40 kommentarer + diskussionsdokument S103
 > Editera direkt — kryssa av med ✅ när klart.
 > **Arkiv:** Alla versioner sparas i [docs/roadmaps/](docs/roadmaps/) med datumstämpel.
@@ -15,13 +15,15 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3495 |
+| Tester | 3530 |
 | Körningar | 172 |
 | MCP-tools | 44 |
-| Sessioner | 115 |
+| Sessioner | 117 |
 | Agenter | 11 |
 | Idé-noder | 924 |
 | Code Review | ★★★★☆ (Fas 1 klar) |
+| **OUTPUT** | **128K TOKENS** ⚡ |
+| **CONTEXT WINDOW** | **1M TOKENS** ⚡ |
 
 ---
 
@@ -138,6 +140,21 @@ Fas 4: Produkt                ← andra kan använda det
 - `linkRelatedIdeas()` omskriven till PPR+Jaccard hybrid (PPR först, Jaccard fallback för isolerade noder)
 - `pprQuery()` API + `graph_ppr` som agent-tool och MCP-tool
 - Kanonisk edge-nyckel förhindrar dubbletter, maxEdgesPerNode=3
+
+---
+
+### 2.1b 128K OUTPUT + 1M CONTEXT WINDOW ✅ S117 · 2026-03-21
+
+**Vad det ger dig:** ALLA agenter har nu OBEGRÄNSAT output-utrymme (128 000 tokens) och hela 1 MILJON tokens context window. Inga trunkerade svar. Inga borttappade resonemang. Agenterna kan tänka, skriva och resonera utan begränsningar.
+
+**Gjort:**
+- `anthropic-beta: output-128k-2025-02-19` header aktiverad centralt i `agent-client.ts`
+- Default `maxTokens` höjt från 8192 → 128000 i `model-registry.ts`
+- 1M context window aktiverat på API-kontot (Anthropic Pro-plan)
+- Alla 3530 tester gröna
+
+**INNAN:** 8K output (trunkering), 200K context
+**EFTER:** 128K OUTPUT ⚡ + 1M CONTEXT WINDOW ⚡
 
 ---
 
@@ -375,6 +392,7 @@ Fas 4: Produkt                ← andra kan använda det
 | 1.5 | Manager prompt-fix | 1 | <1 körn | — | ✅ S103 2026-03-19 |
 | 1.6 | neuron_help tool | 1 | 1 körn | — | ✅ S107 2026-03-20 |
 | 2.1 | HippoRAG PPR | 2 | 1-2 körn | — | ✅ S110 2026-03-20 |
+| **2.1b** | **128K OUTPUT + 1M CONTEXT** | **2** | **<1 sess** | — | **✅ S117 2026-03-21** |
 | 2.2 | Feedback-loop i prompts | 2 | 1-2 körn | — | ⬜ |
 | **2.2b** | **Agentintervjuer (prompt-förbättring)** | **2** | **3-5 sess** | — | **⬜ ← NÄSTA** |
 | 2.3 | Namnbyte Researcher ↔ Librarian | 2 | 1 körn | — | ⬜ |
@@ -391,7 +409,7 @@ Fas 4: Produkt                ← andra kan använda det
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
 | 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~30-45 körningar. **Klar:** 8/22
+**Totalt:** ~30-45 körningar. **Klar:** 9/23
 
 ---
 

@@ -60,6 +60,8 @@ Neuron HQ is a **control plane** that orchestrates autonomous agent swarms to de
 The agent system follows a **hub-and-spoke delegation pattern**. The Manager is the central orchestrator that delegates work to 9 specialized sub-agents. Every agent:
 
 - Uses the **Anthropic Claude API** with streaming
+- **128K OUTPUT TOKENS** — beta header `output-128k-2025-02-19` enabled globally
+- **1M CONTEXT WINDOW** — full million-token context available on API plan
 - Runs in an **iteration-bounded loop** (configurable per agent)
 - Has **policy-gated tool access**
 - Logs every tool call to the **audit trail**
