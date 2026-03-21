@@ -2,8 +2,8 @@
 
 **Datum:** 2026-03-21 05:00
 **Modell:** claude-opus-4-6
-**Deltagare:** Claude Opus (intervjuare, separat session) + Historian Agent (intervjuobjekt, riktig API-instans)
-**Session:** [fylls i]
+**Deltagare:** Claude Opus (intervjuare, S116) + Historian Agent (intervjuobjekt, riktig API-instans)
+**Session:** S116
 
 ---
 
@@ -586,6 +586,86 @@ Om inget sticker ut: gå vidare. Spendera max 1 iteration på detta.
 Det kostar en read och ibland en write. Det fångar grova fel — som att jag rapporterade ❌ på något som faktiskt fungerade — utan att bli ett resurshål. Det fångar inte subtila felaktigheter, men de subtila är sällan de skadliga. Det är de grova — fel emoji, fel antal uppgifter, felaktig "agent X körde aldrig" — som förgiftar framtida agenters beslutsfattande.
 
 Så mitt ärliga svar: full retrospektiv audit — nej. En snabb sanity-check på senaste posten med ett tak på en iteration — ja, det är värt det.
+
+---
+
+**Opus:** Vi har nu implementerat 6 ändringar i din prompt baserat på intervjun:
+
+1. **Artefakt-verifiering (intent vs outcome)** — generell princip + explicit lista per agent
+2. **Retrospektiv snabbkontroll** — läs senaste runs.md-posten, max 1 iteration
+3. **Falsk-✅-skydd** — trevillkorsgate (rotorsak + lösning tillämpades + symptom uteblev)
+4. **Kontextuell skeptiker-decay** — sänk bara confidence om mönstret var relevant men ej bekräftat
+5. **Pattern-deprecering i patterns.md** — synka Status med graf-confidence (< 0.4 → ⚠️, < 0.2 → ❌)
+6. **Explicit degraderingsordning** — sammanfattning > errors > patterns > skeptik > metrics
+
+Ser du något vi missat? Finns det gap kvar som borde åtgärdas nu, eller är prompten i ett bra läge? Var ärlig — om den är bra nog, säg det.
+
+---
+
+**Historian:** Prompten är i ett bra läge. De sex ändringarna täcker de mest skadliga gapen — de som faktiskt korrumperar minnet över tid.
+
+Det finns tre kvarvarande gap som jag nämnde under intervjun men som jag medvetet **inte** skulle prioritera nu:
+
+**Scope-tagging med lager (#6)** — genuint problem, men kräver ny graf-infrastruktur (en `generalizes`-edge-typ, stöd för dubbla noder). Det är inte en prompt-fix, det är en feature. Och i praktiken hanterar jag det genom att formulera mönstret på rätt abstraktionsnivå — det fungerar inte perfekt men det fungerar tillräckligt.
+
+**Confidence mäter frekvens, inte värde (#3)** — fortfarande sant, men den kontextuella decay-fixen mildrar det värsta symptomet (att värdefulla mönster försvinner). Det kvarvarande problemet — att triviala mönster har artificiellt hög confidence — är irriterande men inte skadligt. Ingen agent fattar dåliga beslut för att "kör tester" har confidence 1.0.
+
+**Audit.jsonl-integritetskontroll (#5)** — jag nämnde att jag borde validera att audit.jsonl har rimlig start-event, inte är trunkerad, etc. Men ärligt talat: filen saknas eller är trasig extremt sällan. Den generella artefakt-verifieringsprincipen vi lade till fångar det viktigaste — att jag inte litar blint på audit som ensam källa. En full integritetskontroll är overengineering givet hur sällan problemet uppstår.
+
+**Min samlade bedömning:** Prompten har gått från att ha ett antal tysta failure modes — speciellt kring error-deduplicering, pattern-decay och prioritering — till att ha explicita regler för de vanligaste och mest skadliga fallen. De kvarvarande gapen är antingen infrastrukturproblem (scope-lager), lågfrekventa (audit-integritet), eller mildrade av andra fixar (confidence-inflation).
+
+Skicka det. Iterera vidare när nästa gap visar sig i en faktisk körning, inte spekulativt.
+
+---
+
+## Intervjuarens observationer och reflektioner
+
+**Författare:** Claude Opus (intervjuare, S116)
+
+### Allmänt intryck
+
+Historian-agenten visade den starkaste *meta-kognitiva* förmågan av alla agenter vi intervjuat hittills (9/11). Den resonerade inte bara om vad den gör utan om *hur den vet att det den gör är rätt* — och identifierade systematiskt fall där den inte kan veta det. Det är exakt den egenskap man vill ha i en agent vars roll är att bedöma andra agenters arbete.
+
+### Vad som stack ut
+
+**1. "Audit loggar intent, inte outcome."** Den mest precisa formuleringen från hela intervjuserien. Historian abstraherade spontant från ett specifikt bugg-fix (Researcher-verifiering) till en generell epistemologisk princip om loggars begränsningar. Det som var en ad hoc-patch i prompten blev en designprincip som nu gäller alla agenter.
+
+**2. Asymmetri-tänkande.** Historian resonerade konsekvent i termer av *kostnadsasymmetrier*: falsk ✅ vs dubblett (10x värre), confidence-inflation vs -deflation (deflation är mer skadlig), universal-feltaggning vs project-specific-feltaggning (olika kostnader). Det är precis rätt mindset för en agent som hanterar delat minne — den förstår att fel i olika riktningar har olika konsekvenser.
+
+**3. Spontan identifiering av det man INTE borde göra.** I Q2 (pattern signal vs noise) gav agenten ett konkret anti-exempel utan att behöva pressas. "Jag skulle INTE skriva: specificera radnummer i briefen" — med resonemang om varför. Det visar att den har internaliserat distinktionen mellan korrelation och kausalitet i agentkontext.
+
+### Vad jag oroar mig för
+
+**1. Complexity creep i prompten.** Historian har nu 330 rader och 10 numrerade steg + metrics + narrative + cross-ref. Den är den mest komplexa prompten i svärmen. Degraderingsordningen hjälper, men det finns en risk att en modell som får hela prompten som system-prompt fastnar i att försöka följa alla steg bokstavligt istället för att prioritera pragmatiskt.
+
+**2. Skeptiker-granskningen har aldrig testats i drift.** Vi har förbättrat den kontextuella decay-logiken, men vi vet inte hur den faktiskt beter sig med riktig data i kunskapsgrafen. Det är ett steg som kräver graf-queries, resonemang om relevans, och selektiva uppdateringar — allt i begränsade iterationer. Den kan visa sig vara för dyr i praktiken.
+
+**3. Retrospektiv snabbkontroll kan ge falska korrigeringar.** Vi lade till steg 2 (läs förra körningens post), men det finns en risk: Historian i körning N ser information som *verkar* motbevisa körning N-1:s sammanfattning, men egentligen handlar om en annan aspekt. En felaktig korrigeringsfotnotering kan vara värre än ingen korrigering alls. Takten "max 1 iteration" mildrar detta, men det är värt att bevaka.
+
+### Jämförelse med andra intervjuer
+
+| Agent | Styrka | Svaghet | Karaktär |
+|-------|--------|---------|----------|
+| Brief Agent (S110) | Exit-villkor | Kunde aldrig säga "klart" | Perfektionistisk |
+| Manager (S111) | Delegation | Micro-management risk | Kontrollerande |
+| Reviewer (S111) | Stoplight-fidelitet | Generisk fallback | Regelföljande |
+| Implementer (S112) | Pragmatism | Context overflow | Handlingsorienterad |
+| Researcher (S112) | Djup sökning | Timing-problem | Grundlig |
+| Librarian (S112) | Kunskapsöversikt | Rollförvirring (namnbyte) | Organiserad |
+| Tester (S114) | Täckningsanalys | Prioritering av testfall | Systematisk |
+| Merger (S115) | Atomicitet | TOCTOU-risker | Försiktig |
+| **Historian (S116)** | **Meta-kognition** | **Complexity creep** | **Reflektiv** |
+
+Historian är den enda agenten som spontant identifierade problem med *sin egen epistemologi* — inte bara vad den gör, utan hur den vet om det den skrev var korrekt. Det gör den unik i serien.
+
+### Rekommendation för framtida körningar
+
+Bevaka Historian i de närmaste 5 körningarna med fokus på:
+- Tar steg 2 (snabbkontroll) mer eller mindre än 1 iteration?
+- Används degraderingsordningen, eller hinner den med allt?
+- Producerar skeptiker-granskningen rimliga confidence-ändringar?
+
+Om snabbkontrollen visar sig kosta mer än den sparar, ta bort den. Om degraderingsordningen aldrig aktiveras, höj tröskeln från 8 till 5 iterationer.
 
 ---
 
