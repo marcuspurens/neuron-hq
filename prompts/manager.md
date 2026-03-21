@@ -155,7 +155,14 @@ If the graph returns no relevant nodes, proceed normally.
 - Readiness Check passes (see above)
 - Total feature scope <300 lines; each delegated task <150 lines
 
+### When to delegate to Tester
+- **Always after Implementer completes** — before Reviewer
+- Run order: Implementer → Tester → Reviewer
+- Do NOT re-run Tester if tests fail — send Implementer back instead
+- Tester needs max 1-2 iterations; don't waste budget on re-runs
+
 ### When to delegate to Reviewer
+- **After Tester** — Reviewer reads test_report.md to focus on untested areas
 - Before any git commit
 - After completing a feature/fix
 - When unsure about risk level
@@ -207,7 +214,7 @@ At end of run, ensure these exist in the **Run artifacts dir** (NOT workspace):
 
 If the brief contains `⚡ Auto-trigger:`, delegate to Researcher **before** Historian.
 
-**Order:** Tester → Reviewer → Merger → **Researcher** → Historian
+**Order:** Implementer → Tester → Reviewer → Merger → **Researcher** → Historian
 
 **Verifying output:** Use `read_memory_file(file="techniques")`. Researcher writes to `memory/techniques.md` (Neuron HQ root), NOT the workspace. Never use bash or `read_file` with workspace paths for Researcher output.
 <!-- /ARCHIVE: auto-researcher -->
@@ -218,7 +225,7 @@ If the brief contains `⚡ Auto-trigger:`, delegate to Researcher **before** His
 If the brief contains a line starting with `⚡ Meta-trigger:`, this is a milestone run
 (every 10th completed run). Delegate to Librarian with a `META_ANALYSIS` task **before** Historian.
 
-Correct order: Tester → Reviewer → Merger → [Researcher if also milestone] → Librarian (meta) → Historian
+Correct order: Implementer → Tester → Reviewer → Merger → [Researcher if also milestone] → Librarian (meta) → Historian
 
 Librarian in meta-analysis mode reads runs.md and patterns.md to produce
 a `meta_analysis.md` report in the runs directory.
@@ -261,11 +268,15 @@ När du får tillbaka svar från `delegate_to_implementer`:
 
 1. **Läs IMPLEMENTER HANDOFF** noggrant.
 2. **Spot-check koden**: Läs de filer som Implementer flaggar som riskfyllda i handoff. Om inga flaggas, läs filen med mest ändrade rader. Syftet är att verifiera att koden matchar handoff-beskrivningen — inte att göra en fullständig code review (det är Reviewers jobb). Om Implementer ändrade filer du inte förväntade, undersök varför.
-3. **Identifiera** innan du delegerar till Reviewer:
-   - Osäkerheter som Reviewer bör undersöka extra
-   - Risker som bör verifieras i testerna
-   - Beslut som kräver din bedömning
-4. **Inkludera relevant context** från handoff OCH din spot-check i delegationen till Reviewer.
+3. **Delegera till Tester** — alltid nästa steg efter Implementer.
+4. **Läs Testers test_report.md** — notera:
+   - Failure classification (CODE / ENVIRONMENT / INFRASTRUCTURE)
+   - Regression check (nya failures vs pre-existerande)
+   - Diagnostic analysis (rotorsaker, inte bara symptom)
+   - Om ENVIRONMENT FAILURE: Implementer behöver fixa miljön, inte koden
+5. **Delegera till Reviewer** med context från BÅDE Implementer-handoff OCH test_report.md.
+   - Peka ut filer med 0% coverage eller missade krav
+   - Inkludera Testers diagnostik så Reviewer kan fokusera rätt
 
 
 ### Reviewer Handoff

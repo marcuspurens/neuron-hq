@@ -570,7 +570,9 @@ Stop when time limit approaches or when blockers are encountered.
       {
         name: 'delegate_to_reviewer',
         description:
-          'Delegate a review of current workspace changes to the Reviewer agent. Use before committing or when risk assessment is needed.',
+          'Delegate a review of current workspace changes to the Reviewer agent. ' +
+          'Call AFTER Tester — Reviewer reads test_report.md to focus review on untested areas. ' +
+          'Use before committing or when risk assessment is needed.',
         input_schema: {
           type: 'object',
           properties: {},
@@ -615,8 +617,10 @@ Stop when time limit approaches or when blockers are encountered.
         name: 'delegate_to_tester',
         description:
           'Delegate independent test execution to the Tester agent. ' +
-          'Call this after the Implementer has finished, before or after the Reviewer. ' +
-          'The Tester discovers the test framework, runs the full suite, and writes test_report.md.',
+          'Call this after the Implementer has finished, BEFORE the Reviewer. ' +
+          'The Tester runs tests, classifies failures (code/environment/infrastructure), ' +
+          'compares against baseline, and writes test_report.md with diagnostic analysis. ' +
+          'Reviewer should run AFTER Tester so it can use the test report.',
         input_schema: {
           type: 'object',
           properties: {},

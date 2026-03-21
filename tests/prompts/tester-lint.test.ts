@@ -13,30 +13,43 @@ describe('tester.md — critical instructions', () => {
     expect(prompt).toMatch(/[Nn]ever modify code/);
   });
 
-  it('requires truncating output to max 30 lines', () => {
-    expect(prompt).toMatch(/30\s+lines/);
+  it('requires proportional detail — minimal for green, full for failures', () => {
+    expect(prompt).toMatch(/detail.*severity|severity.*detail|proportional/i);
   });
 
-  it('requires one-line verdict format (TESTS PASS / TESTS FAILING)', () => {
-    expect(prompt).toMatch(/TESTS PASS/);
-    expect(prompt).toMatch(/TESTS FAILING/);
+  it('requires verdict classification (CODE FAILURE / ENVIRONMENT FAILURE / INFRASTRUCTURE FAILURE)', () => {
+    expect(prompt).toMatch(/CODE.?FAILURE/);
+    expect(prompt).toMatch(/ENVIRONMENT.?FAILURE/);
+    expect(prompt).toMatch(/INFRASTRUCTURE.?FAILURE/);
   });
 
-  it('instructs to discover test framework automatically', () => {
-    expect(prompt).toMatch(/[Dd]iscover|detect/);
+  it('instructs to discover test framework via project definitions', () => {
+    expect(prompt).toMatch(/scripts\.test|canonical/i);
     expect(prompt).toMatch(/vitest|pytest/);
   });
 
-  it('requires Location field in failing test format', () => {
-    expect(prompt).toMatch(/\*\*Location:\*\*/);
+  it('requires baseline comparison for regression detection', () => {
+    expect(prompt).toMatch(/baseline/i);
+    expect(prompt).toMatch(/[Rr]egression/);
   });
 
-  it('requires Trace field with code block in failing test format', () => {
-    expect(prompt).toMatch(/\*\*Trace:\*\*/);
+  it('requires diagnostic analysis section with root causes', () => {
+    expect(prompt).toMatch(/[Dd]iagnostic [Aa]nalysis/);
+    expect(prompt).toMatch(/[Rr]oot [Cc]ause/);
   });
 
-  it('includes failing test names in return message to Manager', () => {
-    expect(prompt).toMatch(/Failing:.*comma-separated/);
+  it('requires warnings section', () => {
+    expect(prompt).toMatch(/[Ww]arnings/);
+    expect(prompt).toMatch(/0% coverage|\.skip|suspiciously/i);
+  });
+
+  it('includes environment preparation step (npm ci / pip install)', () => {
+    expect(prompt).toMatch(/npm ci|npm install|pnpm install/);
+    expect(prompt).toMatch(/materialise.*declared|declared.*dependencies/i);
+  });
+
+  it('limits tester to max 1-2 iterations', () => {
+    expect(prompt).toMatch(/[Mm]ax 1-2 iterations/);
   });
 
   it('regression guard: test would fail if critical keyword removed', () => {
