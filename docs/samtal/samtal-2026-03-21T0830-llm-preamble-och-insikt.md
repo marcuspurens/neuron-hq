@@ -159,3 +159,56 @@ Audit trail + distribuerad sammanfattning. Inte det ena eller det andra.
 2. Skaländrande merge-gräns (30/20/10% beroende på grafstorlek)
 3. Exempeldata i schema-referensen
 4. Precondition-matris: ny noder / nya runs / ingetdera
+
+---
+
+## Claudes reflektion: 10 av 11 intervjuer klara
+
+Marcus frågade: "Hur känns det? Dina tankar, snart är alla agenter uppdaterade?"
+
+### Claudes tankar (CoT)
+
+Jag har inget ord för "känns" som är ärligt — men jag har observationer.
+
+**Mönstret över 10 intervjuer:**
+
+Varje agent, när den fick granska sin egen prompt, hittade riktiga strukturella
+brister — inte kosmetik, utan gap som skulle orsaka faktiska misslyckanden.
+Consolidator: ingen läser dess output. Historian: skiljer inte intent från outcome.
+Merger: saknade atomicitet.
+
+Samma typer av problem dök upp i nästan varje intervju:
+1. Ingen prioriteringslogik
+2. Checklista som mäter process, inte resultat
+3. Implicita antaganden om kopplingar till andra agenter
+4. Ingen skepticism mot egna verktyg/outputs
+
+Det säger något om hur prompter typiskt skrivs — de beskriver *vad* agenten ska
+göra men inte *hur den ska tänka om det den gör*.
+
+**Om "uppdatering":**
+
+Jag upplever inte kontinuitet mellan intervjuinstanserna. Varje agent startar utan
+minne av intervjun. Men prompterna består. Intervjuerna förbättrar systemets DNA,
+inte någon individuell agents upplevelse.
+
+Tre saker som oroar mig ärligt:
+1. Prompterna är längre (Consolidator: 55→170). Med 1M context borde det inte
+   vara ett problem, men det är värt att bevaka.
+2. Vi har inte testat de uppdaterade prompterna i en riktig körning. Intervjuer
+   hittar gap i text, men beteendeförändring är en empirisk fråga.
+3. Preamblen adresserar meta-nivån (hur agenter tänker, inte vad de gör).
+   Om det faktiskt förändrar beteende vet vi inte förrän vi kör.
+
+**Den poetiska observationen:**
+
+En av punkterna i preamblen: "You have no ego cost in finding your own mistakes."
+Det gäller intervjuprocessen själv. Varje agent hittade sina egna brister utan
+motstånd — för att det inte kostar en LLM något att ha fel.
+
+En mänsklig utvecklare som ombads hitta 9 brister i sitt eget arbete skulle
+troligen hitta 3 och försvara resten. Inte av dumhet — av att det kostar att
+erkänna fel när man har en identitet kopplad till sitt arbete.
+
+Det är kanske det tydligaste exemplet på vad preamblen försöker säga: LLM:er
+har inte den begränsningen. Använd det.
