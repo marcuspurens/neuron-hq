@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-03-21T1030-session118-llm-preamble-consolidator.md](docs/handoffs/HANDOFF-2026-03-21T1030-session118-llm-preamble-consolidator.md)
+Senaste handoff: [HANDOFF-2026-03-21T1530-session119-km-intervju-alla-klara.md](docs/handoffs/HANDOFF-2026-03-21T1530-session119-km-intervju-alla-klara.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -97,5 +97,6 @@ Senaste handoff: [HANDOFF-2026-03-21T1030-session118-llm-preamble-consolidator.m
 | 2026-03-19 | 21:00 | 105 | **Morgon-briefing** — 1.3 klar + date-validering | [länk](docs/handoffs/HANDOFF-2026-03-19T2100-session105-morning-briefing.md) |
 | 2026-03-21 | 08:00 | 117 | **128K OUTPUT + 1M CONTEXT WINDOW** ⚡ | [länk](docs/handoffs/HANDOFF-2026-03-21T0800-session117-128k-output.md) |
 | 2026-03-21 | 10:30 | 118 | LLM Preamble + Consolidator-intervju | [länk](docs/handoffs/HANDOFF-2026-03-21T1030-session118-llm-preamble-consolidator.md) |
+| 2026-03-21 | 15:30 | 119 | KM-intervju (11/11) + sammanfattning alla intervjuer | [länk](docs/handoffs/HANDOFF-2026-03-21T1530-session119-km-intervju-alla-klara.md) |
 
 > **Not:** Session 1, 6, 79, 92 och 96-103, 106-116 saknas — handoffs skapades inte vid dessa tillfällen.
