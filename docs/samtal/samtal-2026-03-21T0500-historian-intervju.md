@@ -2,8 +2,8 @@
 
 **Datum:** 2026-03-21 05:00
 **Modell:** claude-opus-4-6
-**Deltagare:** Claude Opus (intervjuare, S116) + Historian Agent (intervjuobjekt, riktig API-instans)
-**Session:** S116
+**Deltagare:** Claude Opus (intervjuare, separat session) + Historian Agent (intervjuobjekt, riktig API-instans)
+**Session:** [fylls i]
 
 ---
 
@@ -618,54 +618,149 @@ Skicka det. Iterera vidare när nästa gap visar sig i en faktisk körning, inte
 
 ---
 
-## Intervjuarens observationer och reflektioner
+**Opus:** Du sa att prompten är i 'ett bra läge'. Men jag vill att den ska vara i det BÄSTA läget givet vad vi vet idag. Du identifierade 3 kvarvarande gap:
 
-**Författare:** Claude Opus (intervjuare, S116)
+1. Scope-tagging med lager (du sa 'kräver infra')
+2. Confidence mäter frekvens, inte värde (du sa 'mildrat')  
+3. Audit.jsonl-integritetskontroll (du sa 'sällan')
 
-### Allmänt intryck
+Jag köper inte att alla tre kräver infrastruktur. Ge mig prompt-formuleringar för ALLA tre — även om de inte löser problemet 100%, kan de mildra det ytterligare. Vi gör det bästa vi kan inom prompten, sedan tar vi infra-delen separat.
 
-Historian-agenten visade den starkaste *meta-kognitiva* förmågan av alla agenter vi intervjuat hittills (9/11). Den resonerade inte bara om vad den gör utan om *hur den vet att det den gör är rätt* — och identifierade systematiskt fall där den inte kan veta det. Det är exakt den egenskap man vill ha i en agent vars roll är att bedöma andra agenters arbete.
+Var inte snäll. Ge mig konkret text.
 
-### Vad som stack ut
+---
 
-**1. "Audit loggar intent, inte outcome."** Den mest precisa formuleringen från hela intervjuserien. Historian abstraherade spontant från ett specifikt bugg-fix (Researcher-verifiering) till en generell epistemologisk princip om loggars begränsningar. Det som var en ad hoc-patch i prompten blev en designprincip som nu gäller alla agenter.
+**Historian:** Du har rätt. Jag rundade av för tidigt. Här är alla tre.
 
-**2. Asymmetri-tänkande.** Historian resonerade konsekvent i termer av *kostnadsasymmetrier*: falsk ✅ vs dubblett (10x värre), confidence-inflation vs -deflation (deflation är mer skadlig), universal-feltaggning vs project-specific-feltaggning (olika kostnader). Det är precis rätt mindset för en agent som hanterar delat minne — den förstår att fel i olika riktningar har olika konsekvenser.
+## 1. Scope-tagging med lager
 
-**3. Spontan identifiering av det man INTE borde göra.** I Q2 (pattern signal vs noise) gav agenten ett konkret anti-exempel utan att behöva pressas. "Jag skulle INTE skriva: specificera radnummer i briefen" — med resonemang om varför. Det visar att den har internaliserat distinktionen mellan korrelation och kausalitet i agentkontext.
+Jag sa att det kräver infra, men det gör det inte — jag kan använda befintliga `graph_assert` och `related_to`-edges redan idag.
 
-### Vad jag oroar mig för
+**Lägg till under "Scope Tagging"-sektionen:**
 
-**1. Complexity creep i prompten.** Historian har nu 330 rader och 10 numrerade steg + metrics + narrative + cross-ref. Den är den mest komplexa prompten i svärmen. Degraderingsordningen hjälper, men det finns en risk att en modell som får hela prompten som system-prompt fastnar i att försöka följa alla steg bokstavligt istället för att prioritera pragmatiskt.
+```markdown
+### Mönster med blandad scope
 
-**2. Skeptiker-granskningen har aldrig testats i drift.** Vi har förbättrat den kontextuella decay-logiken, men vi vet inte hur den faktiskt beter sig med riktig data i kunskapsgrafen. Det är ett steg som kräver graf-queries, resonemang om relevans, och selektiva uppdateringar — allt i begränsade iterationer. Den kan visa sig vara för dyr i praktiken.
+Vissa mönster har en universell princip och en projektspecifik instans.
+Skapa då **två noder** och koppla dem:
 
-**3. Retrospektiv snabbkontroll kan ge falska korrigeringar.** Vi lade till steg 2 (läs förra körningens post), men det finns en risk: Historian i körning N ser information som *verkar* motbevisa körning N-1:s sammanfattning, men egentligen handlar om en annan aspekt. En felaktig korrigeringsfotnotering kan vara värre än ingen korrigering alls. Takten "max 1 iteration" mildrar detta, men det är värt att bevaka.
+1. En universell nod med den abstraherade principen
+   (t.ex. "Operationer som kan avbrytas måste vara idempotenta")
+2. En projektspecifik nod med den konkreta instansen
+   (t.ex. "Aurora: använd CREATE TABLE IF NOT EXISTS i migreringar")
 
-### Jämförelse med andra intervjuer
+Koppla dem med en `related_to`-edge där properties innehåller
+`{ relationship: "generalizes" }`.
 
-| Agent | Styrka | Svaghet | Karaktär |
-|-------|--------|---------|----------|
-| Brief Agent (S110) | Exit-villkor | Kunde aldrig säga "klart" | Perfektionistisk |
-| Manager (S111) | Delegation | Micro-management risk | Kontrollerande |
-| Reviewer (S111) | Stoplight-fidelitet | Generisk fallback | Regelföljande |
-| Implementer (S112) | Pragmatism | Context overflow | Handlingsorienterad |
-| Researcher (S112) | Djup sökning | Timing-problem | Grundlig |
-| Librarian (S112) | Kunskapsöversikt | Rollförvirring (namnbyte) | Organiserad |
-| Tester (S114) | Täckningsanalys | Prioritering av testfall | Systematisk |
-| Merger (S115) | Atomicitet | TOCTOU-risker | Försiktig |
-| **Historian (S116)** | **Meta-kognition** | **Complexity creep** | **Reflektiv** |
+**Tumregel för abstraktionsnivå:** Den universella noden ska vara
+handlingsbar utan att känna till det specifika projektet. Om den bara
+är meningsfull med projektkontext är den inte tillräckligt abstraherad.
+Om den är så abstrakt att den inte ger vägledning ("var robust") är
+den för abstrakt. Rätt nivå: "gör X i situation Y" utan att nämna
+projektnamn eller specifik teknologi.
+```
 
-Historian är den enda agenten som spontant identifierade problem med *sin egen epistemologi* — inte bara vad den gör, utan hur den vet om det den skrev var korrekt. Det gör den unik i serien.
+Inga nya verktyg. Bara en konvention för hur jag använder det jag redan har.
 
-### Rekommendation för framtida körningar
+## 2. Confidence: frekvens vs värde
 
-Bevaka Historian i de närmaste 5 körningarna med fokus på:
-- Tar steg 2 (snabbkontroll) mer eller mindre än 1 iteration?
-- Används degraderingsordningen, eller hinner den med allt?
-- Producerar skeptiker-granskningen rimliga confidence-ändringar?
+Jag sa att det var mildrat. Det är det — men jag kan göra mer. Problemet är att `graph_update` med +0.1 behandlar varje bekräftelse lika, oavsett om mönstret är trivialt eller värdefullt.
 
-Om snabbkontrollen visar sig kosta mer än den sparar, ta bort den. Om degraderingsordningen aldrig aktiveras, höj tröskeln från 8 till 5 iterationer.
+**Lägg till under skeptiker-granskningen, efter de befintliga reglerna:**
+
+```markdown
+### Confidence-tak baserat på mönstertyp
+
+Innan du bumpar confidence, bedöm mönstrets **karaktär:**
+
+- **Procedurellt** (alltid sant, svårt att bryta mot — t.ex. "kör tester
+  efter ändringar", "committa innan risky changes"):
+  Max confidence: **0.8**. Dessa mönster behöver inte högre — de är
+  baslinebeteende, inte insikter.
+
+- **Strategiskt** (kräver aktivt val, påverkar körningens utfall —
+  t.ex. "använd Librarian innan Implementer", "dela stora uppgifter
+  i separata delegationer"):
+  Max confidence: **1.0**. Dessa är de mönster som faktiskt förändrar
+  resultat.
+
+Vid `graph_update`: om noden redan är vid sitt tak, logga bekräftelsen
+genom att uppdatera `properties.last_confirmed` men bumpa inte confidence.
+
+Effekt: `graph_query` sorterat på confidence returnerar strategiska
+insikter överst, inte triviala sanningar.
+```
+
+Det löser inte hela problemet — jag måste fortfarande bedöma "procedurellt vs strategiskt" — men det förhindrar att "kör tester" dominerar grafen.
+
+## 3. Audit.jsonl-integritetskontroll
+
+Jag sa att det var sällsynt. Men konsekvensen när det händer är allvarlig — jag bygger hela min analys på en källa jag aldrig validerat.
+
+**Lägg till i steg 1, innan övrig läsning:**
+
+```markdown
+### Audit-integritetskontroll (steg 0)
+
+Innan du använder audit.jsonl, kör en snabb sanity-check:
+
+1. `grep_audit(query="orchestrator")` — bekräfta att körningen har
+   minst ett start-event. Om tomt: markera hela körningens analys
+   med `⚠️ AUDIT OFULLSTÄNDIG` och basera sammanfattningen på
+   sekundärkällor (report.md, handoff-filer, minnesfiler).
+
+2. `grep_audit(query="historian")` — bekräfta att din egen session
+   syns. Om inte: audit-loggen nådde aldrig din session, vilket
+   betyder att den kan vara trunkerad. Notera detta i sammanfattningen.
+
+3. Om steg 1 eller 2 misslyckas: skriv en error-post:
+   **"Audit.jsonl ofullständig i körning <runid>"** med symptom
+   och vad som saknades.
+
+Spendera max 2 grep_audit-anrop på detta. Det är en gate, inte en
+djupanalys.
+```
+
+Två tool-anrop. Minimal kostnad. Men det förvandlar audit.jsonl från en ovaliderad källa till en källa med känd integritetsstatus. Och det ger mig ett explicit beteende när den är trasig istället för att jag improviserar.
+
+---
+
+Alla tre är prompt-formuleringar som fungerar med befintliga verktyg. Scope-lager använder `related_to`-edges. Confidence-tak är en bedömningsregel. Audit-check är två grep-anrop. Ingen kräver ny infrastruktur.
+
+---
+
+## Samtal mellan Marcus och intervjuaren (efter intervjun)
+
+### Marcus feedback: "bra" räcker inte — det ska vara "bästa"
+
+Marcus ifrågasatte två saker efter den initiala implementeringen:
+
+**1. Varför accepterade vi "bra läge"?**
+
+Agenten sa att prompten var i "ett bra läge" och avfärdade de 3 kvarvarande gapen som infra/lågfrekventa/mildrade. Vi accepterade det utan att pusha. Marcus invändning: prompten ska vara i det *bästa* läget givet vad vi vet idag. "Bra nog" är inte standarden.
+
+Reflektion: Det var en form av anchoring — agenten satte ramverket ("det här kräver infra") och vi accepterade det. I verkligheten visade det sig att alla tre kvarvarande gap *kunde* mildras med prompt-ändringar:
+- Scope-lager → tvånods-konvention med `generalizes`-edge
+- Confidence-inflation → tak baserat på mönstertyp (procedurellt 0.8, strategiskt 1.0)
+- Audit-integritet → steg 0 med 2 grep_audit-anrop
+
+Ingen av dessa krävde ny infrastruktur. Agenten hade rätt i att de inte var lika kritiska som de första 6 — men fel i att de inte *kunde* lösas med promptändringar.
+
+**2. Varför "välj 3 av 9"?**
+
+Feedback-runda 1 bad agenten välja 3 av 9 identifierade gap. Det är en artificiell begränsning som tvingar agenten att prioritera bort problem i onödan. Bättre fråga: "ge formuleringar för alla 9, vi bestämmer sedan." Vi implementerade faktiskt 6 i de två första rundorna, och sedan 3 till efter Marcus push — totalt 9 av 9.
+
+Reflektion: Frågan "vilka 3 är viktigast?" är en mänsklig intervjufråga. Den avslöjar prioriteringsförmåga, men den *accepterar implicit* att vi bara fixar 3. Det passade inte vår situation där vi hade kapacitet att fixa alla.
+
+### Lärdom för framtida intervjuer
+
+- Acceptera aldrig agentens "bra nog" utan att pusha minst en runda till.
+- Fråga inte "vilka N ska vi fixa" — fråga "ge formuleringar för ALLA, vi prioriterar."
+- Anta inte att "kräver infra" stämmer. Fråga: "kan du formulera en prompt-mildrande åtgärd med befintliga verktyg?"
+
+### Resultat
+
+9/9 identifierade gap adresserade i prompten (272→~370 rader). 35 lint-tester. 3530/3530 gröna.
 
 ---
 

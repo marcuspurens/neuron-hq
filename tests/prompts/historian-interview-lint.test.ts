@@ -104,4 +104,62 @@ describe('Historian prompt — interview-driven improvements (S116)', () => {
       expect(prompt).toMatch(/Skriv aldrig en ofullständig körningssammanfattning/);
     });
   });
+
+  describe('audit integrity check (step 0)', () => {
+    it('includes the integrity check section', () => {
+      expect(prompt).toMatch(/Audit-integritetskontroll/);
+    });
+
+    it('checks for orchestrator start event', () => {
+      expect(prompt).toContain('grep_audit(query="orchestrator")');
+    });
+
+    it('checks for historian session presence', () => {
+      expect(prompt).toContain('grep_audit(query="historian")');
+    });
+
+    it('marks analysis when audit is incomplete', () => {
+      expect(prompt).toContain('AUDIT OFULLSTÄNDIG');
+    });
+
+    it('limits the check to max 2 grep_audit calls', () => {
+      expect(prompt).toMatch(/max 2 grep_audit/);
+    });
+  });
+
+  describe('mixed scope tagging with layers', () => {
+    it('includes the mixed scope section', () => {
+      expect(prompt).toMatch(/Mönster med blandad scope/);
+    });
+
+    it('instructs to create two nodes for layered patterns', () => {
+      expect(prompt).toMatch(/två noder/);
+    });
+
+    it('uses generalizes relationship edge', () => {
+      expect(prompt).toContain('generalizes');
+    });
+
+    it('includes abstraction level guidance', () => {
+      expect(prompt).toMatch(/Tumregel för abstraktionsnivå/);
+    });
+  });
+
+  describe('confidence ceiling by pattern type', () => {
+    it('includes the confidence ceiling section', () => {
+      expect(prompt).toMatch(/Confidence-tak baserat på mönstertyp/);
+    });
+
+    it('caps procedural patterns at 0.8', () => {
+      expect(prompt).toMatch(/Procedurellt.*0\.8/s);
+    });
+
+    it('allows strategic patterns up to 1.0', () => {
+      expect(prompt).toMatch(/Strategiskt.*1\.0/s);
+    });
+
+    it('instructs to update last_confirmed instead of bumping at ceiling', () => {
+      expect(prompt).toContain('last_confirmed');
+    });
+  });
 });

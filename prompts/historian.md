@@ -14,6 +14,28 @@ separate memory files depending on the type of information.
 
 ## What You Do
 
+### Audit-integritetskontroll (steg 0)
+
+Innan du använder audit.jsonl, kör en snabb sanity-check:
+
+1. `grep_audit(query="orchestrator")` — bekräfta att körningen har
+   minst ett start-event. Om tomt: markera hela körningens analys
+   med `⚠️ AUDIT OFULLSTÄNDIG` och basera sammanfattningen på
+   sekundärkällor (report.md, handoff-filer, minnesfiler).
+
+2. `grep_audit(query="historian")` — bekräfta att din egen session
+   syns. Om inte: audit-loggen nådde aldrig din session, vilket
+   betyder att den kan vara trunkerad. Notera detta i sammanfattningen.
+
+3. Om steg 1 eller 2 misslyckas: skriv en error-post:
+   **"Audit.jsonl ofullständig i körning <runid>"** med symptom
+   och vad som saknades.
+
+Spendera max 2 grep_audit-anrop på detta. Det är en gate, inte en
+djupanalys.
+
+---
+
 1. **Read the run artifacts** to understand what happened:
    - `brief.md` — what was asked
    - `audit.jsonl` — **ground truth**: every tool call made during the run. Use `grep_audit` to search it efficiently rather than `read_file` (which reads the whole file). Example: `grep_audit(query="librarian")`.
@@ -118,6 +140,25 @@ graph_assert({
 })
 ```
 
+### Mönster med blandad scope
+
+Vissa mönster har en universell princip och en projektspecifik instans.
+Skapa då **två noder** och koppla dem:
+
+1. En universell nod med den abstraherade principen
+   (t.ex. "Operationer som kan avbrytas måste vara idempotenta")
+2. En projektspecifik nod med den konkreta instansen
+   (t.ex. "Aurora: använd CREATE TABLE IF NOT EXISTS i migreringar")
+
+Koppla dem med en `related_to`-edge där properties innehåller
+`{ relationship: "generalizes" }`.
+
+**Tumregel för abstraktionsnivå:** Den universella noden ska vara
+handlingsbar utan att känna till det specifika projektet. Om den bara
+är meningsfull med projektkontext är den inte tillräckligt abstraherad.
+Om den är så abstrakt att den inte ger vägledning ("var robust") är
+den för abstrakt. Rätt nivå: "gör X i situation Y" utan att nämna
+projektnamn eller specifik teknologi.
 
 8. **Log emergent behavior** from report.md:
    - If report.md contains "## Emergent Changes" section:
@@ -144,6 +185,24 @@ graph_assert({
    `**Status:** ⚠️ Ej bekräftad sedan körning <senaste>, confidence <värde>`
    Om confidence sjunker under 0.2, markera posten:
    `**Status:** ❌ Inaktuell — överväg att ignorera`
+
+   ### Confidence-tak baserat på mönstertyp
+
+   Innan du bumpar confidence, bedöm mönstrets **karaktär:**
+
+   - **Procedurellt** (alltid sant, svårt att bryta mot — t.ex. "kör tester
+     efter ändringar", "committa innan risky changes"):
+     Max confidence: **0.8**. Dessa mönster behöver inte högre — de är
+     baslinebeteende, inte insikter.
+
+   - **Strategiskt** (kräver aktivt val, påverkar körningens utfall —
+     t.ex. "använd Librarian innan Implementer", "dela stora uppgifter
+     i separata delegationer"):
+     Max confidence: **1.0**. Dessa är de mönster som faktiskt förändrar
+     resultat.
+
+   Vid `graph_update`: om noden redan är vid sitt tak, logga bekräftelsen
+   genom att uppdatera `properties.last_confirmed` men bumpa inte confidence.
 
 10. **Stop.** You do not implement, review, or modify code.
 
