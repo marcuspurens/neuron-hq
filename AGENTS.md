@@ -228,10 +228,13 @@ When uncertain, classify as higher risk.
 - Does not implement features — only tests
 
 ### Merger
-- Final gatekeeper before git push (if enabled)
-- Reads `report.md`, verifies Reviewer gave GREEN — if not, returns MERGER_BLOCKED
-- Executes merge immediately (single-phase, no approval gate): copy, git add, git commit
-- Writes `merge_summary.md` with commit hash and rollback instruction
+- Final safety gate before changes land in the target repo
+- Two-phase operation: PLAN (produce merge_plan.md) → EXECUTE (after Manager approves)
+- Reads `report.md`, verifies Reviewer gave GREEN stoplight — if not, returns MERGER_BLOCKED
+- Atomic execution: all files copy or none commit
+- Post-merge verification: runs typecheck + tests in target repo, reverts on failure
+- Always commits to `swarm/<runid>` branch, never directly to main
+- Writes `merge_summary.md` with commit hash, verification results, and rollback instruction
 
 ---
 

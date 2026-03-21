@@ -14,8 +14,8 @@ describe('merger.md — critical instructions', () => {
     expect(prompt).toMatch(/APPROVED/);
   });
 
-  it('forbids committing without user approval', () => {
-    expect(prompt).toMatch(/NEVER commit without user approval/i);
+  it('requires GREEN stoplight before merge', () => {
+    expect(prompt).toMatch(/GREEN stoplight required/i);
   });
 
   it('uses copy_to_target tool', () => {
@@ -35,8 +35,24 @@ describe('merger.md — critical instructions', () => {
     expect(prompt).toMatch(/diff/);
   });
 
-  it('uses git diff HEAD~1 for workspace inspection', () => {
-    expect(prompt).toMatch(/git diff HEAD~1/);
+  it('uses baseline ref for workspace inspection', () => {
+    expect(prompt).toMatch(/baseline/i);
+    expect(prompt).toMatch(/git diff/);
+  });
+
+  it('requires atomic execution', () => {
+    expect(prompt).toMatch(/Atomic/i);
+    expect(prompt).toMatch(/stop on first failure/i);
+  });
+
+  it('includes post-merge verification', () => {
+    expect(prompt).toMatch(/Post-merge verification/i);
+    expect(prompt).toMatch(/pnpm typecheck/);
+    expect(prompt).toMatch(/pnpm test/);
+  });
+
+  it('documents known limitations', () => {
+    expect(prompt).toMatch(/Known Limitations/);
   });
 
   it('returns MERGER_PLAN_READY signal', () => {

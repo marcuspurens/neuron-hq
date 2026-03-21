@@ -15,10 +15,10 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3433 |
-| Körningar | 171 |
+| Tester | 3495 |
+| Körningar | 172 |
 | MCP-tools | 44 |
-| Sessioner | 110 |
+| Sessioner | 115 |
 | Agenter | 11 |
 | Idé-noder | 924 |
 | Code Review | ★★★★☆ (Fas 1 klar) |
@@ -159,13 +159,16 @@ Fas 4: Produkt                ← andra kan använda det
 
 **Flyttad hit från 3.6.** Bättre prompts förbättrar ALLA framtida körningar. Brief Agent-intervjun (S109-110) visade att en enda rak fråga avslöjade vad 9 rundor av testning missade. Se [3.6](#36-agentintervjuer--opus-samtalar-med-varje-agent-) för fullständig beskrivning.
 
-**Ordning:** Manager → Reviewer → Implementer → Researcher+Librarian → resten
+**Status (S115):** 8/11 klara
+- ✅ Brief Agent (S110) · Manager (S111) · Reviewer (S111) · Implementer (S112)
+- ✅ Librarian (S112) · Researcher (S112) · Tester (S114) · Merger (S115)
+- ⬜ Historian · Consolidator · Knowledge Manager
 
 **Effort:** 3-5 sessioner (manuellt, inte körningar)
 
 ---
 
-### 2.3 Namnbyte: Researcher ↔ Librarian ⬜
+### 2.3 Namnbyte: Researcher ↔ Librarian ✅ S113 · 2026-03-20
 
 **Vad det ger dig:** Namnen stämmer med vad de gör. Förvirringen försvinner.
 
