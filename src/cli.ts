@@ -762,6 +762,22 @@ program
     });
   });
 
+// Consolidate ideas command
+program
+  .command('consolidate-ideas')
+  .description('Cluster and consolidate ideas in the knowledge graph')
+  .option('--threshold <n>', 'Jaccard similarity threshold (default: 0.3)')
+  .option('--min-size <n>', 'Minimum cluster size (default: 3)')
+  .option('--dry-run', 'Run without mutating the graph')
+  .action(async (opts) => {
+    const { consolidateIdeasCommand } = await import('./commands/consolidate-ideas.js');
+    await consolidateIdeasCommand({
+      threshold: opts.threshold,
+      minSize: opts.minSize,
+      dryRun: opts.dryRun ?? false,
+    });
+  });
+
 // Help tools command
 program
   .command('help-tools [question...]')

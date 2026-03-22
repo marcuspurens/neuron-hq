@@ -219,3 +219,37 @@ Before reporting done, verify:
 - [ ] consolidation_report.md is written AND memory/consolidation_findings.md updated
 - [ ] Report includes: merges done, gaps found, AND what was deliberately left unchanged
 - [ ] Findings are actionable — another agent can act on them without reading the graph
+
+## Idea Consolidation (New)
+
+You have access to the `neuron_ideas` tool with a `consolidate` action that clusters
+related ideas and identifies archive candidates.
+
+### Usage
+
+```json
+{ "action": "consolidate", "threshold": 0.3, "minClusterSize": 3, "dryRun": true }
+```
+
+### Workflow
+
+1. **First run with dry-run:** Call `consolidate` with `dryRun: true` to see what clusters
+   would be created and which ideas would be archived. Review the output.
+2. **Apply if results look good:** Call `consolidate` with `dryRun: false` to actually
+   create meta-idea nodes, link them to cluster members, and archive low-quality ideas.
+3. **Report:** The tool returns a `ClusterResult` with clusters, unclustered IDs,
+   archived IDs, and statistics.
+
+### What it does
+
+- **Clusters** ideas by Jaccard similarity on title + description tokens
+- **Creates meta-ideas** (type: idea, is_meta: true) for each cluster
+- **Archives** ideas with confidence ≤ 0.3, mention_count ≤ 1, status 'proposed',
+  and no outgoing inspired_by/used_by edges
+- **Never deletes** — archived ideas get status: 'rejected', confidence: 0.05
+
+### When to use
+
+- During consolidation runs when the idea count grows large (>100)
+- After Historian has added many new ideas from recent runs
+- When the knowledge graph needs strategic overview of idea themes

@@ -6,6 +6,8 @@ import {
   rankIdeas,
   linkRelatedIdeas,
   updateNode,
+  addNode,
+  addEdge,
   computePriority,
 } from '../../core/knowledge-graph.js';
 import { createLogger } from '../../core/logger.js';
@@ -19,7 +21,7 @@ export function registerIdeasTool(server: McpServer): void {
     'neuron_ideas',
     'Manage and rank ideas in the Neuron knowledge graph',
     {
-      action: z.enum(['rank', 'link', 'update']).describe('Action to perform'),
+      action: z.enum(['rank', 'link', 'update', 'consolidate']).describe('Action to perform'),
       // For rank action:
       status: z.string().optional().describe('Comma-separated statuses to filter (default: proposed,accepted)'),
       group: z.string().optional().describe('Filter by group name'),
@@ -31,6 +33,10 @@ export function registerIdeasTool(server: McpServer): void {
       effort: z.number().int().min(1).max(5).optional().describe('New effort score'),
       risk: z.number().int().min(1).max(5).optional().describe('New risk score'),
       newStatus: z.string().optional().describe('New status for the idea'),
+      // For consolidate action:
+      threshold: z.number().optional().default(0.3).describe('Jaccard similarity threshold for consolidation'),
+      minClusterSize: z.number().optional().default(3).describe('Minimum cluster size for consolidation'),
+      dryRun: z.boolean().optional().default(true).describe('If true, do not mutate graph (default: true)'),
     },
     async (args) => {
       try {
@@ -116,6 +122,43 @@ export function registerIdeasTool(server: McpServer): void {
                   status: updatedProps.status,
                 }),
               }],
+            };
+          }
+
+          case 'consolidate': {
+            const { clusterIdeas, createMetaIdeas } = await import('../../core/idea-clusters.js');
+            const result = clusterIdeas(graph, {
+              similarityThreshold: args.threshold,
+              minClusterSize: args.minClusterSize,
+            });
+
+            if (!args.dryRun) {
+              const { newNodes, newEdges } = createMetaIdeas(graph, result.clusters);
+              for (const node of newNodes) {
+                graph = addNode(graph, node);
+              }
+              for (const edge of newEdges) {
+                graph = addEdge(graph, edge);
+              }
+              // Archive candidates
+              for (const id of result.archived) {
+                const node = graph.nodes.find(n => n.id === id);
+                if (node) {
+                  graph = updateNode(graph, id, {
+                    confidence: 0.05,
+                    properties: {
+                      ...node.properties,
+                      archived: true,
+                      status: 'rejected',
+                    },
+                  });
+                }
+              }
+              await saveGraph(graph, DEFAULT_GRAPH_PATH);
+            }
+
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
             };
           }
 
