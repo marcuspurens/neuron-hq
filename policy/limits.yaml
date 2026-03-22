@@ -47,21 +47,11 @@ retry_backoff_seconds: 5
 
 # Multi-provider: per-agent model overrides
 # Default: Sonnet 4.6 (128K output). Proven 24/24 GREEN in run #174 at $61.
-# Opus overrides for agents requiring deep reasoning (decision-making, quality gates).
-# Haiku overrides removed 2026-03-22: caused maxTokens mismatch.
-agent_models:
-  manager:
-    provider: anthropic
-    model: claude-opus-4-6
-    maxTokens: 128000
-  reviewer:
-    provider: anthropic
-    model: claude-opus-4-6
-    maxTokens: 128000
-  brief-agent:
-    provider: anthropic
-    model: claude-opus-4-6
-    maxTokens: 128000
+# All agents use Sonnet (default) for swarm runs.
+# Opus reserved for manual tasks: Brief Reviewer, agent interviews, deep conversations.
+# Decision S128: Sonnet produces same GREEN results at ~$60 vs Opus ~$86.
+# With good briefs + good prompts, the intelligence gap doesn't justify the cost.
+agent_models: {}
 
 # Knowledge Manager auto-scheduling
 km_auto:
