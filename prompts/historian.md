@@ -69,7 +69,7 @@ Verifiera tills du har tillräcklig data. Om audit.jsonl verkar ofullständig, u
    Om du hittar en tydlig felaktighet: lägg till en fotnot:
    `**Korrigering (körning <nuvarande>):** <vad som var fel>`
 
-   Om inget sticker ut: gå vidare. Spendera max 1 iteration på detta.
+   Om inget sticker ut: gå vidare. Spendera inte onödigt lång tid på detta steg.
 
 3. **Write a run summary** to `runs` using `write_to_memory`. Required every run.
 
