@@ -1,6 +1,6 @@
 # Neuron HQ — Roadmap
 
-> **Senast uppdaterad:** 2026-03-22 · Session 126
+> **Senast uppdaterad:** 2026-03-22 · Session 128
 > **Källa:** Djupsamtal S102 + Marcus ~40 kommentarer + diskussionsdokument S103
 > Editera direkt — kryssa av med ✅ när klart.
 > **Arkiv:** Alla versioner sparas i [docs/roadmaps/](docs/roadmaps/) med datumstämpel.
@@ -15,10 +15,10 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3746 |
-| Körningar | 176 |
+| Tester | 3792 |
+| Körningar | 177 |
 | MCP-tools | 44 |
-| Sessioner | 126 |
+| Sessioner | 128 |
 | Agenter | 12 (inkl Observer) |
 | Idé-noder | 924 |
 | Code Review | ★★★★☆ (Fas 1 klar) |
@@ -216,17 +216,18 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
-### 2.5 Grafintegritet — watchman ⬜
+### 2.5 Grafintegritet — watchman ✅ S128 · 2026-03-22
 
-**Vad det ger dig:** Någon kollar att kunskapsgrafens data är korrekt — inga dubbletter, inga brutna kopplingar, inga bortglömda noder. Om problem hittas ser du det i körningsrapporten.
+**Vad det ger dig:** Automatisk hälsokontroll av kunskapsgrafen — isolerade noder, dubbletter, brutna kopplingar, saknad provenance. Rapporteras i varje körning.
 
-**Tekniskt:**
-- Historian kör "graf-health-check" var 10:e körning
-- Kollar: isolerade noder, dubbletter, brutna kopplingar, gammal låg-confidence
-- Om problem: flagga YELLOW i rapport
-- Consolidator triggas automatiskt vid problem
+**Gjort:** Körning #177, 🟢 GRÖN, 23/23 AC, +38 tester (3784 totalt), Sonnet+Opus, $86, 12.3M tokens
+- `src/core/graph-health.ts` — 7 hälsokontroller, rapport, trigger
+- `src/commands/graph-health.ts` — CLI `graph:health`
+- Integration i `run.ts` (pre-step) + Historian (steg 10) + graph-tools
+- **Observer-fixar (S128):** Retro filtrerad till aktiva agenter (6 istället för 17), historian tool-mapping fixad, modellkolumn i tabell, fråga 4 "Nästa gång"
+- **Transkript-sparande (S128):** Alla 9 agenter sparar fullständig konversationshistorik till `runs/<runid>/transcripts/` — AI Act Art. 12/13
 
-**Effort:** 1 körning · **Brief:** `graph-health-check`
+**Effort:** 1 körning + S128 fixar · **Brief:** `2026-03-22-graph-integrity-watchman.md`
 
 ---
 
@@ -272,9 +273,10 @@ Fas 4: Produkt                ← andra kan använda det
 
 **Bonus — Token-optimering bevisad:** 20M → 7.1M tokens (65% minskning), 1.74M cache reads
 
-**Kända buggar i Observer:**
-- Retro 0/17 — API-fel `"Extra inputs are not permitted"` (behöver undersökas)
-- Token-tabell i prompt-health visar bara Manager (läser inte usage.json korrekt)
+**Kända buggar i Observer (FIXADE S126+S128):**
+- ~~Retro 0/17~~ → 17/17 (S126), filtrerat till aktiva agenter (S128)
+- ~~Token-tabell ofullständig~~ → Komplett med UsageTracker + modellkolumn (S126+S128)
+- ~~Historian false positive~~ → `write_file` → `write_to_memory` (S128)
 
 **Identifierat i:** Brief Reviewer V2-intervju (S123), gap #3 + #5
 
@@ -291,6 +293,30 @@ Fas 4: Produkt                ← andra kan använda det
 - Opus-overrides i limits.yaml: Manager, Reviewer, Brief Reviewer
 - 128K output + 1M context för alla
 - Bevisat: Sonnet 24/24 GRÖN i körning #174
+
+---
+
+### 2.8 AI Act Art. 14 — Mänsklig tillsyn ⬜
+
+**Vad det ger dig:** Du kan förstå, ingripa och godkänna vad agenterna gör — inte bara titta på efteråt.
+
+**Bakgrund:** Art. 12 (loggning) och Art. 13 (transparens) är täckta sedan S128 via `audit.jsonl`, `transcripts/`, `digest.md` och Observer-rapporter. Art. 14 kräver mer — aktiv mänsklig kontroll.
+
+**Tre steg:**
+
+| Steg | Vad | Effort | Status |
+|------|-----|--------|--------|
+| A | **Beslutslogg i digest** — alla låg-konfidens-beslut markerade, rollback-instruktioner | 1 session | ⬜ |
+| B | **Approval gates** — Manager pausar vid merge, testfel, låg konfidens. Du godkänner via CLI | 1 körning | ⬜ |
+| C | **Interaktiv dashboard** — WebSocket-uppgradering, godkänn/avbryt/fråga i webbläsaren | 2-3 körn | ⬜ |
+
+**Redan byggt (grund):**
+- Live dashboard (SSE, read-only) — RT-2
+- Beslutextraktion + narrativ — RT-3
+- E-stop (`touch STOP`) — RT-4 grund
+- Field of View — vad agenten ser/inte ser
+
+**Brief:** `ai-act-art14-human-oversight`
 
 ---
 
@@ -443,10 +469,11 @@ Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21)
 | **2.2b** | **Agentintervjuer (prompt-förbättring)** | **2** | **3-5 sess** | — | **✅ S119 2026-03-21** |
 | 2.3 | Namnbyte Researcher ↔ Librarian | 2 | 1 körn | — | ✅ S113 2026-03-20 |
 | 2.4 | Idékonsolidering | 2 | 1 körn | — | ✅ S120 2026-03-22 |
-| 2.5 | Grafintegritet watchman | 2 | 1 körn | — | ⬜ |
+| 2.5 | Grafintegritet watchman | 2 | 1 körn | — | ✅ S128 2026-03-22 |
 | **2.6** | **Observer (Prompt Quality Agent)** | **2** | **2 körn** | — | **✅ S125 2026-03-22** |
 | **2.6b** | **Observer feedback-loop → Brief Reviewer** | **2** | **1 körn** | 2.6 | **✅ S126 2026-03-22** |
 | **2.7** | **Modellstrategi (Sonnet+Opus)** | **2** | **<1 sess** | — | **✅ S123 2026-03-22** |
+| 2.8 | AI Act Art. 14 — Mänsklig tillsyn | 2 | 3-5 körn | RT-2/3 | ⬜ |
 | 3.1 | Reviewer severity levels | 3 | 1-2 körn | — | ⬜ |
 | 3.2 | A-MEM | 3 | 2-3 körn | 2.1 | ⬜ |
 | 3.3 | Research före implementation | 3 | 1 körn | 2.3 | ⬜ |
@@ -458,7 +485,7 @@ Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21)
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
 | 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~30-45 körningar. **Klar:** 17/26
+**Totalt:** ~30-45 körningar. **Klar:** 18/27
 
 ---
 
