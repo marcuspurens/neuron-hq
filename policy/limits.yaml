@@ -46,14 +46,22 @@ max_command_retries: 2
 retry_backoff_seconds: 5
 
 # Multi-provider: per-agent model overrides
+# Default: Sonnet 4.6 (128K output). Proven 24/24 GREEN in run #174 at $61.
+# Opus overrides for agents requiring deep reasoning (decision-making, quality gates).
+# Haiku overrides removed 2026-03-22: caused maxTokens mismatch.
 agent_models:
-  researcher:
+  manager:
     provider: anthropic
-    model: claude-haiku-4-5-20251001
-  historian:
+    model: claude-opus-4-6
+    maxTokens: 128000
+  reviewer:
     provider: anthropic
-    model: claude-haiku-4-5-20251001
-  # librarian uses default (Sonnet) — per-run codebase analysis needs stronger model
+    model: claude-opus-4-6
+    maxTokens: 128000
+  brief-agent:
+    provider: anthropic
+    model: claude-opus-4-6
+    maxTokens: 128000
 
 # Knowledge Manager auto-scheduling
 km_auto:

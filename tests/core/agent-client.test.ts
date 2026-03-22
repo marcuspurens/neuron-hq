@@ -20,7 +20,7 @@ describe('createAgentClient', () => {
   it('creates Anthropic client with default config', () => {
     const { client, model, maxTokens } = createAgentClient(DEFAULT_MODEL_CONFIG);
     expect(client).toBeDefined();
-    expect(model).toBe('claude-opus-4-6');
+    expect(model).toBe('claude-sonnet-4-6');
     expect(maxTokens).toBe(128000);
   });
 

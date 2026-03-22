@@ -129,7 +129,7 @@ describe('AgentModelMapSchema', () => {
 describe('DEFAULT_MODEL_CONFIG', () => {
   it('has correct default values', () => {
     expect(DEFAULT_MODEL_CONFIG.provider).toBe('anthropic');
-    expect(DEFAULT_MODEL_CONFIG.model).toBe('claude-opus-4-6');
+    expect(DEFAULT_MODEL_CONFIG.model).toBe('claude-sonnet-4-6');
     expect(DEFAULT_MODEL_CONFIG.maxTokens).toBe(128000);
   });
 });

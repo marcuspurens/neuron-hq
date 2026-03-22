@@ -22,31 +22,19 @@ describe('agent_models in limits.yaml', () => {
     expect(result.success).toBe(true);
   });
 
-  it('has researcher and historian overrides (librarian uses default Sonnet)', async () => {
+  it('agent_models has Opus overrides for manager, reviewer, brief-agent (S123)', async () => {
     const limitsPath = path.join(process.cwd(), 'policy', 'limits.yaml');
     const raw = await fs.readFile(limitsPath, 'utf-8');
     limitsContent = yaml.parse(raw) as Record<string, unknown>;
     const agentModels = limitsContent.agent_models as Record<string, unknown>;
-    expect(agentModels).toHaveProperty('researcher');
-    expect(agentModels).toHaveProperty('historian');
-    expect(agentModels).not.toHaveProperty('librarian');
-  });
-
-  it('overridden agents use haiku model', async () => {
-    const limitsPath = path.join(process.cwd(), 'policy', 'limits.yaml');
-    const raw = await fs.readFile(limitsPath, 'utf-8');
-    limitsContent = yaml.parse(raw) as Record<string, unknown>;
-    const agentModels = limitsContent.agent_models as Record<string, Record<string, string>>;
-    expect(agentModels.researcher.model).toBe('claude-haiku-4-5-20251001');
-    expect(agentModels.historian.model).toBe('claude-haiku-4-5-20251001');
-  });
-
-  it('overridden agents have anthropic provider', async () => {
-    const limitsPath = path.join(process.cwd(), 'policy', 'limits.yaml');
-    const raw = await fs.readFile(limitsPath, 'utf-8');
-    limitsContent = yaml.parse(raw) as Record<string, unknown>;
-    const agentModels = limitsContent.agent_models as Record<string, Record<string, string>>;
-    expect(agentModels.researcher.provider).toBe('anthropic');
-    expect(agentModels.historian.provider).toBe('anthropic');
+    expect(Object.keys(agentModels)).toHaveLength(3);
+    expect(agentModels).toHaveProperty('manager');
+    expect(agentModels).toHaveProperty('reviewer');
+    expect(agentModels).toHaveProperty('brief-agent');
+    for (const role of ['manager', 'reviewer', 'brief-agent']) {
+      const cfg = agentModels[role] as Record<string, unknown>;
+      expect(cfg.model).toBe('claude-opus-4-6');
+      expect(cfg.maxTokens).toBe(128000);
+    }
   });
 });
