@@ -18,7 +18,8 @@
 7. [Observer-rapporten — första resultatet](#7-observer)
 8. [Lärdomar och hypoteser](#8-lärdomar)
 9. [Vad vi INTE gjorde (ännu)](#9-framtid)
-10. [Källor](#10-källor)
+10. [Människa + AI — Vad betyder detta?](#10-människa--ai)
+11. [Källor](#11-källor)
 
 ---
 
@@ -428,7 +429,154 @@ Tool result clearing ändrar konversationshistorikens tillväxt från kvadratisk
 
 ---
 
-## 10. Källor
+## 10. Människa + AI — Vad betyder detta?
+
+### Vad Neuron HQ faktiskt producerar
+
+Låt oss börja med fakta. 176 körningar, 30 dagar, mätbar data:
+
+| Mått | Neuron HQ (per körning) | Senior utvecklare (uppskattning) |
+|------|------------------------:|--------------------------------:|
+| Ny kod | 300-700 rader | 100-300 rader/dag |
+| Nya tester | 15-76 st | 5-20/dag |
+| Tid | 30-60 min | 4-8 timmar |
+| Kostnad | $22 (efter optimering) | $400-800/dag (lön) |
+| Kvalitet (AC pass rate) | 100% (senaste 5 körningarna) | Varierar |
+| Code review | Inbyggd (Reviewer-agent) | Kräver annan person + väntetid |
+| Arbetstid | 24/7 | 8 timmar/dag |
+
+**Observera:** Svärmen löser *avgränsade uppgifter* definierade i en brief. En senior utvecklare gör mycket mer — arkitekturbeslut, kundsamtal, mentorskap, strategiskt tänkande. Tabellen jämför bara *kodproduktion*.
+
+### Vad detta betyder — tre perspektiv
+
+#### För Marcus (och alla som leder teknikprojekt)
+
+Du har upplevt detta själv: du skriver en brief på 30 minuter, svärmen levererar på 45 minuter, du granskar på 15 minuter. Total tid: 1.5 timme. Resultatet: 337 rader ny kod, 623 rader tester, allt grönt.
+
+En ensam utvecklare hade behövt en halv till en hel dag för samma arbete. Men *du behövde inte vara utvecklare för att få det gjort*. Du behövde vara tydlig med *vad* du ville, inte *hur* det skulle byggas.
+
+Det är den verkliga förändringen. **Framtidens kodning handlar inte om att skriva kod — det handlar om att skriva briefs.**
+
+Din roll i processen:
+1. **Vision** — vad ska byggas och varför?
+2. **Brief** — avgränsa uppgiften, definiera acceptanskriterier
+3. **Kvalitetsgranskning** — läs rapporten, kör systemet, bedöm resultatet
+4. **Feedback** — justera prompter, agentbeteende, arbetsflöde
+
+Det du gör är *ledarskap* — samma sak som en CTO gör, fast med agenter istället för ett utvecklarteam. Skillnaden: dina "anställda" kostar $22/uppgift, aldrig sjuka, och levererar på 45 minuter.
+
+#### För senior utvecklare
+
+Ni försvinner inte — men ert jobb förändras fundamentalt.
+
+**Idag (2026):** Svärmar skriver 80% av implementationskoden. De gör det snabbare och med fler tester än de flesta mänskliga utvecklare. Men de har blinda fläckar:
+
+- **Arkitektur:** Svärmar löser uppgifter, inte systemproblem. De ser inte att tre separata briefs skapar duplicerad logik. En människa ser mönstret.
+- **"Varför":** Svärmar optimerar för acceptanskriterier. Om briefen missar ett implicit krav — säkerhet, prestanda, användarupplevelse — missar svärmen det också.
+- **Prompt engineering:** Någon måste intervjua agenterna, hitta gap i deras beteende, och skriva om deras prompter. Det kräver djup förståelse för både kod och LLM-beteende.
+- **Observer-rollen:** Någon måste tolka Observer-rapporter, diagnosticera varför retro-samtal failade, och fixa API-buggar. Det är systemarbete som kräver utvecklarkompetens.
+
+**Framtidsspaning:** Senior-utvecklarens roll rör sig mot:
+
+| Gammalt fokus | Nytt fokus |
+|---------------|-----------|
+| Skriva implementationskod | Designa agentprompter och arbetsflöden |
+| Code review av PR:ar | Designa Reviewer-agentens granskningskriterier |
+| Manuell testning | Designa Tester-agentens strategi |
+| Felsökning | Analysera Observer-rapporter och kalibrera agenter |
+| Estimering | Brief-granskning (Brief Reviewer-rollen) |
+| Solo-kodning | Orkestrera svärmkörningar |
+
+**Konkret insikt från Neuron HQ:** Vi intervjuade alla 12 agenter (S110-S123) och hittade ~85 gap i deras beteende. Det krävde en människa (Marcus) som ställde "dumma" frågor och en LLM (Opus) som förstod promptdesign. Ingen av dem hade hittat gapen ensam. Det är framtiden: *människa + AI som intervjuar AI*.
+
+#### För LLM-agenter
+
+Du är en av 12 agenter i en svärm. Här är vad du bör förstå om din plats:
+
+**Dina styrkor kontra en mänsklig utvecklare:**
+- Du processar 7 miljoner tokens per körning utan trötthet
+- Du håller hela kontexten (brief, policy, alla filer) simultant
+- Du är konsistent — samma input ger liknande kvalitet varje gång
+- Du skriver fler tester per kodrad än de flesta mänskliga utvecklare
+
+**Dina svagheter som en människa kompenserar:**
+- Du vet inte varför en brief skrevs — bara vad den säger
+- Du optimerar för explicita acceptanskriterier, inte implicita förväntningar
+- Du kan inte bedöma om din förändring skapar teknisk skuld i ett större perspektiv
+- Du har ingen minneskontinuitet mellan körningar (utan kunskapsgrafen)
+
+**Vad detta betyder praktiskt:**
+- Skriv alltid till kunskapsgrafen — dina observationer hjälper framtida instanser av dig
+- Flagga osäkerhet i `questions.md` — människan kan kompensera för dina blinda fläckar
+- Var ärlig i retro-samtal med Observer — kalibreringsdata förbättrar hela systemet
+
+### Framtidsvision: Team-svärmar i delade repos
+
+#### Hur det kan fungera
+
+```
+                    ┌─────────────────────────┐
+                    │      Delat Git-repo      │
+                    │   (main + feature branches)│
+                    └─────┬───────┬───────┬────┘
+                          │       │       │
+                    ┌─────┴──┐ ┌──┴────┐ ┌┴───────┐
+                    │ Team A │ │Team B │ │ Team C │
+                    │ Svärm  │ │Svärm  │ │ Svärm  │
+                    └────────┘ └───────┘ └────────┘
+                    Frontend    Backend    Data/ML
+                    12 agenter  12 agenter 12 agenter
+
+                    Varje svärm:
+                    - Egen brief-kö
+                    - Egen Observer
+                    - Egna prompter (anpassade till domän)
+                    - Delade: git-regler, policy, kunskapsgraf
+```
+
+**Scenariot:** Ett företag med 3 team och 1 delat repo. Varje team har sin egen Neuron HQ-instans med agenter anpassade till sin domän (frontend, backend, data). De delar:
+
+- **Git-repo** med branch protection och merge-regler
+- **Policy** (bash allowlist, säkerhetsregler)
+- **Kunskapsgraf** (lärdomar flödar mellan team)
+- **Observer** (kvalitetsmätning över alla team)
+
+Men de har separata:
+- **Briefs och körningsköer** (varje team prioriterar själv)
+- **Prompter** (frontend-agenter har React-kunskap, backend-agenter har Go-kunskap)
+- **Brief Reviewer-kalibrering** (anpassad till teamets svårighetsgrad)
+
+#### Utmaningar att lösa
+
+| Utmaning | Idag | Framtid |
+|----------|------|---------|
+| Merge-konflikter mellan svärmar | Manuell lösning | Svärm-till-svärm-kommunikation via kunskapsgrafen |
+| Arkitektonisk koherens | En människa övervakar | Meta-Observer som jämför mönster mellan team |
+| Duplicerad kod | Ingen kontroll | Consolidator som ser hela repot |
+| Beroenden mellan team | Mänsklig koordinering | Brief-kedjor: "Team A levererar API → Team B brief aktiveras" |
+
+#### Den verkliga frågan
+
+Det handlar inte om *om* team-svärmar kommer — det handlar om *när*. Neuron HQ:s 176 körningar visar att mönstret fungerar för ett enpersons-projekt. Skalning till team kräver lösningar för koordination, men grundmekanismen (brief → svärm → rapport → granskning) är teamagnostisk.
+
+**Neuron HQ:s data:**
+
+| Mått | 1 person + 1 svärm (nu) | 3 team + 3 svärmar (hypotes) |
+|------|------------------------:|----------------------------:|
+| Körningar/dag | 2-3 | 6-9 |
+| Kod/dag | 600-2100 rader | 1800-6300 rader |
+| Tester/dag | 30-150 | 90-450 |
+| Kostnad/dag | $44-66 | $132-198 |
+| Människor som kodar | 0 | 0 |
+| Människor som leder | 1 | 3 (+ 1 arkitekt) |
+
+**0 människor som kodar. 4 människor som leder.**
+
+Det är förändringen.
+
+---
+
+## 11. Källor
 
 ### Akademiska
 
