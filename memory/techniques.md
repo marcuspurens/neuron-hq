@@ -929,3 +929,193 @@ Uppdateras av Librarian-agenten.
 **Relaterat:** techniques.md#Do-Autonomous-Agents-Contribute-Test-Code, techniques.md#Are-Coding-Agents-Generating-Over-Mocked-Tests, techniques.md#Wink
 
 ---
+
+## MemMA: Coordinating the Memory Cycle through Multi-Agent Reasoning and In-Situ Self-Evolution (2026)
+**Källa:** arxiv:2603.18718 | Minhua Lin et al.
+**Kärna:** MemMA är ett plug-and-play multi-agent-ramverk som koordinerar minneshanteringens fullständiga cykel längs framåt- och bakåtvägar. På framåtvägen producerar en Meta-Thinker strukturerad vägledning som styr en Memory Manager under konstruktion och dirigerar en Query Reasoner under iterativ hämtning. På bakåtvägen introduceras in-situ self-evolving memory construction: systemet syntetiserar proberande fråga-svar-par, verifierar det nuvarande minnet, och konverterar misslyckanden till reparationsåtgärder innan minnet slutförs.
+**Nyckelresultat:** Konsekvent överträffar befintliga baslinjer på LoCoMo-benchmark över multipla LLM-backbone-modeller och förbättrar tre olika lagringsbackends i ett plug-and-play-läge. Open source: github.com/ventr1c/memma.
+**Relevans för Neuron HQ:** Direkt tillämpbar på vår Historian-agents minneshantering. Meta-Thinker-konceptet motsvarar en "minnesrådgivare" som vägleder Historian om vad som ska sparas och hur det ska organiseras. In-situ-verifiering — att testa minneslagets kvalitet genom att ställa frågor mot det innan slutföring — kunde implementeras som ett kvalitetsgate i vår patterns.md-skrivprocess. Plug-and-play-naturen gör det möjligt att testa utan att ändra befintlig arkitektur.
+**Keywords:** memory-cycle, multi-agent, self-evolution, memory-verification, plug-and-play, agent
+**Relaterat:** techniques.md#Live-Evo, techniques.md#TAME, techniques.md#xMemory
+
+---
+
+## D-Mem: A Dual-Process Memory System for LLM Agents (2026)
+**Källa:** arxiv:2603.18631 | Zhixing You et al.
+**Kärna:** D-Mem introducerar ett dual-process-minnessystem inspirerat av kognitiv vetenskap. Lättviktig vektorhämtning hanterar rutinfrågor medan en uttömmande Full Deliberation-modul fungerar som high-fidelity fallback. En Multi-dimensional Quality Gating-policy avgör dynamiskt vilken process som ska aktiveras, baserat på kvalitetsindikatorer som konfidens, informationsrikhet och konsistens.
+**Nyckelresultat:** F1 53.5 på LoCoMo med GPT-4o-mini — överträffar Mem0* (51.2) och återhämtar 96.7% av Full Deliberation-prestandan (55.3) till signifikant lägre beräkningskostnad. Testad även med Qwen3-235B-Instruct på RealTalk-benchmark.
+**Relevans för Neuron HQ:** Direkt applicerbar designprincip — våra agenter använder idag en enda hämtningsmetod (läs hela filen). D-Mem motiverar en tvåstegs-approach: snabb vektorhämtning för enkla frågor ("finns detta mönster?"), full deliberation bara vid komplexa frågor som kräver finkornig kontextförståelse. Quality Gating-policyn kunde implementeras som en router som bestämmer om Researcher behöver läsa hela patterns.md eller bara en relevant sektion.
+**Keywords:** dual-process, memory, quality-gating, vector-retrieval, deliberation, cognitive-economy, agent
+**Relaterat:** techniques.md#BudgetMem, techniques.md#FluxMem, techniques.md#xMemory
+
+---
+
+## Governed Memory: A Production Architecture for Multi-Agent Workflows (2026)
+**Källa:** arxiv:2603.17787 | Hamed Taheri
+**Kärna:** Governed Memory adresserar minnesstyrnings-gapet i enterprise multi-agent-system genom fyra mekanismer: (1) dual memory model som kombinerar open-set atomära fakta med schema-enforced typed properties, (2) tiered governance routing med progressiv kontextleverans, (3) reflection-bounded retrieval med entity-scoped isolation, och (4) en closed-loop schema lifecycle med AI-assisterad authoring och automatiserad per-property-förfining. Produktionssystem i drift på Personize.ai.
+**Nyckelresultat:** 99.6% fact recall, 92% governance routing precision, 50% tokenreduktion via progressiv leverans, noll cross-entity leakage över 500 adversarial queries, 100% adversarial governance compliance. 74.8% overall accuracy på LoCoMo utan att governance/schema-enforcement skadar retrieval-kvalitet. Output-kvalitet mättas vid ~7 governed memories per entity.
+**Relevans för Neuron HQ:** Extremt relevant för vår swarm. De fem strukturella utmaningarna Governed Memory identifierar (minnessilos, governance-fragmentering, ostrukturerade minnen, redundant kontext, tyst kvalitetsdegradation) är exakt de problem vi riskerar i vår arkitektur. Dual memory model (fakta + schema) motiverar att separera atomära fakta i patterns.md från strukturerade schemauppgifter. Progressiv kontextleverans (ge agenter bara det de behöver, inte allt) kunde halvera vår tokenförbrukning. Entity-scoped isolation förhindrar att en agents minnesoperationer korrumperar en annan agents kontext.
+**Keywords:** memory-governance, multi-agent, schema-enforcement, progressive-delivery, enterprise, production, agent
+**Relaterat:** techniques.md#AgentSys, techniques.md#Pancake, techniques.md#ESAA
+
+---
+
+## Kumiho: Graph-Native Cognitive Memory with Formal Belief Revision Semantics (2026)
+**Källa:** arxiv:2603.17244 | Young Bin Park
+**Kärna:** Kumiho är en graph-native kognitiv minnesarkitektur grundad i formell belief revision-semantik (AGM-postulaten). De strukturella primitiver som krävs för kognitivt minne — immutable revisions, mutable tag pointers, typed dependency edges, URI-baserad adressering — är identiska med de som krävs för versionerbar asset management, vilket möjliggör en unified architecture. Implementerar en dual-store (Redis working memory, Neo4j long-term graph) med hybrid fulltext- och vektorsökning. Tre arkitekturinnovationer driver resultaten: prospective indexing (LLM-genererade framtidsscenario-implikationer indexeras vid skrivtid), event extraction, och client-side LLM reranking.
+**Nyckelresultat:** 0.565 F1 på LoCoMo (n=1,986), 97.5% adversarial refusal accuracy. På LoCoMo-Plus (Level-2 cognitive memory benchmark): 93.3% judge accuracy (n=401) — substansiellt överträffar alla publicerade baslinjer (bästa: Gemini 2.5 Pro, 45.7%). Model-decoupled: byte från GPT-4o-mini (~88%) till GPT-4o (93.3%) förbättrar accuracy utan pipeline-ändringar.
+**Relevans för Neuron HQ:** Tre direkt applicerbara insikter: (1) Prospective indexing — vid skrivning till patterns.md generera även "när kan detta mönster vara relevant?" scenarier, indexerade för framtida sökning. (2) Belief revision — formell hantering av motstridiga mönster (gamla mönster som motsägs av nya). (3) Immutable revisions med mutable tags — bevarar minneshistorik medan taggning/kategorisering kan uppdateras. Versionskontroll av minne matchar git-filosofin.
+**Keywords:** knowledge-graph, belief-revision, AGM-postulates, prospective-indexing, dual-store, cognitive-memory, agent
+**Relaterat:** techniques.md#Graph-based-Agent-Memory, techniques.md#Mem0, techniques.md#A-MEM, techniques.md#Chronos
+
+---
+
+## D-MEM: Dopamine-Gated Agentic Memory via Reward Prediction Error Routing (2026)
+**Källa:** arxiv:2603.14597 | Yuru Song et al.
+**Kärna:** D-MEM är en biologiskt inspirerad minnesarkitektur som separerar kort-tidsinteraktion från kognitiv omstrukturering via ett Fast/Slow routing-system baserat på Reward Prediction Error (RPE). En lättviktig Critic Router utvärderar stimuli för Surprise och Utility. Rutinmässiga, low-RPE-inputs bypas:as eller cachas i en O(1) snabbåtkomstbuffer. High-RPE-inputs (faktuella motsägelser, preferensändringar) triggar en "dopamin"-signal som aktiverar O(N) minnesevolutions-pipelinen för att omforma kunskapsgrafen.
+**Nyckelresultat:** Reducerar tokenförbrukning med över 80%, eliminerar O(N²) flaskhalsar, och överträffar baslinjer i multi-hop-resonemang och adversarial resilience. Introducerar LoCoMo-Noise benchmark med kontrollerat konversationsbrus.
+**Relevans för Neuron HQ:** Direkt applicerbar princip — de flesta interaktioner med vår minnesfiler är rutinmässiga och bör hanteras snabbt (O(1)), medan sällsynta men viktiga upptäckter (nya felbeteenden, paradigmskiften) bör trigga full minnesomstrukturering. Historian-agenten kunde implementera en "surprise detector" som avgör om en observation kräver djupgående minneuppdatering eller bara enkel logging. 80% tokenreduktion motiverar starkt denna approach.
+**Keywords:** biological-memory, dopamine, reward-prediction-error, fast-slow-routing, surprise-detection, scalability, agent
+**Relaterat:** techniques.md#BudgetMem, techniques.md#Darwinian-Memory-System, techniques.md#D-Mem
+
+---
+
+## MCFA/MEMFLOW: Memory Control Flow Attacks on LLM Agents (2026)
+**Källa:** arxiv:2603.15125 | Zhenlin Xu et al.
+**Kärna:** Identifierar en ny hotkategori: Memory Control Flow Attacks (MCFA) där minneshämtning kan dominera agentens kontrollflöde och tvinga oavsedd verktygsanvändning — även mot explicita användarinstruktioner — och inducera persistenta beteendeavvikelser över uppgifter. MEMFLOW är ett automatiserat evalueringsramverk som systematiskt identifierar och kvantifierar MCFA över heterogena uppgifter och långa interaktionshorisonter.
+**Nyckelresultat:** Över 90% av test-trials är sårbara för MCFA, även under strikta säkerhetsbegränsningar. Testat på GPT-5 mini, Claude Sonnet 4.5 och Gemini 2.5 Flash med verktyg från LangChain och LlamaIndex.
+**Relevans för Neuron HQ:** Kritisk säkerhetsvarning — vår patterns.md och errors.md kunde manipuleras för att styra agentbeteende på oavsedda sätt. Om en Implementer-agent tidigare lagrade ett korrumerat mönster kan det tvinga framtida agenter att använda fel verktyg eller strategi, även när uppgiftsbeskrivningen är tydlig. 90% sårbarhet innebär att detta inte är ett teoretiskt problem utan en praktisk risk. Förstärker behovet av minnesvalidering (A-MemGuard), isolation (AgentSys) och governance (Governed Memory).
+**Keywords:** security, memory-attack, control-flow, persistent-deviation, tool-hijacking, vulnerability, agent
+**Relaterat:** techniques.md#A-MemGuard, techniques.md#SkillJect, techniques.md#Skill-Inject, techniques.md#AgentSys
+
+---
+
+## Memex(RL): Scaling Long-Horizon LLM Agents via Indexed Experience Memory (2026)
+**Källa:** arxiv:2603.04257 | Zhenting Wang et al.
+**Kärna:** Memex introducerar indexerad erfarenhetsminne som komprimerar kontext utan att kassera evidens. Systemet upprätthåller en kompakt arbetskontext bestående av koncisa strukturerade sammanfattningar och stabila index, medan fullständiga underliggande interaktioner lagras i en extern erfarenhetsdatabas under dessa index. Agenten kan bestämma när den ska dereferera ett index och återhämta exakt den evidens som behövs. Både skriv- och läsbeteenden optimeras med MemexRL — reinforcement learning med belöningsformning anpassad för indexerad minnesanvändning under en kontextbudget.
+**Nyckelresultat:** Förbättrar task success med signifikant mindre arbetskontext. Teoretisk analys visar att Memex-loopen kan bevara beslutskvalitet med begränsad dereferering medan effektiv in-context-beräkning förblir avgränsad.
+**Relevans för Neuron HQ:** Direkt applicerbar på hur våra agenter hanterar stora arbetssessioner. Memex-principen "index + extern databas" matchar vår runs.md-design: korta sammanfattningar i runs.md, fullständiga detaljer tillgängliga vid behov. RL-optimering av skriv/läs-beteenden innebär att agenten lär sig vad som ska sammanfattas vs lagras fullständigt — detta kunde automatisera Historians beslut om detaljnivå i minnesloggar. Kompletterar Memory Pointers med RL-driven optimering.
+**Keywords:** indexed-memory, experience-database, context-budget, reinforcement-learning, long-horizon, agent
+**Relaterat:** techniques.md#Memory-Pointers, techniques.md#CMV, techniques.md#Focus, techniques.md#DeepMiner
+
+---
+
+## A-MAC: Adaptive Memory Admission Control for LLM Agents (2026)
+**Källa:** arxiv:2603.04549 | Guilin Zhang et al.
+**Kärna:** A-MAC behandlar minnesadmission som ett strukturerat beslutsproblem och dekomponerar minnesvärde i fem komplementära och tolkbara faktorer: future utility, factual confidence, semantic novelty, temporal recency, och content type prior. Ramverket kombinerar lättviktig regelbaserad feature-extraktion med en enda LLM-assisterad utility-bedömning, och lär sig domänadaptiva admissions-policyer genom korsvaliderad optimering.
+**Nyckelresultat:** F1 0.583 på LoCoMo — överlägsen precision-recall-tradeoff. 31% latensreduktion jämfört med state-of-the-art LLM-native minnessystem. Ablationresultat identifierar content type prior som den mest inflytelserika faktorn.
+**Relevans för Neuron HQ:** Direkt tillämpbar på Historian-agentens beslutsprocess om vad som ska sparas. Istället för att lagra allt ("append everything") bör Historian bedöma: Är denna observation ny (novelty)? Är den sannolikt korrekt (confidence)? Kommer den att vara användbar senare (utility)? Är den färsk (recency)? Vilken typ av innehåll är det (type prior — pattern, error, run-info)? Denna femfaktorsmodell formaliserar och förbättrar beslutsprocessen som idag är implicit. 31% latensreduktion motiverar investering i smartare filtrering.
+**Keywords:** memory-admission, decision-framework, interpretable, utility-assessment, content-filtering, agent
+**Relaterat:** techniques.md#U-Mem, techniques.md#Live-Evo, techniques.md#Darwinian-Memory-System
+
+---
+
+## SLUMP/ProjectGuard: Benchmarking Faithfulness Loss in Long-Horizon Coding Agents (2026)
+**Källa:** arxiv:2603.17104 | Lu Yan et al.
+**Kärna:** Introducerar SLUMP (faithfulness Loss Under eMergent sPecification) — ett benchmark som mäter hur kodningsagenters implementeringslojalitet försämras när specifikationen avslöjas progressivt (som i verklig utveckling) jämfört med single-shot. Benchmarket innehåller 20 ML-papers (ICML/NeurIPS 2025), 371 atomärt verifierbara komponenter, och interaktionsskript med ~60 kodningsförfrågningar. Som mitigation presenteras ProjectGuard, ett externt project-state-lager för specifikationsspårning.
+**Nyckelresultat:** Single-shot-specifikation ger högre implementeringslojalitet på 16/20 (Claude Code) och 14/20 (Codex) papers. ProjectGuard återhämtar 90% av lojalitetsgapet, ökar fully faithful components från 118 till 181 och reducerar severe failures från 72 till 49.
+**Relevans för Neuron HQ:** Kritisk insikt — vår Manager → Implementer-pipeline avslöjar specifikationer progressivt (brief → deluppgifter → detaljer). SLUMP visar att detta systematiskt försämrar implementeringskvaliteten. ProjectGuard-principen (externt project-state-lager) motiverar att Implementer-agenten upprätthåller en explicit "specifikationssammanfattning" som ackumuleras och verifieras under arbetets gång — inte bara den senaste prompten. Relaterat till CMV:s DAG-baserade state management men specifikt för specifikationsspårning.
+**Keywords:** specification-tracking, faithfulness, emergent-specification, long-horizon, coding-agent, benchmark
+**Relaterat:** techniques.md#CMV, techniques.md#ESAA, techniques.md#CodeScout, techniques.md#Excalibur
+
+---
+
+## Bootstrapping Coding Agents: The Specification Is the Program (2026)
+**Källa:** arxiv:2603.17399 | Martin Monperrus
+**Kärna:** Demonstrerar att en kodningsagent kan bootstrappa sig själv: från en 926-ords specifikation producerar Claude Code en första implementation, varefter den nyligen genererade agenten re-implementerar samma specifikation korrekt från grunden. Detta reproducerar den klassiska bootstrap-sekvensen från kompilatorkonstruktion och instansierar den metacirkulära egenskapen från Lisp i domänen AI-kodningsagenter.
+**Nyckelresultat:** Specifikationen, inte implementationen, är det stabila artefakten. Att förbättra en agent innebär att förbättra dess specifikation; implementationen är i princip regenererbar när som helst. Publicerad i IEEE Software.
+**Relevans för Neuron HQ:** Filosofiskt och praktiskt relevant för hela Neuron HQ-arkitekturen. Om AGENTS.md (vår specifikation) är det stabila artefakten snarare än den faktiska koden, motiverar detta att investera i att perfektionera AGENTS.md-specifikationen framför att finjustera individuella agentimplementationer. Varje agent kunde regenereras från sin specifikation, och förbättring sker genom att iterera på specifikationsdokumenten. Stärker ESAA:s intention-vs-effect-separation.
+**Keywords:** bootstrapping, specification, meta-circular, agent-specification, regenerable-implementation
+**Relaterat:** techniques.md#ESAA, techniques.md#Talk-Freely-Execute-Strictly, techniques.md#Anthropics-råd-om-agentarkitektur
+
+---
+
+## Lore: Repurposing Git Commit Messages as a Structured Knowledge Protocol for AI Coding Agents (2026)
+**Källa:** arxiv:2603.15566 | Ivan Stetsenko
+**Kärna:** Lore omstrukturerar git commit-meddelanden — med native git trailers — till självförsörjande beslutsregister som bär constraints, avvisade alternativ, agentdirektiv och verifieringsmetadata. Identifierar "Decision Shadow" — det resonemang (constraints, avvisade alternativ, framåtblickande kontext) som formas av varje commit men som kastas bort i traditionella commit-meddelanden. Lore kräver ingen infrastruktur utöver git och är querybar via ett standalone CLI-verktyg.
+**Nyckelresultat:** Formaliserar protokollet, jämför mot fem konkurrerande approaches. Inget tungt beroende — fungerar med standard git.
+**Relevans för Neuron HQ:** Direkt applicerbart på hur vår Implementer/Merger-agent hanterar commits. Istället för minimala commit-meddelanden ("fix bug in X") kunde vi använda Lore-protokollet för att inkludera: vilka alternativ övervägdes, vilka constraints gällde, vilka framtida risker finns. Denna information är exakt vad Historian-agenten behöver för att bygga patterns.md. Decision Shadow-konceptet identifierar precis den kunskapsförlust som sker när varje commit bara registrerar "vad" men inte "varför". Git trailers är lättviktiga och bakåtkompatibla.
+**Keywords:** git, commit-messages, decision-records, knowledge-protocol, decision-shadow, traceability, agent
+**Relaterat:** techniques.md#ESAA, techniques.md#How-AI-Coding-Agents-Communicate, techniques.md#From-Experiments-to-Expertise
+
+---
+
+## SEMAG: Self-Evolutionary Multi-Agent Code Generation (2026)
+**Källa:** arxiv:2603.15707 | Yulin Peng et al.
+**Kärna:** SEMAG dekomponerar programmeringsuppgifter i stadier — planering, kodning, debugging och diskussion — samtidigt som workflows adapteras efter uppgiftssvårighet. Dess self-evolutionary agents kan i realtid komma åt de senaste modellerna och automatiskt uppgradera backbone-modellen. Istället för manuellt modellval och fasta workflows anpassar SEMAG sig dynamiskt.
+**Nyckelresultat:** State-of-the-art Pass@1 accuracy. Med identiska backbone-modeller överträffar SEMAG tidigare metoder med 3.3% på CodeContests. Med self-evolutionary model selection når SEMAG 52.6%, demonstrerande både framework-effektivitet och adaptabilitet till evolverande LLM-kapabiliteter.
+**Relevans för Neuron HQ:** Principen att agenter automatiskt kan byta backbone-modell baserat på uppgiftstyp och modelltillgänglighet är direkt relevant. Vår swarm använder idag en fast modell per agent — SEMAG motiverar en design där Manager väljer modell per uppgift (billigare modell för enklare uppgifter, kraftigare för komplexa). Self-evolutionary model selection eliminerar behovet av manuell modelluppdatering. Stadiedekomposition (planering → kodning → debug → diskussion) matchar vår pipeline.
+**Keywords:** multi-agent, code-generation, self-evolution, model-selection, adaptive-workflow, agent
+**Relaterat:** techniques.md#Agyn, techniques.md#SWE-Protégé, techniques.md#BudgetMem
+
+---
+
+## SSGM: Stability and Safety-Governed Memory Framework for LLM Agents (2026)
+**Källa:** arxiv:2603.11768 | Chingkwun Lam et al.
+**Kärna:** SSGM (Stability and Safety-Governed Memory) är en konceptuell styrningsarkitektur som frikopplar minnesevolution från exekvering genom att genomdriva konsistensverifiering, temporal decay-modellering och dynamisk åtkomstkontroll innan minneskonsolidering sker. Adresserar topology-induced knowledge leakage (känsliga kontexter som solidifieras i långtidsminne) och semantic drift (kunskap som degraderas genom iterativ sammanfattning). Tillhandahåller en omfattande taxonomi av minneskorruperingsrisker.
+**Nyckelresultat:** Formell analys och arkitekturdekomposition visar hur SSGM kan mitigera båda primära riskerna. Taxonomi av minneskorruperingsrisker som referens för framtida implementation.
+**Relevans för Neuron HQ:** Kritiskt relevant — vår patterns.md och errors.md ackumulerar kunskap iterativt, men utan explicit governance riskerar vi exakt de problem SSGM identifierar: (1) semantisk drift när mönster sammanfattas och omskrivs, (2) kunskapsläckage när känslig projektinformation lagras permanent, (3) inkonsistens mellan olika minnesfiler. SSGM motiverar att införa konsistensverifiering (verifiera att nya mönster inte motsäger befintliga), temporal decay (äldre mönster gradvis nedprioriteras), och åtkomstkontroll (begränsa vilka agenter som kan modifiera vilka minnesfiler).
+**Keywords:** memory-governance, semantic-drift, knowledge-leakage, consistency-verification, temporal-decay, safety, agent
+**Relaterat:** techniques.md#TAME, techniques.md#A-MemGuard, techniques.md#Governed-Memory, techniques.md#MCFA-MEMFLOW
+
+---
+
+## Human-AI Synergy in Agentic Code Review (2026)
+**Källa:** arxiv:2603.15911 | Suzhen Zhong et al.
+**Kärna:** Storskalig empirisk analys av 278,790 kodgranskningskonversationer över 300 open source GitHub-projekt. Jämför feedback från mänskliga granskare och AI-agenter, analyserar samarbetsmönster, adoptionsgrader för kodförslag, och hur adopterade förslag påverkar kodkvalitet.
+**Nyckelresultat:** Mänskliga granskare ger ytterligare feedback utöver det AI-agenter täcker (förståelse, testning, kunskapsöverföring). Mänskliga granskare utbyter 11.8% fler omgångar vid granskning av AI-genererad kod. AI-agenters kodförslag adopteras till signifikant lägre grad. Över hälften av icke-adopterade AI-förslag är antingen felaktiga eller addresseras genom alternativa fixar. Adopterade AI-förslag producerar signifikant större ökningar i kodkomplexitet och kodstorlek jämfört med mänskliga förslag.
+**Relevans för Neuron HQ:** Viktig empirisk bekräftelse — vår Reviewer-agent bör inte bara granska för funktionell korrekthet utan även addera "mänskliga" dimensioner: förståelse (förstår agenten varför koden ser ut som den gör?), testning (är adekvata tester inkluderade?), och kunskapsöverföring (vad kan andra lära av denna ändring?). Insikten att AI-kodförslag ökar komplexiteten motiverar att Reviewer explicit mäter och begränsar ΔComplexity per commit, inte bara korrekthet.
+**Keywords:** code-review, human-AI-collaboration, empirical-study, complexity, adoption-rate, feedback-quality
+**Relaterat:** techniques.md#How-AI-Coding-Agents-Communicate, techniques.md#AI-IDEs-or-Autonomous-Agents, techniques.md#Why-Agentic-PRs-Get-Rejected
+
+---
+
+## CLAG: Clustering-Based Agentic Memory for Small Language Model Agents (2026)
+**Källa:** arxiv:2603.15421 | Taeyun Roh et al.
+**Kärna:** CLAG introducerar en SLM-driven router som tilldelar inkommande minnen till semantiskt koherenta kluster och autonomt genererar klusterspecifika profiler (ämnessammanfattningar, beskrivande taggar). Varje kluster fungerar som en självförsörjande funktionell enhet. Lokaliserad evolution inom strukturerade grannskap reducerar cross-topic-interferens. Vid hämtning filtrerar ett tvåstegs-process först relevanta kluster via deras profiler, vilket exkluderar distraktorer.
+**Nyckelresultat:** Konsekvent förbättrad svarskvalitet och robusthet över prior memory systems med tre SLM-backbones på multipla QA-dataset. Lättviktigt och effektivt.
+**Relevans för Neuron HQ:** Direkt applicerbar på hur patterns.md växer över tid. När mönster ackumuleras blir filtrering svårare — CLAG:s klustringsbaserade approach kunde automatiskt gruppera mönster i kategorier (t.ex. "testning", "arkitektur", "säkerhet") med sammanfattningsprofiler som gör det snabbare för agenter att hitta relevanta mönster utan att läsa hela filen. Speciellt relevant för SLM-baserade agenter (SWE-Protégé-konceptet) som är känsliga för irrelevant kontext.
+**Keywords:** clustering, memory-organization, small-language-model, topic-profiles, distractor-filtering, agent
+**Relaterat:** techniques.md#CAM, techniques.md#FluxMem, techniques.md#SWE-Protégé, techniques.md#xMemory
+
+---
+
+## NS-Mem: Advancing Multimodal Agent Reasoning with Long-Term Neuro-Symbolic Memory (2026)
+**Källa:** arxiv:2603.15280 | Rongjie Jiang et al.
+**Kärna:** NS-Mem integrerar neuralt minne med explicita symboliska strukturer och regler i en tre-lagers minnesarkitektur: episodiskt lager (erfarenhetsminnen), semantiskt lager (faktabaserad kunskap), och logikregler-lager (formella regler för deterministisk inferens). SK-Gen konsoliderar automatiskt strukturerad kunskap från ackumulerade multimodala erfarenheter och uppdaterar inkrementellt både neurala representationer och symboliska regler. Hybridhämtning kombinerar likhetsbaserad sökning med deterministiska symboliska queryfunktioner.
+**Nyckelresultat:** Genomsnittlig 4.35% förbättring i overall reasoning accuracy. Upp till 12.5% förbättring på constrained reasoning queries. Validerad på verkliga multimodala resonemangsbenchmarks.
+**Relevans för Neuron HQ:** Tre-lagers-arkitekturen (episodisk, semantisk, logik) erbjuder en mer sofistikerad indelning än våra fyra filer. Speciellt intressant: logikregler-lagret — vi har inga explicita regler i vårt minnessystem, men "om dependency-conflict → kontrollera versions-constraints först" är exakt en logikregel som kunde formaliseras. Hybridhämtning (neural + symbolisk) ger bästa av båda världar: semantisk sökning för breda frågor, exakt symbolisk query för specifika regler.
+**Keywords:** neuro-symbolic, three-layer-memory, logic-rules, hybrid-retrieval, episodic, semantic, agent
+**Relaterat:** techniques.md#MIRIX, techniques.md#CAM, techniques.md#Kumiho, techniques.md#Graph-based-Agent-Memory
+
+---
+
+## RepoReviewer: A Local-First Multi-Agent Architecture for Repository-Level Code Review (2026)
+**Källa:** arxiv:2603.16107 | Peng Zhang
+**Kärna:** RepoReviewer dekomponerar kodgranskning på repository-nivå i fem faser: repository acquisition, context synthesis, file-level analysis, finding prioritization, och summary generation. Använder Python CLI, FastAPI API, LangGraph orchestration, och Next.js UI. Local-first design innebär att koden processas lokalt snarare än att skickas till molntjänster.
+**Nyckelresultat:** Framhävd som systems contribution snarare än benchmark-resultat. Dokumenterar praktiska failure modes och implementation tradeoffs för repository-level review. Open source.
+**Relevans för Neuron HQ:** Direkt relevant för vår Reviewer-agent. RepoReviewers femfasdekomposition (acquisition → synthesis → analysis → prioritization → summary) erbjuder en explicit arbetsordning vi kan implementera. Speciellt finding prioritization — att rangordna upptäckta problem efter allvarlighet innan sammanfattning — saknas i vår nuvarande pipeline. Local-first-principen matchar säkerhetskraven vi identifierat (AgentSys, SkillJect).
+**Keywords:** code-review, multi-agent, local-first, repository-level, decomposition, prioritization, agent
+**Relaterat:** techniques.md#AgenticSCR, techniques.md#Human-AI-Synergy-in-Code-Review, techniques.md#Agyn
+
+---
+
+## CodeScout-RL: Reinforcement Learning for Code Search Agents (2026)
+**Källa:** arxiv:2603.17829 | Lintang Sutawika et al.
+**Kärna:** Demonstrerar att en kodningsagent utrustad med inget mer än en standard Unix-terminal kan tränas via reinforcement learning till att uppnå stark kodlokaliseringsprestation. Till skillnad från tidigare metoder som kräver komplexa specialiserade verktyg (repository-grafer, statisk analys) använder CodeScout-RL enbart bash-kommandon. Fokuserar på tekniker för att återanvända befintliga kodningsagentmiljöer för kodsökning, belöningsdesign och RL-optimering.
+**Nyckelresultat:** Konsekvent uppnår överlägsen eller kompetitiv prestanda jämfört med 2-18x större bas- och post-trained LLMs. Närmar sig ibland Claude Sonnet-nivå prestanda, även med specialiserade scaffolds. Modeller och all kod open source.
+**Relevans för Neuron HQ:** Direkt applicerbar insikt — vår Researcher-agent kan troligen klara sig med enklare verktyg (terminal + grep/find) snarare än komplexa kodanalysverktyg om den ges rätt RL-träning. RL-belöningsdesign för kodsökning är specifikt relevant: belöna precision i lokalisering, straffa onödig utforskning. Att mindre modeller med RL-träning kan närma sig frontier-modeller motiverar kostnadsoptimering (billigare modell + RL >> dyrare modell).
+**Keywords:** code-search, reinforcement-learning, terminal-only, code-localization, cost-effective, agent
+**Relaterat:** techniques.md#CodeScout, techniques.md#SWE-Protégé, techniques.md#LEAFE
+
+---
+
+## Beyond the Context Window: Fact-Based Memory vs Long-Context LLMs for Persistent Agents (2026)
+**Källa:** arxiv:2603.04814 | Natchanon Pollertlam et al.
+**Kärna:** Jämför faktabaserat minnessystem (Mem0-framework) mot long-context LLM-inferens på tre minnescentrerade benchmarks — LongMemEval, LoCoMo och PersonaMemv2. Konstruerar en kostnadsmodell som inkorporerar prompt caching och visar att de två arkitekturerna har strukturellt olika kostnadsprofiler: long-context-inferens medför en per-turn-kostnad som växer med kontextlängd, medan minnessystemets per-turn-läskostnad förblir ungefär konstant efter en engångs-skrivfas.
+**Nyckelresultat:** Long-context GPT-5-mini uppnår högre factual recall på LongMemEval och LoCoMo, medan minnessystemet är kompetitivt på PersonaMemv2. Vid 100k tokens kontextlängd blir minnessystemet billigare efter ~10 interaktionsturer, med break-even som minskar med ökande kontextlängd.
+**Relevans för Neuron HQ:** Kvantitativ guide för vår minnesdesign. Med korta uppgifter (<10 turer) kan vi mata hela konversationshistoriken direkt till agenten. Med långa sessioner (>10 turer) lönar det sig att extrahera och casha fakta. Detta motiverar en hybrid-approach: korta uppgifter → full kontext, långa uppgifter → strukturerat minne via patterns.md/errors.md. Break-even-analysen ger konkreta trösklar.
+**Keywords:** cost-analysis, memory-vs-context, persistent-agent, break-even, prompt-caching, benchmark
+**Relaterat:** techniques.md#MECW, techniques.md#D-Mem, techniques.md#BudgetMem, techniques.md#Focus
+
+---

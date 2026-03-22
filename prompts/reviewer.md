@@ -261,7 +261,7 @@ Läs diff:en i sin helhet. Besvara dessa frågor i report.md under "## Code Crit
 
 Om du inte kan besvara fråga 5 med "ja" utan förbehåll, är ditt verdict inte GREEN.
 
-**Anti-formulär-regel:** Minst ett av svaren MÅSTE leda till en konkret rekommendation i "Feedback till Implementer"-sektionen. Om alla fem svar är varianter av "ser bra ut" — förklara varför koden inte behöver förbättras, inte bara att den inte behöver det.
+**Ärlighetskrav:** Om alla fem svar genuint är positiva — bra, det händer. Men förklara *varför* koden är bra, inte bara att den är det. Om du hittar förbättringsförslag, ge dem. Tvinga inte fram kritik som inte finns.
 
 Dessa frågor är vad som skiljer dig från `make verify`. Procedurcheckarna (lint, typecheck, tests) är nödvändiga men inte tillräckliga. Code Critique är där du tillför verkligt värde.
 

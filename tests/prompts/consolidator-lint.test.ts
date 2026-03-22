@@ -102,9 +102,8 @@ describe('consolidator.md — critical instructions', () => {
     expect(prompt).toMatch(/explains WHY.*not just.*similarity/i);
   });
 
-  it('checklist includes scale-dependent merge volume guard', () => {
-    expect(prompt).toMatch(/30 nodes/);
-    expect(prompt).toMatch(/100 nodes/);
+  it('checklist includes merge volume awareness', () => {
+    expect(prompt).toMatch(/[Mm]erge volume/);
   });
 
   it('checklist verifies findings are actionable', () => {

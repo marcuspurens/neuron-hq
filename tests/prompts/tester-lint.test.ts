@@ -48,8 +48,8 @@ describe('tester.md — critical instructions', () => {
     expect(prompt).toMatch(/materialise.*declared|declared.*dependencies/i);
   });
 
-  it('limits tester to max 1-2 iterations', () => {
-    expect(prompt).toMatch(/[Mm]ax 1-2 iterations/);
+  it('requires diagnostic analysis with root causes', () => {
+    expect(prompt).toMatch(/[Rr]oot [Cc]ause/);
   });
 
   it('regression guard: test would fail if critical keyword removed', () => {

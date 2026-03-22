@@ -87,21 +87,21 @@ describe('Historian prompt — interview-driven improvements (S116)', () => {
     });
   });
 
-  describe('priority order for limited iterations', () => {
+  describe('priority order', () => {
     it('includes the priority section', () => {
-      expect(prompt).toMatch(/Prioritetsordning vid begränsade iterationer/);
+      expect(prompt).toMatch(/Prioritetsordning/);
     });
 
-    it('always requires run summary as top priority', () => {
-      expect(prompt).toMatch(/Alltid.*Körningssammanfattning/s);
+    it('requires run summary as top priority', () => {
+      expect(prompt).toMatch(/Körningssammanfattning/);
     });
 
-    it('always requires error entries as second priority', () => {
-      expect(prompt).toMatch(/Alltid.*Error-poster/s);
+    it('requires error entries as second priority', () => {
+      expect(prompt).toMatch(/Error-poster/);
     });
 
-    it('states the core principle: never sacrifice summary for metrics', () => {
-      expect(prompt).toMatch(/Skriv aldrig en ofullständig körningssammanfattning/);
+    it('states that summary and errors are the primary deliverable', () => {
+      expect(prompt).toMatch(/primära leverans/);
     });
   });
 
@@ -122,8 +122,8 @@ describe('Historian prompt — interview-driven improvements (S116)', () => {
       expect(prompt).toContain('AUDIT OFULLSTÄNDIG');
     });
 
-    it('limits the check to max 2 grep_audit calls', () => {
-      expect(prompt).toMatch(/max 2 grep_audit/);
+    it('encourages thorough verification instead of arbitrary limits', () => {
+      expect(prompt).toMatch(/tillräcklig data/);
     });
   });
 

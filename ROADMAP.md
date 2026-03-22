@@ -1,6 +1,6 @@
 # Neuron HQ — Roadmap
 
-> **Senast uppdaterad:** 2026-03-22 · Session 123
+> **Senast uppdaterad:** 2026-03-22 · Session 125
 > **Källa:** Djupsamtal S102 + Marcus ~40 kommentarer + diskussionsdokument S103
 > Editera direkt — kryssa av med ✅ när klart.
 > **Arkiv:** Alla versioner sparas i [docs/roadmaps/](docs/roadmaps/) med datumstämpel.
@@ -15,10 +15,10 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3627 |
-| Körningar | 174 |
+| Tester | 3703 |
+| Körningar | 175 |
 | MCP-tools | 44 |
-| Sessioner | 123 |
+| Sessioner | 125 |
 | Agenter | 12 (inkl Observer) |
 | Idé-noder | 924 |
 | Code Review | ★★★★☆ (Fas 1 klar) |
@@ -230,7 +230,7 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
-### 2.6 Observer — Prompt Quality Agent 🟡
+### 2.6 Observer — Prompt Quality Agent ✅ S125 · 2026-03-22
 
 **Vad det ger dig:** Automatisk kvalitetskontroll av alla agentprompter + passiv observation av varje körning. Observer genererar en `prompt-health`-rapport med lint-resultat, tool-alignment, token-förbrukning och rekommendationer.
 
@@ -240,7 +240,7 @@ Fas 4: Produkt                ← andra kan använda det
 |------|-----|---------|----------|--------|
 | **Lint** | Mönstermatchning mot anti-patterns ("max N", budgetprocent, satisficing-språk) | Gratis | Varje körning | ✅ Brief A |
 | **Alignment** | Prompt-påståenden ↔ tool-användning + djup kodanalys | Gratis | Varje körning | ✅ Enkel (A), Djup (B) |
-| **Retro** | API-samtal med alla 11 agenter efter körning — "hur gick det?" | ~$2-5 | Varje körning | ⬜ Brief B |
+| **Retro** | API-samtal med alla 11 agenter efter körning — "hur gick det?" | ~$2-5 | Varje körning | ✅ Brief B |
 
 **Gjort (Brief A, körning #174):** 🟢 GRÖN, 24/24 AC, +32 tester, Sonnet, $61
 - `src/core/agents/observer.ts` — eventBus-lyssnare, observation, lint, token-tracking, rapport
@@ -249,10 +249,13 @@ Fas 4: Produkt                ← andra kan använda det
 - 11 pre-existing test-failures fixade (totalt 3627/3627 gröna)
 - Observer-kodfixar: breda regex → word boundaries, writeReport-inkonsekvens löst
 
-**Kvar (Brief B):** Retro-samtal med alla 11 agenter + djup prompt-kod-alignment
-- Brief: `briefs/2026-03-22-observer-b-retro.md` (godkänd 8.6/10)
+**Gjort (Brief B, körning #175):** 🟢 GRÖN, 21/21 AC, +76 tester, Sonnet, ~$60
+- `src/core/agents/observer-retro.ts` — sekventiella retro-samtal med alla agenter
+- `src/core/agents/observer-alignment.ts` — djup kodanalys med funktionskroppsextraktion
+- `prompts/observer.md` — observer-prompt (ärlighet > performativitet)
+- 3703/3703 tester gröna, 0 regressioner
 
-**Effort:** 2 körningar · **Brief A:** ✅ · **Brief B:** ⬜
+**Effort:** 2 körningar · **Brief A:** ✅ · **Brief B:** ✅
 
 ---
 
@@ -435,7 +438,7 @@ Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21)
 | 2.3 | Namnbyte Researcher ↔ Librarian | 2 | 1 körn | — | ✅ S113 2026-03-20 |
 | 2.4 | Idékonsolidering | 2 | 1 körn | — | ✅ S120 2026-03-22 |
 | 2.5 | Grafintegritet watchman | 2 | 1 körn | — | ⬜ |
-| **2.6** | **Observer (Prompt Quality Agent)** | **2** | **2 körn** | — | 🟡 A✅ B⬜ |
+| **2.6** | **Observer (Prompt Quality Agent)** | **2** | **2 körn** | — | **✅ S125 2026-03-22** |
 | **2.6b** | **Observer feedback-loop → Brief Reviewer** | **2** | **1 körn** | 2.6 | ⬜ |
 | **2.7** | **Modellstrategi (Sonnet+Opus)** | **2** | **<1 sess** | — | **✅ S123 2026-03-22** |
 | 3.1 | Reviewer severity levels | 3 | 1-2 körn | — | ⬜ |
@@ -449,7 +452,7 @@ Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21)
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
 | 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~30-45 körningar. **Klar:** 15/26
+**Totalt:** ~30-45 körningar. **Klar:** 16/26
 
 ---
 

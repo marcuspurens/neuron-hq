@@ -5,7 +5,7 @@ import { executeSharedBash, executeSharedReadFile, executeSharedWriteFile, execu
 import fs from 'fs/promises';
 import path from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
-import { createAgentClient } from '../agent-client.js';
+import { createAgentClient, buildCachedSystemBlocks } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { prependPreamble } from '../preamble.js';
@@ -173,7 +173,7 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
           const stream = this.client.messages.stream({
             model: this.model,
             max_tokens: this.modelMaxTokens,
-            system: systemPrompt,
+            system: buildCachedSystemBlocks(systemPrompt),
             messages: trimMessages(messages),
             tools: this.defineTools(),
           });
@@ -195,7 +195,9 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
         this.ctx.usage.recordTokens(
           'implementer',
           response.usage.input_tokens,
-          response.usage.output_tokens
+          response.usage.output_tokens,
+          response.usage.cache_creation_input_tokens ?? 0,
+          response.usage.cache_read_input_tokens ?? 0,
         );
 
         messages.push({ role: 'assistant', content: response.content });

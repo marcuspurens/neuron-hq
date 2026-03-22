@@ -11,6 +11,8 @@ describe('Iteration tracking in UsageTracker', () => {
     expect(usage.by_agent.manager).toEqual({
       input_tokens: 100,
       output_tokens: 50,
+      cache_creation_tokens: 0,
+      cache_read_tokens: 0,
       iterations_used: 23,
       iterations_limit: 70,
     });

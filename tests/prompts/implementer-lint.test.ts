@@ -17,8 +17,8 @@ describe('implementer.md — reliability guardrails', () => {
     expect(prompt).toMatch(/iteration budget/i);
   });
 
-  it('mentions partial commit as fallback strategy', () => {
-    expect(prompt).toMatch(/partial commit|commit what you have/i);
+  it('mentions committing working code as fallback when approaching limit', () => {
+    expect(prompt).toMatch(/commit working code/i);
   });
 
   it('checklist item: verify all changed files staged before commit', () => {

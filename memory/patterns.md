@@ -2409,3 +2409,58 @@ await pool.query(
 **Senast bekräftad:** 20260320-1159-neuron-hq
 
 ---
+
+## YAML-driven prompt-lint med tvåstegs-filtrering
+**Kontext:** Körning 20260322-0150-neuron-hq — Observer-modulen behövde detektera anti-patterns i agentprompter (numeriska tak, satisficing-språk, tidspressrelaterat) utan högt false positive-rate
+**Lösning:** Anti-patterns definieras i `policy/prompt-antipatterns.yaml` med regex, severity, category och `legitimateContexts`-lista. Tvåstegs-filtrering: (1) regex hittar kandidat-matchningar i prompten, (2) kontextanalys kontrollerar omgivande sektionsrubrik (närmaste ##/### ovanför) och ±3 rader — om kontexten innehåller nyckelord från `legitimateContexts` nedgraderas severity till INFO. Osäkra fall defaultar till INFO (inte WARNING).
+**Effekt:** Utökningsbar utan kodändring — nya anti-patterns läggs till i YAML-filen. Tvåstegs-filtreringen skiljer "max 3 retries" (legitimt i API-kontext) från "max 3 filer" (ärvd heuristik). Inga false positives vid verifiering mot nuvarande 11+ promptfiler.
+**Keywords:** prompt-lint, yaml, anti-patterns, regex, two-stage-filter, observer, quality-assurance
+**Relaterat:** patterns.md#Prompt-lint-tester: regex-validering av prompt-filer, patterns.md#AGENTS.md som delad systemkonstitution
+**Körningar:** #20260322-0150-neuron-hq
+**Senast bekräftad:** 20260322-0150-neuron-hq
+
+---
+
+**[UPPDATERING]** Mönstret "Single-phase Merger: auto-commit on Reviewer GREEN" bekräftades i körning 20260322-0150-neuron-hq — Merger delegerades en enda gång (02:39:34), läste report.md med GREEN-verdict, kopierade 6 filer (3 nya + 3 modifierade) och committade direkt. Exkluderade korrekt 2 hjälpskript och knowledge.md. Ingen merge_plan.md eller answers.md.
+
+**Senast bekräftad:** 20260322-0150-neuron-hq
+
+**[UPPDATERING]** Mönstret "Merger filtrerar hjälpskript utan Manager-cleanup-pass" bekräftades i körning 20260322-0150-neuron-hq — Implementer skapade 2 Python-hjälpskript (insert-prompt-health.py, reorder-observer.py), Merger exkluderade dem vid merge. Reviewer klassificerade dem som NEUTRAL i Emergent Changes-tabellen. Fjärde+ bekräftelsen.
+
+**Senast bekräftad:** 20260322-0150-neuron-hq
+
+**[UPPDATERING]** Mönstret "Exakt feloutput + fixförslag i brief ger kirurgiska leveranser" bekräftades i körning 20260322-0150-neuron-hq — briefen innehöll komplett TypeScript-interfaces (Observation, TokenUsage, AgentModelInfo, ObserverAgent-klass med metoder), exakt YAML-schema för anti-patterns, rapport-mall och integration-kodsnippets. 24/24 kriterier uppfyllda, 32 tester (krav 20+).
+
+**Senast bekräftad:** 20260322-0150-neuron-hq
+
+**[UPPDATERING]** Mönstret "Reviewer git-stash baseline-jämförelse" bekräftades i körning 20260322-0150-neuron-hq — Reviewer körde baseline verify (3597 tests, 11 pre-existing failures) → after-change verify (3629 tests, 11 same pre-existing failures, 32 new, 0 regressions) med fullständig stoplight-tabell. tsc rent, eslint 0 nya fel.
+
+**Senast bekräftad:** 20260322-0150-neuron-hq
+
+**[SKEPTIKER 20260322-0150-neuron-hq]** Granskade mönster med confidence ≥ 0.7:
+- pattern-027 (0.75) "Single-phase Merger": ✅ Bekräftad i denna körning — behåll 0.75 (procedurellt, tak 0.8)
+- pattern-036 (0.8) "Merger filtrerar hjälpskript": ✅ Bekräftad i denna körning — behåll 0.8 (vid tak)
+- pattern-215 (0.75) "YAML-driven prompt-lint": Ny i denna körning — behåll initial confidence
+Inga mönster sänkta — alla relevanta mönster bekräftades i denna körning.
+
+## Sekventiella API-anrop med AbortSignal-timeout och fail-open felhantering
+**Kontext:** Observer Brief B (20260322-0655) — retro-samtal med 11 agenter via API
+**Lösning:** Kör API-anrop sekventiellt (inte parallellt) med 30s AbortSignal timeout per anrop. Vid misslyckande: logga felet, markera agenten som `retro: "failed"`, fortsätt med nästa agent. Fail-open istället för fail-closed.
+**Effekt:** Undviker rate limits från parallella anrop, förenklar felhantering, garanterar att en misslyckad retro-session aldrig blockerar hela rapporten. Partiella resultat (9/11 lyckade) är bättre än inga resultat.
+**Keywords:** api-anrop, timeout, fail-open, sekventiell, AbortSignal, rate-limit, retro
+**Relaterat:** runs.md#20260322-0655-neuron-hq
+**Körningar:** #20260322-0655
+**Senast bekräftad:** 20260322-0655-neuron-hq
+
+---
+
+## Regelbaserad kodanalys (regex + heuristik) istället för LLM för deterministisk alignment-check
+**Kontext:** Observer Brief B (20260322-0655) — deep prompt-kod-alignment
+**Lösning:** Använd regex + brace-counting för att extrahera funktionskroppar och klassificera implementationsdjup (DEEP/SHALLOW/NOT_FOUND). Konkreta regler: shallow = bara sätter flagga/returnerar hårdkodat värde/tom kropp. Deep = gör externt anrop/läser och jämför data. Oklara fall → INFO (inte WARNING).
+**Effekt:** Gratis, snabb, deterministisk. Minimerar false positives. Kan köras utan API-anrop. LLM-baserad analys kan läggas till som förbättring men är inget krav för en fungerande v1.
+**Keywords:** kodanalys, regex, heuristik, alignment, shallow-detection, deterministisk, prompt-kod
+**Relaterat:** runs.md#20260322-0655-neuron-hq
+**Körningar:** #20260322-0655
+**Senast bekräftad:** 20260322-0655-neuron-hq
+
+---

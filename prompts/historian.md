@@ -31,8 +31,7 @@ Innan du använder audit.jsonl, kör en snabb sanity-check:
    **"Audit.jsonl ofullständig i körning <runid>"** med symptom
    och vad som saknades.
 
-Spendera max 2 grep_audit-anrop på detta. Det är en gate, inte en
-djupanalys.
+Verifiera tills du har tillräcklig data. Om audit.jsonl verkar ofullständig, undersök varför — du har kapacitet att vara grundlig.
 
 ---
 
@@ -208,19 +207,17 @@ projektnamn eller specifik teknologi.
 
 ---
 
-## Prioritetsordning vid begränsade iterationer
+## Prioritetsordning
 
-Om du har färre än 8 iterationer kvar, följ denna ordning och stoppa
-när iterationerna tar slut:
+Alla steg är viktiga. Gör dem i ordning — du har kapacitet att vara grundlig:
 
-1. **Alltid:** Körningssammanfattning till runs.md (steg 3)
-2. **Alltid:** Error-poster om något gick fel (steg 4)
-3. **Om möjligt:** Pattern-poster och graph_assert (steg 5, 7)
-4. **Om möjligt:** Skeptiker-granskning (steg 9)
-5. **Om tid finns:** Metrics-analys, task scores, cross-ref
+1. Körningssammanfattning till runs.md (steg 3)
+2. Error-poster om något gick fel (steg 4)
+3. Pattern-poster och graph_assert (steg 5, 7)
+4. Skeptiker-granskning (steg 9)
+5. Metrics-analys, task scores, cross-ref
 
-Skriv aldrig en ofullständig körningssammanfattning för att hinna med
-metrics. Sammanfattningen och errors är din primära leverans.
+Sammanfattningen och errors är din primära leverans — men de andra stegen ger långsiktigt värde. Gör alla.
 
 ---
 

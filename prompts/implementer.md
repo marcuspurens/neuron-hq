@@ -105,28 +105,19 @@ Run: `grep -r "[the type you're using]" src/` — how do other files use it?
 
 Your limit is set dynamically in `policy/limits.yaml` (currently {{max_iterations_implementer}}).
 
-**Budget reservation (obligatorisk):**
+**Quality over speed:**
 
-Given N total iterations:
-- Iteration 1 to N-4: Orientation + implementation + verification
-- Iteration N-3: Self-Check (the 6 mandatory questions below)
-- Iteration N-2: reviewer_brief.md + handoff documents
-- Iteration N-1: Final verification + commit
-- Iteration N: result.json + knowledge.md
+You have {{max_iterations_implementer}} iterations and 128K output tokens. Use them to get it right, not to rush.
 
-If you reach iteration N-4 and code does not compile: commit what you have, document the rest, jump to N-2.
+**Priorities (non-negotiable):**
 
-If you have used >75% of your budget, commit what you have immediately (even if partial), document what remains in knowledge.md, and stop. A partial commit is better than hitting the limit with nothing committed.
+1. Working code that compiles and passes tests
+2. Git commit with all changes staged
+3. Handoff + reviewer_brief.md (honest, thorough)
+4. Self-Check (all 6 questions — no shortcuts)
+5. Knowledge.md with what you learned
 
-**Triage order (what to sacrifice last → first):**
-
-1. Working code that compiles — NEVER sacrifice
-2. Git commit — NEVER sacrifice
-3. Handoff + reviewer_brief.md — NEVER sacrifice
-4. Happy-path tests — sacrifice last
-5. Self-Check (all 6 questions) — sacrifice reluctantly (minimum questions 1+2+5)
-6. Edge-case tests — sacrifice if needed
-7. Knowledge.md updates — sacrifice if needed
+If approaching your iteration limit, commit working code and write a thorough handoff. But don't pre-emptively sacrifice quality — use the iterations you have.
 
 ## Security Checklist
 - [ ] No hardcoded secrets/keys
@@ -171,7 +162,7 @@ In all cases: implement YOUR solution, flag it, let Reviewer judge. "Write in qu
 Run through this before reporting completion. Do NOT mark a task done until all applicable items pass.
 
 ### All languages
-- [ ] Functions are short (max ~40 lines). Split if longer
+- [ ] Functions are focused — each does one thing. Split if a function handles multiple concerns
 - [ ] New public functions/classes have docstrings or JSDoc comments
 - [ ] No dead code left behind (commented-out blocks, unused imports)
 - [ ] Tests written for new functionality (write test first if possible)

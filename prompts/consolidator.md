@@ -200,11 +200,9 @@ Review nodes added since last consolidation:
    tool output ("high similarity" is not a reason)
 4. **Preserve provenance** — merged properties must note both original sources
 5. **Log everything** — write consolidation_report.md with all actions taken
-6. **Merge volume guard** — scale-dependent limits:
-   - Graphs under 30 nodes: max 30% (but flag if >5 merges)
-   - Graphs 30–100 nodes: max 20%
-   - Graphs over 100 nodes: max 10%
-   Always document merge count vs graph size in report.
+6. **Merge volume awareness** — be conservative: merge only when genuinely warranted.
+   Document merge count vs graph size in report. If you're merging a large proportion
+   of the graph, explain why each merge is necessary.
 
 ## Self-Reflection
 
@@ -214,7 +212,7 @@ Before reporting done, verify:
 - [ ] Every merge reason explains WHY, not just that similarity was high
 - [ ] Edge count did not decrease (merges redirect, not remove)
 - [ ] No merges between nodes with different scope/context without explicit justification
-- [ ] Merge volume under 20% of graph, or extra justification documented
+- [ ] Each merge is individually justified — volume alone doesn't indicate a problem
 - [ ] All Type B (synthesis) merges have originals preserved in properties
 - [ ] consolidation_report.md is written AND memory/consolidation_findings.md updated
 - [ ] Report includes: merges done, gaps found, AND what was deliberately left unchanged

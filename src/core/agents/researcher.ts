@@ -3,7 +3,7 @@ import { withRetry } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
-import { createAgentClient } from '../agent-client.js';
+import { createAgentClient, buildCachedSystemBlocks } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { prependPreamble } from '../preamble.js';
@@ -131,7 +131,7 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
           const stream = this.client.messages.stream({
             model: this.model,
             max_tokens: this.modelMaxTokens,
-            system: systemPrompt,
+            system: buildCachedSystemBlocks(systemPrompt),
             messages,
             tools: this.defineTools(),
           });
@@ -153,7 +153,9 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
         this.ctx.usage.recordTokens(
           'researcher',
           response.usage.input_tokens,
-          response.usage.output_tokens
+          response.usage.output_tokens,
+          response.usage.cache_creation_input_tokens ?? 0,
+          response.usage.cache_read_input_tokens ?? 0,
         );
 
         messages.push({ role: 'assistant', content: response.content });

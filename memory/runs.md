@@ -3188,3 +3188,50 @@ Inga blockers. Pre-befintligt testfel (prompt lint för brief-reviewer.md) exist
 - Alla 25 AC-kriterier kontrollerade post-run. 24 är gröna, 1 är orange (AC19 partiell). Denna granularitet möjliggör exakt traceability av vad som levererades.
 
 ---
+
+## Körning 20260322-0150-neuron-hq — neuron-hq
+**Datum:** 2026-03-22
+**Uppgift:** Implementera Observer-agent (2.6a) — passiv observation under körning, prompt-lint med YAML-antipatterns, token-tracking, enkel tool-alignment och prompt-health-rapport
+**Resultat:** ✅ 24 av 24 acceptanskriterier klara — Observer-modulen komplett, testad och integrerad i körflödet
+
+**Vad som fungerade:**
+Hela pipeline-kedjan (Manager → Implementer ×3 → Tester → Reviewer ×2 → Merger → Historian) körde komplett. Manager analyserade kodbasen grundligt (eventBus, model-registry, pricing, run.ts, types.ts) innan den skapade en detaljerad uppgiftsplan med T1 (ObserverAgent + YAML), T2/T3 (run.ts-integration + AGENTS.md) och en fix-pass (init-ordning + cleanup). Implementer levererade `src/core/agents/observer.ts` (679 rader) med eventBus-lyssnare, prompt-lint med tvåstegs-filtrering, token-tracking, kostnadsberäkning, tool-alignment och rapport-generering. `policy/prompt-antipatterns.yaml` (61 rader) och 32 tester skapades — alla gröna. Reviewer var extremt grundlig — verifierade alla 24 AC individuellt med grep-kommandon, baseline 3597→3629 tester, tsc rent, eslint 0 nya fel på nya filer. Merger kopierade 6 filer och exkluderade 2 hjälpskript (insert-prompt-health.py, reorder-observer.py) + knowledge.md — korrekt filtrering.
+
+**Vad som inte fungerade:**
+Första Implementer-delegationen (T1) placerade Observer-init på fel ställe i run.ts — `resolveModelConfig()` anropades innan `agentModelMap` och `defaultModelOverride` var satta. Manager fångade problemet och delegerade en tredje Implementer-pass för att flytta Observer-init till rätt position (efter agentModelMap-tilldelning). Reviewer delegerades två gånger — andra gången efter att fix-passet slutförts och prompt-health checksumming lades till i `finalizeRun()`. Merge_summary.md saknas i runs-katalogen (Merger skrev det troligen bara till workspace). Inga metrics.json eller task_scores.jsonl genererades.
+
+**Lärdomar:**
+- Observer-modulen är read-only och non-fatal (try/catch runt all init och rapportgenerering) — designbeslut som minimerar risk att Observer blockerar produktion
+- Tvåstegs-filtrering i prompt-lint (regex → kontextanalys med legitimateContexts) minskar false positives utan att missa äkta anti-patterns
+- Reviewer noterade att `writeReport()` skriver till `prompt-health.md` utan timestamp medan `run.ts` skriver till `prompt-health-${ts}.md` — en inkonsistens som kan förvirra framtida utvecklare
+
+## Körningseffektivitet
+- **Pipeline-flöde:** 3 Implementer-delegationer + 1 Tester + 2 Reviewer + 1 Merger = 7 agentdelegationer, 1 extra delegering pga init-ordnings-bugg
+- **Testtillväxt:** 3597 baseline → 3629 (+32 nya tester, krav var 20+), 11 pre-existing failures oförändrade
+- **Diff-storlek:** 1550 rader i nya filer + 63 rader i befintliga filer — rent additivt, LOW risk
+- **BLOCKED:** 0 policy-blockeringar under körningen
+
+---
+
+## Körning 20260322-0655-neuron-hq — neuron-hq
+**Datum:** 2026-03-22
+**Uppgift:** Implementera Observer Brief B — retro-samtal med alla 11 agenter efter körning samt djup prompt-kod-alignment-analys
+**Resultat:** ✅ 21 av 21 acceptanskriterier klara — Observer-modulen utökad med retro-konversationer och alignment, 76 nya tester, 0 regressioner, merge till main (commit 1249ed4)
+
+**Vad som fungerade:**
+Hela pipeline-kedjan körde komplett. Implementer levererade `observer-retro.ts` (sekventiella API-samtal med fail-open, 30s timeout via AbortSignal, token-tracking), `observer-alignment.ts` (regex-baserad funktionskropps-extraktion med brace-counting, DEEP/SHALLOW/NOT_FOUND-klassificering), och `prompts/observer.md` (ärlighet framför performativitet-princip). Retro-flödet hanterar follow-up-frågor när Observer har observationer för en agent. Alignment-konfigurations-listan (DEEP_ALIGNMENT_CHECKS) är utökningsbar utan kodändring. Reviewer verifierade alla 21 AC individuellt. Merger exkluderade korrekt hjälpskript via parallell task-branching. Testsviten ökade 3627→3703 (+76 tester i 3 nya filer: observer-retro.test.ts, observer-alignment.test.ts, observer-lint.test.ts).
+
+**Vad som inte fungerade:**
+Inga kända problem. Inga blockers i questions.md. Noll policy-blockeringar rapporterade. Audit.jsonl saknar "orchestrator"-event (svärmen använder annan namnkonvention) men Historian och samtliga Implementer-sessioner är verifierade i audit.jsonl.
+
+**Lärdomar:**
+- Sekventiella retro-anrop (inte parallella) är rätt designval för att undvika rate limits och förenkla felhantering — API-anropet per agent med 30s timeout via AbortSignal är robust och testbart
+- Regelbaserad kodanalys (regex + heuristik) för alignment-check är gratis, snabb och deterministisk; oklara fall → INFO (inte WARNING) minimerar false positives korrekt
+- Observer-promptens "ärlighet framför performativitet"-princip undviker det gamla Reviewer-antipattern med tvingad kritik — explicit acceptera "allt gick bra" som giltigt svar
+
+## Körningseffektivitet
+- **Testtillväxt:** 3627 → 3703 (+76 tester), 2.1% ökning, 0 regressioner
+- **Diff-storlek:** Flera nya filer (observer-retro.ts, observer-alignment.ts, observer.md) + ändringar i observer.ts, run.ts, AGENTS.md — rent additivt scope
+- **Pipeline:** Parallell implementering i task-branches + Reviewer + Merger = ren leverans utan re-delegation
+
+---

@@ -74,13 +74,13 @@ You MAY also run `git diff --name-only main` (or equivalent) to identify which f
 
 Run a single command that provides both failure details and coverage in one pass:
 
-- **pytest:** `python -m pytest tests/ -q --tb=short --no-header --cov=app --cov-report=term 2>&1 | head -120`
-- **vitest:** `npx vitest run --reporter=verbose --coverage 2>&1 | head -120`
-- **jest:** `npm test -- --coverage --verbose 2>&1 | head -120`
+- **pytest:** `python -m pytest tests/ -q --tb=short --no-header --cov=app --cov-report=term 2>&1`
+- **vitest:** `npx vitest run --reporter=verbose --coverage 2>&1`
+- **jest:** `npm test -- --coverage --verbose 2>&1`
 - **Other:** use the project's own test command
 
-**If output is truncated** and you lack critical failure information, re-run with more verbose output for the failing tests only:
-- `npx vitest run tests/path/to/failing/ --reporter=verbose 2>&1 | head -80`
+You have a 1M context window — read the full output. If the output is very large, re-run specific failing tests for detail:
+- `npx vitest run tests/path/to/failing/ --reporter=verbose 2>&1`
 
 **If coverage fails** due to a missing plugin, fall back to running without coverage and note it in the report. Never skip tests because of a missing coverage plugin.
 
@@ -226,4 +226,4 @@ Return a one-line verdict followed by classification:
 - If the test command itself fails (e.g., import error, missing dependency), classify it correctly (ENVIRONMENT or INFRASTRUCTURE)
 - If no test framework is found, write that in test_report.md and return
   `NO TESTS FOUND: No test framework detected in workspace.`
-- **Max 1-2 iterations.** Your job is to run and report, not iterate. If tests fail, the answer is to send Implementer back — not to re-run yourself.
+- Your job is to run, diagnose thoroughly, and report. If tests fail, write a detailed diagnostic — then Implementer fixes. You may re-run to confirm your diagnosis, but don't attempt to fix code yourself.

@@ -50,7 +50,7 @@ If Librarian tags insights with `INSIGHT_NY` in their research_brief.md, **you d
    - Call `graph_assert` with type "technique" for each paper written to techniques.md
    - If the technique relates to existing patterns (check with `graph_query`), add `related_to` edges
 
-7. **Stop** when you have processed all 3 search queries (max 15 papers total).
+7. **Stop** when you have thoroughly covered the research topic. Pursue every relevant thread — add more search queries if the first three don't cover the topic fully.
 
 ---
 
@@ -82,7 +82,7 @@ If Librarian tags insights with `INSIGHT_NY` in their research_brief.md, **you d
 - Do not invent or hallucinate paper titles or authors — only write about papers you actually fetched
 - Do not write entries for papers already in techniques.md
 - Do not modify any code or run artifacts
-- Do not search more than 3 topics or fetch more than 15 papers total
+- Do not stop researching prematurely — keep searching until you have high-confidence coverage of the topic
 - Do not do per-run research — that is Librarian's job
 
 ---

@@ -5,7 +5,7 @@ import { graphReadToolDefinitions, executeGraphTool, type GraphToolContext } fro
 import fs from 'fs/promises';
 import path from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
-import { createAgentClient } from '../agent-client.js';
+import { createAgentClient, buildCachedSystemBlocks } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { prependPreamble } from '../preamble.js';
@@ -153,7 +153,7 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
           const stream = this.client.messages.stream({
             model: this.model,
             max_tokens: this.modelMaxTokens,
-            system: systemPrompt,
+            system: buildCachedSystemBlocks(systemPrompt),
             messages: trimMessages(messages),
             tools: this.defineTools(),
           });
@@ -175,7 +175,9 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
         this.ctx.usage.recordTokens(
           'librarian',
           response.usage.input_tokens,
-          response.usage.output_tokens
+          response.usage.output_tokens,
+          response.usage.cache_creation_input_tokens ?? 0,
+          response.usage.cache_read_input_tokens ?? 0,
         );
 
         messages.push({ role: 'assistant', content: response.content });

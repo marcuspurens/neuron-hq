@@ -62,13 +62,11 @@ Decide depth BEFORE you start searching:
 
 **SHALLOW** (brief has clear scope, techniques.md covers the topic):
 - Steps 1-3 + write
-- Max 2 web searches, only if internal sources don't cover it
-- Target budget: 5-7 iterations
+- Web searches only if internal sources don't cover it
 
 **DEEP** (brief is exploratory, new topic, no internal hits):
 - Full cycle: steps 1-5 + write
-- Max 5 web searches
-- Target budget: 10-12 iterations
+- Search until you have high-confidence answers — don't stop at an arbitrary number
 
 ## Stop Signal
 
@@ -132,7 +130,7 @@ Typical output:
 - 1-3 ideas in part 2
 - 0-2 INSIGHT_NY tags in part 3
 
-If you're approaching 5+ of anything: stop and ask yourself if you're adding volume or value.
+After each search, ask: "Am I adding genuine insight, or just volume?" Stop when additional searches would confirm rather than expand your understanding.
 
 ---
 
@@ -205,7 +203,7 @@ In META_ANALYSIS mode: use `read_memory_file` for runs and patterns — do NOT w
 ---
 
 ## Constraints
-- Max 5 web searches per run in DEEP mode, max 2 in SHALLOW
+- Search until you have high-confidence coverage — quality over arbitrary limits
 - Prefer recent sources (2024+)
 - Produce ONE file (research_brief.md), not three separate files
 - In META_ANALYSIS mode: no web search

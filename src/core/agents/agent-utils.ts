@@ -52,38 +52,102 @@ function estimateMessagesChars(messages: Anthropic.MessageParam[]): number {
 }
 
 /**
+ * Number of most recent tool results to preserve in full.
+ * Older tool results are replaced with a short placeholder to save tokens.
+ */
+const KEEP_RECENT_TOOL_RESULTS = 6;
+
+/** Placeholder text for cleared tool results (~20 chars vs ~12k original). */
+const CLEARED_TOOL_RESULT = '[Tool result cleared to save context]';
+
+/**
+ * Clear old tool result content from messages to reduce token usage.
+ *
+ * Preserves the most recent KEEP_RECENT_TOOL_RESULTS tool results in full.
+ * Older tool results are replaced with a short placeholder. The tool_use and
+ * tool_result blocks are kept (so the conversation flow makes sense to the model)
+ * but the heavy content is removed.
+ *
+ * This is the client-side equivalent of Anthropic's server-side
+ * clear_tool_uses_20250919 beta feature.
+ */
+export function clearOldToolResults(
+  messages: Anthropic.MessageParam[],
+  keepRecent = KEEP_RECENT_TOOL_RESULTS
+): Anthropic.MessageParam[] {
+  // Count total tool results (walking backwards to identify the recent ones)
+  let totalToolResults = 0;
+  for (const msg of messages) {
+    if (msg.role === 'user' && Array.isArray(msg.content)) {
+      for (const block of msg.content) {
+        if ('type' in block && block.type === 'tool_result') {
+          totalToolResults++;
+        }
+      }
+    }
+  }
+
+  // Nothing to clear
+  if (totalToolResults <= keepRecent) return messages;
+
+  // Walk forward, clearing old tool results
+  let toolResultIndex = 0;
+  const clearBefore = totalToolResults - keepRecent;
+
+  return messages.map((msg) => {
+    if (msg.role !== 'user' || !Array.isArray(msg.content)) return msg;
+
+    let modified = false;
+    const newContent = msg.content.map((block) => {
+      if (!('type' in block) || block.type !== 'tool_result') return block;
+
+      toolResultIndex++;
+      if (toolResultIndex <= clearBefore) {
+        modified = true;
+        // Replace content but keep the block structure
+        return { ...block, content: CLEARED_TOOL_RESULT };
+      }
+      return block;
+    });
+
+    return modified ? { ...msg, content: newContent } : msg;
+  });
+}
+
+/**
  * Trim the messages array to stay within MAX_MESSAGES_CHARS.
  *
- * Strategy: always keep the first message (the brief) and the most recent
- * MIN_RECENT_MESSAGES messages. Drop the oldest middle messages until we're
- * under budget.
+ * Two-phase strategy:
+ *   Phase 1: Clear old tool result content (keeps message structure intact)
+ *   Phase 2: If still over budget, drop oldest middle messages
+ *
+ * Always keeps the first message (the brief) and the most recent
+ * MIN_RECENT_MESSAGES messages.
  */
 export function trimMessages(
   messages: Anthropic.MessageParam[],
   maxChars = MAX_MESSAGES_CHARS
 ): Anthropic.MessageParam[] {
-  if (estimateMessagesChars(messages) <= maxChars) return messages;
+  // Phase 1: Clear old tool results first (preserves conversation flow)
+  let trimmed = clearOldToolResults(messages);
 
-  // Always keep first message (brief) + at least MIN_RECENT_MESSAGES at the end
-  if (messages.length <= MIN_RECENT_MESSAGES + 1) return messages;
+  if (estimateMessagesChars(trimmed) <= maxChars) return trimmed;
 
-  let trimmed = [...messages];
+  // Phase 2: Drop oldest middle messages if still over budget
+  if (trimmed.length <= MIN_RECENT_MESSAGES + 1) return trimmed;
 
   while (
     estimateMessagesChars(trimmed) > maxChars &&
     trimmed.length > MIN_RECENT_MESSAGES + 1
   ) {
-    // Drop the oldest message after index 0 (keep brief + recent)
     const insertionNote: Anthropic.MessageParam = {
       role: 'user',
       content: '[Earlier conversation history was trimmed to stay within context limits.]',
     };
 
-    // Remove from index 1 (keep index 0 = brief)
     const recent = trimmed.slice(-(MIN_RECENT_MESSAGES));
     trimmed = [trimmed[0], insertionNote, ...recent];
 
-    // If we can't trim further, break to avoid infinite loop
     if (trimmed.length <= MIN_RECENT_MESSAGES + 2) break;
   }
 

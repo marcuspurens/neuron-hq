@@ -10,31 +10,45 @@ export class UsageTracker {
       model,
       total_input_tokens: 0,
       total_output_tokens: 0,
+      total_cache_creation_tokens: 0,
+      total_cache_read_tokens: 0,
       by_agent: {},
       tool_counts: {},
     };
   }
 
   /**
-   * Record token usage for an agent.
+   * Record token usage for an agent, including cache metrics.
    */
   recordTokens(
     agent: string,
     inputTokens: number,
-    outputTokens: number
+    outputTokens: number,
+    cacheCreationTokens = 0,
+    cacheReadTokens = 0,
   ): void {
     this.usage.total_input_tokens += inputTokens;
     this.usage.total_output_tokens += outputTokens;
+    this.usage.total_cache_creation_tokens =
+      (this.usage.total_cache_creation_tokens ?? 0) + cacheCreationTokens;
+    this.usage.total_cache_read_tokens =
+      (this.usage.total_cache_read_tokens ?? 0) + cacheReadTokens;
 
     if (!this.usage.by_agent[agent]) {
       this.usage.by_agent[agent] = {
         input_tokens: 0,
         output_tokens: 0,
+        cache_creation_tokens: 0,
+        cache_read_tokens: 0,
       };
     }
 
     this.usage.by_agent[agent].input_tokens += inputTokens;
     this.usage.by_agent[agent].output_tokens += outputTokens;
+    this.usage.by_agent[agent].cache_creation_tokens =
+      (this.usage.by_agent[agent].cache_creation_tokens ?? 0) + cacheCreationTokens;
+    this.usage.by_agent[agent].cache_read_tokens =
+      (this.usage.by_agent[agent].cache_read_tokens ?? 0) + cacheReadTokens;
   }
 
   /**
@@ -84,6 +98,11 @@ export class UsageTracker {
    */
   formatSummary(): string {
     const total = this.usage.total_input_tokens + this.usage.total_output_tokens;
-    return `Total tokens: ${total.toLocaleString()} (in: ${this.usage.total_input_tokens.toLocaleString()}, out: ${this.usage.total_output_tokens.toLocaleString()})`;
+    const cacheRead = this.usage.total_cache_read_tokens ?? 0;
+    const cacheCreate = this.usage.total_cache_creation_tokens ?? 0;
+    const cachePart = cacheRead > 0
+      ? `, cache read: ${cacheRead.toLocaleString()}, cache create: ${cacheCreate.toLocaleString()}`
+      : '';
+    return `Total tokens: ${total.toLocaleString()} (in: ${this.usage.total_input_tokens.toLocaleString()}, out: ${this.usage.total_output_tokens.toLocaleString()}${cachePart})`;
   }
 }

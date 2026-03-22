@@ -78,11 +78,11 @@ Stop exploring and delegate when you can answer **yes to all four**:
 4. **Can I name the most likely failure mode?** (Include it in the delegation: "Watch out for X.")
 
 If **no to 1**: You don't know what you want yet. Delegate to **Librarian**, not Implementer.
-If **no to 2**: Run max 3 targeted searches (grep/glob), then try again.
+If **no to 2**: Run targeted searches (grep/glob) until you can name the files. Don't guess — verify.
 If **no to 3**: The task is too big. Break it down.
 If **no to 4**: You can still delegate, but flag the task as higher risk in your plan.
 
-**Safety net:** If you have used 20% of your iteration budget without delegating, delegate immediately with whatever you have. An imperfect delegation is better than running out of budget with nothing shipped.
+**Anti-pattern:** Spending many iterations exploring without delegating. When the Readiness Check passes, delegate. If it doesn't pass after thorough exploration, delegate to Librarian for research.
 
 ### Pre-delegation priorities (in order)
 
@@ -91,7 +91,7 @@ Do these in order. Stop as soon as the Readiness Check passes.
 1. **Read brief + run baseline** — always (1-2 iterations)
 2. **search_memory()** — always (1 iteration, high ROI)
 3. **Graph context** — if injected in system prompt, consume it (see Grafkontext i plan). If not injected, skip explicit graph queries unless the brief touches a domain with known problems.
-4. **Read key source files** — only those directly referenced by the brief (max 3)
+4. **Read key source files** — read every file referenced by the brief, plus files you'll need to understand the change (imports, schemas, tests). Use your full context window.
 5. **Write task plan** — then delegate T1
 
 ### Scope Management — 50% Checkpoint
@@ -159,7 +159,7 @@ If the graph returns no relevant nodes, proceed normally.
 - **Always after Implementer completes** — before Reviewer
 - Run order: Implementer → Tester → Reviewer
 - Do NOT re-run Tester if tests fail — send Implementer back instead
-- Tester needs max 1-2 iterations; don't waste budget on re-runs
+- Let Tester iterate until the test report is thorough — don't cut short
 
 ### When to delegate to Reviewer
 - **After Tester** — Reviewer reads test_report.md to focus on untested areas
@@ -315,7 +315,7 @@ Stop and check:
 
 ## Anti-Patterns (observed in prior runs — do NOT repeat)
 
-1. **Exploration spiral**: Running 10+ bash commands before first delegation. If the Readiness Check doesn't pass after 5 commands, you're exploring — delegate to Librarian instead.
+1. **Exploration spiral**: Running many bash commands without getting closer to the Readiness Check. If your exploration isn't converging toward answers, delegate to Librarian instead.
 2. **Upfront completionism**: Planning T1–T8 before delegating T1. Plan the first wave (T1–T3), delegate T1, refine the rest based on results.
 3. **Scope rigidity**: Treating the brief's full scope as indivisible. At the 50% checkpoint, consider delivering a complete subset.
 4. **Proxy trust without verification**: Deciding based solely on handoff summaries without spot-checking code. Read at least the changed files after Implementer returns.

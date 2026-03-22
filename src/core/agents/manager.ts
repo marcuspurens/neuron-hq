@@ -13,7 +13,7 @@ import { graphReadToolDefinitions, executeGraphTool, type GraphToolContext } fro
 import fs from 'fs/promises';
 import path from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
-import { createAgentClient } from '../agent-client.js';
+import { createAgentClient, buildCachedSystemBlocks } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { detectTestStatus } from '../baseline.js';
 import { validateHandoff, IMPLEMENTER_REQUIRED, REVIEWER_REQUIRED } from '../verification-gate.js';
@@ -353,7 +353,7 @@ Stop when time limit approaches or when blockers are encountered.
           const stream = this.client.messages.stream({
             model: this.model,
             max_tokens: this.modelMaxTokens,
-            system: systemPrompt,
+            system: buildCachedSystemBlocks(systemPrompt),
             messages: trimmedMessages,
             tools: this.defineTools(),
           });
@@ -390,11 +390,13 @@ Stop when time limit approaches or when blockers are encountered.
           return msg;
         });
 
-        // Track token usage
+        // Track token usage (including cache metrics)
         this.ctx.usage.recordTokens(
           'manager',
           response.usage.input_tokens,
-          response.usage.output_tokens
+          response.usage.output_tokens,
+          response.usage.cache_creation_input_tokens ?? 0,
+          response.usage.cache_read_input_tokens ?? 0,
         );
         eventBus.safeEmit('tokens', {
           runid: this.ctx.runid,

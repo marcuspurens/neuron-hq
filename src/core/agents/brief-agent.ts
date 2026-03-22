@@ -1,5 +1,5 @@
 import type Anthropic from '@anthropic-ai/sdk';
-import { createAgentClient } from '../agent-client.js';
+import { createAgentClient, buildCachedSystemBlocks } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { prependPreamble } from '../preamble.js';
@@ -133,7 +133,7 @@ export class BriefAgent {
       const stream = anthropic.messages.stream({
         model: this.briefModel,
         max_tokens: this.briefMaxTokens,
-        system: systemPrompt,
+        system: buildCachedSystemBlocks(systemPrompt),
         messages: trimmedMessages,
       });
 
