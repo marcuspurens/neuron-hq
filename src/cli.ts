@@ -55,6 +55,7 @@ import { jobStatsCommand } from './commands/job-stats.js';
 import { auroraPolishCommand } from './commands/aurora-polish.js';
 import { auroraIdentifySpeakersCommand } from './commands/aurora-identify-speakers.js';
 import { helpToolsCommand } from './commands/help-tools.js';
+import { graphHealthCommand } from './commands/graph-health.js';
 
 // Base directory for Neuron HQ
 export const BASE_DIR = path.resolve(__dirname, '..');
@@ -776,6 +777,16 @@ program
       minSize: opts.minSize,
       dryRun: opts.dryRun ?? false,
     });
+  });
+
+
+// graph:health command
+program
+  .command('graph:health')
+  .description('Check knowledge graph health — orphans, stale nodes, confidence distribution')
+  .option('--json', 'Output as JSON')
+  .action(async (options) => {
+    await graphHealthCommand(options.json ? ['--json'] : []);
   });
 
 // Help tools command

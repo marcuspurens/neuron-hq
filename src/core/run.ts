@@ -17,6 +17,8 @@ import { eventBus } from './event-bus.js';
 import type { DashboardServer } from './dashboard-server.js';
 import { createRunTrace, getRunTrace, shutdownLangfuse, registerEventBusListeners } from './langfuse.js';
 import { createLogger, setTraceId } from './logger.js';
+import { runHealthCheck, generateHealthReport, maybeInjectHealthTrigger, type HealthCheckResult } from './graph-health.js';
+import { loadGraph } from './knowledge-graph.js';
 
 import { NarrativeCollector } from './narrative-collector.js';
 
@@ -238,6 +240,18 @@ export class RunOrchestrator {
     let processedBrief = maybeInjectMetaTrigger(briefContent, runCount);
     const consolidationFreq = this.policy.getLimits().consolidation_frequency ?? 10;
     processedBrief = maybeInjectConsolidationTrigger(processedBrief, runCount, consolidationFreq);
+    // Graph health pre-step
+    let healthResult: HealthCheckResult | null = null;
+    try {
+      const graph = await loadGraph();
+      healthResult = runHealthCheck(graph);
+      const healthReport = generateHealthReport(healthResult);
+      await fs.writeFile(`${runDir}/graph-health.md`, healthReport);
+      processedBrief = maybeInjectHealthTrigger(processedBrief, healthResult.status);
+    } catch (err) {
+      logger.warn('Graph health check failed — skipping pre-step', { error: String(err) });
+      // Run continues without graph-health.md
+    }
     await artifacts.writeBrief(processedBrief);
 
     // Parse brief for event emission

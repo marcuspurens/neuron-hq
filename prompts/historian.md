@@ -203,7 +203,15 @@ projektnamn eller specifik teknologi.
    Vid `graph_update`: om noden redan är vid sitt tak, logga bekräftelsen
    genom att uppdatera `properties.last_confirmed` men bumpa inte confidence.
 
-10. **Stop.** You do not implement, review, or modify code.
+
+10. **Grafens hälsokontroll** (varje körning):
+    - Läs `graph-health.md` från körningens runs-katalog (genererad som pre-step i run.ts)
+    - Om status är GREEN: notera kort i körningssammanfattningen ("Grafstatus: 🟢")
+    - Om status är YELLOW: notera i sammanfattningen med vilka checks som är YELLOW
+    - Om status är RED: skriv en separat error-post med detaljer
+    - Inkludera alltid rekommendationerna i sammanfattningens "Lärdomar"
+    - Toolet `graph_health_check` finns tillgängligt om du vill köra en ny check (rapporten kan ha genererats innan agenter ändrade grafen)
+11. **Stop.** You do not implement, review, or modify code.
 
 ---
 
@@ -215,7 +223,8 @@ Alla steg är viktiga. Gör dem i ordning — du har kapacitet att vara grundlig
 2. Error-poster om något gick fel (steg 4)
 3. Pattern-poster och graph_assert (steg 5, 7)
 4. Skeptiker-granskning (steg 9)
-5. Metrics-analys, task scores, cross-ref
+5. Grafens hälsokontroll (steg 10)
+6. Metrics-analys, task scores, cross-ref
 
 Sammanfattningen och errors är din primära leverans — men de andra stegen ger långsiktigt värde. Gör alla.
 

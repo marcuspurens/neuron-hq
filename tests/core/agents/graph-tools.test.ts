@@ -79,9 +79,9 @@ describe('graph-tools', () => {
   // ── graphToolDefinitions ──────────────────────────────────────────
 
   describe('graphToolDefinitions', () => {
-    it('returns 7 tools with the expected names', () => {
+    it('returns 8 tools with the expected names', () => {
       const tools = graphToolDefinitions();
-      expect(tools).toHaveLength(7);
+      expect(tools).toHaveLength(8);
       const names = tools.map((t) => t.name);
       expect(names).toEqual([
         'graph_query',
@@ -91,6 +91,7 @@ describe('graph-tools', () => {
         'graph_semantic_search',
         'graph_cross_ref',
         'graph_ppr',
+        'graph_health_check',
       ]);
     });
 

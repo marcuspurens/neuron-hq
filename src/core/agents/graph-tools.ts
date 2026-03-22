@@ -18,6 +18,7 @@ import { semanticSearch } from '../semantic-search.js';
 import { isEmbeddingAvailable } from '../embeddings.js';
 import { type AuditEntry } from '../types.js';
 import { findAuroraMatchesForNeuron, createCrossRef } from '../../aurora/cross-ref.js';
+import { runHealthCheck, type HealthCheckResult } from '../graph-health.js';
 
 // ── Context & helpers ─────────────────────────────────────────────────
 
@@ -247,12 +248,21 @@ export function graphToolDefinitions(): Anthropic.Tool[] {
         required: ['seed_ids'],
       },
     },
+    {
+      name: 'graph_health_check',
+      description: 'Run a comprehensive health check on the knowledge graph. Returns status (GREEN/YELLOW/RED), detailed check results, and recommendations.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {},
+        required: []
+      }
+    },
   ];
 }
 
 /** Check if a tool name is one of the graph tools. */
 export function isGraphTool(name: string): boolean {
-  return ['graph_query', 'graph_traverse', 'graph_assert', 'graph_update', 'graph_semantic_search', 'graph_cross_ref', 'graph_ppr'].includes(name);
+  return ['graph_query', 'graph_traverse', 'graph_assert', 'graph_update', 'graph_semantic_search', 'graph_cross_ref', 'graph_ppr', 'graph_health_check'].includes(name);
 }
 
 /** Return only the read-only graph tools (query + traverse + semantic search). */
@@ -299,6 +309,11 @@ export async function executeGraphTool(
       return executeGraphCrossRef(input, ctx);
     case 'graph_ppr':
       return executeGraphPpr(input, ctx);
+    case 'graph_health_check': {
+      const graph = await loadGraph(ctx.graphPath);
+      const result: HealthCheckResult = runHealthCheck(graph);
+      return JSON.stringify(result, null, 2);
+    }
     default:
       throw new Error(`Unknown graph tool: ${toolName}`);
   }
