@@ -1,4 +1,5 @@
 import { type RunContext } from '../run.js';
+import { saveTranscript } from '../transcript-saver.js';
 import { withRetry } from './agent-utils.js';
 import { graphReadToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import { executeSharedBash, executeSharedReadFile, executeSharedWriteFile, executeSharedListFiles, coreToolDefinitions, type AgentToolContext } from './shared-tools.js';
@@ -322,6 +323,7 @@ IMPORTANT: Never claim something is done without running a command to verify it.
       logger.info('Reviewer: max iterations reached.');
     }
     this.ctx.usage.recordIterations('reviewer', iteration, this.maxIterations);
+    await saveTranscript(this.ctx.runDir, 'reviewer', messages);
   }
 
   private defineTools(): Anthropic.Tool[] {

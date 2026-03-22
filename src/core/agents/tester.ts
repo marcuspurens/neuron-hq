@@ -1,4 +1,5 @@
 import { type RunContext } from '../run.js';
+import { saveTranscript } from '../transcript-saver.js';
 import { withRetry } from './agent-utils.js';
 import { executeSharedBash, executeSharedReadFile, executeSharedWriteFile, executeSharedListFiles, coreToolDefinitions, type AgentToolContext } from './shared-tools.js';
 import fs from 'fs/promises';
@@ -198,6 +199,7 @@ and write test_report.md to the run artifacts directory.
     }
 
     this.ctx.usage.recordIterations('tester', iteration, this.maxIterations);
+    await saveTranscript(this.ctx.runDir, 'tester', messages);
     return lastVerdict;
   }
 

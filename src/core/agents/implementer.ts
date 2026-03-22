@@ -1,4 +1,5 @@
 import { type RunContext } from '../run.js';
+import { saveTranscript } from '../transcript-saver.js';
 import { trimMessages, withRetry } from './agent-utils.js';
 import { graphReadToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import { executeSharedBash, executeSharedReadFile, executeSharedWriteFile, executeSharedListFiles, coreToolDefinitions, type AgentToolContext } from './shared-tools.js';
@@ -239,6 +240,7 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
       });
     }
     this.ctx.usage.recordIterations('implementer', iteration, this.maxIterations);
+    await saveTranscript(this.ctx.runDir, this.taskId ? `implementer-${this.taskId}` : 'implementer', messages);
   }
 
   private defineTools(): Anthropic.Tool[] {

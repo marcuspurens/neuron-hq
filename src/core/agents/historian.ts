@@ -1,4 +1,5 @@
 import { type RunContext } from '../run.js';
+import { saveTranscript } from '../transcript-saver.js';
 import { searchMemoryFiles, withRetry } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -255,6 +256,7 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
       logger.info('Historian: max iterations reached.');
     }
     this.ctx.usage.recordIterations('historian', iteration, this.maxIterations);
+    await saveTranscript(this.ctx.runDir, 'historian', messages);
   }
 
   private defineTools(): Anthropic.Tool[] {

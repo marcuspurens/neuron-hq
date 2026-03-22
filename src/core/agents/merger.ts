@@ -1,4 +1,5 @@
 import { type RunContext } from '../run.js';
+import { saveTranscript } from '../transcript-saver.js';
 import { GitOperations } from '../git.js';
 import { withRetry } from './agent-utils.js';
 import { executeSharedBash, executeSharedReadFile, executeSharedWriteFile, coreToolDefinitions, type AgentToolContext } from './shared-tools.js';
@@ -229,6 +230,7 @@ EXECUTE: Read merge_plan.md, copy verified files to target with copy_to_target, 
     }
 
     this.ctx.usage.recordIterations('merger', iteration, this.maxIterations);
+    await saveTranscript(this.ctx.runDir, 'merger', messages);
     return 'MERGER_COMPLETE';
   }
 

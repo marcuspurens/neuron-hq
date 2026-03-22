@@ -1,4 +1,5 @@
 import { type RunContext } from '../run.js';
+import { saveTranscript } from '../transcript-saver.js';
 import { withRetry } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -189,6 +190,7 @@ Analyze the knowledge graph and perform consolidation:
       logger.info('Consolidator: max iterations reached.');
     }
     this.ctx.usage.recordIterations('consolidator', iteration, this.maxIterations);
+    await saveTranscript(this.ctx.runDir, 'consolidator', messages);
   }
 
   private defineTools(): Anthropic.Tool[] {

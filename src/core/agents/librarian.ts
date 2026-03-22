@@ -1,4 +1,5 @@
 import { type RunContext } from '../run.js';
+import { saveTranscript } from '../transcript-saver.js';
 import { trimMessages, withRetry } from './agent-utils.js';
 import { executeSharedBash, executeSharedReadFile, executeSharedWriteFile, executeSharedListFiles, coreToolDefinitions, type AgentToolContext } from './shared-tools.js';
 import { graphReadToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
@@ -210,6 +211,7 @@ Focus on high-impact, low-effort opportunities that fit the brief.`,
       logger.info('Librarian: max iterations reached.');
     }
     this.ctx.usage.recordIterations('librarian', iteration, this.maxIterations);
+    await saveTranscript(this.ctx.runDir, 'librarian', messages);
   }
 
   private defineTools(): Anthropic.Tool[] {

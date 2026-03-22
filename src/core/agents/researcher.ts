@@ -1,4 +1,5 @@
 import { type RunContext } from '../run.js';
+import { saveTranscript } from '../transcript-saver.js';
 import { withRetry } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -187,6 +188,7 @@ Write new findings to memory/techniques.md. Check the existing file first to avo
       logger.info('Researcher: max iterations reached.');
     }
     this.ctx.usage.recordIterations('researcher', iteration, this.maxIterations);
+    await saveTranscript(this.ctx.runDir, 'researcher', messages);
   }
 
   private defineTools(): Anthropic.Tool[] {

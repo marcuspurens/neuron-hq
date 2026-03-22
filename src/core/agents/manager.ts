@@ -1,4 +1,5 @@
 import { type RunContext, checkEstop } from '../run.js';
+import { saveTranscript } from '../transcript-saver.js';
 import { ImplementerAgent } from './implementer.js';
 import { ReviewerAgent } from './reviewer.js';
 import { ResearcherAgent } from './researcher.js';
@@ -459,6 +460,7 @@ Stop when time limit approaches or when blockers are encountered.
       });
     }
     this.ctx.usage.recordIterations('manager', iteration, this.maxIterations);
+    await saveTranscript(this.ctx.runDir, 'manager', messages);
   }
 
   /**
