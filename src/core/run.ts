@@ -415,6 +415,19 @@ export class RunOrchestrator {
       }
     }
 
+    // Also checksum prompt-health reports (dynamic filename)
+    try {
+      const runDirEntries = await fs.readdir(ctx.runDir);
+      for (const entry of runDirEntries) {
+        if (entry.startsWith('prompt-health-') && entry.endsWith('.md')) {
+          try {
+            const checksum = await ManifestManager.checksumFile(path.join(ctx.runDir, entry));
+            checksums[entry] = checksum;
+          } catch { /* intentional: best-effort */ }
+        }
+      }
+    } catch { /* intentional: best-effort */ }
+
     await ctx.manifest.addChecksums(checksums);
 
     // Update cost tracking report

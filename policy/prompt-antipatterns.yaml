@@ -1,0 +1,61 @@
+# Anti-patterns som motsäger LLM Operating Awareness preamble:n.
+# Observer laddar denna fil vid start och skannar alla agentprompter.
+# Utöka genom att lägga till nya entries — ingen kodändring krävs.
+
+patterns:
+  # Numeriska tak
+  - pattern: "\\bmax\\s+\\d+\\s+(fil|file|search|paper|grep|iteration)"
+    flags: "gi"
+    category: "numeric-cap"
+    severity: "WARNING"
+    legitimateContexts: ["api", "retry", "timeout", "rate.limit", "backoff"]
+
+  - pattern: "\\bhead\\s+-\\d+"
+    flags: "gi"
+    category: "output-truncation"
+    severity: "WARNING"
+    legitimateContexts: ["log.rotation", "preview"]
+
+  - pattern: "\\b\\d+%\\s*(budget|safety|buffer)"
+    flags: "gi"
+    category: "budget-logic"
+    severity: "WARNING"
+    legitimateContexts: []
+
+  # Satisficing-språk
+  - pattern: "\\bgood enough\\b"
+    flags: "gi"
+    category: "satisficing"
+    severity: "INFO"
+    legitimateContexts: ["commit.message", "style", "formatting"]
+
+  - pattern: "\\bdon'?t overthink\\b"
+    flags: "gi"
+    category: "satisficing"
+    severity: "WARNING"
+    legitimateContexts: []
+
+  - pattern: "\\bkeep it simple\\b"
+    flags: "gi"
+    category: "satisficing"
+    severity: "INFO"
+    legitimateContexts: ["commit.message", "style", "formatting", "naming"]
+
+  # Tidspressrelaterat
+  - pattern: "\\bif time is limited\\b"
+    flags: "gi"
+    category: "time-pressure"
+    severity: "WARNING"
+    legitimateContexts: []
+
+  - pattern: "\\bship fast\\b"
+    flags: "gi"
+    category: "time-pressure"
+    severity: "WARNING"
+    legitimateContexts: []
+
+  - pattern: "\\bto save time\\b"
+    flags: "gi"
+    category: "time-pressure"
+    severity: "INFO"
+    legitimateContexts: ["caching", "optimization"]

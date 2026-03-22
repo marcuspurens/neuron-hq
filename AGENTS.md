@@ -444,6 +444,21 @@ Agents have access to persistent memory files in `memory/`:
 
 ---
 
+## Observer
+
+The Observer agent passively monitors each run by listening to eventBus events. It does not modify anything during the run — it only observes and reports.
+
+After each run completes, Observer:
+1. Scans all agent prompts for anti-patterns that contradict the LLM Operating Awareness preamble
+2. Tracks token usage and costs per agent
+3. Checks tool usage against prompt claims (tool-alignment)
+4. Detects satisficing language in agent text output
+5. Generates a `prompt-health-YYYY-MM-DDTHHMM.md` report in the run directory
+
+Observer is designed to be completely non-disruptive: if it fails, the run continues normally.
+
+---
+
 ## 13) Guardrails for Fast Iteration
 
 When working under time pressure:

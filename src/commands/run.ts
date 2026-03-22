@@ -6,6 +6,7 @@ import { TargetsManager } from '../core/targets.js';
 import { RunOrchestrator, countMemoryRuns, EstopError } from '../core/run.js';
 import { createPolicyEnforcer } from '../core/policy.js';
 import { ManagerAgent } from '../core/agents/manager.js';
+import { ObserverAgent } from '../core/agents/observer.js';
 import { BASE_DIR } from '../cli.js';
 import { scaffoldProject, type ScaffoldOptions } from '../core/scaffold.js';
 import type { RunConfig, StoplightStatus } from '../core/types.js';
@@ -114,6 +115,15 @@ export async function runCommand(
       ctx.defaultModelOverride = options.model;
     }
 
+    // Create observer (non-fatal if it fails)
+    let observer: ObserverAgent | null = null;
+    try {
+      observer = new ObserverAgent(ctx, BASE_DIR);
+      await observer.startObserving();
+    } catch (err) {
+      console.log(chalk.yellow('  ⚠ Observer failed to initialize, continuing without observation'));
+    }
+
     spinner.succeed(chalk.green(`Run initialized: ${runid}`));
 
     // Check for leftover STOP file from previous session
@@ -202,6 +212,24 @@ export async function runCommand(
         process.exit(1);
       }
       throw runError; // Re-throw non-estop errors
+    }
+
+    // Generate prompt health report (non-fatal)
+    if (observer) {
+      try {
+        const observations = observer.analyzeRun();
+        const promptHealthReport = observer.generateReport(observations);
+        const now = new Date();
+        const ts = now.toISOString().slice(0, 16).replace(':', '');
+        await fs.writeFile(
+          path.join(ctx.runDir, `prompt-health-${ts}.md`),
+          promptHealthReport,
+          'utf-8',
+        );
+        console.log(chalk.gray(`  Observer: prompt-health-${ts}.md written`));
+      } catch (err) {
+        console.log(chalk.yellow('  ⚠ Observer report generation failed'));
+      }
     }
 
     // Display token usage
