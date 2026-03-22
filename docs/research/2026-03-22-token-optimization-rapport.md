@@ -534,30 +534,185 @@ Du är en av 12 agenter i en svärm. Här är vad du bör förstå om din plats:
                     - Delade: git-regler, policy, kunskapsgraf
 ```
 
-**Scenariot:** Ett företag med 3 team och 1 delat repo. Varje team har sin egen Neuron HQ-instans med agenter anpassade till sin domän (frontend, backend, data). De delar:
+**Scenariot:** Ett företag med 3 team och 1 delat repo. Varje team har sin egen Neuron HQ-instans med agenter anpassade till sin domän (frontend, backend, data).
 
-- **Git-repo** med branch protection och merge-regler
-- **Policy** (bash allowlist, säkerhetsregler)
-- **Kunskapsgraf** (lärdomar flödar mellan team)
-- **Observer** (kvalitetsmätning över alla team)
+#### Det delade lagret — djupdykning
 
-Men de har separata:
-- **Briefs och körningsköer** (varje team prioriterar själv)
-- **Prompter** (frontend-agenter har React-kunskap, backend-agenter har Go-kunskap)
-- **Brief Reviewer-kalibrering** (anpassad till teamets svårighetsgrad)
+Det som gör team-svärmar möjliga är att vissa lager **måste** delas. Utan dem arbetar svärmarna i silos och producerar inkonsistent kod. Här är de tre delade lagren i detalj:
+
+##### 1. Git-regler — Svärmens trafikljus
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                    Git-regler (delat)                      │
+│                                                            │
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────────┐  │
+│  │ Branch-      │  │ Merge-       │  │ Commit-         │  │
+│  │ skydd        │  │ policy       │  │ konventioner    │  │
+│  │              │  │              │  │                 │  │
+│  │ • main:      │  │ • Alla       │  │ • Conventional  │  │
+│  │   skyddad    │  │   tester     │  │   Commits       │  │
+│  │ • svärm/*:   │  │   gröna     │  │ • Co-Authored-  │  │
+│  │   per team   │  │ • Reviewer   │  │   By: <agent>   │  │
+│  │ • release/*: │  │   GRÖN      │  │ • Max 150 rader │  │
+│  │   skyddad    │  │ • Inga      │  │   diff/commit   │  │
+│  │              │  │   force push│  │                 │  │
+│  └─────────────┘  └──────────────┘  └─────────────────┘  │
+└──────────────────────────────────────────────────────────┘
+```
+
+**Varför det måste delas:**
+
+*För Marcus:* Tänk dig tre kockar i samma kök. Utan gemensamma regler lagar en kock vegetariskt, en lagar fisk, och den tredje kastar bort den andras ingredienser. Git-regler är "köksreglerna" — alla svärmar måste följa samma ordning för att inte förstöra varandras arbete.
+
+*För utvecklare:* Neuron HQ:s `policy/git_rules.md` tvingar redan idag:
+- Aldrig force push
+- Aldrig rewrite history på delade branches
+- Branch-namnkonvention: `swarm/<runid>-<target>`
+- Merger-agenten kör `git diff --stat` och validerar diff-storlek
+
+I multi-svärm-scenariot utökas detta med:
+- **Branch-namespaces:** `swarm/team-a/<runid>` vs `swarm/team-b/<runid>` — svärmar kan inte skriva till varandras branches
+- **Merge-kö:** Svärmar ställer sig i kö för merge till main. First-come-first-served, men med automatisk rebase om main ändrats
+- **Konfliktprotokoll:** Om Team A:s merge skapar konflikt med Team B:s branch → Team B:s Observer flaggar det → Brief genereras automatiskt: "Lös merge-konflikt med Team A:s ändringar"
+
+*Praktiskt exempel från Neuron HQ idag:* Körning #176 skapade branch `swarm/20260322-1126-neuron-hq`, Merger-agenten mergade till main, och branchen städades. Om en annan svärm hade kört samtidigt hade Merger blockerats av branch protection tills den första svärmen var klar. Det fungerar redan — det behöver bara skalas.
+
+##### 2. Policy — Svärmens grundlagar
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                     Policy (delat)                         │
+│                                                            │
+│  ┌─────────────────┐  ┌──────────────┐  ┌──────────────┐ │
+│  │ bash_allowlist   │  │ forbidden_   │  │ limits.yaml  │ │
+│  │ .txt             │  │ patterns.txt │  │              │ │
+│  │                  │  │              │  │ • max iter   │ │
+│  │ • git *          │  │ • rm -rf /   │  │   per agent  │ │
+│  │ • npm test       │  │ • curl |bash │  │ • max diff   │ │
+│  │ • cat, grep      │  │ • eval(      │  │   150 rader  │ │
+│  │ • tsc, vitest    │  │ • process    │  │ • timeout    │ │
+│  │ • ls, find       │  │   .env       │  │   per körning│ │
+│  │                  │  │ • DROP TABLE │  │ • modellval  │ │
+│  │ (inget annat     │  │ • --force    │  │   per agent  │ │
+│  │  tillåtet)       │  │              │  │              │ │
+│  └─────────────────┘  └──────────────┘  └──────────────┘ │
+│                                                            │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │ Säkerhetspolicy (alla svärmar)                       │  │
+│  │ • Aldrig committa hemligheter (.env, API-nycklar)    │  │
+│  │ • Redaction av alla credentials i artefakter         │  │
+│  │ • Path traversal-validering på alla filoperationer   │  │
+│  │ • Skrivningar BARA i workspaces/<runid>/ och runs/   │  │
+│  └─────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────┘
+```
+
+**Varför det måste delas:**
+
+*För Marcus:* Policy är som lagar i ett land. Det spelar ingen roll om Team A tycker att `rm -rf` borde vara tillåtet — det gäller för alla. En svärm som bryter mot policy kan förstöra hela repot, inte bara sitt eget arbete. Delade regler = gemensam säkerhet.
+
+*För utvecklare:* Neuron HQ validerar varje bash-kommando mot `bash_allowlist.txt` och blockerar allt i `forbidden_patterns.txt`. Under körning #176 blockerades ett `sed`-kommando (policy-BLOCKED i audit.jsonl) — Implementer kringgick det med `write_file` istället. Systemet fungerade exakt som designat.
+
+I multi-svärm-scenariot:
+- **Gemensam allowlist:** Alla svärmar kör samma begränsade kommandouppsättning. Frontend-svärmen kan inte plötsligt köra `docker exec` om det inte är allowlistat.
+- **Team-specifika tillägg:** `limits.yaml` kan ha team-overrides: "Team C (Data/ML) får köra `python` och `pip`" medan Team A och B inte behöver det.
+- **Centralt audit-trail:** Alla policy-blockeringar loggas till en gemensam audit — en människa (säkerhetsansvarig) kan granska om en svärm försöker något oväntat.
+
+*Konkret insikt:* Under 176 körningar har policy blockerat ~50 farliga kommandon. Varje blockering loggas med agent, kommando och anledning. Om 3 svärmar kör parallellt tredubblas denna logg — men mönstren blir mer intressanta. "Alla tre svärmarna försöker `curl` till samma extern URL" → kanske policy behöver uppdateras, eller kanske det är en brief som bör omformuleras.
+
+##### 3. Kunskapsgraf — Svärmens gemensamma minne
+
+```
+┌──────────────────────────────────────────────────────────┐
+│              Kunskapsgraf (delat HippoRAG)                 │
+│                                                            │
+│   ┌─────────┐     ┌──────────┐     ┌──────────┐          │
+│   │ Mönster │────▶│ Buggar   │────▶│ Tekniker │          │
+│   │         │     │          │     │          │          │
+│   │ "React  │     │ "CSS     │     │ "Prompt  │          │
+│   │  hooks  │     │  grid    │     │  caching │          │
+│   │  läcker │     │  buggen  │     │  sparar  │          │
+│   │  minne" │     │  i Safari│     │  65%     │          │
+│   └────┬────┘     └────┬─────┘     └────┬─────┘          │
+│        │               │               │                  │
+│        ▼               ▼               ▼                  │
+│   Team A           Team A+B         Alla team            │
+│   skrev det        bekräftade       kan använda          │
+│                                                            │
+│   ┌──────────────────────────────────────────────┐        │
+│   │ Confidence scoring (Bayesisk)                 │        │
+│   │                                               │        │
+│   │ "React hooks läcker minne"                    │        │
+│   │   Bekräftad 3 ggr (Team A) → confidence 0.91 │        │
+│   │   Aldrig sett av Team B/C  → deras vy: 0.60  │        │
+│   │                                               │        │
+│   │ "Prompt caching sparar 65%"                   │        │
+│   │   Bekräftad 1 gång (oss)   → confidence 0.75 │        │
+│   │   Om Team B bekräftar      → stiger till 0.88│        │
+│   └──────────────────────────────────────────────┘        │
+└──────────────────────────────────────────────────────────┘
+```
+
+**Varför det måste delas:**
+
+*För Marcus:* Tänk dig att Team A upptäcker att en viss React-hook läcker minne. Om den kunskapen stannar i Team A:s huvud, kommer Team B att göra samma misstag nästa vecka. En delad kunskapsgraf betyder: Team A skriver ner lärdomen → Team B:s svärm läser den automatiskt → buggen upprepas aldrig.
+
+Det är som ett företagsbibliotek. Varje team skriver sina lärdomar. Alla team kan läsa alla andras. Ju fler som bekräftar en lärdom, desto mer litar systemet på den.
+
+*För utvecklare:* Neuron HQ:s kunskapsgraf (HippoRAG, PPR-baserad navigering) har idag 924 idénoder med Bayesisk confidence scoring. Varje körning bidrar med:
+- **Mönster** (`memory/patterns.md`): "Trestegs-matchning för review-JSON:er" — bekräftat i körning #176
+- **Buggar** (`memory/errors.md`): "Observer retro failar med signal i request body" — loggat med fix
+- **Tekniker** (`memory/techniques.md`): "Prompt caching med 2-blocks split" — bekräftat med data
+
+I multi-svärm-scenariot:
+
+**Skrivning:** Varje svärms Historian-agent skriver till grafen efter varje körning. Noder taggas med team-ID:
+```
+{ type: "pattern", team: "team-a", confidence: 0.75, confirmed_by: ["team-a#176"] }
+```
+
+**Läsning:** Varje svärms Manager injiceras med relevanta noder vid start (redan implementerat i 2.1 HippoRAG). PPR-algoritmen navigerar grafen baserat på brevets embeddings — om Team B:s brief handlar om "minnesläckor i React" hittar den automatiskt Team A:s nod om React hooks.
+
+**Korsbekräftelse — det kraftfullaste mönstret:**
+
+| Händelse | Confidence-effekt |
+|----------|-----------------:|
+| Team A rapporterar mönster | 0.75 (ny observation) |
+| Team B ser samma mönster | → 0.88 (oberoende bekräftelse) |
+| Team C ser samma mönster | → 0.95 (stark konsensus) |
+| Ingen ser det på 30 dagar | → 0.60 (Bayesisk decay) |
+| Team A rapporterar att det var fel | → 0.30 (explicit motbevis) |
+
+*För LLM-agenter:* Du har redan tillgång till kunskapsgrafen via `graph_query` och `search_memory`. I multi-svärm-scenariot ändras inget i ditt gränssnitt — grafen blir bara rikare. Noder från andra team syns automatiskt i dina sökresultat, rankade av PPR-algoritmen. En nod med confidence 0.95 (bekräftad av 3 team) väger tyngre i dina beslut än en med 0.60 (obekräftad).
+
+**Kritisk implikation:** Kunskapsgrafen blir bättre ju fler svärmar som bidrar. Det är en nätverkseffekt — varje team gör alla andras svärmar klokare.
+
+#### Separata lager — vad varje svärm äger själv
+
+| Lager | Varför separat | Exempel |
+|-------|---------------|---------|
+| **Briefs & kö** | Varje team prioriterar sin backlog | Team A: "Fixa login-flow" prio 1. Team B: "Ny API-endpoint" prio 1. |
+| **Prompter** | Domänkunskap varierar | Frontend-Implementer vet om React, CSS, accessibility. Backend-Implementer vet om Go, gRPC, databasdesign. |
+| **Observer-kalibrering** | Svårighetsgrad varierar | Frontend-briefs tar 20 min (UI-ändringar). Data-briefs tar 90 min (ML-pipelines). Brief Reviewer måste kalibreras per domän. |
+| **Modellstrategi** | Kostnad/kvalitet-avvägning per team | Data-teamet kanske behöver Opus för komplexa ML-beslut. Frontend-teamet klarar sig med Sonnet. |
 
 #### Utmaningar att lösa
 
 | Utmaning | Idag | Framtid |
 |----------|------|---------|
-| Merge-konflikter mellan svärmar | Manuell lösning | Svärm-till-svärm-kommunikation via kunskapsgrafen |
+| Merge-konflikter mellan svärmar | Manuell lösning | Merge-kö med automatisk rebase + konflikt-brief |
 | Arkitektonisk koherens | En människa övervakar | Meta-Observer som jämför mönster mellan team |
-| Duplicerad kod | Ingen kontroll | Consolidator som ser hela repot |
+| Duplicerad kod | Ingen kontroll | Consolidator som ser hela repot, triggas av korsreferenser |
 | Beroenden mellan team | Mänsklig koordinering | Brief-kedjor: "Team A levererar API → Team B brief aktiveras" |
+| Kunskapsgraf-konflikter | Ej relevant (1 svärm) | Confidence-baserad merge: högst bekräftad nod vinner |
+| Policy-undantag | Ej relevant (1 svärm) | Team-specifika overrides i `limits.yaml` med central godkännare |
 
 #### Den verkliga frågan
 
 Det handlar inte om *om* team-svärmar kommer — det handlar om *när*. Neuron HQ:s 176 körningar visar att mönstret fungerar för ett enpersons-projekt. Skalning till team kräver lösningar för koordination, men grundmekanismen (brief → svärm → rapport → granskning) är teamagnostisk.
+
+De tre delade lagren — git-regler, policy, kunskapsgraf — är fundamentet. Utan dem är svärmar bara parallella kodskrivare. Med dem blir de ett *team* som lär av varandra.
 
 **Neuron HQ:s data:**
 
