@@ -14,6 +14,7 @@ import { scaffoldProject, type ScaffoldOptions } from '../core/scaffold.js';
 import type { RunConfig, StoplightStatus } from '../core/types.js';
 import { installShutdownHandlers, onShutdown } from '../core/shutdown.js';
 import { closePool } from '../core/db.js';
+import { appendCalibration } from '../core/observer-calibration.js';
 
 export async function runCommand(
   targetName: string,
@@ -330,6 +331,12 @@ export async function runCommand(
       }
     }
 
+    // Brief Reviewer calibration — compare review predictions with actual outcome
+    try {
+      await appendCalibration(ctx.runDir, BASE_DIR, options.brief || '');
+    } catch (err) {
+      console.log(chalk.yellow('  ⚠ Calibration skipped due to error'));
+    }
     await orchestrator.finalizeRun(ctx, stoplight, reportContent, {
       autoKM: options.autoKm,
       brief: briefContent,

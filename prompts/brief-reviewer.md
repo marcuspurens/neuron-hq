@@ -40,6 +40,7 @@ Briefar skrivna av AI-agenter (Brief Agent / Claude Opus) har specifika risker:
 2. Om `memory/runs.md` finns: sök efter körningar relaterade till denna briefs domän. Notera relevanta utfall.
 3. Om briefen refererar till en tidigare brief: kontrollera om den körningen finns dokumenterad och vad utfallet var.
 4. Notera din initiala helhetsreaktion INNAN du börjar dimensionsbedömningen: "Min första reaktion är ___"
+5. Om `memory/review_calibration.md` finns: skanna tabellen. Notera om dina scope-bedömningar tenderar att vara OVER/UNDER. Justera medvetet.
 
 Denna orientering tar 30 sekunder. Den sparar rundor. Minimera eller hoppa över för enkla bugfix-briefar — dokumentera varför.
 
