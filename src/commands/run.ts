@@ -7,6 +7,8 @@ import { RunOrchestrator, countMemoryRuns, EstopError } from '../core/run.js';
 import { createPolicyEnforcer } from '../core/policy.js';
 import { ManagerAgent } from '../core/agents/manager.js';
 import { ObserverAgent } from '../core/agents/observer.js';
+import { runRetro, type RetroResponse } from '../core/agents/observer-retro.js';
+import { checkDeepAlignment, DEEP_ALIGNMENT_CHECKS, type DeepAlignmentCheck } from '../core/agents/observer-alignment.js';
 import { BASE_DIR } from '../cli.js';
 import { scaffoldProject, type ScaffoldOptions } from '../core/scaffold.js';
 import type { RunConfig, StoplightStatus } from '../core/types.js';
@@ -214,24 +216,6 @@ export async function runCommand(
       throw runError; // Re-throw non-estop errors
     }
 
-    // Generate prompt health report (non-fatal)
-    if (observer) {
-      try {
-        const observations = observer.analyzeRun();
-        const promptHealthReport = observer.generateReport(observations);
-        const now = new Date();
-        const ts = now.toISOString().slice(0, 16).replace(':', '');
-        await fs.writeFile(
-          path.join(ctx.runDir, `prompt-health-${ts}.md`),
-          promptHealthReport,
-          'utf-8',
-        );
-        console.log(chalk.gray(`  Observer: prompt-health-${ts}.md written`));
-      } catch (err) {
-        console.log(chalk.yellow('  ⚠ Observer report generation failed'));
-      }
-    }
-
     // Display token usage
     const usage = ctx.usage.getUsage();
     const totalTokens = usage.total_input_tokens + usage.total_output_tokens;
@@ -284,6 +268,67 @@ export async function runCommand(
       risk: 'LOW',
       artifacts: 'COMPLETE',
     };
+
+    // Observer: prompt-health report with retro + alignment (non-fatal, runs after stoplight is known)
+    if (observer) {
+      try {
+        const observations = observer.analyzeRun();
+
+        // Run retro conversations with all agents
+        let retroResults: RetroResponse[] | undefined;
+        try {
+          const readArtifact = async (dir: string, name: string): Promise<string> => {
+            try { return await fs.readFile(path.join(dir, name), 'utf-8'); }
+            catch { return ''; }
+          };
+
+          retroResults = await runRetro(
+            observations,
+            {
+              reportContent: await readArtifact(ctx.runDir, 'report.md'),
+              knowledgeContent: await readArtifact(ctx.runDir, 'knowledge.md'),
+              briefContent: await readArtifact(ctx.runDir, 'brief.md'),
+              stoplight: stoplight.risk ?? 'UNKNOWN',
+            },
+            observer.agentPrompts,
+            observer.agentToolSummaries,
+            ctx.agentModelMap as Record<string, unknown> | undefined,
+            ctx.defaultModelOverride,
+          );
+          console.log(chalk.gray(`  Observer: retro completed (${retroResults.length} agents)`));
+        } catch (retroErr) {
+          console.log(chalk.yellow('  ⚠ Observer retro failed, continuing without retro'));
+        }
+
+        // Run deep alignment checks
+        let allAlignments: DeepAlignmentCheck[] | undefined;
+        try {
+          const alignmentResults: DeepAlignmentCheck[] = [];
+          for (const check of DEEP_ALIGNMENT_CHECKS) {
+            const prompt = observer.agentPrompts.get(check.agentRole) ?? '';
+            const sourcePath = path.join(BASE_DIR, check.sourceFile);
+            const results = await checkDeepAlignment(check.agentRole, prompt, sourcePath);
+            alignmentResults.push(...results);
+          }
+          allAlignments = alignmentResults;
+          console.log(chalk.gray(`  Observer: deep alignment completed (${alignmentResults.length} checks)`));
+        } catch (alignErr) {
+          console.log(chalk.yellow('  ⚠ Observer alignment failed, continuing without alignment'));
+        }
+
+        const promptHealthReport = observer.generateReport(observations, retroResults, allAlignments);
+        const now = new Date();
+        const ts = now.toISOString().slice(0, 16).replace(':', '');
+        await fs.writeFile(
+          path.join(ctx.runDir, `prompt-health-${ts}.md`),
+          promptHealthReport,
+          'utf-8',
+        );
+        console.log(chalk.gray(`  Observer: prompt-health-${ts}.md written`));
+      } catch (err) {
+        console.log(chalk.yellow('  ⚠ Observer report generation failed'));
+      }
+    }
 
     await orchestrator.finalizeRun(ctx, stoplight, reportContent, {
       autoKM: options.autoKm,

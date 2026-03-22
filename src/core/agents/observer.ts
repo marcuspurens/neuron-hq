@@ -3,7 +3,6 @@
  * Produces a prompt-health report after each run.
  * NEVER modifies anything during the run — read-only observation only.
  */
-import fs from 'fs/promises';
 import path from 'path';
 import { readFileSync, readdirSync } from 'node:fs';
 import yaml from 'yaml';
@@ -12,6 +11,8 @@ import { resolveModelConfig, DEFAULT_MODEL_CONFIG } from '../model-registry.js';
 import { getModelShortName, calcCost, MODEL_PRICING } from '../pricing.js';
 import { createLogger } from '../logger.js';
 import type { RunContext } from '../run.js';
+import type { RetroResponse } from './observer-retro.js';
+import type { DeepAlignmentCheck } from './observer-alignment.js';
 
 const logger = createLogger('observer');
 
@@ -74,10 +75,10 @@ interface PromptLintResult {
 const TOOL_ALIGNMENT_TABLE: Array<{ keyword: RegExp; tool: string; agents: string[] }> = [
   { keyword: /read\s*file|läs\s*fil/i, tool: 'read_file', agents: ['manager', 'implementer'] },
   { keyword: /write\s*file|skriv\s*fil/i, tool: 'write_file', agents: ['implementer'] },
-  { keyword: /search|sök/i, tool: 'aurora_search', agents: ['librarian', 'researcher'] },
+  { keyword: /\bsearch\b|\bsök\b/i, tool: 'aurora_search', agents: ['librarian', 'researcher'] },
   { keyword: /run\s*test|kör\s*test/i, tool: 'bash_exec', agents: ['tester'] },
-  { keyword: /read|granska/i, tool: 'read_file', agents: ['reviewer'] },
-  { keyword: /write|dokumentera/i, tool: 'write_file', agents: ['historian'] },
+  { keyword: /\bread\b|\bgranska\b/i, tool: 'read_file', agents: ['reviewer'] },
+  { keyword: /\bwrite\b|\bdokumentera\b/i, tool: 'write_file', agents: ['historian'] },
 ];
 
 // ── Satisficing language patterns ───────────────────────────────
@@ -103,6 +104,16 @@ export class ObserverAgent {
   private promptContents: Map<string, string> = new Map();
   private antiPatterns: AntiPattern[] = [];
   private lintResults: PromptLintResult[] = [];
+
+  /** Public access to loaded prompt contents (for retro module) */
+  get agentPrompts(): Map<string, string> {
+    return this.promptContents;
+  }
+
+  /** Public access to tool calls per agent (for retro module) */
+  get agentToolSummaries(): Map<string, string[]> {
+    return this.agentToolCalls;
+  }
 
   constructor(
     private ctx: RunContext,
@@ -499,7 +510,8 @@ export class ObserverAgent {
    */
   generateReport(
     observations: Observation[],
-    _retroResults?: unknown,
+    retroResults?: RetroResponse[],
+    deepAlignments?: DeepAlignmentCheck[],
   ): string {
     const lines: string[] = [];
     const runid = this.ctx.runid;
@@ -566,6 +578,16 @@ export class ObserverAgent {
       lines.push(
         `| **TOTALT** | **${totalInput.toLocaleString()}** | **${totalOutput.toLocaleString()}** | **${totalAll.toLocaleString()}** | **$${totalCost.toFixed(4)}** |`,
       );
+      // Add observer retro tokens if available
+      if (retroResults && retroResults.length > 0) {
+        const retroInput = retroResults.reduce((sum, r) => sum + r.tokensUsed.input, 0);
+        const retroOutput = retroResults.reduce((sum, r) => sum + r.tokensUsed.output, 0);
+        const retroTotal = retroInput + retroOutput;
+        const retroCost = retroResults.reduce((sum, r) => sum + r.tokensUsed.cost, 0);
+        lines.push(
+          `| Observer (retro) | ${retroInput.toLocaleString()} | ${retroOutput.toLocaleString()} | ${retroTotal.toLocaleString()} | $${retroCost.toFixed(4)} |`,
+        );
+      }
       lines.push('');
 
       // Prisberäkning
@@ -656,24 +678,64 @@ export class ObserverAgent {
     lines.push('');
 
     // ── Retro ──
-    lines.push('## Retro');
+    lines.push('## Retro — Alla agenter');
     lines.push('');
-    lines.push('_Retro-samtal aktiveras i Observer Brief B._');
+    if (!retroResults || retroResults.length === 0) {
+      lines.push('_Inga retro-samtal genomförda._');
+    } else {
+      for (const retro of retroResults) {
+        lines.push(`### ${retro.agent}`);
+        if (retro.howDidItGo === 'retro: failed') {
+          lines.push(`**Status:** ❌ Retro misslyckades`);
+          lines.push(`**Felmeddelande:** ${retro.whatWorkedWorst}`);
+        } else {
+          lines.push(`**Hur gick det:** "${retro.howDidItGo}"`);
+          lines.push(`**Bäst:** "${retro.whatWorkedBest}"`);
+          lines.push(`**Sämst:** "${retro.whatWorkedWorst || 'Inget att anmärka.'}"`);
+          if (retro.specificQuestions.length > 0) {
+            lines.push('');
+            for (const sq of retro.specificQuestions) {
+              lines.push(`**Observer noterade:** ${sq.question}`);
+              lines.push(`**Svar:** "${sq.answer}"`);
+            }
+          }
+        }
+        lines.push('');
+      }
+
+      // Retro summary
+      const succeeded = retroResults.filter(r => r.howDidItGo !== 'retro: failed').length;
+      const failed = retroResults.length - succeeded;
+      const withObservations = retroResults.filter(r => r.specificQuestions.length > 0).length;
+      const totalRetroInput = retroResults.reduce((sum, r) => sum + r.tokensUsed.input, 0);
+      const totalRetroOutput = retroResults.reduce((sum, r) => sum + r.tokensUsed.output, 0);
+      const totalRetroCost = retroResults.reduce((sum, r) => sum + r.tokensUsed.cost, 0);
+
+      lines.push('### Retro-sammanfattning');
+      lines.push(`- **Lyckade retro-samtal:** ${succeeded}/${retroResults.length}`);
+      if (failed > 0) {
+        lines.push(`- **Misslyckade:** ${failed} (${retroResults.filter(r => r.howDidItGo === 'retro: failed').map(r => r.agent).join(', ')})`);
+      }
+      lines.push(`- **Agenter med observationer:** ${withObservations}`);
+      lines.push(`- **Retro-tokens:** ${totalRetroInput.toLocaleString()} input + ${totalRetroOutput.toLocaleString()} output = $${totalRetroCost.toFixed(2)}`);
+    }
+    lines.push('');
+
+    // ── Djup Kod-Alignment ──
+    lines.push('## Djup Kod-Alignment');
+    lines.push('');
+    if (!deepAlignments || deepAlignments.length === 0) {
+      lines.push('_Inga djupa alignment-kontroller utförda._');
+    } else {
+      lines.push('| Agent | Funktion | Fil | Prompt-påstående | Analys | Detalj |');
+      lines.push('|-------|----------|-----|-----------------|--------|--------|');
+      for (const da of deepAlignments) {
+        lines.push(`| ${da.agent} | ${da.functionName}() | ${da.sourceFile} | ${da.promptClaim} | ${da.analysis} | ${da.details} |`);
+      }
+    }
     lines.push('');
 
     return lines.join('\n');
   }
 
-  /**
-   * Write the report to a file in the run directory.
-   */
-  async writeReport(report: string): Promise<void> {
-    try {
-      const reportPath = path.join(this.ctx.runDir, 'prompt-health.md');
-      await fs.writeFile(reportPath, report, 'utf-8');
-      logger.info('Prompt health report written', { path: reportPath });
-    } catch (err) {
-      logger.warn('Failed to write prompt health report', { error: String(err) });
-    }
-  }
 }

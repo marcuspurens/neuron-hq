@@ -635,13 +635,20 @@ describe('ObserverAgent', () => {
       expect(report).toContain('## Prompt Lint');
       expect(report).toContain('## Tool-Alignment');
       expect(report).toContain('## Rekommendationer');
-      expect(report).toContain('## Retro');
+      expect(report).toContain('## Retro — Alla agenter');
     });
 
-    it('contains retro placeholder text', async () => {
+    it('contains retro section when no retro results provided', async () => {
       await observer.startObserving();
       const report = observer.generateReport([]);
-      expect(report).toContain('_Retro-samtal aktiveras i Observer Brief B._');
+      expect(report).toContain('_Inga retro-samtal genomförda._');
+    });
+
+    it('contains deep alignment placeholder when no alignment data provided', async () => {
+      await observer.startObserving();
+      const report = observer.generateReport([]);
+      expect(report).toContain('## Djup Kod-Alignment');
+      expect(report).toContain('_Inga djupa alignment-kontroller utförda._');
     });
   });
 
@@ -673,16 +680,13 @@ describe('ObserverAgent', () => {
     });
   });
 
-  // ── writeReport ───────────────────────────────────────────
+  // ── report generation (I/O handled by run.ts) ─────────────
 
-  describe('writeReport', () => {
-    it('writes report file to run directory', async () => {
+  describe('generateReport output', () => {
+    it('generates valid report content without writing to disk', async () => {
       await observer.startObserving();
       const report = observer.generateReport([]);
-      await observer.writeReport(report);
-
-      const written = await fs.readFile(path.join(runDir, 'prompt-health.md'), 'utf-8');
-      expect(written).toContain('# Prompt Health');
+      expect(report).toContain('# Prompt Health');
     });
   });
 });

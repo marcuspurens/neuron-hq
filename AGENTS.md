@@ -453,7 +453,25 @@ After each run completes, Observer:
 2. Tracks token usage and costs per agent
 3. Checks tool usage against prompt claims (tool-alignment)
 4. Detects satisficing language in agent text output
-5. Generates a `prompt-health-YYYY-MM-DDTHHMM.md` report in the run directory
+5. Runs retro conversations with all agents — three standard questions + follow-up on observed deviations
+6. Performs deep prompt-code alignment analysis — verifies that code implements what prompts claim
+7. Generates a `prompt-health-YYYY-MM-DDTHHMM.md` report in the run directory
+
+### Retro Conversations
+
+After a run, Observer conducts short conversations with each agent:
+- Three standard questions: "Hur gick det?", "Vad funkade bäst?", "Vad funkade sämst?"
+- If observations were recorded for an agent, specific follow-up questions with evidence
+- "Allt gick bra" and "inget att anmärka" are valid answers — honesty over performativity
+- Fail-open: if a retro call fails, Observer continues with the next agent
+
+### Deep Prompt-Code Alignment
+
+Observer loads agent TypeScript source files and checks whether implementations are substantive (DEEP) or placeholder (SHALLOW):
+- SHALLOW: only sets flags, returns hardcoded values, or has empty body
+- DEEP: makes external calls, reads/compares data, or calls substantive logic
+- NOT_FOUND: expected function doesn't exist in the source file
+- Unclear cases are flagged as INFO, not WARNING
 
 Observer is designed to be completely non-disruptive: if it fails, the run continues normally.
 
