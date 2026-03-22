@@ -1,6 +1,6 @@
 # Neuron HQ — Roadmap
 
-> **Senast uppdaterad:** 2026-03-21 · Session 119
+> **Senast uppdaterad:** 2026-03-22 · Session 123
 > **Källa:** Djupsamtal S102 + Marcus ~40 kommentarer + diskussionsdokument S103
 > Editera direkt — kryssa av med ✅ när klart.
 > **Arkiv:** Alla versioner sparas i [docs/roadmaps/](docs/roadmaps/) med datumstämpel.
@@ -15,11 +15,11 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3552 |
-| Körningar | 172 |
+| Tester | 3627 |
+| Körningar | 174 |
 | MCP-tools | 44 |
-| Sessioner | 119 |
-| Agenter | 11 |
+| Sessioner | 123 |
+| Agenter | 12 (inkl Observer) |
 | Idé-noder | 924 |
 | Code Review | ★★★★☆ (Fas 1 klar) |
 | **OUTPUT** | **128K TOKENS** ⚡ |
@@ -176,10 +176,11 @@ Fas 4: Produkt                ← andra kan använda det
 
 **Flyttad hit från 3.6.** Bättre prompts förbättrar ALLA framtida körningar. Brief Agent-intervjun (S109-110) visade att en enda rak fråga avslöjade vad 9 rundor av testning missade. Se [3.6](#36-agentintervjuer--opus-samtalar-med-varje-agent-) för fullständig beskrivning.
 
-**Status (S119):** 11/11 KLARA ✅
+**Status (S123):** 12/12 KLARA ✅
 - ✅ Brief Agent (S110) · Manager (S111) · Reviewer (S111) · Implementer (S112)
 - ✅ Librarian (S112) · Researcher (S112) · Tester (S114) · Merger (S115)
 - ✅ Historian (S116) · Consolidator (S118) · Knowledge Manager (S119)
+- ✅ **Brief Reviewer V2** (S123) — 10 gap, prompt-rewrite (147→250 rader)
 
 **Effort:** 3-5 sessioner (manuellt, inte körningar)
 
@@ -202,17 +203,16 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
-### 2.4 Idékonsolidering ⬜
+### 2.4 Idékonsolidering ✅ S120 · 2026-03-22
 
 **Vad det ger dig:** Istället för 878 lösa idéer → ~50-100 kluster med tydliga meta-idéer. Du ser "Agent-minne (12 relaterade idéer)" istället för 12 separata rader.
 
-**Tekniskt:**
-- Klustra idéer med embedding-likhet (>0.8)
-- Skapa meta-noder per kluster
-- Arkivera (inte radera) låg-kvalitets-idéer
-- Marcus granskar resultatet i Obsidian
-
-**Effort:** 1 körning · **Brief:** `idea-consolidation`
+**Gjort:** Körning 173, 🟢 GRÖN, 33 min, $36.55, 23/23 AC, +31 tester (3597 totalt)
+- Idéklustring med embedding-likhet
+- Meta-noder per kluster
+- Arkivering av låg-kvalitets-idéer
+- 25+ artificiella begränsningar borttagna ur 9/11 prompter (motsade preamble:n)
+- Haiku maxTokens-bugg fixad — alla agenter på Opus
 
 ---
 
@@ -227,6 +227,61 @@ Fas 4: Produkt                ← andra kan använda det
 - Consolidator triggas automatiskt vid problem
 
 **Effort:** 1 körning · **Brief:** `graph-health-check`
+
+---
+
+### 2.6 Observer — Prompt Quality Agent 🟡
+
+**Vad det ger dig:** Automatisk kvalitetskontroll av alla agentprompter + passiv observation av varje körning. Observer genererar en `prompt-health`-rapport med lint-resultat, tool-alignment, token-förbrukning och rekommendationer.
+
+**Tre nivåer:**
+
+| Nivå | Vad | Kostnad | Frekvens | Status |
+|------|-----|---------|----------|--------|
+| **Lint** | Mönstermatchning mot anti-patterns ("max N", budgetprocent, satisficing-språk) | Gratis | Varje körning | ✅ Brief A |
+| **Alignment** | Prompt-påståenden ↔ tool-användning + djup kodanalys | Gratis | Varje körning | ✅ Enkel (A), Djup (B) |
+| **Retro** | API-samtal med alla 11 agenter efter körning — "hur gick det?" | ~$2-5 | Varje körning | ⬜ Brief B |
+
+**Gjort (Brief A, körning #174):** 🟢 GRÖN, 24/24 AC, +32 tester, Sonnet, $61
+- `src/core/agents/observer.ts` — eventBus-lyssnare, observation, lint, token-tracking, rapport
+- `policy/prompt-antipatterns.yaml` — utökningsbar YAML med tvåstegs-filtrering
+- Integration i `src/commands/run.ts` — startar automatiskt vid varje körning
+- 11 pre-existing test-failures fixade (totalt 3627/3627 gröna)
+- Observer-kodfixar: breda regex → word boundaries, writeReport-inkonsekvens löst
+
+**Kvar (Brief B):** Retro-samtal med alla 11 agenter + djup prompt-kod-alignment
+- Brief: `briefs/2026-03-22-observer-b-retro.md` (godkänd 8.6/10)
+
+**Effort:** 2 körningar · **Brief A:** ✅ · **Brief B:** ⬜
+
+---
+
+### 2.6b Observer feedback-loop till Brief Reviewer ⬜
+
+**Vad det ger dig:** Brief Reviewer ser äntligen om sina bedömningar stämmer. "Jag sa scope 8/10, körningen tog 3 körningar" → kalibrerar framtida granskningar. Utan detta förbättras prompten men inte bedömningen.
+
+**Tekniskt:**
+- Observer (post-run) läser `runs/reviews/review-<timestamp>.json` (Brief Reviewers bedömning)
+- Jämför med `runs/<runid>/metrics.json` (faktiskt utfall)
+- Appendar korrelation till `memory/review_calibration.md`
+- Brief Reviewer läser denna i Fas 0 (orientering) vid nästa granskning
+- Data finns redan — det saknas bara bryggan
+
+**Identifierat i:** Brief Reviewer V2-intervju (S123), gap #3 + #5
+
+**Effort:** 1 körning · **Brief:** Ska skrivas
+
+---
+
+### 2.7 Modellstrategi: Sonnet default + Opus overrides ✅ S123 · 2026-03-22
+
+**Vad det ger dig:** Explicita, medvetna modellval per agent. Sonnet för kod/test/research ($61/körning). Opus för beslut och kvalitetsgrindar (~5x dyrare men djupare resonemang).
+
+**Gjort:**
+- Default: `claude-sonnet-4-6` (model-registry.ts)
+- Opus-overrides i limits.yaml: Manager, Reviewer, Brief Reviewer
+- 128K output + 1M context för alla
+- Bevisat: Sonnet 24/24 GRÖN i körning #174
 
 ---
 
@@ -306,26 +361,9 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
-### 3.6 Agentintervjuer — Opus samtalar med varje agent ⬜
+### 3.6 Agentintervjuer — Opus samtalar med varje agent ✅ → Flyttad till 2.2b
 
-**Vad det ger dig:** Opus intervjuar varje agent en-och-en om dess prompt, beteende och blinda fläckar. Samma metod som avslöjade Brief Agents "kan aldrig säga klart"-problem (S109) — applicerad på alla 11 agenter. Resultatet: förbättrade prompts, dokumenterade insikter, och en unik perspektiv-serie om hur LLM-agenter "upplever" sina instruktioner.
-
-**Per agent sparas:**
-- Prompt FÖRE intervju (git snapshot)
-- Intervju-dokument (Opus ↔ Agent) i `docs/samtal/`
-- Prompt EFTER intervju (förbättrad, committad)
-- Diff & analys: vad ändrades, varför det spelar roll i en LLM-värld
-- Bonus: människa-kod vs LLM-kod — hur kodkonventioner anpassats för människor och hur de bör anpassas för LLM:er
-- Fria tankar från agenten
-
-**Ordning (2-3 per session):**
-1. Manager — dirigerar allt, störst påverkan
-2. Reviewer — kvalitetsgrind, samma risk som Brief Agent
-3. Implementer — den som bygger
-4. Researcher + Librarian — informerar namnbytet (2.3)
-5. Historian, Tester, Merger, Consolidator, Knowledge Manager
-
-**Effort:** 3-5 sessioner (manuellt, inte körningar) · Ersätter gamla 3.6 "prompt-audit"
+Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21). 11/11 klara i S119.
 
 ---
 
@@ -395,20 +433,23 @@ Fas 4: Produkt                ← andra kan använda det
 | 2.2 | Feedback-loop i prompts | 2 | 1-2 körn | — | ⬜ |
 | **2.2b** | **Agentintervjuer (prompt-förbättring)** | **2** | **3-5 sess** | — | **✅ S119 2026-03-21** |
 | 2.3 | Namnbyte Researcher ↔ Librarian | 2 | 1 körn | — | ✅ S113 2026-03-20 |
-| 2.4 | Idékonsolidering | 2 | 1 körn | — | ⬜ |
+| 2.4 | Idékonsolidering | 2 | 1 körn | — | ✅ S120 2026-03-22 |
 | 2.5 | Grafintegritet watchman | 2 | 1 körn | — | ⬜ |
+| **2.6** | **Observer (Prompt Quality Agent)** | **2** | **2 körn** | — | 🟡 A✅ B⬜ |
+| **2.6b** | **Observer feedback-loop → Brief Reviewer** | **2** | **1 körn** | 2.6 | ⬜ |
+| **2.7** | **Modellstrategi (Sonnet+Opus)** | **2** | **<1 sess** | — | **✅ S123 2026-03-22** |
 | 3.1 | Reviewer severity levels | 3 | 1-2 körn | — | ⬜ |
 | 3.2 | A-MEM | 3 | 2-3 körn | 2.1 | ⬜ |
 | 3.3 | Research före implementation | 3 | 1 körn | 2.3 | ⬜ |
 | 3.4 | Schemalagda agent-samtal | 3 | 2-3 körn | 2.3, server | ⬜ |
 | 3.5 | Dynamisk diff-limit | 3 | 1 körn | — | ⬜ |
-| 3.6 | Agentintervjuer (prompt-förbättring) | 3 | 3-5 sess | — | ⬜ |
+| 3.6 | Agentintervjuer (prompt-förbättring) | 3 | 3-5 sess | — | ✅ → 2.2b |
 | 4.1 | Docker-compose | 4 | 2 körn | — | ⬜ |
 | 4.2 | Webb-UI | 4 | 5-10 körn | — | ⬜ |
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
 | 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~30-45 körningar. **Klar:** 11/23
+**Totalt:** ~30-45 körningar. **Klar:** 15/26
 
 ---
 
