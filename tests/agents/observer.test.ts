@@ -321,6 +321,35 @@ describe('ObserverAgent', () => {
     });
   });
 
+  // ── activeAgentPrompts ─────────────────────────────────────
+
+  describe('activeAgentPrompts', () => {
+    beforeEach(async () => {
+      await observer.startObserving();
+    });
+
+    it('returns only prompts for agents that were delegated or had tool calls', () => {
+      // Simulate: manager and implementer are active, others are not
+      eventBus.safeEmit('agent:start', { runid: '20260322-0150-test', agent: 'manager' });
+      eventBus.safeEmit('audit', { tool: 'read_file', role: 'implementer' } as any);
+
+      const active = observer.activeAgentPrompts;
+      expect(active.has('manager')).toBe(true);
+      expect(active.has('implementer')).toBe(true);
+      // These were never active during the run
+      expect(active.has('consolidator')).toBe(false);
+      expect(active.has('researcher')).toBe(false);
+      expect(active.has('librarian')).toBe(false);
+      // Total active should be much less than all prompts
+      expect(active.size).toBeLessThan(observer.agentPrompts.size);
+    });
+
+    it('returns empty map when no agents were active', () => {
+      const active = observer.activeAgentPrompts;
+      expect(active.size).toBe(0);
+    });
+  });
+
   // ── 11-13. analyzeRun ─────────────────────────────────────
 
   describe('analyzeRun', () => {

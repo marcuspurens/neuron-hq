@@ -79,7 +79,7 @@ const TOOL_ALIGNMENT_TABLE: Array<{ keyword: RegExp; tool: string; agents: strin
   { keyword: /\bsearch\b|\bsök\b/i, tool: 'aurora_search', agents: ['librarian', 'researcher'] },
   { keyword: /run\s*test|kör\s*test/i, tool: 'bash_exec', agents: ['tester'] },
   { keyword: /\bread\b|\bgranska\b/i, tool: 'read_file', agents: ['reviewer'] },
-  { keyword: /\bwrite\b|\bdokumentera\b/i, tool: 'write_file', agents: ['historian'] },
+  { keyword: /\bwrite\b|\bdokumentera\b/i, tool: 'write_to_memory', agents: ['historian'] },
 ];
 
 // ── Satisficing language patterns ───────────────────────────────
@@ -109,6 +109,17 @@ export class ObserverAgent {
   /** Public access to loaded prompt contents (for retro module) */
   get agentPrompts(): Map<string, string> {
     return this.promptContents;
+  }
+
+  /** Prompts filtered to only agents that were active during the run */
+  get activeAgentPrompts(): Map<string, string> {
+    const active = new Map<string, string>();
+    for (const [role, prompt] of this.promptContents) {
+      if (this.agentDelegations.has(role) || this.agentToolCalls.has(role)) {
+        active.set(role, prompt);
+      }
+    }
+    return active;
   }
 
   /** Public access to tool calls per agent (for retro module) */
@@ -523,35 +534,6 @@ export class ObserverAgent {
     lines.push(`**Genererad:** ${now}`);
     lines.push('');
 
-    // ── Teknik & Miljö ──
-    lines.push('## Teknik & Miljö');
-    lines.push('');
-    const uniqueAgents = new Set([
-      ...this.agentDelegations.keys(),
-      ...this.tokenUsage.keys(),
-    ]);
-    lines.push('| Parameter | Värde |');
-    lines.push('|-----------|-------|');
-    lines.push(`| Modell (default) | ${DEFAULT_MODEL_CONFIG.model} |`);
-    lines.push('| Context window | 1 000 000 tokens |');
-    lines.push('| Max output | 128 000 tokens |');
-    lines.push('| Preamble | prompts/preamble.md |');
-    lines.push(`| Antal agenter | ${uniqueAgents.size} |`);
-    lines.push(`| Node | ${process.version} |`);
-    lines.push('| Runtime | tsx |');
-    lines.push('');
-
-    // ── Agentmodeller ──
-    lines.push('### Agentmodeller');
-    lines.push('');
-    lines.push('| Agent | Modell | Max tokens |');
-    lines.push('|-------|--------|------------|');
-    const sortedModels = [...this.agentModels.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-    for (const [_role, info] of sortedModels) {
-      lines.push(`| ${info.agent} | ${info.model} | ${info.maxTokens.toLocaleString()} |`);
-    }
-    lines.push('');
-
     // ── Token-förbrukning ──
     lines.push('## Token-förbrukning');
     lines.push('');
@@ -565,13 +547,12 @@ export class ObserverAgent {
     } else {
       lines.push('### Per agent');
       lines.push('');
-      lines.push('| Agent | Input tokens | Output tokens | Cache read | Totalt | Kostnad |');
-      lines.push('|-------|-------------|---------------|------------|--------|---------|');
+      lines.push('| Agent | Modell | Input | Output | Cache read | Kostnad |');
+      lines.push('|-------|--------|------:|-------:|-----------:|--------:|');
 
       let totalInput = 0;
       let totalOutput = 0;
       let totalCacheRead = 0;
-      let totalAll = 0;
       let totalCost = 0;
       const modelsUsedSet = new Set<string>();
 
@@ -585,56 +566,52 @@ export class ObserverAgent {
           modelsUsedSet.add(modelKey);
           const cost = calcCost(data.input_tokens, data.output_tokens, modelKey);
           const cacheRead = data.cache_read_tokens ?? 0;
-          const agentTotal = data.input_tokens + data.output_tokens;
 
           totalInput += data.input_tokens;
           totalOutput += data.output_tokens;
           totalCacheRead += cacheRead;
-          totalAll += agentTotal;
           totalCost += cost;
 
           lines.push(
-            `| ${agent} | ${data.input_tokens.toLocaleString()} | ${data.output_tokens.toLocaleString()} | ${cacheRead.toLocaleString()} | ${agentTotal.toLocaleString()} | $${cost.toFixed(4)} |`,
+            `| ${agent} | ${modelKey} | ${data.input_tokens.toLocaleString()} | ${data.output_tokens.toLocaleString()} | ${cacheRead.toLocaleString()} | $${cost.toFixed(2)} |`,
           );
         }
       } else {
         // Fallback to event-based data
         const sortedUsage = [...this.tokenUsage.values()].sort((a, b) => a.agent.localeCompare(b.agent));
         for (const u of sortedUsage) {
-          modelsUsedSet.add(getModelShortName(u.model));
+          const modelKey = getModelShortName(u.model);
+          modelsUsedSet.add(modelKey);
           totalInput += u.inputTokens;
           totalOutput += u.outputTokens;
-          totalAll += u.totalTokens;
           totalCost += u.cost;
           lines.push(
-            `| ${u.agent} | ${u.inputTokens.toLocaleString()} | ${u.outputTokens.toLocaleString()} | — | ${u.totalTokens.toLocaleString()} | $${u.cost.toFixed(4)} |`,
+            `| ${u.agent} | ${modelKey} | ${u.inputTokens.toLocaleString()} | ${u.outputTokens.toLocaleString()} | — | $${u.cost.toFixed(2)} |`,
           );
         }
       }
 
       lines.push(
-        `| **TOTALT** | **${totalInput.toLocaleString()}** | **${totalOutput.toLocaleString()}** | **${totalCacheRead.toLocaleString()}** | **${totalAll.toLocaleString()}** | **$${totalCost.toFixed(4)}** |`,
+        `| **TOTALT** | | **${totalInput.toLocaleString()}** | **${totalOutput.toLocaleString()}** | **${totalCacheRead.toLocaleString()}** | **$${totalCost.toFixed(2)}** |`,
       );
 
       // Add observer retro tokens if available
       if (retroResults && retroResults.length > 0) {
         const retroInput = retroResults.reduce((sum, r) => sum + r.tokensUsed.input, 0);
         const retroOutput = retroResults.reduce((sum, r) => sum + r.tokensUsed.output, 0);
-        const retroTotal = retroInput + retroOutput;
         const retroCost = retroResults.reduce((sum, r) => sum + r.tokensUsed.cost, 0);
-        lines.push(
-          `| Observer (retro) | ${retroInput.toLocaleString()} | ${retroOutput.toLocaleString()} | — | ${retroTotal.toLocaleString()} | $${retroCost.toFixed(4)} |`,
-        );
+        lines.push('');
+        lines.push(`*Observer (retro): ${retroInput.toLocaleString()} in + ${retroOutput.toLocaleString()} out = $${retroCost.toFixed(2)} — ej inkluderat i totalen.*`);
       }
       lines.push('');
 
       // Prisberäkning
-      lines.push('### Prisberäkning');
+      lines.push('### Priser');
       for (const modelKey of modelsUsedSet) {
         const pricing = MODEL_PRICING[modelKey];
         if (pricing) {
           lines.push(
-            `- **${modelKey}**: $${pricing.input}/M input, $${pricing.output}/M output`,
+            `- **${modelKey}**: $${pricing.input}/M in, $${pricing.output}/M out`,
           );
         }
       }
@@ -729,6 +706,9 @@ export class ObserverAgent {
           lines.push(`**Hur gick det:** "${retro.howDidItGo}"`);
           lines.push(`**Bäst:** "${retro.whatWorkedBest}"`);
           lines.push(`**Sämst:** "${retro.whatWorkedWorst || 'Inget att anmärka.'}"`);
+          if (retro.nextTime) {
+            lines.push(`**Nästa gång:** "${retro.nextTime}"`);
+          }
           if (retro.specificQuestions.length > 0) {
             lines.push('');
             for (const sq of retro.specificQuestions) {
@@ -769,6 +749,37 @@ export class ObserverAgent {
       for (const da of deepAlignments) {
         lines.push(`| ${da.agent} | ${da.functionName}() | ${da.sourceFile} | ${da.promptClaim} | ${da.analysis} | ${da.details} |`);
       }
+    }
+    lines.push('');
+
+    // ── Teknik & Miljö (appendix) ──
+    lines.push('---');
+    lines.push('');
+    lines.push('## Teknik & Miljö');
+    lines.push('');
+    const uniqueAgents = new Set([
+      ...this.agentDelegations.keys(),
+      ...this.tokenUsage.keys(),
+    ]);
+    lines.push('| Parameter | Värde |');
+    lines.push('|-----------|-------|');
+    lines.push(`| Modell (default) | ${DEFAULT_MODEL_CONFIG.model} |`);
+    lines.push('| Context window | 1 000 000 tokens |');
+    lines.push('| Max output | 128 000 tokens |');
+    lines.push('| Preamble | prompts/preamble.md |');
+    lines.push(`| Aktiva agenter | ${uniqueAgents.size} |`);
+    lines.push(`| Node | ${process.version} |`);
+    lines.push('| Runtime | tsx |');
+    lines.push('');
+
+    // ── Agentmodeller ──
+    lines.push('### Agentmodeller');
+    lines.push('');
+    lines.push('| Agent | Modell | Max tokens |');
+    lines.push('|-------|--------|------------|');
+    const sortedModels = [...this.agentModels.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    for (const [_role, info] of sortedModels) {
+      lines.push(`| ${info.agent} | ${info.model} | ${info.maxTokens.toLocaleString()} |`);
     }
     lines.push('');
 

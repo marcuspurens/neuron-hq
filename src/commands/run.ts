@@ -283,6 +283,7 @@ export async function runCommand(
             catch { return ''; }
           };
 
+          const activePrompts = observer.activeAgentPrompts;
           retroResults = await runRetro(
             observations,
             {
@@ -291,12 +292,12 @@ export async function runCommand(
               briefContent: await readArtifact(ctx.runDir, 'brief.md'),
               stoplight: stoplight.risk ?? 'UNKNOWN',
             },
-            observer.agentPrompts,
+            activePrompts,
             observer.agentToolSummaries,
             ctx.agentModelMap as Record<string, unknown> | undefined,
             ctx.defaultModelOverride,
           );
-          console.log(chalk.gray(`  Observer: retro completed (${retroResults.length} agents)`));
+          console.log(chalk.gray(`  Observer: retro completed (${retroResults.length} active agents, ${observer.agentPrompts.size} total)`));
         } catch (retroErr) {
           console.log(chalk.yellow('  ⚠ Observer retro failed, continuing without retro'));
         }

@@ -23,6 +23,7 @@ export interface RetroResponse {
   howDidItGo: string;
   whatWorkedBest: string;
   whatWorkedWorst: string;
+  nextTime: string;
   specificQuestions: Array<{
     question: string;
     answer: string;
@@ -96,13 +97,14 @@ export function buildRetroUserMessage(
     `- **Stoplight:** ${runArtifacts.stoplight}`,
     `- **Dina tool-anrop:** ${toolSummaryStr}`,
     '',
-    '## Tre frågor',
+    '## Fyra frågor',
     '',
     '1. Hur gick det tycker du?',
     '2. Vad funkade bäst i denna körning?',
     '3. Vad funkade sämst, om något?',
+    '4. Om du fick göra om det — vad hade du velat göra annorlunda, eller vad vill du ska förbättras till nästa gång?',
     '',
-    'Svara under tre rubriker: "Hur gick det", "Bäst", "Sämst".',
+    'Svara under fyra rubriker: "Hur gick det", "Bäst", "Sämst", "Nästa gång".',
   ].join('\n');
 }
 
@@ -141,14 +143,15 @@ export function parseRetroResponse(text: string): {
   howDidItGo: string;
   whatWorkedBest: string;
   whatWorkedWorst: string;
+  nextTime: string;
 } {
   if (!text || !text.trim()) {
-    return { howDidItGo: '', whatWorkedBest: '', whatWorkedWorst: '' };
+    return { howDidItGo: '', whatWorkedBest: '', whatWorkedWorst: '', nextTime: '' };
   }
 
   // Patterns to match headers (##, #, or **bold**)
   const headerPattern =
-    /(?:^|\n)(?:#{1,3}\s*|\*\*)(Hur gick det|Bäst|Sämst)(?:\*\*)?\s*\n/gi;
+    /(?:^|\n)(?:#{1,3}\s*|\*\*)(Hur gick det|Bäst|Sämst|Nästa gång)(?:\*\*)?\s*\n/gi;
 
   // Collect all header positions
   const sections: Array<{ key: string; start: number }> = [];
@@ -168,6 +171,7 @@ export function parseRetroResponse(text: string): {
       howDidItGo: text.trim(),
       whatWorkedBest: '',
       whatWorkedWorst: '',
+      nextTime: '',
     };
   }
 
@@ -177,13 +181,14 @@ export function parseRetroResponse(text: string): {
     const end = idx + 1 < sections.length ? sections[idx + 1].start : text.length;
     let raw = text.slice(start, end);
     // Remove any trailing header that bled into this slice
-    raw = raw.replace(/\n+(?:#{1,3}\s*|\*\*)?(?:Hur gick det|Bäst|Sämst)(?:\*\*)?\s*$/i, '');
+    raw = raw.replace(/\n+(?:#{1,3}\s*|\*\*)?(?:Hur gick det|Bäst|Sämst|Nästa gång)(?:\*\*)?\s*$/i, '');
     return raw.trim();
   };
 
   let howDidItGo = '';
   let whatWorkedBest = '';
   let whatWorkedWorst = '';
+  let nextTime = '';
 
   for (let i = 0; i < sections.length; i++) {
     const key = sections[i].key;
@@ -194,10 +199,12 @@ export function parseRetroResponse(text: string): {
       whatWorkedBest = content;
     } else if (key === 'sämst') {
       whatWorkedWorst = content;
+    } else if (key === 'nästa gång') {
+      nextTime = content;
     }
   }
 
-  return { howDidItGo, whatWorkedBest, whatWorkedWorst };
+  return { howDidItGo, whatWorkedBest, whatWorkedWorst, nextTime };
 }
 
 // ── runRetro ─────────────────────────────────────────────────────
@@ -311,6 +318,7 @@ export async function runRetro(
         howDidItGo: parsed.howDidItGo,
         whatWorkedBest: parsed.whatWorkedBest,
         whatWorkedWorst: parsed.whatWorkedWorst,
+        nextTime: parsed.nextTime,
         specificQuestions,
         tokensUsed: {
           input: inputTokens,
@@ -334,6 +342,7 @@ export async function runRetro(
         howDidItGo: 'retro: failed',
         whatWorkedBest: '',
         whatWorkedWorst: errorMessage,
+        nextTime: '',
         specificQuestions: [],
         tokensUsed: {
           input: 0,
