@@ -19,7 +19,8 @@
 8. [Lärdomar och hypoteser](#8-lärdomar)
 9. [Vad vi INTE gjorde (ännu)](#9-framtid)
 10. [Människa + AI — Vad betyder detta?](#10-människa--ai)
-11. [Källor](#11-källor)
+11. [Self-hosted: Open source i Kubernetes](#self-hosted-open-source-modeller-i-kubernetes)
+12. [Källor](#12-källor)
 
 ---
 
@@ -731,7 +732,160 @@ Det är förändringen.
 
 ---
 
-## 11. Källor
+### Self-hosted: Open source-modeller i Kubernetes
+
+#### Varför detta är relevant
+
+*För Marcus:* Idag betalar vi Anthropic per token — $22/körning efter optimering. Det fungerar utmärkt, men det finns situationer där man vill köra helt själv:
+- **Säkerhet/compliance:** Koden lämnar aldrig nätverket. Ingen extern API. Perfekt för försvar, sjukvård, finans.
+- **Kostnad vid skala:** 50 körningar/dag × $22 = $1 100/dag till Anthropic. Egen hårdvara kan bli billigare.
+- **Oberoende:** Ingen risk att API:et stängs av, ändrar priser, eller throttlar.
+
+Frågan är: finns open source-modeller som är tillräckligt bra?
+
+#### Modellerna som finns idag (mars 2026)
+
+| Modell | Skapare | Parametrar | Styrka | Kodkvalitet* | Licens |
+|--------|---------|----------:|--------|:------------:|--------|
+| **Llama Nemotron Ultra** | NVIDIA | 253B (MoE) | Bästa open source reasoning, slår GPT-4o på flera benchmarks | ★★★★☆ | Open (Llama 3.1) |
+| **Qwen 3 235B** | Alibaba | 235B (MoE) | Thinking mode, Apache 2.0, stark på kod och resonemang | ★★★★☆ | Apache 2.0 |
+| **DeepSeek R1** | DeepSeek | 671B (MoE) | Djupt resonemang, CoT, matematisk styrka | ★★★★☆ | MIT |
+| **Qwen 2.5 Coder 32B** | Alibaba | 32B | Specialiserad kodmodell, top-tier för sin storlek | ★★★☆☆ | Apache 2.0 |
+| **Llama 3.3 70B** | Meta | 70B | Generalist, bred community, bra tool use | ★★★☆☆ | Llama 3.1 |
+| **Mistral Large 2** | Mistral | 123B | Stark på europeiska språk, bra på kod | ★★★☆☆ | Proprietär/Forskning |
+| **Claude Sonnet 4.6** | Anthropic | — | Vår nuvarande modell (referens) | ★★★★★ | API only |
+
+*Kodkvalitet är en subjektiv bedömning baserad på publika benchmarks (HumanEval, SWE-bench, MBPP). Inga av dessa har testats i Neuron HQ:s svärm.
+
+**Nyckelfråga:** MoE-modeller (Mixture of Experts) som Nemotron Ultra 253B och Qwen 3 235B har bara ~50-60B aktiva parametrar per token. Det betyder att de kräver mycket GPU-minne för att ladda men körs snabbare per token. Perfekt för servrar med mycket VRAM.
+
+#### Arkitektur: Kubernetes + vLLM
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Kubernetes Cluster                         │
+│                                                               │
+│  ┌─────────────────────────────────────────────────────┐     │
+│  │              vLLM Inference Pods                      │     │
+│  │                                                       │     │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌────────────┐ │     │
+│  │  │ Stor modell  │  │ Stor modell  │  │ Kodmodell  │ │     │
+│  │  │ Nemotron 253B│  │ Nemotron 253B│  │ Qwen Coder │ │     │
+│  │  │ (replika 1)  │  │ (replika 2)  │  │ 32B        │ │     │
+│  │  │ 4× H100 80GB│  │ 4× H100 80GB│  │ 1× H100    │ │     │
+│  │  │              │  │              │  │            │ │     │
+│  │  │ Manager      │  │ Reviewer     │  │ Implementer│ │     │
+│  │  │ Brief Rev.   │  │ Historian    │  │ Tester     │ │     │
+│  │  │ Observer     │  │ Consolidator │  │ Merger     │ │     │
+│  │  └──────────────┘  └──────────────┘  └────────────┘ │     │
+│  └─────────────────────────────────────────────────────┘     │
+│                                                               │
+│  ┌─────────────────────────────────────────────────────┐     │
+│  │              Neuron HQ Pods                           │     │
+│  │                                                       │     │
+│  │  ┌──────────┐  ┌──────────┐  ┌────────────────────┐ │     │
+│  │  │ Neuron   │  │ Neuron   │  │ PostgreSQL +       │ │     │
+│  │  │ Svärm A  │  │ Svärm B  │  │ pgvector           │ │     │
+│  │  │ (TypeScript)│ │(TypeScript)│ │ (kunskapsgraf)    │ │     │
+│  │  └──────────┘  └──────────┘  └────────────────────┘ │     │
+│  └─────────────────────────────────────────────────────┘     │
+│                                                               │
+│  OpenAI-kompatibelt API (vLLM → samma interface som Anthropic)│
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Tre perspektiv
+
+*För Marcus:*
+
+Tänk dig ett privat datacenter — som att ha sin egen bilfabrik istället för att hyra bilar. Dyrt att starta (GPU:er kostar), men billigt per körning efteråt. Och all data stannar innanför väggarna.
+
+Konkret: 4 stycken NVIDIA H100-kort (à ~$25 000 styck) kan köra Nemotron Ultra 253B. Total hårdvarukostnad: ~$100 000. Men efter det: varje körning kostar bara el och kylning — kanske $0.50-1.00 istället för $22.
+
+Vid 3 körningar/dag: break-even efter ~1.5 år. Vid 10 körningar/dag: break-even efter ~5 månader. Och du äger hårdvaran efteråt.
+
+Alternativ: hyra GPU:er i molnet (AWS, GCP, Lambda Labs). Då kostar en H100 ~$2-3/timme. En körning tar ~45 min med 4 kort = ~$6-9/körning. Billigare än Anthropic, men inte gratis.
+
+*För senior utvecklare:*
+
+Neuron HQ har redan stöd för alternativa modeller. `agent-client.ts` accepterar `baseUrl`-override:
+
+```typescript
+// Redan implementerat i agent-client.ts
+const client = new Anthropic({
+  apiKey,
+  ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
+});
+```
+
+Och `model-registry.ts` stöder per-agent modellval. Det som behövs:
+
+1. **vLLM** som inference-server — exponerar OpenAI-kompatibelt API
+2. **Konfiguration i `limits.yaml`:**
+```yaml
+agent_models:
+  manager:
+    model: "nvidia/Llama-3_1-Nemotron-Ultra-253B-v1"
+    base_url: "http://vllm-large:8000/v1"
+    max_tokens: 128000
+  implementer:
+    model: "Qwen/Qwen2.5-Coder-32B-Instruct"
+    base_url: "http://vllm-coder:8000/v1"
+    max_tokens: 32000
+  tester:
+    model: "Qwen/Qwen2.5-Coder-32B-Instruct"
+    base_url: "http://vllm-coder:8000/v1"
+    max_tokens: 32000
+```
+
+3. **Model cascading** (redan implementerat i S5/S123): stor modell för Manager/Reviewer, mindre modell för Implementer/Tester
+
+**Tekniska utmaningar:**
+- vLLM stöder OpenAI API, inte Anthropic API. Behöver adapter eller byta SDK-anrop
+- Tool use/function calling: Nemotron och Qwen 3 stöder det, men formatet skiljer sig
+- Prompt caching: inte tillgängligt i vLLM (server-side) — behöver KV-cache-management
+- Context window: Nemotron 253B stöder 128K, Qwen 3 stöder 128K. Inte 1M som Claude.
+
+*För LLM-agenter:*
+
+I en self-hosted setup körs du inte som Claude utan som en open source-modell (Nemotron, Qwen, eller liknande). Dina verktyg (`read_file`, `bash_exec`, `write_file`) fungerar identiskt — det är Neuron HQ:s orkestrator som exponerar dem, inte din modell.
+
+Skillnader du bör vara medveten om:
+- Ditt context window kan vara 128K istället för 1M — tool result clearing blir ännu viktigare
+- Din tool use-formatering kan skilja sig (OpenAI-format vs Anthropic-format)
+- Du har ingen prompt caching på API-nivå — men systemprompt-injection fungerar likadant
+
+#### Kostnadsanalys: Anthropic vs self-hosted
+
+| Scenario | Kostnad/körning | Kostnad/månad (90 körn) | Uppstartskostnad | Break-even |
+|----------|----------------:|------------------------:|-----------------:|-----------:|
+| **Anthropic Sonnet** (nu) | $22 | $1 980 | $0 | — |
+| **Moln-GPU** (4× H100 hyrd) | ~$7 | ~$630 | $0 | Dag 1 |
+| **Egna GPU:er** (4× H100 köpt) | ~$0.75 | ~$68 | ~$100 000 | ~5 mån (vid 10/dag) |
+| **Egna GPU:er** (4× A100 köpt) | ~$1.50 | ~$135 | ~$60 000 | ~3 mån (vid 10/dag) |
+
+**Viktigt:** Dessa siffror antar att open source-modellen producerar likvärdig kvalitet. Det är inte bekräftat. En körning som producerar GREEN med Sonnet kan producera YELLOW med en sämre modell — och en YELLOW-körning som kräver omarbetning kostar mer än $22.
+
+#### Realistisk stegplan
+
+| Steg | Vad | Risk | Kommentar |
+|------|-----|------|-----------|
+| 1. Benchmark | Kör 5 identiska briefs med Sonnet OCH Nemotron/Qwen | Låg | Jämför AC pass rate, kodkvalitet, token-förbrukning |
+| 2. Hybrid | Sonnet för Manager/Reviewer, Qwen Coder för Implementer/Tester | Låg | Sparar 60% av tokens på billigare modell |
+| 3. Full self-hosted | Alla agenter på open source i Kubernetes | Medium | Kräver att benchmark visar likvärdig kvalitet |
+| 4. Air-gapped | Kubernetes-kluster utan internetåtkomst | Hög | Kräver lokal embedding-modell, inget web-sök |
+
+**Rekommendation:** Steg 2 (hybrid) är det smartaste första steget. Vi har redan multi-provider-stöd. Byt Implementer och Tester till Qwen Coder 32B via vLLM, behåll Manager och Reviewer på Claude. Mät kvalitetsskillnaden med Observer.
+
+---
+
+**0 människor som kodar. 4 människor som leder. 0 API-beroenden.**
+
+Det är nästa steg.
+
+---
+
+## 12. Källor
 
 ### Akademiska
 
