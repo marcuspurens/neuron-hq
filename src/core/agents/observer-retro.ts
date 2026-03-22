@@ -243,15 +243,17 @@ export async function runRetro(
       ];
 
       // First API call — initial retro questions
-      const firstResponse = await (client.messages.create as (
-        params: Anthropic.MessageCreateParamsNonStreaming & { signal?: AbortSignal },
-      ) => Promise<Anthropic.Message>)({
-        model,
-        max_tokens: 2048,
-        system: promptText,
-        messages,
-        signal: AbortSignal.timeout(30_000),
-      });
+      const firstResponse = await client.messages.create(
+        {
+          model,
+          max_tokens: 2048,
+          system: promptText,
+          messages,
+        },
+        {
+          signal: AbortSignal.timeout(30_000),
+        },
+      );
 
       const firstText =
         (firstResponse.content.find(
@@ -272,15 +274,17 @@ export async function runRetro(
         messages.push({ role: 'assistant', content: firstText });
         messages.push({ role: 'user', content: followUp });
 
-        const followUpResponse = await (client.messages.create as (
-          params: Anthropic.MessageCreateParamsNonStreaming & { signal?: AbortSignal },
-        ) => Promise<Anthropic.Message>)({
-          model,
-          max_tokens: 2048,
-          system: promptText,
-          messages,
-          signal: AbortSignal.timeout(30_000),
-        });
+        const followUpResponse = await client.messages.create(
+          {
+            model,
+            max_tokens: 2048,
+            system: promptText,
+            messages,
+          },
+          {
+            signal: AbortSignal.timeout(30_000),
+          },
+        );
 
         const followUpText =
           (followUpResponse.content.find(

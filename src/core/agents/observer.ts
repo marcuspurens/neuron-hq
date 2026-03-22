@@ -11,6 +11,7 @@ import { resolveModelConfig, DEFAULT_MODEL_CONFIG } from '../model-registry.js';
 import { getModelShortName, calcCost, MODEL_PRICING } from '../pricing.js';
 import { createLogger } from '../logger.js';
 import type { RunContext } from '../run.js';
+import type { Usage } from '../types.js';
 import type { RetroResponse } from './observer-retro.js';
 import type { DeepAlignmentCheck } from './observer-alignment.js';
 
@@ -512,6 +513,7 @@ export class ObserverAgent {
     observations: Observation[],
     retroResults?: RetroResponse[],
     deepAlignments?: DeepAlignmentCheck[],
+    usageData?: Usage,
   ): string {
     const lines: string[] = [];
     const runid = this.ctx.runid;
@@ -553,31 +555,67 @@ export class ObserverAgent {
     // ── Token-förbrukning ──
     lines.push('## Token-förbrukning');
     lines.push('');
-    if (this.tokenUsage.size === 0) {
+
+    // Prefer usageData from UsageTracker (complete), fall back to event-based tokenUsage
+    const hasUsageData = usageData && Object.keys(usageData.by_agent).length > 0;
+    const hasEventData = this.tokenUsage.size > 0;
+
+    if (!hasUsageData && !hasEventData) {
       lines.push('Token-data ej tillgänglig');
     } else {
       lines.push('### Per agent');
       lines.push('');
-      lines.push('| Agent | Input tokens | Output tokens | Totalt | Kostnad |');
-      lines.push('|-------|-------------|---------------|--------|---------|');
+      lines.push('| Agent | Input tokens | Output tokens | Cache read | Totalt | Kostnad |');
+      lines.push('|-------|-------------|---------------|------------|--------|---------|');
 
-      const sortedUsage = [...this.tokenUsage.values()].sort((a, b) => a.agent.localeCompare(b.agent));
       let totalInput = 0;
       let totalOutput = 0;
+      let totalCacheRead = 0;
       let totalAll = 0;
       let totalCost = 0;
-      for (const u of sortedUsage) {
-        totalInput += u.inputTokens;
-        totalOutput += u.outputTokens;
-        totalAll += u.totalTokens;
-        totalCost += u.cost;
-        lines.push(
-          `| ${u.agent} | ${u.inputTokens.toLocaleString()} | ${u.outputTokens.toLocaleString()} | ${u.totalTokens.toLocaleString()} | $${u.cost.toFixed(4)} |`,
-        );
+      const modelsUsedSet = new Set<string>();
+
+      if (hasUsageData) {
+        // Use complete data from UsageTracker
+        const agents = Object.entries(usageData.by_agent).sort((a, b) => a[0].localeCompare(b[0]));
+        for (const [agent, data] of agents) {
+          const modelInfo = this.agentModels.get(agent);
+          const modelName = modelInfo?.model ?? DEFAULT_MODEL_CONFIG.model;
+          const modelKey = getModelShortName(modelName);
+          modelsUsedSet.add(modelKey);
+          const cost = calcCost(data.input_tokens, data.output_tokens, modelKey);
+          const cacheRead = data.cache_read_tokens ?? 0;
+          const agentTotal = data.input_tokens + data.output_tokens;
+
+          totalInput += data.input_tokens;
+          totalOutput += data.output_tokens;
+          totalCacheRead += cacheRead;
+          totalAll += agentTotal;
+          totalCost += cost;
+
+          lines.push(
+            `| ${agent} | ${data.input_tokens.toLocaleString()} | ${data.output_tokens.toLocaleString()} | ${cacheRead.toLocaleString()} | ${agentTotal.toLocaleString()} | $${cost.toFixed(4)} |`,
+          );
+        }
+      } else {
+        // Fallback to event-based data
+        const sortedUsage = [...this.tokenUsage.values()].sort((a, b) => a.agent.localeCompare(b.agent));
+        for (const u of sortedUsage) {
+          modelsUsedSet.add(getModelShortName(u.model));
+          totalInput += u.inputTokens;
+          totalOutput += u.outputTokens;
+          totalAll += u.totalTokens;
+          totalCost += u.cost;
+          lines.push(
+            `| ${u.agent} | ${u.inputTokens.toLocaleString()} | ${u.outputTokens.toLocaleString()} | — | ${u.totalTokens.toLocaleString()} | $${u.cost.toFixed(4)} |`,
+          );
+        }
       }
+
       lines.push(
-        `| **TOTALT** | **${totalInput.toLocaleString()}** | **${totalOutput.toLocaleString()}** | **${totalAll.toLocaleString()}** | **$${totalCost.toFixed(4)}** |`,
+        `| **TOTALT** | **${totalInput.toLocaleString()}** | **${totalOutput.toLocaleString()}** | **${totalCacheRead.toLocaleString()}** | **${totalAll.toLocaleString()}** | **$${totalCost.toFixed(4)}** |`,
       );
+
       // Add observer retro tokens if available
       if (retroResults && retroResults.length > 0) {
         const retroInput = retroResults.reduce((sum, r) => sum + r.tokensUsed.input, 0);
@@ -585,15 +623,14 @@ export class ObserverAgent {
         const retroTotal = retroInput + retroOutput;
         const retroCost = retroResults.reduce((sum, r) => sum + r.tokensUsed.cost, 0);
         lines.push(
-          `| Observer (retro) | ${retroInput.toLocaleString()} | ${retroOutput.toLocaleString()} | ${retroTotal.toLocaleString()} | $${retroCost.toFixed(4)} |`,
+          `| Observer (retro) | ${retroInput.toLocaleString()} | ${retroOutput.toLocaleString()} | — | ${retroTotal.toLocaleString()} | $${retroCost.toFixed(4)} |`,
         );
       }
       lines.push('');
 
       // Prisberäkning
       lines.push('### Prisberäkning');
-      const modelsUsed = new Set(sortedUsage.map((u) => getModelShortName(u.model)));
-      for (const modelKey of modelsUsed) {
+      for (const modelKey of modelsUsedSet) {
         const pricing = MODEL_PRICING[modelKey];
         if (pricing) {
           lines.push(

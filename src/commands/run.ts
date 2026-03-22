@@ -317,7 +317,7 @@ export async function runCommand(
           console.log(chalk.yellow('  ⚠ Observer alignment failed, continuing without alignment'));
         }
 
-        const promptHealthReport = observer.generateReport(observations, retroResults, allAlignments);
+        const promptHealthReport = observer.generateReport(observations, retroResults, allAlignments, ctx.usage.getUsage());
         const now = new Date();
         const ts = now.toISOString().slice(0, 16).replace(':', '');
         await fs.writeFile(

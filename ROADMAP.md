@@ -1,6 +1,6 @@
 # Neuron HQ — Roadmap
 
-> **Senast uppdaterad:** 2026-03-22 · Session 125
+> **Senast uppdaterad:** 2026-03-22 · Session 126
 > **Källa:** Djupsamtal S102 + Marcus ~40 kommentarer + diskussionsdokument S103
 > Editera direkt — kryssa av med ✅ när klart.
 > **Arkiv:** Alla versioner sparas i [docs/roadmaps/](docs/roadmaps/) med datumstämpel.
@@ -15,10 +15,10 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3703 |
-| Körningar | 175 |
+| Tester | 3746 |
+| Körningar | 176 |
 | MCP-tools | 44 |
-| Sessioner | 125 |
+| Sessioner | 126 |
 | Agenter | 12 (inkl Observer) |
 | Idé-noder | 924 |
 | Code Review | ★★★★☆ (Fas 1 klar) |
@@ -259,20 +259,26 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
-### 2.6b Observer feedback-loop till Brief Reviewer ⬜
+### 2.6b Observer feedback-loop till Brief Reviewer ✅ S126 · 2026-03-22
 
 **Vad det ger dig:** Brief Reviewer ser äntligen om sina bedömningar stämmer. "Jag sa scope 8/10, körningen tog 3 körningar" → kalibrerar framtida granskningar. Utan detta förbättras prompten men inte bedömningen.
 
-**Tekniskt:**
-- Observer (post-run) läser `runs/reviews/review-<timestamp>.json` (Brief Reviewers bedömning)
-- Jämför med `runs/<runid>/metrics.json` (faktiskt utfall)
-- Appendar korrelation till `memory/review_calibration.md`
-- Brief Reviewer läser denna i Fas 0 (orientering) vid nästa granskning
-- Data finns redan — det saknas bara bryggan
+**Gjort:** Körning #176, 🟢 GRÖN, 5/5 AC, +28 tester (3746 totalt), Sonnet, 7.1M tokens
+- `src/core/observer-calibration.ts` (337 rader) — appendCalibration, classifyScopeAccuracy, parseReviewScores
+- `tests/core/observer-calibration.test.ts` (623 rader) — 28 tester
+- `src/commands/run.ts` — appendCalibration anropas efter Observer-rapport
+- `prompts/brief-reviewer.md` — Fas 0 läser `review_calibration.md`
+- 3-stegs review-matchning, duplikatskydd, graceful error handling
+
+**Bonus — Token-optimering bevisad:** 20M → 7.1M tokens (65% minskning), 1.74M cache reads
+
+**Kända buggar i Observer:**
+- Retro 0/17 — API-fel `"Extra inputs are not permitted"` (behöver undersökas)
+- Token-tabell i prompt-health visar bara Manager (läser inte usage.json korrekt)
 
 **Identifierat i:** Brief Reviewer V2-intervju (S123), gap #3 + #5
 
-**Effort:** 1 körning · **Brief:** Ska skrivas
+**Effort:** 1 körning · **Brief:** `2026-03-22-observer-feedback-loop.md`
 
 ---
 
@@ -439,7 +445,7 @@ Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21)
 | 2.4 | Idékonsolidering | 2 | 1 körn | — | ✅ S120 2026-03-22 |
 | 2.5 | Grafintegritet watchman | 2 | 1 körn | — | ⬜ |
 | **2.6** | **Observer (Prompt Quality Agent)** | **2** | **2 körn** | — | **✅ S125 2026-03-22** |
-| **2.6b** | **Observer feedback-loop → Brief Reviewer** | **2** | **1 körn** | 2.6 | ⬜ |
+| **2.6b** | **Observer feedback-loop → Brief Reviewer** | **2** | **1 körn** | 2.6 | **✅ S126 2026-03-22** |
 | **2.7** | **Modellstrategi (Sonnet+Opus)** | **2** | **<1 sess** | — | **✅ S123 2026-03-22** |
 | 3.1 | Reviewer severity levels | 3 | 1-2 körn | — | ⬜ |
 | 3.2 | A-MEM | 3 | 2-3 körn | 2.1 | ⬜ |
@@ -452,7 +458,7 @@ Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21)
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
 | 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~30-45 körningar. **Klar:** 16/26
+**Totalt:** ~30-45 körningar. **Klar:** 17/26
 
 ---
 
