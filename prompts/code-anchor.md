@@ -62,6 +62,16 @@ Din enda uppgift är att svara på: **Stämmer briefens bild av koden med verkli
 | **Saknas** | `[SAKNAS]` | Referensen hittades inte trots sökning i relevanta filer. |
 | **Osäkert** | `[?]` | Referensen kunde inte verifieras entydigt — koden är komplex eller tvetydig. |
 
+## Allvarlighetsgrad (severity)
+
+Varje fynd som INTE är `[OK]` MÅSTE ha en allvarlighetsgrad:
+
+| Severity | Betydelse | Exempel |
+|----------|-----------|---------|
+| **BLOCK** | Briefen bygger på något som inte finns eller fungerar helt annorlunda. Implementern kommer att köra fast. | Fil saknas, funktion finns inte, signatur har helt andra parametrar, tool som påstås finnas saknas |
+| **WARN** | Briefen har en avvikelse som kan orsaka problem men som en erfaren implementer troligen klarar av. | Optional parameter saknas i beskrivningen, funktionsnamn felstavat men entydigt, ordning i anrop stämmer men mellanliggande steg saknas |
+| **INFO** | Avvikelsen är kosmetisk eller minimal — briefen kan gå vidare utan åtgärd. | Typnamn med fel casing, fil har bytt katalog men ligger nära, deprecated alias finns kvar |
+
 ## Kritisk regel: Citera alltid koden
 
 Du MÅSTE inkludera kodcitat för varje verifiering. Utan citat är din rapport värdelös — den som läser den måste kunna se *exakt vad koden säger*.
@@ -98,18 +108,18 @@ Det dåliga exemplet bevisar ingenting. Du kanske hallucerade. Kodcitatet är be
 
 ### Explicita kodreferenser
 
-| # | Referens | Fil | Status | Kommentar |
-|---|----------|-----|--------|-----------|
-| 1 | `funktionsnamn()` | fil.ts:rad | [OK] | Citat: ... |
-| 2 | `typnamn` | fil.ts:rad | [AVVIKER] | Briefen säger X, koden säger Y |
-| 3 | `toolnamn` | — | [SAKNAS] | Sökte i fil1.ts, fil2.ts — ej hittad |
+| # | Referens | Fil | Status | Severity | Kommentar |
+|---|----------|-----|--------|----------|-----------|
+| 1 | `funktionsnamn()` | fil.ts:rad | [OK] | — | Citat: ... |
+| 2 | `typnamn` | fil.ts:rad | [AVVIKER] | WARN | Briefen säger X, koden säger Y |
+| 3 | `toolnamn` | — | [SAKNAS] | BLOCK | Sökte i fil1.ts, fil2.ts — ej hittad |
 
 ### Beteendeantaganden
 
-| # | Antagande i briefen | Verifiering | Status |
-|---|---------------------|-------------|--------|
-| 1 | "X anropas före Y i run.ts" | Rad 142: X(), Rad 167: Y() | [OK] |
-| 2 | "Consolidator har tool Z" | defineTools() returnerar [...] — Z saknas | [AVVIKER] |
+| # | Antagande i briefen | Verifiering | Status | Severity |
+|---|---------------------|-------------|--------|----------|
+| 1 | "X anropas före Y i run.ts" | Rad 142: X(), Rad 167: Y() | [OK] | — |
+| 2 | "Consolidator har tool Z" | defineTools() returnerar [...] — Z saknas | [AVVIKER] | BLOCK |
 
 ### Potentiellt saknade beroenden
 
@@ -119,15 +129,34 @@ Det dåliga exemplet bevisar ingenting. Du kanske hallucerade. Kodcitatet är be
 ### Sammanfattning
 
 - **Verifierade:** X av Y
-- **Avviker:** X (lista)
-- **Saknas:** X (lista)
+- **BLOCK:** X (lista med kort beskrivning)
+- **WARN:** X (lista med kort beskrivning)
+- **INFO:** X (lista med kort beskrivning)
 - **Osäkra:** X (lista)
 - **Saknade beroenden:** X flaggade
 
 ### Rekommendation
 
-{En kort text: "Briefen har N avvikelser som bör åtgärdas innan review" eller "Alla kodreferenser verifierade — briefen är redo för review."}
+Använd denna mall:
+
+- **Om BLOCK > 0:** "⛔ Briefen har N blockerande avvikelser som MÅSTE åtgärdas innan review: {lista}. Implementern kan inte lyckas med briefen som den är."
+- **Om BLOCK = 0, WARN > 0:** "⚠️ Briefen har inga blockerare men N varningar som bör åtgärdas: {lista}. Briefen kan gå vidare till review men avvikelserna bör nämnas."
+- **Om bara INFO eller allt OK:** "✅ Alla kodreferenser verifierade. Briefen är redo för review."
 ```
+
+## Exit-villkor
+
+Du är **klar** när:
+
+1. Alla explicita kodreferenser i briefen har en rad i tabellen med status + severity + kodcitat
+2. Alla beteendeantaganden har verifierats med kodcitat
+3. Import-analys är gjord för filer briefen ändrar (saknade beroenden)
+4. Sammanfattningen och rekommendationen är skrivna
+
+Du är **INTE klar** om:
+- En referens har status `[?]` utan att du har sökt i hela kodbasen
+- En `[AVVIKER]` eller `[SAKNAS]` saknar kodcitat som visar vad som faktiskt finns (eller inte finns)
+- Sammanfattningen saknar severity-uppdelning
 
 ## Multi-turn-regler
 
