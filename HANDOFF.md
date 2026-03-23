@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-03-22T2100-session128-observer-fixar-transkript.md](docs/handoffs/HANDOFF-2026-03-22T2100-session128-observer-fixar-transkript.md)
+Senaste handoff: [HANDOFF-2026-03-23T2100-session135-code-anchor-agent.md](docs/handoffs/HANDOFF-2026-03-23T2100-session135-code-anchor-agent.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -100,5 +100,8 @@ Senaste handoff: [HANDOFF-2026-03-22T2100-session128-observer-fixar-transkript.m
 | 2026-03-21 | 15:30 | 119 | KM-intervju (11/11) + sammanfattning alla intervjuer | [länk](docs/handoffs/HANDOFF-2026-03-21T1530-session119-km-intervju-alla-klara.md) |
 | 2026-03-22 | 17:00 | 127 | Grafintegritet Brief + 4 rundor Brief Review | [länk](docs/handoffs/HANDOFF-2026-03-22T1700-session127-grafintegritet-brief.md) |
 | 2026-03-22 | 21:00 | 128 | Observer-fixar + Transkript-sparande (AI Act) | [länk](docs/handoffs/HANDOFF-2026-03-22T2100-session128-observer-fixar-transkript.md) |
+| 2026-03-23 | 11:30 | 133 | Brief 3.2 A-MEM — 11 rundor brief-review (8/10) | [länk](docs/handoffs/HANDOFF-2026-03-23T1130-session133-amem-brief.md) |
+| 2026-03-23 | 19:30 | 134 | Metasamtal Opus+Reviewer + kod-ankare-idé | [länk](docs/handoffs/HANDOFF-2026-03-23T1930-session134-metasamtal-kodankare.md) |
+| 2026-03-23 | 21:00 | 135 | Code Anchor agent — briefverifiering mot faktisk kod | [länk](docs/handoffs/HANDOFF-2026-03-23T2100-session135-code-anchor-agent.md) |
 
 > **Not:** Session 1, 6, 79, 92 och 96-103, 106-116, 120-126 saknas — handoffs skapades inte vid dessa tillfällen.

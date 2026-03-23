@@ -1,18 +1,18 @@
 # Neuron HQ — Körningshistorik & Kostnader
 
-Genererad: 2026-03-22 07:46  
-Antal körningar: 174  
+Genererad: 2026-03-23 07:46  
+Antal körningar: 177  
 Prismodell: Sonnet 4.5 — $3/MTok input, $15/MTok output
 
 ## Sammanfattning
 
 | Mått | Värde |
 |------|-------|
-| Körningar | 174 |
-| GREEN | 115 |
-| Totala tokens | 1132.1M |
-| Total kostnad | $3540.03 |
-| Snitt per körning | $20.34 |
+| Körningar | 177 |
+| GREEN | 118 |
+| Totala tokens | 1163.0M |
+| Total kostnad | $3637.20 |
+| Snitt per körning | $20.55 |
 | Billigaste | $0.00 |
 | Dyraste | $68.28 |
 
@@ -194,17 +194,20 @@ Prismodell: Sonnet 4.5 — $3/MTok input, $15/MTok output
 | 172 | 2026-03-21 | 23:30 | 2.4 Idékonsolidering — 929 idéer →… | GREEN | Sonnet 4.5 | 11.6M | 0.11M | 11.7M | $36.55 | 5 | 33m |
 | 173 | 2026-03-22 | 01:50 | 2.6a Observer — Passiv observation… | GREEN | Sonnet 4.5 | 19.7M | 0.15M | 19.9M | $61.38 | 7 | 61m |
 | 174 | 2026-03-22 | 06:55 | 2.6b Observer — Retro-samtal + Dju… | GREEN | Sonnet 4.5 | 20.2M | 0.16M | 20.4M | $63.01 | 6 | 51m |
+| 175 | 2026-03-22 | 11:26 | 2.6b Observer feedback-loop till B… | GREEN | Sonnet 4.5 | 7.0M | 0.08M | 7.1M | $22.24 | 6 | 32m |
+| 176 | 2026-03-22 | 17:24 | 2.5 Grafintegritet — watchman | GREEN | Sonnet 4.5 | 12.2M | 0.14M | 12.3M | $38.60 | 6 | 47m |
+| 177 | 2026-03-23 | 06:45 | 3.1 Reviewer severity levels — BLO… | GREEN | Sonnet 4.5 | 11.3M | 0.17M | 11.4M | $36.34 | 4 | 61m |
 
 ## Kostnad per agent (genomsnitt)
 
 | Agent | Snitt tokens | Kostnad/körning | Andel |
 |-------|------------:|----------------:|------:|
-| manager | 1.96M | $6.07 | 29.6% |
-| implementer | 2.36M | $7.52 | 32.9% |
-| reviewer | 1.18M | $3.63 | 16.2% |
-| tester | 0.20M | $0.62 | 2.7% |
-| merger | 0.24M | $0.79 | 3.4% |
-| researcher | 0.90M | $2.88 | 2.7% |
-| historian | 0.65M | $1.99 | 9.2% |
-| librarian | 0.45M | $1.41 | 1.3% |
-| consolidator | 2.09M | $6.40 | 2.0% |
+| manager | 1.97M | $6.09 | 29.5% |
+| implementer | 2.37M | $7.54 | 32.8% |
+| reviewer | 1.20M | $3.69 | 16.3% |
+| tester | 0.21M | $0.66 | 2.9% |
+| merger | 0.25M | $0.82 | 3.5% |
+| researcher | 0.90M | $2.88 | 2.6% |
+| historian | 0.66M | $2.03 | 9.3% |
+| librarian | 0.45M | $1.41 | 1.2% |
+| consolidator | 2.09M | $6.40 | 1.9% |

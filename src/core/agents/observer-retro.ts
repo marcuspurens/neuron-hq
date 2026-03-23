@@ -8,6 +8,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { createAgentClient } from '../agent-client.js';
 import { resolveModelConfig } from '../model-registry.js';
+import { saveTranscript } from '../transcript-saver.js';
 import type { AgentModelMap } from '../model-registry.js';
 import { calcCost, getModelShortName } from '../pricing.js';
 import { createLogger } from '../logger.js';
@@ -219,6 +220,7 @@ export function parseRetroResponse(text: string): {
  * @param agentToolSummaries - Map of role → list of tool calls during the run
  * @param agentModelMap - Optional per-agent model overrides
  * @param defaultModelOverride - Optional default model override
+ * @param runDir - Run directory for saving transcripts (AI Act Art. 12)
  */
 export async function runRetro(
   observations: Observation[],
@@ -227,6 +229,7 @@ export async function runRetro(
   agentToolSummaries: Map<string, string[]>,
   agentModelMap?: Record<string, unknown>,
   defaultModelOverride?: string,
+  runDir?: string,
 ): Promise<RetroResponse[]> {
   const config = resolveModelConfig(
     'observer',
@@ -332,6 +335,19 @@ export async function runRetro(
         inputTokens: String(inputTokens),
         outputTokens: String(outputTokens),
       });
+
+      // Save full conversation for AI Act Art. 12 compliance
+      if (runDir) {
+        // If no follow-up, messages only has [user]. Add assistant response.
+        // If follow-up existed, messages already has [user, assistant, user]. Add follow-up response.
+        if (!followUp) {
+          messages.push({ role: 'assistant', content: firstText });
+        } else {
+          const followUpText = specificQuestions[0]?.answer ?? '';
+          messages.push({ role: 'assistant', content: followUpText });
+        }
+        await saveTranscript(runDir, `observer-retro-${agentRole}`, messages);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       logger.error('Retro failed for agent', { agent: agentRole, error: errorMessage });

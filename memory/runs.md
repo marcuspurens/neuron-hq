@@ -3235,3 +3235,55 @@ Inga kända problem. Inga blockers i questions.md. Noll policy-blockeringar rapp
 - **Pipeline:** Parallell implementering i task-branches + Reviewer + Merger = ren leverans utan re-delegation
 
 ---
+
+## Körning 20260322-1126-neuron-hq — neuron-hq
+**Datum:** 2026-03-22
+**Uppgift:** Implementera Observer feedback-loop (2.6b) — en kalibreringsmodul som efter varje körning jämför Brief Reviewers prediktioner (scope-betyg, verdict) med faktiskt utfall (stoplight, tid, tokens, tester) och appendar en rad till `memory/review_calibration.md`
+**Resultat:** ✅ 5 av 5 acceptanskriterier klara — kalibreringsmodul, tester, run.ts-integration och brief-reviewer-promptuppdatering levererade, 3746/3746 tester gröna, merge commit ce86710
+
+**Vad som fungerade:**
+Implementer skapade `src/core/observer-calibration.ts` (337 rader) med trestegs-matchning (briefFile-fält → turns-content → skippa), `classifyScopeAccuracy()` med prioritetsordning (OVER/ACCURATE/UNDER), `parseReviewScores()` för markdown-tabellparsning, dubblettskydd och graceful felhantering. Testfilen `tests/core/observer-calibration.test.ts` (623 rader, 28 tester) täcker alla 16 AC4-specificerade scenarios inklusive edge cases. Manager delegerade parallella task-branches (T1: kalibreringsmodul, T3: briefprompten) vilket gav ren leverans. Merger filtrerade korrekt bort hjälpskript och exkluderade hjälpfiler vid merge.
+
+**Vad som inte fungerade:**
+En policy-BLOCKED träffade T3-implementern (sed-kommando med backtick-mönster) men implementern kringgick det med write_file istället. Audit.jsonl saknar "orchestrator"-event (svärmen använder "manager"-roll i audit.jsonl — förväntad avvikelse). Pre-existing tsc-fel i `src/aurora/obsidian-parser.ts` (saknar gray-matter-typer) påverkade inte leveransen. Inga nya problem.
+
+**Lärdomar:**
+- Trestegs-matchning (briefFile → turns-content → skippa) är ett robustmönster för att koppla review-JSON:er till körningar utan hårdkodade nycklar
+- Append-only markdown-tabell (inte JSON) för kalibreringsdatan är rätt val — Brief Reviewer läser det som text och LLM parsear tabeller bättre än JSON-arrayer
+- Scope-accuracy-klassificering med exhaustive prioritetsordning (OVER → ACCURATE → UNDER, "första träff vinner") undviker odefinierade hörn och gör logiken transparent
+
+## Körningseffektivitet
+- **Testtillväxt:** 3718 baseline → 3746 (+28 tester, krav var 12+), 0 regressioner
+- **Diff-storlek:** 4 filer mergade (2 nya: observer-calibration.ts 337 rader + test 623 rader, 2 modifierade: run.ts +7 rader, brief-reviewer.md +1 rad) — rent additivt, LOW risk
+- **BLOCKED:** 1 policy-blockering (sed med backtick, T3-implementer) — kringgicks utan extra delegationsrunda
+
+---
+
+## Körning 20260322-1724-neuron-hq — neuron-hq
+**Datum:** 2026-03-22
+**Uppgift:** Implementera grafens hälsokontroll-system (Brief 2.5 — Grafintegritet watchman) — ny `graph-health.ts`-modul, Historian-tool, CLI-kommando, pre-step i `run.ts`, och historianprompt-uppdatering
+**Resultat:** ✅ 23 av 23 acceptanskriterier klara — Komplett watchman-system levererat och mergat
+
+**Vad som fungerade:**
+Alla 23 acceptanskriterier verifierades gröna. Implementer skapade `src/core/graph-health.ts` (7 checks: isolatedNodes, duplicates, brokenEdges, staleLowConfidence, missingProvenance, unknownScope, missingEdges), `src/commands/graph-health.ts` (CLI `graph:health` med `--json`-flagga, exit codes 0/1/2), `graph_health_check`-tool i `graph-tools.ts`, run.ts-pre-step med `maybeInjectHealthTrigger()`, och historian.md-uppdatering (steg 10). Implementer läste befintliga signaturer för `findDuplicateCandidates()`, `findStaleNodes()`, `findMissingEdges()` från `graph-merge.ts` korrekt. Testsviten ökade från 3746 → 3784 (+38 nya tester, 0 regressioner). Merge skedde via single-phase auto-commit. Manager hanterade parallell task-branch-arkitektur (T1: core modul, T6: historian-prompt) med korrekt sammanslagning.
+
+**Vad som inte fungerade:**
+`graph-health.md` är inte genererad för denna körning — förväntad, eftersom pre-steget är den nybygda feature som ska köra framöver. Audit.jsonl saknar "orchestrator"-event (svärmen använder "manager" som roll i audit.jsonl — förväntad avvikelse). Merger proveniensrapporten (merge_summary.md) skrevs till workspace snarare än runs-katalogen, men implementationen är verifierad via report.md och audit.jsonl.
+
+**Lärdomar:**
+- Pre-step-pattern i `run.ts` (kör hälsokontroll → skriv rapport → injicera trigger vid RED) är nu etablerat — Historian har tillgång till `graph_health_check`-tool men behöver normalt bara läsa den förgenerade rapporten
+- Provenance-checken implementerades för att titta i BÅDA riktningar på `discovered_in`-kanter (from: node→run och from: run→node) eftersom befintliga data har blandad konvention — praktisk designbeslut som briefen explicit angav
+- Grafstatus: ⚠️ YELLOW — rapporten existerar ännu inte (feature precis byggd), men systemet är nu på plats för alla framtida körningar
+
+## Körningseffektivitet
+- **Testtillväxt:** 3746 → 3784 (+38 tester, krav var 20+ för AC20, 32 CLI-tester för AC21, plus AC22/AC23)
+- **Diff-storlek:** 4 nya filer + 5 modifierade filer — rent additivt scope, LOW-MEDIUM risk
+- **Pipeline:** Manager → Implementer (parallella branches T1, T3–T6) → Reviewer → Merger = ren leverans
+- **BLOCKED:** 1 blockering (sed-kommando med backtick i T6-implementern) — kringgicks med write_file
+
+---
+
+[INV-011] Grafens hälsokontroll körs som pre-step i varje körning och skriver graph-health.md
+**Beskrivning:** `run.ts` måste köra `runHealthCheck(graph)` och skriva `runs/<runId>/graph-health.md` innan agenter startar. Om `loadGraph()` kastar ska körningen fortsätta utan att blockeras (try/catch). Vid RED injicerar `maybeInjectHealthTrigger()` en trigger i briefen.
+**Vaktas av:** `tests/core/graph-health.test.ts` (AC17–AC18, AC22), `tests/commands/graph-health.test.ts` (AC21)
+**Tillagd:** Körning 20260322-1724-neuron-hq

@@ -2464,3 +2464,36 @@ Inga mönster sänkta — alla relevanta mönster bekräftades i denna körning.
 **Senast bekräftad:** 20260322-0655-neuron-hq
 
 ---
+
+## Append-only markdown-tabell för LLM-läsbar kalibreringsdata
+**Kontext:** Observer kalibreringsmodul (2.6b) — körning 20260322-1126-neuron-hq
+**Lösning:** Spara kalibrerings- och feedback-data som append-only markdown-tabell istället för JSON-array, så att LLM-agenter kan läsa och parsa datan direkt i sin prompt utan extra verktygsanrop
+**Effekt:** LLM parserar markdown-tabeller bättre än JSON-arrayer vid direktläsning. Append-only gör det enkelt att logga ny data utan att läsa och skriva om hela filen. ~1 rad per körning, ~200 rader/år — ingen trunkering behövs för v1.
+**Keywords:** markdown, tabell, append-only, kalibreringsdata, LLM, Brief Reviewer, feedback-loop
+**Relaterat:** runs.md#Körning 20260322-1126-neuron-hq
+**Körningar:** #20260322-1126
+**Senast bekräftad:** 20260322-1126-neuron-hq
+
+---
+
+## Trestegs-matchning för att koppla review-JSON:er till körningar
+**Kontext:** Observer kalibreringsmodul — matchning av Brief Reviewers review-filer till körningars brief
+**Lösning:** 1) Matcha på briefFile-fält i review-JSON, 2) Fallback: sök briefens filnamn i turns[0].content, 3) Om ingen träff: skippa och logga. Guard: kontrollera att turns-array inte är tom före steg 2.
+**Effekt:** Hanterar saknade/tomma briefFile-fält utan krascher. Tre-stegsordningen ger maximal täckning utan att gissa. Explicit loggning av skippa-fall gör felsökning enkelt.
+**Keywords:** matchning, fallback, review-JSON, briefFile, turns-content, graceful skip
+**Relaterat:** runs.md#Körning 20260322-1126-neuron-hq
+**Körningar:** #20260322-1126
+**Senast bekräftad:** 20260322-1126-neuron-hq
+
+---
+
+## Pre-step hälsokontroll i run.ts för kontinuerlig grafövervakning
+**Kontext:** Körning 20260322-1724-neuron-hq — Grafens hälsokontroll (Brief 2.5). Grafen hade växt till 1 345 noder och 206 kanter men ingen hade en heltäckande bild av kvaliteten (83% isolerade noder, 270 noder utan provenance).
+**Lösning:** Kör en ren funktion (`runHealthCheck(graph)`) som pre-step i `run.ts` INNAN agenter startar. Skriv resultatet till `runs/<runId>/graph-health.md` (markdown-rapport med 🟢/🟡/🔴-indikatorer). Injicera trigger i briefen via `maybeInjectHealthTrigger()` enbart vid RED (inte YELLOW). Historian LÄSER rapporten och inkluderar status i sammanfattningen — behöver inte generera den. Fånga alla `loadGraph()`-fel med try/catch; körningen blockeras aldrig av hälsokontrollfelet.
+**Effekt:** Kontinuerlig, automatisk grafövervakning utan API-anrop (ren funktion, ingen kostnad). Historian kan alltid rapportera grafstatus. Consolidator triggas proaktivt vid kritiska problem (RED). YELLOW är informativt — för många Consolidator-körningar undviks. CLI `npx tsx src/cli.ts graph:health` möjliggör manuell kontroll och CI-integration.
+**Keywords:** run.ts, pre-step, graph-health, watchman, ren-funktion, monitoring, historian, consolidator-trigger
+**Relaterat:** patterns.md#Exakt feloutput + fixförslag i brief ger kirurgiska leveranser
+**Körningar:** #20260322-1724-neuron-hq
+**Senast bekräftad:** 20260322-1724-neuron-hq
+
+---

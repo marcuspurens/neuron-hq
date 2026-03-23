@@ -1,6 +1,6 @@
 # Neuron HQ — Roadmap
 
-> **Senast uppdaterad:** 2026-03-23 · Session 132
+> **Senast uppdaterad:** 2026-03-23 · Session 135
 > **Källa:** Djupsamtal S102 + Marcus ~40 kommentarer + diskussionsdokument S103
 > Editera direkt — kryssa av med ✅ när klart.
 > **Arkiv:** Alla versioner sparas i [docs/roadmaps/](docs/roadmaps/) med datumstämpel.
@@ -15,11 +15,11 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3814 |
+| Tester | 3844 |
 | Körningar | 178 |
 | MCP-tools | 44 |
-| Sessioner | 132 |
-| Agenter | 12 (inkl Observer) |
+| Sessioner | 135 |
+| Agenter | 13 (inkl Observer + Code Anchor) |
 | Idé-noder | 924 |
 | Code Review | ★★★★☆ (Fas 1 klar) |
 | **OUTPUT** | **128K TOKENS** ⚡ |
@@ -341,6 +341,22 @@ Fas 4: Produkt                ← andra kan använda det
 - Manager-prompt: Routing-tabell + SUGGEST-arbitrering
 - manager.ts: Audit-loggning av severity-fördelning + FINDINGS-injektion
 - Bakåtkompatibilitet via `.default([])`
+
+---
+
+### 3.1b Code Anchor — briefverifiering mot faktisk kod ✅ S135 · 2026-03-23
+
+**Vad det ger dig:** Innan Brief Reviewer granskar en brief verifierar Code Anchor att alla kodreferenser stämmer mot faktisk kod. Eliminerar hela "Konsistent/Ej verifierbart"-kategorin och sparar 2-3 brief-review-rundor per brief.
+
+**Bakgrund:** Metasamtal S134 mellan Opus och Brief Reviewer avslöjade grundproblemet: briefar skrivs mot en mental modell av koden, inte mot verifierad kod. Brief Reviewer har aldrig sett koden — kan bara granska intern konsistens.
+
+**Gjort:** Session 135, +30 tester (18 agent + 12 prompt-lint), manuellt byggt (ej körning)
+- `prompts/code-anchor.md` — agentprompt med verifieringsnivåer [OK]/[AVVIKER]/[SAKNAS]/[?], rapport-format, multi-turn-regler, anti-mönster, krav på kodcitat
+- `src/core/agents/code-anchor.ts` — fristående agent med tool-loop (read_file, list_files, bash_exec, graph_query), konversationspersistens, multi-turn-stöd
+- `src/cli.ts` — CLI-kommando `brief-verify`
+- Tester: path-traversal-skydd, verktygsexekvering, konversationspersistens, graf-kontext
+
+**CLI:** `npx tsx src/cli.ts brief-verify <target> <briefFile>`
 
 ---
 

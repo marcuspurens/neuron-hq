@@ -34,6 +34,7 @@ import {
 import { scaffoldCommand } from './commands/scaffold.js';
 import { runBriefAgent } from './core/agents/brief-agent.js';
 import { runBriefReview } from './core/agents/brief-reviewer.js';
+import { runBriefVerify } from './core/agents/code-anchor.js';
 import { auroraStatusCommand } from './commands/aurora-status.js';
 import { auroraDecayCommand } from './commands/aurora-decay.js';
 import { auroraIngestCommand } from './commands/aurora-ingest.js';
@@ -135,6 +136,15 @@ program
   .option('--conversation <path>', 'Path to existing conversation file for multi-turn')
   .action(async (target: string, briefFile: string, opts: { reply?: string; conversation?: string }) => {
     await runBriefReview(target, briefFile, opts);
+  });
+
+program
+  .command('brief-verify <target> <briefFile>')
+  .description('Verify code references in a brief against actual codebase (Code Anchor agent)')
+  .option('--reply <text>', 'Author response to continue the verification dialogue')
+  .option('--conversation <path>', 'Path to existing conversation file for multi-turn')
+  .action(async (target: string, briefFile: string, opts: { reply?: string; conversation?: string }) => {
+    await runBriefVerify(target, briefFile, opts);
   });
 
 // Monitor command
