@@ -1,6 +1,6 @@
 # Neuron HQ — Roadmap
 
-> **Senast uppdaterad:** 2026-03-22 · Session 128
+> **Senast uppdaterad:** 2026-03-23 · Session 132
 > **Källa:** Djupsamtal S102 + Marcus ~40 kommentarer + diskussionsdokument S103
 > Editera direkt — kryssa av med ✅ när klart.
 > **Arkiv:** Alla versioner sparas i [docs/roadmaps/](docs/roadmaps/) med datumstämpel.
@@ -15,10 +15,10 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3792 |
-| Körningar | 177 |
+| Tester | 3814 |
+| Körningar | 178 |
 | MCP-tools | 44 |
-| Sessioner | 128 |
+| Sessioner | 132 |
 | Agenter | 12 (inkl Observer) |
 | Idé-noder | 924 |
 | Code Review | ★★★★☆ (Fas 1 klar) |
@@ -158,7 +158,7 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
-### 2.2 Feedback-loop: agenter *måste* läsa kunskap ⬜
+### 2.2 Feedback-loop: agenter *måste* läsa kunskap ✅ S110 · 2026-03-20
 
 **Vad det ger dig:** Manager och Reviewer blir klokare för varje körning. De ser vad som gått fel förut och undviker samma misstag. Istället för att agenterna *kan* läsa grafen (och oftast inte gör det), *injiceras* relevanta noder automatiskt.
 
@@ -167,6 +167,12 @@ Fas 4: Produkt                ← andra kan använda det
 - Tvingande steg i Manager: "Dokumentera vad du hittade i grafen" i planen
 - Reviewer får errors + patterns från senaste 20 körningarna
 - Logga om agenten faktiskt konsumerade grafkontext
+
+**Gjort:** Körning `20260320-1159`, commit `962a2f8`, +41 tester, 6/7 AC
+- Grafnoder pre-filtreras per brief och injiceras i systemprompt
+- Manager dokumenterar grafkontext i planen
+- Reviewer får errors + patterns
+- Konsumtionsloggning implementerad
 
 **Effort:** 1-2 körningar · **Brief:** `knowledge-feedback-loop`
 
@@ -324,17 +330,17 @@ Fas 4: Produkt                ← andra kan använda det
 
 > **Mål:** Agenterna arbetar mer som ett team — de diskuterar, kompromissar, forskar innan de bygger, och har schemalagda samtal.
 
-### 3.1 Agent-kommunikation: Reviewer severity levels ⬜
+### 3.1 Agent-kommunikation: Reviewer severity levels ✅ S132 · 2026-03-23
 
 **Vad det ger dig:** Reviewer kan säga "detta *måste* fixas" (BLOCK) och "detta *borde* fixas men Implementer kan argumentera emot" (SUGGEST). Istället för att allt är RED/GREEN. Agenterna kan kompromissa.
 
-**Tekniskt:**
-- Nya severity levels: BLOCK / SUGGEST / NOTE
-- Implementer kan svara på SUGGEST med motivering
-- Manager avgör vid oenighet
-- Allt dokumenteras i körningsberättelsen
-
-**Effort:** 1-2 körningar · **Brief:** `reviewer-severity`
+**Gjort:** Körning 178, 🟢 GRÖN, 11.4M tokens, 21/21 AC, +22 tester (3814 totalt)
+- ReviewFindingSchema med BLOCK/SUGGEST/NOTE severity
+- Reviewer-prompt: Finding Classification + Verdict Rules
+- Implementer-prompt: Accept/Argue/Partial-svar på SUGGEST
+- Manager-prompt: Routing-tabell + SUGGEST-arbitrering
+- manager.ts: Audit-loggning av severity-fördelning + FINDINGS-injektion
+- Bakåtkompatibilitet via `.default([])`
 
 ---
 
@@ -465,7 +471,7 @@ Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21)
 | 1.6 | neuron_help tool | 1 | 1 körn | — | ✅ S107 2026-03-20 |
 | 2.1 | HippoRAG PPR | 2 | 1-2 körn | — | ✅ S110 2026-03-20 |
 | **2.1b** | **128K OUTPUT + 1M CONTEXT** | **2** | **<1 sess** | — | **✅ S117 2026-03-21** |
-| 2.2 | Feedback-loop i prompts | 2 | 1-2 körn | — | ⬜ |
+| 2.2 | Feedback-loop i prompts | 2 | 1-2 körn | — | ✅ S110 2026-03-20 |
 | **2.2b** | **Agentintervjuer (prompt-förbättring)** | **2** | **3-5 sess** | — | **✅ S119 2026-03-21** |
 | 2.3 | Namnbyte Researcher ↔ Librarian | 2 | 1 körn | — | ✅ S113 2026-03-20 |
 | 2.4 | Idékonsolidering | 2 | 1 körn | — | ✅ S120 2026-03-22 |
@@ -485,7 +491,7 @@ Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21)
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
 | 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~30-45 körningar. **Klar:** 18/27
+**Totalt:** ~30-45 körningar. **Klar:** 19/27
 
 ---
 
