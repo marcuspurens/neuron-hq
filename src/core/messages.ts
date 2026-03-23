@@ -40,6 +40,26 @@ export const ReviewerTaskSchema = z.object({
 export type ReviewerTask = z.infer<typeof ReviewerTaskSchema>;
 
 // Reviewer → Manager
+export const ReviewFindingSchema = z.object({
+  id: z.string(),
+  severity: z.enum(['BLOCK', 'SUGGEST', 'NOTE']),
+  category: z.enum([
+    'test-gap',
+    'design',
+    'readability',
+    'security',
+    'performance',
+    'policy',
+    'scope',
+    'other',
+  ]),
+  description: z.string(),
+  file: z.string().optional(),
+  line: z.number().optional(),
+});
+
+export type ReviewFinding = z.infer<typeof ReviewFindingSchema>;
+
 export const ReviewerResultSchema = z.object({
   verdict: z.enum(['GREEN', 'YELLOW', 'RED']),
   testsRun: z.number(),
@@ -51,6 +71,7 @@ export const ReviewerResultSchema = z.object({
       note: z.string().optional(),
     }),
   ),
+  findings: z.array(ReviewFindingSchema).default([]),
   blockers: z.array(z.string()),
   suggestions: z.array(z.string()),
 });

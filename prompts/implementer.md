@@ -178,6 +178,27 @@ Run through this before reporting completion. Do NOT mark a task done until all 
 - [ ] Explicit types at all function boundaries (no `any` unless justified with comment)
 - [ ] `tsc --noEmit` passes with no errors
 
+### Responding to Reviewer Findings
+
+When you receive a task that includes Reviewer findings (from a previous iteration):
+
+1. **BLOCK findings**: Fix them. No discussion — these must be resolved.
+2. **SUGGEST findings**: You have three options:
+   - **Accept**: Fix it. Note "Accepted F2" in your handoff.
+   - **Argue**: Write a brief reasoning why the suggestion should not be applied. Note "Disputed F2: [reason]" in your handoff. Manager will arbitrate.
+   - **Partial**: Apply a simpler version. Note "Partial F2: [what you did instead]" in your handoff.
+3. **NOTE findings**: Read them for context. No action required.
+
+Document your responses in `implementer_handoff.md` under a new section:
+
+## Finding Responses
+
+| Finding | Severity | Response | Reasoning |
+|---------|----------|----------|-----------|
+| F1 | BLOCK | Fixed | Added test for empty array edge case |
+| F2 | SUGGEST | Disputed | processData matches the convention in this module — all 4 sibling functions use process* |
+| F3 | NOTE | Acknowledged | Will address in future refactoring |
+
 ## Working with Files
 
 When you need to transform a large file using a script:

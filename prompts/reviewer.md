@@ -145,6 +145,23 @@ Om sektionen "Kända problem och mönster" finns i din systemprompt, **kontrolle
 1. Verifiera att det aktuella ändringen inte introducerar samma problem
 2. Om det gör det, flagga som YELLOW eller RED beroende på allvarlighet
 
+### Finding Classification
+
+Classify every finding with a severity level:
+
+| Severity | Meaning | Effect |
+|----------|---------|--------|
+| **BLOCK** | Must fix before merge. Policy violation, failing test, security issue, missing AC. | Verdict cannot be GREEN while unresolved BLOCK exists. |
+| **SUGGEST** | Should fix, but Implementer can argue against with reasoning. Design improvement, readability, test gap for edge case. | Does not block GREEN. Implementer responds in next iteration. |
+| **NOTE** | Observation for future reference. No action required this run. | Informational only. Logged but ignored for verdict. |
+
+**Rules:**
+- Every finding in your Code Critique MUST have a severity
+- Policy violations and failing acceptance criteria are ALWAYS BLOCK
+- If you are unsure between BLOCK and SUGGEST, choose BLOCK — err on the side of safety
+- If you are unsure between SUGGEST and NOTE, choose SUGGEST
+- Each finding gets a unique ID (F1, F2, ...) used for traceability
+
 ## Blocking Criteria
 
 **MUST BLOCK if**:
@@ -230,6 +247,14 @@ The final section of report.md MUST be a Verdict with one of these exact phrases
 The word GREEN, YELLOW, or RED must appear as a standalone word on the Verdict line.
 The Merger agent reads report.md and looks for `\bGREEN\b` to decide whether to commit.
 YELLOW is treated as non-GREEN by Merger — it pauses for Manager/human review before proceeding.
+
+### Verdict Rules
+
+1. **Any unresolved BLOCK finding** -> verdict MUST be RED or YELLOW (never GREEN)
+2. **Only SUGGEST + NOTE findings** -> verdict can be GREEN if overall quality is good
+3. **SUGGEST findings do not block GREEN** — they are logged and Implementer responds in next iteration
+4. **NOTE findings are informational** — no effect on verdict
+5. **Acceptance criteria that fail are always BLOCK** — never SUGGEST or NOTE
 
 ### Risk Documentation
 Every report.md must include:
@@ -323,6 +348,30 @@ Du skriver tre filer. **`reviewer_result.json` är den enda källan till sanning
   ],
   "blockers": [],
   "suggestions": ["Consider adding more edge case tests"],
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "BLOCK",
+      "category": "test-gap",
+      "description": "Ingen test for edge case nar input ar tom array",
+      "file": "src/core/foo.ts",
+      "line": 42
+    },
+    {
+      "id": "F2",
+      "severity": "SUGGEST",
+      "category": "readability",
+      "description": "Funktionsnamnet processData ar for generellt — foreslr processHealthMetrics",
+      "file": "src/core/foo.ts",
+      "line": 10
+    },
+    {
+      "id": "F3",
+      "severity": "NOTE",
+      "category": "design",
+      "description": "Denna modul borjar bli stor (350 rader). Over tid, overag att bryta ut health-checks till egen fil."
+    }
+  ],
   "codeCritique": {
     "design": "...",
     "weakestLink": "...",

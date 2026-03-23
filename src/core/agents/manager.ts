@@ -1100,6 +1100,24 @@ Stop when time limit approaches or when blockers are encountered.
             verdict: parsed.data.verdict,
           }),
         });
+        if (parsed.data.findings?.length) {
+          const severityCounts = { BLOCK: 0, SUGGEST: 0, NOTE: 0 };
+          for (const f of parsed.data.findings) {
+            severityCounts[f.severity]++;
+          }
+          await this.ctx.audit.log({
+            ts: new Date().toISOString(),
+            role: 'manager',
+            tool: 'agent_message',
+            allowed: true,
+            note: JSON.stringify({
+              event: 'agent_message',
+              payload_type: 'ReviewerFindings',
+              counts: severityCounts,
+              blockFindings: parsed.data.findings.filter(f => f.severity === 'BLOCK').map(f => f.id),
+            }),
+          });
+        }
       }
     } catch {  /* intentional: no JSON result file */
       // No JSON result file — fallback to markdown handoff
@@ -1120,7 +1138,15 @@ Stop when time limit approaches or when blockers are encountered.
       
       // Append structured result summary if available
       if (structuredResult) {
-        result += `\n\n--- STRUCTURED RESULT ---\nVerdict: ${structuredResult.verdict}\nTests: ${structuredResult.testsPassing}/${structuredResult.testsRun}\nBlockers: ${structuredResult.blockers.length}\nSuggestions: ${structuredResult.suggestions.length}`;
+        let resultSuffix = `\n\n--- STRUCTURED RESULT ---\nVerdict: ${structuredResult.verdict}\nTests: ${structuredResult.testsPassing}/${structuredResult.testsRun}\nBlockers: ${structuredResult.blockers.length}\nSuggestions: ${structuredResult.suggestions.length}`;
+        if (structuredResult.findings?.length) {
+          resultSuffix += `\n\n--- FINDINGS ---`;
+          for (const f of structuredResult.findings) {
+            resultSuffix += `\n[${f.severity}] ${f.id}: ${f.description}`;
+            if (f.file) resultSuffix += ` (${f.file}${f.line ? ':' + f.line : ''})`;
+          }
+        }
+        result += resultSuffix;
       }
       
       if (structuredResult?.verdict) {
@@ -1134,7 +1160,15 @@ Stop when time limit approaches or when blockers are encountered.
       return result;
     } catch {  /* intentional: handoff file not readable */
       if (structuredResult) {
-        return `Reviewer agent completed.\n\n--- STRUCTURED RESULT ---\nVerdict: ${structuredResult.verdict}\nTests: ${structuredResult.testsPassing}/${structuredResult.testsRun}\nBlockers: ${structuredResult.blockers.length}\nSuggestions: ${structuredResult.suggestions.length}`;
+        let resultSuffix = `\n\n--- STRUCTURED RESULT ---\nVerdict: ${structuredResult.verdict}\nTests: ${structuredResult.testsPassing}/${structuredResult.testsRun}\nBlockers: ${structuredResult.blockers.length}\nSuggestions: ${structuredResult.suggestions.length}`;
+        if (structuredResult.findings?.length) {
+          resultSuffix += `\n\n--- FINDINGS ---`;
+          for (const f of structuredResult.findings) {
+            resultSuffix += `\n[${f.severity}] ${f.id}: ${f.description}`;
+            if (f.file) resultSuffix += ` (${f.file}${f.line ? ':' + f.line : ''})`;
+          }
+        }
+        return `Reviewer agent completed.${resultSuffix}`;
       }
       return 'Reviewer agent completed successfully. (No handoff written)';
     }

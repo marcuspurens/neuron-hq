@@ -140,4 +140,48 @@ describe('schema-based validation', () => {
     const result = validateReviewerResult('{broken}');
     expect(result.success).toBe(false);
   });
+
+  it('validateReviewerResult succeeds with findings array (AC15)', () => {
+    const json = JSON.stringify({
+      verdict: 'YELLOW',
+      testsRun: 10,
+      testsPassing: 8,
+      acceptanceCriteria: [],
+      findings: [
+        {
+          id: 'F1',
+          severity: 'BLOCK',
+          category: 'test-gap',
+          description: 'Missing test for edge case',
+          file: 'src/core/foo.ts',
+          line: 42,
+        },
+      ],
+      blockers: ['F1: Missing test for edge case'],
+      suggestions: [],
+    });
+    const result = validateReviewerResult(json);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.findings).toHaveLength(1);
+      expect(result.data.findings[0].severity).toBe('BLOCK');
+    }
+  });
+
+  it('validateReviewerResult succeeds with old JSON without findings (backward compat, AC17)', () => {
+    const json = JSON.stringify({
+      verdict: 'GREEN',
+      testsRun: 50,
+      testsPassing: 50,
+      acceptanceCriteria: [{ criterion: 'Schema validates', passed: true }],
+      blockers: [],
+      suggestions: [],
+      // NO findings field — old format
+    });
+    const result = validateReviewerResult(json);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.findings).toEqual([]); // .default([]) applies
+    }
+  });
 });

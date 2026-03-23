@@ -4,8 +4,10 @@ import {
   ImplementerResultSchema,
   ReviewerTaskSchema,
   ReviewerResultSchema,
+  ReviewFindingSchema,
   AgentMessageSchema,
 } from '../../src/core/messages.js';
+import type { ReviewFinding } from '../../src/core/messages.js';
 
 // --- Helpers ---
 
@@ -188,6 +190,109 @@ describe('messages schemas', () => {
   });
 
   // =====================================================
+  // ReviewFindingSchema
+  // =====================================================
+  describe('ReviewFindingSchema', () => {
+    it('AC15: validates a complete BLOCK finding with all fields', () => {
+      const valid = {
+        id: 'F1',
+        severity: 'BLOCK',
+        category: 'test-gap',
+        description: 'Missing test for edge case',
+        file: 'src/core/foo.ts',
+        line: 42,
+      };
+      expect(() => ReviewFindingSchema.parse(valid)).not.toThrow();
+    });
+
+    it('AC15: validates a SUGGEST finding without optional file/line', () => {
+      const valid = {
+        id: 'F2',
+        severity: 'SUGGEST',
+        category: 'readability',
+        description: 'Function name is too generic',
+      };
+      const parsed = ReviewFindingSchema.parse(valid);
+      expect(parsed.file).toBeUndefined();
+      expect(parsed.line).toBeUndefined();
+    });
+
+    it('AC15: validates a NOTE finding', () => {
+      const valid = {
+        id: 'F3',
+        severity: 'NOTE',
+        category: 'design',
+        description: 'Module is getting large',
+      };
+      expect(() => ReviewFindingSchema.parse(valid)).not.toThrow();
+    });
+
+    it('AC15: validates all severity levels', () => {
+      for (const severity of ['BLOCK', 'SUGGEST', 'NOTE'] as const) {
+        const valid = {
+          id: 'F1',
+          severity,
+          category: 'other' as const,
+          description: 'Test finding',
+        };
+        expect(() => ReviewFindingSchema.parse(valid)).not.toThrow();
+      }
+    });
+
+    it('AC15: validates all category values', () => {
+      const categories = ['test-gap', 'design', 'readability', 'security', 'performance', 'policy', 'scope', 'other'];
+      for (const category of categories) {
+        const valid = {
+          id: 'F1',
+          severity: 'BLOCK',
+          category,
+          description: 'Test finding',
+        };
+        expect(() => ReviewFindingSchema.parse(valid)).not.toThrow();
+      }
+    });
+
+    it('AC15: rejects finding with invalid severity', () => {
+      const invalid = {
+        id: 'F1',
+        severity: 'WARNING',
+        category: 'other',
+        description: 'Test finding',
+      };
+      expect(() => ReviewFindingSchema.parse(invalid)).toThrow();
+    });
+
+    it('AC15: rejects finding with invalid category', () => {
+      const invalid = {
+        id: 'F1',
+        severity: 'BLOCK',
+        category: 'unknown-category',
+        description: 'Test finding',
+      };
+      expect(() => ReviewFindingSchema.parse(invalid)).toThrow();
+    });
+
+    it('AC15: rejects finding without required description', () => {
+      const invalid = {
+        id: 'F1',
+        severity: 'BLOCK',
+        category: 'other',
+      };
+      expect(() => ReviewFindingSchema.parse(invalid)).toThrow();
+    });
+
+    it('AC19: ReviewFinding type is exported and assignable', () => {
+      const finding: ReviewFinding = {
+        id: 'F1',
+        severity: 'BLOCK',
+        category: 'test-gap',
+        description: 'Test',
+      };
+      expect(finding.id).toBe('F1');
+    });
+  });
+
+  // =====================================================
   // ReviewerResultSchema
   // =====================================================
   describe('ReviewerResultSchema', () => {
@@ -263,6 +368,96 @@ describe('messages schemas', () => {
         testsRun: 10,
         testsPassing: 'all',
         acceptanceCriteria: [],
+        blockers: [],
+        suggestions: [],
+      };
+      expect(() => ReviewerResultSchema.parse(invalid)).toThrow();
+    });
+
+    it('AC16: validates ReviewerResultSchema with findings array', () => {
+      const valid = {
+        verdict: 'YELLOW',
+        testsRun: 10,
+        testsPassing: 8,
+        acceptanceCriteria: [],
+        findings: [
+          {
+            id: 'F1',
+            severity: 'BLOCK',
+            category: 'test-gap',
+            description: 'Missing test for empty array',
+            file: 'src/core/foo.ts',
+            line: 42,
+          },
+          {
+            id: 'F2',
+            severity: 'SUGGEST',
+            category: 'readability',
+            description: 'Rename processData to processHealthMetrics',
+          },
+        ],
+        blockers: ['F1: Missing test for empty array'],
+        suggestions: ['F2: Rename processData'],
+      };
+      const parsed = ReviewerResultSchema.parse(valid);
+      expect(parsed.findings).toHaveLength(2);
+      expect(parsed.findings[0].severity).toBe('BLOCK');
+      expect(parsed.findings[1].severity).toBe('SUGGEST');
+    });
+
+    it('AC17: old JSON without findings field validates (backward compat)', () => {
+      const oldJson = {
+        verdict: 'GREEN',
+        testsRun: 50,
+        testsPassing: 50,
+        acceptanceCriteria: [
+          { criterion: 'Schema validates', passed: true },
+        ],
+        blockers: [],
+        suggestions: [],
+        // NO findings field — old format
+      };
+      const parsed = ReviewerResultSchema.parse(oldJson);
+      expect(parsed.findings).toEqual([]);
+    });
+
+    it('AC18b: old JSON without findings — findings defaults to empty array', () => {
+      const oldJson = {
+        verdict: 'RED',
+        testsRun: 5,
+        testsPassing: 2,
+        acceptanceCriteria: [],
+        blockers: ['Tests failing'],
+        suggestions: [],
+      };
+      const parsed = ReviewerResultSchema.parse(oldJson);
+      expect(parsed.findings).toEqual([]);
+      expect(Array.isArray(parsed.findings)).toBe(true);
+    });
+
+    it('validates with explicit empty findings array', () => {
+      const valid = {
+        verdict: 'GREEN',
+        testsRun: 10,
+        testsPassing: 10,
+        acceptanceCriteria: [],
+        findings: [],
+        blockers: [],
+        suggestions: [],
+      };
+      const parsed = ReviewerResultSchema.parse(valid);
+      expect(parsed.findings).toEqual([]);
+    });
+
+    it('rejects reviewer result with invalid finding severity', () => {
+      const invalid = {
+        verdict: 'RED',
+        testsRun: 10,
+        testsPassing: 5,
+        acceptanceCriteria: [],
+        findings: [
+          { id: 'F1', severity: 'CRITICAL', category: 'other', description: 'test' },
+        ],
         blockers: [],
         suggestions: [],
       };

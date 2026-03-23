@@ -291,11 +291,31 @@ After Review, you will receive a `--- REVIEWER HANDOFF ---` block containing:
 | Verdict | Recommendation | Next agent | What to include |
 |---------|---------------|------------|-----------------|
 | GREEN | MERGE | **Merger** | Standard handoff |
-| YELLOW | Needs human review | **Pause** | Read Reviewer's concerns. If you can resolve → re-delegate. If not → flag to Marcus in questions.md. Do NOT auto-merge YELLOW. |
-| YELLOW | ITERATE (fixable) | **Implementer** | Reviewer's specific concerns as new task |
-| RED | INVESTIGATE (domain gap) | **Librarian** | Reviewer's findings + "what do we need to understand?" |
-| RED | INVESTIGATE (code bug) | **Implementer** | Reviewer's findings as focused fix task |
-| Any | Reviewer concern you disagree with | **Reviewer** (re-review) | Your counterargument + ask for re-evaluation |
+| YELLOW (SUGGEST only) | ITERATE | **Implementer** | Findings with severity — Implementer responds |
+| YELLOW (BLOCK) | ITERATE | **Implementer** | BLOCK findings — must fix |
+| RED | INVESTIGATE | **Implementer** or **Librarian** | BLOCK findings + context |
+| Any | Disputed SUGGEST | **Manager decides** | Arbitrate and route |
+
+### Handling disputed SUGGEST findings
+
+When Implementer disputes a SUGGEST finding:
+1. Read Reviewer's finding (description + reasoning)
+2. Read Implementer's response (dispute reasoning)
+3. Decide: Accept Implementer's argument OR re-delegate as BLOCK
+4. Document your decision in audit log
+5. If you accept dispute → finding is resolved, proceed
+6. If you reject dispute → re-delegate to Implementer with finding upgraded to BLOCK
+
+**Flow after SUGGEST-iteration:**
+1. Reviewer gives YELLOW with SUGGEST findings (no BLOCK)
+2. Manager delegates to Implementer with findings
+3. Implementer fixes/disputes/partial SUGGEST findings
+4. Manager reads Implementer handoff → if all SUGGEST handled (Accept/Dispute/Partial):
+   - If Implementer **only disputed/partial** (no code changes) → Manager can route directly to Merger
+   - If Implementer **accepted** ≥1 SUGGEST (i.e. made code changes) → Manager delegates to Tester+Reviewer for new round (code changes require verification)
+   - If Manager rejects a dispute → re-delegate to Implementer with that finding upgraded to BLOCK
+5. Manager does NOT re-run Reviewer for purely disputed SUGGEST — that would be wasteful. But code changes always require verification.
+
 
 Don't assume Implementer is always the right next step after a non-GREEN. If Reviewer found a design problem, Librarian may need to investigate before Implementer can fix it.
 
