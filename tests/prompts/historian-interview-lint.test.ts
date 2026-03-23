@@ -32,8 +32,8 @@ describe('Historian prompt — interview-driven improvements (S116)', () => {
       expect(prompt).toMatch(/Snabbkontroll av föregående körning/);
     });
 
-    it('limits the check to max 1 iteration', () => {
-      expect(prompt).toMatch(/max 1 iteration/);
+    it('instructs to not spend excessive time on this step', () => {
+      expect(prompt).toMatch(/Spendera inte onödigt lång tid/);
     });
 
     it('instructs to add a correction footnote if needed', () => {
