@@ -4,7 +4,6 @@ import { ImplementerAgent } from './implementer.js';
 import { ReviewerAgent } from './reviewer.js';
 import { ResearcherAgent } from './researcher.js';
 import { MergerAgent } from './merger.js';
-import { HistorianAgent } from './historian.js';
 import { TesterAgent } from './tester.js';
 import { LibrarianAgent } from './librarian.js';
 import { ConsolidatorAgent } from './consolidator.js';
@@ -607,18 +606,6 @@ Stop when time limit approaches or when blockers are encountered.
         },
       },
       {
-        name: 'delegate_to_historian',
-        description:
-          'Delegate run summary writing to the Historian agent. ' +
-          'Call this LAST — after all other agents have finished. ' +
-          'The Historian reads the run artifacts and writes to memory/runs.md (always), ' +
-          'memory/errors.md (if problems occurred), and memory/patterns.md (if new patterns emerged).',
-        input_schema: {
-          type: 'object',
-          properties: {},
-        },
-      },
-      {
         name: 'delegate_to_tester',
         description:
           'Delegate independent test execution to the Tester agent. ' +
@@ -738,9 +725,6 @@ Stop when time limit approaches or when blockers are encountered.
               break;
             case 'delegate_to_merger':
               result = await this.delegateToMerger();
-              break;
-            case 'delegate_to_historian':
-              result = await this.delegateToHistorian();
               break;
             case 'delegate_to_tester':
               result = await this.delegateToTester();
@@ -1227,22 +1211,6 @@ Stop when time limit approaches or when blockers are encountered.
     await consolidator.run();
     eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'consolidator' });
     return 'Consolidator agent completed. Check consolidation_report.md for details.';
-  }
-
-  private async delegateToHistorian(): Promise<string> {
-    logger.info('Delegating to Historian agent...');
-    await this.ctx.audit.log({
-      ts: new Date().toISOString(),
-      role: 'manager',
-      tool: 'delegate_to_historian',
-      allowed: true,
-      note: 'Delegating run summary to Historian agent',
-    });
-    eventBus.safeEmit('agent:start', { runid: this.ctx.runid, agent: 'historian' });
-    const historian = new HistorianAgent(this.ctx, this.baseDir);
-    await historian.run();
-    eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'historian' });
-    return 'Historian agent completed successfully.';
   }
 
   /**

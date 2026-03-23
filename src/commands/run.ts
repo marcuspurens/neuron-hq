@@ -15,6 +15,8 @@ import type { RunConfig, StoplightStatus } from '../core/types.js';
 import { installShutdownHandlers, onShutdown } from '../core/shutdown.js';
 import { closePool } from '../core/db.js';
 import { appendCalibration } from '../core/observer-calibration.js';
+import { HistorianAgent } from '../core/agents/historian.js';
+import { eventBus } from '../core/event-bus.js';
 
 export async function runCommand(
   targetName: string,
@@ -270,6 +272,20 @@ export async function runCommand(
       artifacts: 'COMPLETE',
     };
 
+    // Historian: write run summary to memory (runs.md, errors.md, patterns.md)
+    // Runs in orchestrator (not Manager) so it can never be forgotten.
+    // Must run BEFORE Observer so Observer can interview Historian in retro.
+    try {
+      console.log(chalk.gray('  Historian: writing run summary to memory...'));
+      eventBus.safeEmit('agent:start', { runid: ctx.runid, agent: 'historian' });
+      const historian = new HistorianAgent(ctx, BASE_DIR);
+      await historian.run();
+      eventBus.safeEmit('agent:end', { runid: ctx.runid, agent: 'historian' });
+      console.log(chalk.gray('  Historian: run summary written'));
+    } catch (err) {
+      console.log(chalk.yellow('  ⚠ Historian failed, continuing without run summary'));
+    }
+
     // Observer: prompt-health report with retro + alignment (non-fatal, runs after stoplight is known)
     if (observer) {
       try {
@@ -296,6 +312,7 @@ export async function runCommand(
             observer.agentToolSummaries,
             ctx.agentModelMap as Record<string, unknown> | undefined,
             ctx.defaultModelOverride,
+            ctx.runDir,
           );
           console.log(chalk.gray(`  Observer: retro completed (${retroResults.length} active agents, ${observer.agentPrompts.size} total)`));
         } catch (retroErr) {

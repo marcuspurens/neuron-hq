@@ -105,7 +105,6 @@ describe('ManagerAgent', () => {
       expect(names).toContain('delegate_to_reviewer');
       expect(names).toContain('delegate_to_researcher');
       expect(names).toContain('delegate_to_merger');
-      expect(names).toContain('delegate_to_historian');
       expect(names).toContain('delegate_to_tester');
       expect(names).toContain('delegate_to_librarian');
     });
