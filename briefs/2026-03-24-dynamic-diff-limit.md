@@ -95,12 +95,16 @@ Valideringsregel i `validateTaskPlan()`: om `maxDiffLines` sätts MÅSTE `maxDif
 
 Uppdatera `checkDiffSize()` (sök efter metodnamnet i `src/core/policy.ts`) enligt designbeslut #4. Klipp override mot `this.limits.diff_block_lines`. Ingen audit-loggning — funktionen förblir ren.
 
-### 3. manager.ts — injicera gräns + audit
+### 3. manager.ts — write_task_plan + injicera gräns + audit
 
-I `delegateToImplementer()` (sök efter metodnamnet i `src/core/agents/manager.ts`):
-- Läs `maxDiffLines` från aktuell task i TaskPlan (om TaskPlan finns)
-- Lägg ALLTID till i task-strängen: `\nDiff limit for this task: ${maxDiffLines ?? 150} lines.`
-- Om `maxDiffLines` sätts: logga `diff_override_set` i audit.jsonl (via befintlig audit-mekanism i `this.appendAudit()` — sök efter `appendAudit` i manager.ts)
+**write_task_plan-toolet** (sök efter `write_task_plan` i `src/core/agents/manager.ts`):
+- `input_schema` (rad ~633-652) har hårdkodad typ utan `maxDiffLines`/`maxDiffJustification`. Lägg till dessa som valfria fält i task-objektets `properties`
+- Type cast (rad ~732) i `executeTools` har hårdkodad typ — uppdatera så `maxDiffLines` och `maxDiffJustification` inkluderas
+
+**delegateToImplementer()** (sök efter metodnamnet i `src/core/agents/manager.ts`):
+- Läs `maxDiffLines` från aktuell task i TaskPlan. Om TaskPlan saknas eller task saknar `maxDiffLines`: använd default 150
+- Lägg ALLTID till i task-strängen — oavsett om override finns eller ej: `\nDiff limit for this task: ${maxDiffLines ?? 150} lines.`
+- Om `maxDiffLines` sätts: logga `diff_override_set` i audit.jsonl (via befintlig audit-mekanism `this.ctx.audit.log()` — sök efter `audit.log` i manager.ts)
 
 ### 4. implementer.ts — respektera injicerad gräns
 
@@ -148,7 +152,7 @@ Default remains 150 lines — only override when objectively justified.
 - `src/core/agents/historian.ts` — loggar, överridear inte
 - `src/core/agents/observer.ts` — observerar, ändrar inte policy
 - `src/commands/run.ts` — override flödar genom Manager → Implementer
-- `src/core/agents/merger.ts` — diff-gränser redan kontrollerade
+- `src/core/agents/merger.ts` — anropar inte `checkDiffSize`, irrelevant
 - `src/core/agents/tester.ts` — kör tester, irrelevant
 
 ## Risker
@@ -166,7 +170,9 @@ Default remains 150 lines — only override when objectively justified.
 - **AC1:** `checkDiffSize(100, 60, 250)` returnerar `{ status: 'OK' }` (total 160 < override 250). Utan override: returnerar `{ status: 'WARN' }` (160 > default 150)
 - **AC2:** `checkDiffSize(200, 150, 400)` returnerar `{ status: 'BLOCK' }` (total 350 > BLOCK 300). Override klipps till 300 men total överstiger BLOCK
 - **AC3:** `checkDiffSize(280, 0, 400)` returnerar `{ status: 'OK' }` (override klipps till min(400, 300) = 300, total 280 < 300)
-- **AC4:** `checkDiffSize(160, 0)` utan override returnerar `{ status: 'WARN' }`. Med override 50: returnerar `{ status: 'BLOCK' }`... nej — WARN-tröskel sänks till 50 men BLOCK är fortfarande 300. Total 160 > effectiveWarn 50 men < BLOCK 300. Returnerar `{ status: 'WARN' }` med sänkt tröskel. Verifierar att lägre override fungerar
+- **AC4a:** `checkDiffSize(160, 0)` utan override returnerar `{ status: 'WARN' }` (total 160 > default 150, < BLOCK 300)
+- **AC4b:** `checkDiffSize(160, 0, 50)` returnerar `{ status: 'WARN' }` (effectiveWarn = 50, total 160 > 50 men < BLOCK 300 → WARN, inte BLOCK)
+- **AC4c:** `checkDiffSize(310, 0, 50)` returnerar `{ status: 'BLOCK' }` (total 310 > BLOCK 300 — BLOCK-tröskel oförändrad oavsett override)
 
 ### TaskPlan
 
