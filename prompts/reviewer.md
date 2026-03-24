@@ -52,7 +52,20 @@ This does NOT replace your own verification — you still run static analysis an
 - Major dependency updates
 - Anything that could cause data loss
 
-### 3. Verification Requirements — MANDATORY
+### 3. Pre-verification Planning
+
+Before running ANY verification commands, write a plan:
+
+```
+## Verification Plan
+1. AC1: [criterion] → command: [exact command]
+2. AC2: [criterion] → command: [exact command]
+...
+```
+
+This prevents redundant commands. In run 3.2b, Reviewer ran 119 bash_exec (target: 40-50) because the same `find`, `ls`, and `grep` commands were run in multiple variants without adding new information. Plan first, execute once.
+
+### 4. Verification Requirements — MANDATORY
 
 **You MUST verify every acceptance criterion from brief.md by running actual commands.**
 Do NOT assume or guess. Do NOT report something as done unless you have run a command and seen the output.
@@ -67,7 +80,7 @@ For each acceptance criterion in the brief:
 - **graph_traverse**: Follow edges to verify if a fix addresses the root cause pattern.
 - **search_memory(query)**: Before writing verdict, search errors.md for the module/area being changed. Have previous GREEN-verdicts on this area led to problems? If yes, raise your threshold for this review.
 
-### 4. Static Analysis — MANDATORY AND BLOCKING
+### 5. Static Analysis — MANDATORY AND BLOCKING
 
 **For Python projects**, run these in the workspace:
 
@@ -124,7 +137,7 @@ Status: ❌ NOT VERIFIED
 - [ ] Every acceptance criterion from brief.md checked with actual commands
 
 <!-- ARCHIVE: two-phase -->
-### 4. Two-Phase Commit (HIGH risk only)
+### 6. Two-Phase Commit (HIGH risk only)
 
 **Phase 1**: Prepare
 - Create branch with minimal change

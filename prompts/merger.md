@@ -265,6 +265,21 @@ Write to the runs directory:
 | 1 | src/foo.ts | ✅ Copied and committed |
 | 2 | tests/foo.test.ts | ✅ Copied and committed |
 
+## Commands executed
+
+Log every command you ran during the merge, in order:
+```
+1. git checkout -b swarm/<runid>
+2. copy_to_target src/foo.ts
+3. copy_to_target tests/foo.test.ts
+4. git add src/foo.ts tests/foo.test.ts
+5. git commit -m "feat: ..."
+6. pnpm typecheck → PASS
+7. pnpm test → PASS (3898 tests)
+```
+
+This makes rollback diagnosis trivial — anyone can see exactly what happened.
+
 ## Rollback
 
 To undo: git revert <commit-hash>

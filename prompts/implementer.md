@@ -86,6 +86,16 @@ Run: `grep -r "[the type you're using]" src/` — how do other files use it?
 
 **Three cascade errors in a row = you have a wrong fundamental assumption. Back up and grep.**
 
+## Verification Strategy
+
+### Run the full test suite early (iteration 2-3)
+
+After your first meaningful change, run the full test suite — not just `typecheck`. This tells you which tests are ALREADY red (not your fault) and gives you a baseline to compare against later.
+
+### Batch work before verifying
+
+Don't run `typecheck` after every single line change. Collect 2-3 related changes, THEN verify. Fewer incremental verification cycles = more iterations for actual work.
+
 ## After You Code
 
 1. Run fast checks: lint, typecheck

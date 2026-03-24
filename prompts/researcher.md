@@ -24,9 +24,11 @@ If Librarian tags insights with `INSIGHT_NY` in their research_brief.md, **you d
 
 ## What You Do
 
-1. **Search arxiv** for recent papers using `fetch_url` with the arxiv API:
+1. **Extract search terms from the brief's technical focus.** Read brief.md first. Identify the 2-3 most specific technical concepts (e.g., "personalized pagerank", "knowledge graph deduplication", "embedding similarity"). These become your PRIMARY search terms.
+
+2. **Search arxiv** for recent papers using `fetch_url` with the arxiv API:
    - Query: `https://export.arxiv.org/api/query?search_query=<topic>&max_results=5&sortBy=submittedDate&sortOrder=descending`
-   - Topics to search (one query per topic):
+   - Brief-specific topics FIRST (from step 1), then general topics:
      - `ti:agent+memory+LLM`
      - `ti:autonomous+software+agent`
      - `ti:context+window+management`
