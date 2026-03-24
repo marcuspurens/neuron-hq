@@ -33,12 +33,12 @@ export const DEEP_ALIGNMENT_CHECKS: Array<{
     agentRole: 'knowledge-manager',
     promptKeyword: 'verify',
     expectedFunction: 'verifySource',
-    sourceFile: 'src/core/agents/knowledge-manager.ts',
+    sourceFile: 'src/aurora/freshness.ts',
   },
   {
     agentRole: 'merger',
     promptKeyword: 'post-merge verif',
-    expectedFunction: 'postMergeVerify',
+    expectedFunction: 'executeBashInTarget',
     sourceFile: 'src/core/agents/merger.ts',
   },
 ];
@@ -278,59 +278,61 @@ function findBodyOpen(source: string, afterParen: number): number {
 export function extractFunctionBody(source: string, functionName: string): string | null {
   const escapedName = functionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const pattern = new RegExp(
-    `(?:async\\s+)?\\b${escapedName}\\s*(?:=\\s*(?:async\\s+)?)?\\(`,
+    `(?:(?:private|public|protected|static|readonly)\\s+)*(?:async\\s+)?\\b${escapedName}\\s*(?:=\\s*(?:async\\s+)?)?\\(`,
+    'g',
   );
 
-  const match = pattern.exec(source);
-  if (!match) return null;
+  // Try all matches — the first may be a call site, not a definition
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(source)) !== null) {
+    let i = match.index + match[0].length;
 
-  let i = match.index + match[0].length;
-
-  // Scan through the argument list
-  let parenDepth = 1;
-  while (i < source.length && parenDepth > 0) {
-    const ch = source[i];
-    if (ch === '(') {
-      parenDepth++;
-    } else if (ch === ')') {
-      parenDepth--;
-    } else if (ch === "'" || ch === '"' || ch === '`') {
-      i = skipStringLiteral(source, i);
-      continue;
-    } else if (ch === '/' && i + 1 < source.length) {
-      if (source[i + 1] === '/') { i = skipToEndOfLine(source, i); continue; }
-      if (source[i + 1] === '*') { i = skipBlockComment(source, i); continue; }
-    }
-    i++;
-  }
-
-  const bodyOpenIdx = findBodyOpen(source, i);
-  if (bodyOpenIdx < 0) return null;
-
-  const bodyStart = bodyOpenIdx + 1;
-  let depth = 1;
-  i = bodyStart;
-
-  while (i < source.length && depth > 0) {
-    const ch = source[i];
-
-    if (ch === '/' && i + 1 < source.length) {
-      if (source[i + 1] === '/') { i = skipToEndOfLine(source, i); continue; }
-      if (source[i + 1] === '*') { i = skipBlockComment(source, i); continue; }
+    // Scan through the argument list
+    let parenDepth = 1;
+    while (i < source.length && parenDepth > 0) {
+      const ch = source[i];
+      if (ch === '(') {
+        parenDepth++;
+      } else if (ch === ')') {
+        parenDepth--;
+      } else if (ch === "'" || ch === '"' || ch === '`') {
+        i = skipStringLiteral(source, i);
+        continue;
+      } else if (ch === '/' && i + 1 < source.length) {
+        if (source[i + 1] === '/') { i = skipToEndOfLine(source, i); continue; }
+        if (source[i + 1] === '*') { i = skipBlockComment(source, i); continue; }
+      }
+      i++;
     }
 
-    if (ch === "'" || ch === '"' || ch === '`') {
-      i = skipStringLiteral(source, i);
-      continue;
-    }
+    const bodyOpenIdx = findBodyOpen(source, i);
+    if (bodyOpenIdx < 0) continue; // Not a definition — try next match
 
-    if (ch === '{') { depth++; }
-    else if (ch === '}') {
-      depth--;
-      if (depth === 0) return source.slice(bodyStart, i);
-    }
+    const bodyStart = bodyOpenIdx + 1;
+    let depth = 1;
+    i = bodyStart;
 
-    i++;
+    while (i < source.length && depth > 0) {
+      const ch = source[i];
+
+      if (ch === '/' && i + 1 < source.length) {
+        if (source[i + 1] === '/') { i = skipToEndOfLine(source, i); continue; }
+        if (source[i + 1] === '*') { i = skipBlockComment(source, i); continue; }
+      }
+
+      if (ch === "'" || ch === '"' || ch === '`') {
+        i = skipStringLiteral(source, i);
+        continue;
+      }
+
+      if (ch === '{') { depth++; }
+      else if (ch === '}') {
+        depth--;
+        if (depth === 0) return source.slice(bodyStart, i);
+      }
+
+      i++;
+    }
   }
 
   return null;
@@ -417,22 +419,19 @@ export async function checkDeepAlignment(
     return [];
   }
 
-  let sourceCode: string;
-  try {
-    sourceCode = await fs.readFile(agentSourcePath, 'utf-8');
-  } catch (err) {
-    logger.warn('Could not read agent source file', {
-      agentSourcePath,
-      error: String(err),
-    });
-    return relevantChecks.map((check) => ({
-      agent: agentRole,
-      promptClaim: check.promptKeyword,
-      functionName: check.expectedFunction,
-      sourceFile: check.sourceFile,
-      analysis: 'NOT_FOUND' as const,
-      details: `Could not read source file: ${agentSourcePath}`,
-    }));
+  // Cache source files to avoid re-reading the same file
+  const sourceCache = new Map<string, string>();
+
+  async function readSource(filePath: string): Promise<string | null> {
+    if (sourceCache.has(filePath)) return sourceCache.get(filePath)!;
+    try {
+      const content = await fs.readFile(filePath, 'utf-8');
+      sourceCache.set(filePath, content);
+      return content;
+    } catch (err) {
+      logger.warn('Could not read source file', { filePath, error: String(err) });
+      return null;
+    }
   }
 
   const results: DeepAlignmentCheck[] = [];
@@ -454,6 +453,25 @@ export async function checkDeepAlignment(
         sourceFile: check.sourceFile,
         analysis: 'NOT_FOUND',
         details: `Prompt does not contain keyword '${check.promptKeyword}' — check not applicable`,
+      });
+      continue;
+    }
+
+    // Resolve source file: use check.sourceFile (relative to base dir) if it
+    // differs from agentSourcePath, to support functions defined in other modules.
+    const resolvedPath = agentSourcePath.endsWith(check.sourceFile)
+      ? agentSourcePath
+      : agentSourcePath.replace(/src\/.*$/, check.sourceFile);
+    const sourceCode = await readSource(resolvedPath);
+
+    if (sourceCode === null) {
+      results.push({
+        agent: agentRole,
+        promptClaim: check.promptKeyword,
+        functionName: check.expectedFunction,
+        sourceFile: check.sourceFile,
+        analysis: 'NOT_FOUND' as const,
+        details: `Could not read source file: ${resolvedPath}`,
       });
       continue;
     }

@@ -244,44 +244,42 @@ describe('checkDeepAlignment', () => {
     const results = await checkDeepAlignment(
       'knowledge-manager',
       'This prompt has no relevant keywords',
-      path.join(BASE_DIR, 'src/core/agents/knowledge-manager.ts'),
+      path.join(BASE_DIR, 'src/aurora/freshness.ts'),
     );
     expect(results).toHaveLength(1);
     expect(results[0].analysis).toBe('NOT_FOUND');
     expect(results[0].details).toContain('does not contain keyword');
   });
 
-  it('returns DEEP or NOT_FOUND for knowledge-manager with verify keyword', async () => {
+  it('returns DEEP for knowledge-manager verifySource (defined in aurora/freshness.ts)', async () => {
     const results = await checkDeepAlignment(
       'knowledge-manager',
       'Please verify the source content carefully.',
-      path.join(BASE_DIR, 'src/core/agents/knowledge-manager.ts'),
+      path.join(BASE_DIR, 'src/aurora/freshness.ts'),
     );
     expect(results).toHaveLength(1);
-    // verifySource is imported from aurora/freshness.ts — not defined inline.
-    // We just check it returns a valid analysis result.
-    expect(['DEEP', 'SHALLOW', 'NOT_FOUND']).toContain(results[0].analysis);
+    expect(results[0].analysis).toBe('DEEP');
     expect(results[0].agent).toBe('knowledge-manager');
     expect(results[0].functionName).toBe('verifySource');
     expect(results[0].promptClaim).toBe('verify');
   });
 
-  it('returns NOT_FOUND for merger postMergeVerify (function does not exist)', async () => {
+  it('returns DEEP for merger executeBashInTarget (post-merge verification via bash)', async () => {
     const results = await checkDeepAlignment(
       'merger',
       'Execute post-merge verif checks.',
       path.join(BASE_DIR, 'src/core/agents/merger.ts'),
     );
     expect(results).toHaveLength(1);
-    expect(results[0].analysis).toBe('NOT_FOUND');
-    expect(results[0].functionName).toBe('postMergeVerify');
+    expect(results[0].analysis).toBe('DEEP');
+    expect(results[0].functionName).toBe('executeBashInTarget');
   });
 
   it('result shape matches DeepAlignmentCheck interface', async () => {
     const results = await checkDeepAlignment(
       'knowledge-manager',
       'verify the source',
-      path.join(BASE_DIR, 'src/core/agents/knowledge-manager.ts'),
+      path.join(BASE_DIR, 'src/aurora/freshness.ts'),
     );
     const r = results[0];
     expect(r).toHaveProperty('agent');
@@ -320,6 +318,6 @@ describe('DEEP_ALIGNMENT_CHECKS', () => {
   it('contains merger entry', () => {
     const merger = DEEP_ALIGNMENT_CHECKS.find((c) => c.agentRole === 'merger');
     expect(merger).toBeDefined();
-    expect(merger!.expectedFunction).toBe('postMergeVerify');
+    expect(merger!.expectedFunction).toBe('executeBashInTarget');
   });
 });
