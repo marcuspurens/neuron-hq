@@ -1,6 +1,6 @@
 import { type RunContext } from '../run.js';
 import { saveTranscript } from '../transcript-saver.js';
-import { searchMemoryFiles, withRetry } from './agent-utils.js';
+import { searchMemoryFiles, streamWithEmptyRetry, withRetry } from './agent-utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
@@ -196,28 +196,27 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
       logger.info('Historian iteration', { iteration: String(iteration), maxIterations: String(this.maxIterations) });
 
       try {
+        let prefixPrinted = false;
         const response = await withRetry(async () => {
-          const stream = this.client.messages.stream({
+          return streamWithEmptyRetry({
+            client: this.client,
             model: this.model,
-            max_tokens: this.modelMaxTokens,
+            maxTokens: this.modelMaxTokens,
             system: buildCachedSystemBlocks(systemPrompt),
             messages,
             tools: this.defineTools(),
+            agent: 'historian',
+            iteration,
+            onText: (text) => {
+              if (!prefixPrinted) {
+                process.stdout.write('\n[Historian] ');
+                prefixPrinted = true;
+              }
+              process.stdout.write(text);
+            },
           });
-
-          let prefixPrinted = false;
-          stream.on('text', (text) => {
-            if (!prefixPrinted) {
-              process.stdout.write('\n[Historian] ');
-              prefixPrinted = true;
-            }
-            process.stdout.write(text);
-          });
-
-          const msg = await stream.finalMessage();
-          if (prefixPrinted) process.stdout.write('\n');
-          return msg;
         });
+        if (prefixPrinted) process.stdout.write('\n');
 
         logger.info('Historian API response', {
           iteration: String(iteration),
@@ -234,13 +233,6 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
           response.usage.cache_creation_input_tokens ?? 0,
           response.usage.cache_read_input_tokens ?? 0,
         );
-
-        // Empty response on first iteration — likely API transient issue, retry once
-        if (iteration === 1 && response.usage.output_tokens === 0) {
-          logger.info('Historian: empty response on first iteration, retrying after 5s...');
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          continue;
-        }
 
         messages.push({ role: 'assistant', content: response.content });
 

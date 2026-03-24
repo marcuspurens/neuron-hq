@@ -1,9 +1,9 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
 import Anthropic from '@anthropic-ai/sdk';
-import { searchMemoryFiles, truncateToolResult, trimMessages, MAX_TOOL_RESULT_CHARS, withRetry, isOverloadedError, isConnectionError, isRetryableError } from '../../src/core/agents/agent-utils.js';
+import { searchMemoryFiles, truncateToolResult, trimMessages, MAX_TOOL_RESULT_CHARS, withRetry, isOverloadedError, isConnectionError, isRetryableError, isEmptyResponse, EMPTY_RETRY_DELAYS, streamWithEmptyRetry } from '../../src/core/agents/agent-utils.js';
 
 describe('searchMemoryFiles', () => {
   const tmpDirs: string[] = [];
@@ -363,5 +363,153 @@ describe('trimMessages', () => {
     const result = trimMessages(msgs, 100_000);
     expect(result).toEqual(msgs);
     expect(result.length).toBe(2);
+  });
+});
+
+describe('isEmptyResponse', () => {
+  it('returns true when output_tokens is 0', () => {
+    const msg = { usage: { output_tokens: 0 } } as unknown as Anthropic.Message;
+    expect(isEmptyResponse(msg)).toBe(true);
+  });
+
+  it('returns false when output_tokens > 0', () => {
+    const msg = { usage: { output_tokens: 42 } } as unknown as Anthropic.Message;
+    expect(isEmptyResponse(msg)).toBe(false);
+  });
+});
+
+describe('EMPTY_RETRY_DELAYS', () => {
+  it('is [5000, 15000, 30000]', () => {
+    expect(EMPTY_RETRY_DELAYS).toEqual([5_000, 15_000, 30_000]);
+  });
+});
+
+describe('streamWithEmptyRetry', () => {
+  it('returns immediately on success without delay', async () => {
+    const mockMessage = {
+      usage: { output_tokens: 10, input_tokens: 5 },
+      content: [{ type: 'text', text: 'hello' }],
+      stop_reason: 'end_turn',
+    } as unknown as Anthropic.Message;
+
+    const mockStream = {
+      on: vi.fn().mockReturnThis(),
+      finalMessage: vi.fn().mockResolvedValue(mockMessage),
+    };
+
+    const mockClient = {
+      messages: {
+        stream: vi.fn().mockReturnValue(mockStream),
+        create: vi.fn(),
+      },
+    } as unknown as Anthropic;
+
+    const result = await streamWithEmptyRetry({
+      client: mockClient,
+      model: 'claude-3-5-haiku-20241022',
+      maxTokens: 1024,
+      system: 'test system',
+      messages: [{ role: 'user', content: 'test' }],
+      tools: [],
+      agent: 'historian',
+    });
+
+    expect(result).toBe(mockMessage);
+    expect(mockClient.messages.stream).toHaveBeenCalledTimes(1);
+    expect(mockClient.messages.create).not.toHaveBeenCalled();
+  });
+
+  it('falls back to non-streaming after 3 empty streaming attempts', async () => {
+    const emptyMessage = {
+      usage: { output_tokens: 0, input_tokens: 5 },
+      content: [],
+      stop_reason: 'end_turn',
+    } as unknown as Anthropic.Message;
+
+    const fallbackMessage = {
+      usage: { output_tokens: 15, input_tokens: 5 },
+      content: [{ type: 'text', text: 'fallback' }],
+      stop_reason: 'end_turn',
+    } as unknown as Anthropic.Message;
+
+    const mockStream = {
+      on: vi.fn().mockReturnThis(),
+      finalMessage: vi.fn().mockResolvedValue(emptyMessage),
+    };
+
+    const mockClient = {
+      messages: {
+        stream: vi.fn().mockReturnValue(mockStream),
+        create: vi.fn().mockResolvedValue(fallbackMessage),
+      },
+    } as unknown as Anthropic;
+
+    // Use fake timers to avoid real delays
+    vi.useFakeTimers();
+
+    const resultPromise = streamWithEmptyRetry(
+      {
+        client: mockClient,
+        model: 'claude-3-5-haiku-20241022',
+        maxTokens: 1024,
+        system: 'test system',
+        messages: [{ role: 'user', content: 'test' }],
+        tools: [],
+        agent: 'historian',
+      },
+      3,
+    );
+
+    // Advance through all retry delays
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
+
+    expect(mockClient.messages.stream).toHaveBeenCalledTimes(3);
+    expect(mockClient.messages.create).toHaveBeenCalledTimes(1);
+    expect(result).toBe(fallbackMessage);
+
+    vi.useRealTimers();
+  });
+
+  it('returns fallback response even if fallback also gives 0 tokens', async () => {
+    const emptyMessage = {
+      usage: { output_tokens: 0, input_tokens: 5 },
+      content: [],
+      stop_reason: 'end_turn',
+    } as unknown as Anthropic.Message;
+
+    const mockStream = {
+      on: vi.fn().mockReturnThis(),
+      finalMessage: vi.fn().mockResolvedValue(emptyMessage),
+    };
+
+    const mockClient = {
+      messages: {
+        stream: vi.fn().mockReturnValue(mockStream),
+        create: vi.fn().mockResolvedValue(emptyMessage),
+      },
+    } as unknown as Anthropic;
+
+    vi.useFakeTimers();
+    const resultPromise = streamWithEmptyRetry(
+      {
+        client: mockClient,
+        model: 'claude-3-5-haiku-20241022',
+        maxTokens: 1024,
+        system: 'test system',
+        messages: [{ role: 'user', content: 'test' }],
+        tools: [],
+        agent: 'historian',
+      },
+      3,
+    );
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
+
+    // Should return the empty response (not throw)
+    expect(result).toBe(emptyMessage);
+    expect(result.usage.output_tokens).toBe(0);
+
+    vi.useRealTimers();
   });
 });

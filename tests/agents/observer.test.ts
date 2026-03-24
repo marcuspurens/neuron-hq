@@ -718,4 +718,37 @@ describe('ObserverAgent', () => {
       expect(report).toContain('# Prompt Health');
     });
   });
+
+  // ── checkZeroTokenAgents ──────────────────────────────────
+
+  describe('checkZeroTokenAgents', () => {
+    beforeEach(async () => {
+      await observer.startObserving();
+    });
+
+    it('flags a delegated agent with 0 output tokens as WARNING absence', () => {
+      // Emit agent:start to register delegation
+      eventBus.safeEmit('agent:start', { runid: '20260322-0150-test', agent: 'historian' });
+      // Emit tokens with 0 output
+      eventBus.safeEmit('tokens', { agent: 'historian', input: 1000, output: 0 });
+
+      const observations = observer.analyzeRun();
+      const zeroTokenObs = observations.filter(
+        (o) => o.type === 'absence' && o.severity === 'WARNING' && o.agent === 'historian' && o.actualBehavior?.includes('0 output tokens'),
+      );
+      expect(zeroTokenObs.length).toBe(1);
+    });
+
+    it('does NOT flag a non-delegated agent with 0 output tokens', () => {
+      // Only emit tokens but NOT agent:start (not delegated)
+      eventBus.safeEmit('tokens', { agent: 'never-delegated-agent', input: 500, output: 0 });
+
+      const observations = observer.analyzeRun();
+      const zeroTokenObs = observations.filter(
+        (o) => o.agent === 'never-delegated-agent' && o.actualBehavior?.includes('0 output tokens'),
+      );
+      expect(zeroTokenObs.length).toBe(0);
+    });
+  });
+
 });

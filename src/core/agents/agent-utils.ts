@@ -34,7 +34,7 @@ export function truncateToolResult(result: string, maxChars = MAX_TOOL_RESULT_CH
 /**
  * Estimate total character count of all messages.
  */
-function estimateMessagesChars(messages: Anthropic.MessageParam[]): number {
+export function estimateMessagesChars(messages: Anthropic.MessageParam[]): number {
   return messages.reduce((sum, msg) => {
     if (typeof msg.content === 'string') return sum + msg.content.length;
     if (Array.isArray(msg.content)) {
@@ -232,6 +232,114 @@ export async function withRetry<T>(
   }
   // unreachable, but needed for TypeScript
   throw new Error('withRetry: exhausted all attempts');
+}
+
+/**
+ * Returns true if the Anthropic response contains zero output tokens.
+ */
+export function isEmptyResponse(response: Anthropic.Message): boolean {
+  return response.usage.output_tokens === 0;
+}
+
+/**
+ * Delays (in ms) between empty-response retry attempts: 5s, 15s, 30s.
+ */
+export const EMPTY_RETRY_DELAYS = [5_000, 15_000, 30_000] as const;
+
+/**
+ * Options for streamWithEmptyRetry().
+ */
+export interface StreamWithRetryOptions {
+  client: Anthropic;
+  model: string;
+  maxTokens: number;
+  system: Anthropic.MessageCreateParams['system'];
+  messages: Anthropic.MessageParam[];
+  tools: Anthropic.Tool[];
+  agent: string;          // for logging
+  iteration?: number;     // for diagnostics (default 0)
+  onText?: (text: string) => void; // streaming text callback
+}
+
+/**
+ * Calls client.messages.stream() with 0-token retry logic.
+ * - Retries up to maxEmptyRetries (default 3) times with exponential backoff (EMPTY_RETRY_DELAYS)
+ * - Logs diagnostic info on each empty response
+ * - Falls back to non-streaming client.messages.create() if all streaming retries give 0 tokens
+ * - Returns the response even if fallback also gives 0 tokens (caller decides)
+ */
+export async function streamWithEmptyRetry(
+  opts: StreamWithRetryOptions,
+  maxEmptyRetries = 3,
+): Promise<Anthropic.Message> {
+  const { client, model, maxTokens, system, messages, tools, agent, iteration = 0, onText } = opts;
+
+  for (let attempt = 0; attempt < maxEmptyRetries; attempt++) {
+    const stream = client.messages.stream({
+      model,
+      max_tokens: maxTokens,
+      system,
+      messages,
+      tools,
+    });
+
+    if (onText) {
+      stream.on('text', onText);
+    }
+
+    const response = await stream.finalMessage();
+
+    if (!isEmptyResponse(response)) {
+      return response;
+    }
+
+    // 0-token response — log diagnostics
+    logger.warn('Empty response (0 output tokens)', {
+      agent,
+      iteration: String(iteration),
+      retryAttempt: String(attempt + 1),
+      maxRetries: String(maxEmptyRetries),
+      systemPromptChars: String(
+        typeof system === 'string'
+          ? system.length
+          : Array.isArray(system)
+            ? system.reduce((acc, b) => acc + (typeof b === 'object' && 'text' in b && typeof b.text === 'string' ? b.text.length : 0), 0)
+            : 0
+      ),
+      messagesChars: String(estimateMessagesChars(messages)),
+      model,
+    });
+
+    if (attempt < maxEmptyRetries - 1) {
+      const delay = EMPTY_RETRY_DELAYS[attempt] ?? EMPTY_RETRY_DELAYS[EMPTY_RETRY_DELAYS.length - 1];
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  // All streaming retries gave 0 tokens — fallback to non-streaming
+  logger.warn('All streaming retries gave 0 tokens, falling back to non-streaming', {
+    agent,
+    iteration: String(iteration),
+    model,
+  });
+
+  const fallbackResponse = await client.messages.create({
+    model,
+    max_tokens: maxTokens,
+    system,
+    messages,
+    tools,
+  });
+
+  if (isEmptyResponse(fallbackResponse)) {
+    logger.warn('Fallback non-streaming also gave 0 tokens', {
+      agent,
+      iteration: String(iteration),
+      model,
+    });
+  }
+
+  return fallbackResponse;
 }
 
 /**

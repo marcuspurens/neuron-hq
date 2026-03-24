@@ -413,6 +413,7 @@ export class ObserverAgent {
       this.checkToolAlignment();
       this.checkAbsences();
       this.checkEarlyStopping();
+      this.checkZeroTokenAgents();  // NEW
     } catch (err) {
       logger.warn('Error during analyzeRun', { error: String(err) });
     }
@@ -474,6 +475,22 @@ export class ObserverAgent {
           promptClaim: `Agent has ${iter.max} max iterations available`,
           actualBehavior: `Agent stopped at iteration ${iter.current}/${iter.max} (${Math.round((iter.current / iter.max) * 100)}%)`,
           evidence: `Used ${iter.current} of ${iter.max} iterations`,
+        });
+      }
+    }
+  }
+
+  private checkZeroTokenAgents(): void {
+    for (const [agent, usage] of this.tokenUsage) {
+      if (usage.outputTokens === 0 && this.agentDelegations.has(agent)) {
+        this.observations.push({
+          timestamp: new Date().toISOString(),
+          agent,
+          type: 'absence',
+          severity: 'WARNING',
+          promptClaim: 'Agent should produce output tokens',
+          actualBehavior: `${agent} produced 0 output tokens (${usage.inputTokens} input tokens consumed)`,
+          evidence: `Model: ${usage.model}, total cost: $${usage.cost.toFixed(2)}`,
         });
       }
     }
