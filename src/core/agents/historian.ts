@@ -219,6 +219,14 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
           return msg;
         });
 
+        logger.info('Historian API response', {
+          iteration: String(iteration),
+          input_tokens: String(response.usage.input_tokens),
+          output_tokens: String(response.usage.output_tokens),
+          content_blocks: String(response.content.length),
+          stop_reason: response.stop_reason ?? 'unknown',
+        });
+
         this.ctx.usage.recordTokens(
           'historian',
           response.usage.input_tokens,
@@ -226,6 +234,13 @@ If the brief involved Librarian, call read_memory_file(file="techniques") to cou
           response.usage.cache_creation_input_tokens ?? 0,
           response.usage.cache_read_input_tokens ?? 0,
         );
+
+        // Empty response on first iteration — likely API transient issue, retry once
+        if (iteration === 1 && response.usage.output_tokens === 0) {
+          logger.info('Historian: empty response on first iteration, retrying after 5s...');
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          continue;
+        }
 
         messages.push({ role: 'assistant', content: response.content });
 
