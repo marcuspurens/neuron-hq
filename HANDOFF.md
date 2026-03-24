@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-03-23T2100-session135-code-anchor-agent.md](docs/handoffs/HANDOFF-2026-03-23T2100-session135-code-anchor-agent.md)
+Senaste handoff: [HANDOFF-2026-03-24T1100-session138-3.2a-raddad-3.2b-redo.md](docs/handoffs/HANDOFF-2026-03-24T1100-session138-3.2a-raddad-3.2b-redo.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -105,5 +105,6 @@ Senaste handoff: [HANDOFF-2026-03-23T2100-session135-code-anchor-agent.md](docs/
 | 2026-03-23 | 21:00 | 135 | Code Anchor agent — briefverifiering mot faktisk kod | [länk](docs/handoffs/HANDOFF-2026-03-23T2100-session135-code-anchor-agent.md) |
 | 2026-03-23 | 22:00 | 136 | **Code Anchor testkörning** — 4 BLOCK i brief 3.2b, alla fixade | [länk](docs/handoffs/HANDOFF-2026-03-23T2200-session136-code-anchor-testkors-brief.md) |
 | 2026-03-24 | 08:00 | 137 | **Brief 3.2b bollad klart** — 7 rundor Reviewer + Code Anchor R3, 3.2a startad | [länk](docs/handoffs/HANDOFF-2026-03-24T0800-session137-brief-bollning-komplett.md) |
+| 2026-03-24 | 11:00 | 138 | **3.2a räddad från workspace** — T1-T5 komplett, AC17 strict, 3.2b redo | [länk](docs/handoffs/HANDOFF-2026-03-24T1100-session138-3.2a-raddad-3.2b-redo.md) |
 
 > **Not:** Session 1, 6, 79, 92 och 96-103, 106-116, 120-126 saknas — handoffs skapades inte vid dessa tillfällen.
