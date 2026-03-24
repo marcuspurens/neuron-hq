@@ -573,3 +573,57 @@ describe('AC17 STRICT — ConsolidatorAgent dispatcher calls graph-merge functio
     expect(metaNode!.properties).not.toHaveProperty('reason');
   });
 });
+
+describe('AC2b — find_duplicate_candidates handler passes usePpr: true', () => {
+  let tmpDir: string;
+  let memoryDir: string;
+  let runDir: string;
+  let agent: ConsolidatorAgent;
+
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'consolidator-ac2b-'));
+    memoryDir = path.join(tmpDir, 'memory');
+    runDir = path.join(tmpDir, 'runs', 'test-run');
+    const promptsDir = path.join(tmpDir, 'prompts');
+    await fs.mkdir(memoryDir, { recursive: true });
+    await fs.mkdir(runDir, { recursive: true });
+    await fs.mkdir(promptsDir, { recursive: true });
+
+    await fs.writeFile(path.join(promptsDir, 'consolidator.md'), '# Consolidator\nYou consolidate.', 'utf-8');
+
+    // Write a minimal graph with two similar nodes
+    let graph = createEmptyGraph();
+    graph = addNode(graph, makeNode({ id: 'p1', title: 'retry on timeout' }));
+    graph = addNode(graph, makeNode({ id: 'p2', title: 'retry on failure' }));
+    await saveGraph(graph, path.join(memoryDir, 'graph.json'));
+
+    const ctx = createMockRunContext(runDir, tmpDir);
+    agent = new ConsolidatorAgent(ctx, tmpDir);
+  });
+
+  afterEach(async () => {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+    vi.restoreAllMocks();
+  });
+
+  it('find_duplicate_candidates handler calls findDuplicateCandidates with { usePpr: true }', async () => {
+    // Spy on findDuplicateCandidates to verify it is called with usePpr: true
+    const spy = vi.spyOn(graphMerge, 'findDuplicateCandidates');
+
+    const toolUseBlock = {
+      type: 'tool_use' as const,
+      id: 'tool_ac2b',
+      name: 'find_duplicate_candidates',
+      input: { threshold: 0.5 },
+    };
+
+    await (agent as any).executeTools([toolUseBlock]);
+
+    // AC2b: verify usePpr: true was passed as the third argument
+    expect(spy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ usePpr: true })
+    );
+  });
+});

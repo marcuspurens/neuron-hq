@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { KnowledgeGraph, KGNode, KGEdge, NodeType } from './knowledge-graph.js';
 import { createLogger } from './logger.js';
+import { personalizedPageRank, type PPRResult } from './ppr.js';
 
 const logger = createLogger('graph-merge');
 
@@ -58,10 +59,12 @@ export function jaccardSimilarity(a: string, b: string): number {
  * Find pairs of nodes of the same type whose normalized titles
  * have Jaccard similarity >= the given threshold.
  * Returns pairs sorted by similarity descending.
+ * When usePpr is true, applies PPR-boost hybrid scoring to top 50 candidates.
  */
 export function findDuplicateCandidates(
   graph: KnowledgeGraph,
   similarityThreshold: number = 0.6,
+  options?: { usePpr?: boolean },
 ): Array<{ nodeA: string; nodeB: string; similarity: number }> {
   const results: Array<{ nodeA: string; nodeB: string; similarity: number }> = [];
   const { nodes } = graph;
@@ -79,7 +82,117 @@ export function findDuplicateCandidates(
     }
   }
 
+  // PPR-boost: only if usePpr is true and there are candidates
+  if (options?.usePpr && results.length > 0) {
+    const PPR_BATCH_LIMIT = 50;
+
+    // Sort by Jaccard score descending, take top 50 for PPR-boost
+    results.sort((a, b) => b.similarity - a.similarity);
+    const toBoost = results.slice(0, PPR_BATCH_LIMIT);
+    const skipBoost = results.slice(PPR_BATCH_LIMIT);
+
+    // Adapt graph for PPR
+    const nodeIds = graph.nodes.map((n) => n.id);
+    const edges = graph.edges.map((e) => ({ from: e.from, to: e.to }));
+
+    // Apply PPR-boost to top-50 candidates
+    const boosted: Array<{ nodeA: string; nodeB: string; similarity: number }> = [];
+    for (const candidate of toBoost) {
+      let pprProximity = 0;
+      let pprFailed = false;
+      try {
+        // Run PPR from nodeA, get normalized score for nodeB
+        const seeds = new Map([[candidate.nodeA, 1.0]]);
+        const rawResults: PPRResult[] = personalizedPageRank(nodeIds, edges, seeds);
+        const maxScore = rawResults.reduce((max, r) => Math.max(max, r.score), 0);
+        if (maxScore >= 1e-6) {
+          const nodeBResult = rawResults.find((r) => r.nodeId === candidate.nodeB);
+          if (nodeBResult) {
+            pprProximity = nodeBResult.score / maxScore;
+          }
+        }
+        // If maxScore < 1e-6: epsilon guard → pprProximity stays 0
+      } catch {
+        pprFailed = true;
+        console.warn(`[graph-merge] PPR-boost failed for pair ${candidate.nodeA}/${candidate.nodeB}, using Jaccard score`);
+      }
+
+      const finalScore = pprFailed
+        ? candidate.similarity  // fallback to Jaccard if PPR throws
+        : candidate.similarity * 0.6 + pprProximity * 0.4;
+
+      boosted.push({ ...candidate, similarity: finalScore });
+    }
+
+    // Rebuild: boosted (with PPR) + skipBoost (Jaccard-only) sorted by similarity desc
+    const finalResults = [...boosted, ...skipBoost].sort((a, b) => b.similarity - a.similarity);
+    return finalResults;
+  }
+
+  // Without PPR: sort and return as before
   return results.sort((x, y) => y.similarity - x.similarity);
+}
+
+/**
+ * Find related nodes using Personalized PageRank from a seed node.
+ * Returns nodes ranked by PPR score, optionally excluding direct neighbors.
+ * Throws Error if nodeId not found in graph.
+ * Returns empty array if graph has < 2 nodes or seed node has no edges.
+ */
+export function findPprCandidates(
+  graph: KnowledgeGraph,
+  nodeId: string,
+  options?: { limit?: number; excludeDirectNeighbors?: boolean },
+): Array<{ node: KGNode; score: number }> {
+  const limit = options?.limit ?? 10;
+  const excludeDirectNeighbors = options?.excludeDirectNeighbors ?? true;
+
+  // Throw if nodeId not found (follows mergeNodes() convention)
+  const seedNode = graph.nodes.find((n) => n.id === nodeId);
+  if (!seedNode) {
+    throw new Error(`Node not found: ${nodeId}`);
+  }
+
+  // Return empty array if graph has < 2 nodes
+  if (graph.nodes.length < 2) {
+    return [];
+  }
+
+  // Check if seed node has any edges (isolated node → no PPR traversal possible)
+  const hasEdges = graph.edges.some((e) => e.from === nodeId || e.to === nodeId);
+  if (!hasEdges) {
+    return [];
+  }
+
+  // Adapt KnowledgeGraph to personalizedPageRank() format
+  const nodes = graph.nodes.map((n) => n.id);
+  const edges = graph.edges.map((e) => ({ from: e.from, to: e.to }));
+  const seeds = new Map([[nodeId, 1.0]]);
+
+  const pprResults: PPRResult[] = personalizedPageRank(nodes, edges, seeds);
+
+  // Build set of direct neighbors for optional exclusion
+  const directNeighbors = new Set<string>();
+  if (excludeDirectNeighbors) {
+    for (const e of graph.edges) {
+      if (e.from === nodeId) directNeighbors.add(e.to);
+      if (e.to === nodeId) directNeighbors.add(e.from);
+    }
+  }
+
+  // Map PPRResult[] to { node: KGNode; score: number }[]
+  // Nodes whose IDs returned by PPR but not in graph.nodes are silently filtered
+  const results: Array<{ node: KGNode; score: number }> = [];
+  for (const pprResult of pprResults) {
+    if (pprResult.nodeId === nodeId) continue; // exclude seed itself
+    if (excludeDirectNeighbors && directNeighbors.has(pprResult.nodeId)) continue;
+    const node = graph.nodes.find((n) => n.id === pprResult.nodeId);
+    if (!node) continue; // silently filter ghost nodes
+    results.push({ node, score: pprResult.score });
+  }
+
+  // Results are already sorted by PPR score descending (personalizedPageRank returns sorted)
+  return results.slice(0, limit);
 }
 
 /**
@@ -376,75 +489,75 @@ export function findAbstractionCandidates(
     type: NodeType;
   }> = [];
 
-  for (const [nodeType, nodesOfType] of byType) {
-    if (nodesOfType.length < minClusterSize) continue;
+  for (const [nodeType, typeNodes] of byType) {
+    const ids = typeNodes.map((n) => n.id);
+    if (ids.length < minClusterSize) continue;
 
-    // Build pair-adjacency: two nodes are adjacent iff they share ≥2 neighbors
-    const pairAdjacency = new Map<string, Set<string>>();
-    for (const node of nodesOfType) {
-      pairAdjacency.set(node.id, new Set());
-    }
+    // Build pair-adjacency: pairAdj[i][j] = sharedNeighborCount (≥2 to be adjacent)
+    const pairAdj = new Map<string, Set<string>>();
+    for (const id of ids) pairAdj.set(id, new Set());
 
-    const nodeIds = nodesOfType.map((n) => n.id);
-    for (let i = 0; i < nodeIds.length; i++) {
-      for (let j = i + 1; j < nodeIds.length; j++) {
-        const aNeighbors = neighborMap.get(nodeIds[i]) ?? new Set<string>();
-        const bNeighbors = neighborMap.get(nodeIds[j]) ?? new Set<string>();
-        let commonCount = 0;
-        for (const n of aNeighbors) {
-          if (bNeighbors.has(n)) commonCount++;
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const a = ids[i];
+        const b = ids[j];
+        const nbA = neighborMap.get(a)!;
+        const nbB = neighborMap.get(b)!;
+        let shared = 0;
+        for (const n of nbA) {
+          if (nbB.has(n)) shared++;
         }
-        if (commonCount >= 2) {
-          pairAdjacency.get(nodeIds[i])!.add(nodeIds[j]);
-          pairAdjacency.get(nodeIds[j])!.add(nodeIds[i]);
+        if (shared >= 2) {
+          pairAdj.get(a)!.add(b);
+          pairAdj.get(b)!.add(a);
         }
       }
     }
 
-    // Find connected components via BFS
+    // BFS to find connected components
     const visited = new Set<string>();
-    for (const startId of nodeIds) {
+    for (const startId of ids) {
       if (visited.has(startId)) continue;
-
+      // BFS
       const component: string[] = [];
       const queue: string[] = [startId];
+      visited.add(startId);
       while (queue.length > 0) {
         const curr = queue.shift()!;
-        if (visited.has(curr)) continue;
-        visited.add(curr);
         component.push(curr);
-        for (const neighbor of pairAdjacency.get(curr) ?? new Set<string>()) {
-          if (!visited.has(neighbor)) queue.push(neighbor);
-        }
-      }
-
-      if (component.length >= minClusterSize) {
-        // commonNeighborCount = minimum pairwise common-neighbor count
-        // (only over pairs that are directly adjacent in pairAdjacency)
-        let minCommon = Infinity;
-        for (let i = 0; i < component.length; i++) {
-          for (let j = i + 1; j < component.length; j++) {
-            if (!pairAdjacency.get(component[i])!.has(component[j])) continue;
-            const aNeighbors = neighborMap.get(component[i]) ?? new Set<string>();
-            const bNeighbors = neighborMap.get(component[j]) ?? new Set<string>();
-            let cnt = 0;
-            for (const n of aNeighbors) {
-              if (bNeighbors.has(n)) cnt++;
-            }
-            minCommon = Math.min(minCommon, cnt);
+        for (const neighbor of pairAdj.get(curr)!) {
+          if (!visited.has(neighbor)) {
+            visited.add(neighbor);
+            queue.push(neighbor);
           }
         }
-        if (minCommon === Infinity) minCommon = 0;
-
-        results.push({
-          nodeIds: component,
-          commonNeighborCount: minCommon,
-          type: nodeType,
-        });
       }
+      if (component.length < minClusterSize) continue;
+
+      // Compute minimum pairwise shared-neighbor count for adjacent pairs
+      let minShared = Infinity;
+      for (let i = 0; i < component.length; i++) {
+        for (let j = i + 1; j < component.length; j++) {
+          const a = component[i];
+          const b = component[j];
+          if (!pairAdj.get(a)!.has(b)) continue; // only adjacent pairs
+          const nbA = neighborMap.get(a)!;
+          const nbB = neighborMap.get(b)!;
+          let shared = 0;
+          for (const n of nbA) {
+            if (nbB.has(n)) shared++;
+          }
+          minShared = Math.min(minShared, shared);
+        }
+      }
+
+      results.push({
+        nodeIds: component,
+        commonNeighborCount: minShared === Infinity ? 0 : minShared,
+        type: nodeType,
+      });
     }
   }
 
-  // Sort by commonNeighborCount descending
   return results.sort((a, b) => b.commonNeighborCount - a.commonNeighborCount);
 }

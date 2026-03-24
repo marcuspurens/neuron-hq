@@ -10,7 +10,7 @@ import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { prependPreamble } from '../preamble.js';
 import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import { loadGraph, saveGraph } from '../knowledge-graph.js';
-import { mergeNodes, findDuplicateCandidates, findStaleNodes, findMissingEdges, abstractNodes, findAbstractionCandidates, type AbstractionProposal } from '../graph-merge.js';
+import { mergeNodes, findDuplicateCandidates, findPprCandidates, findStaleNodes, findMissingEdges, abstractNodes, findAbstractionCandidates, type AbstractionProposal } from '../graph-merge.js';
 import { isEmbeddingAvailable } from '../embeddings.js';
 import { findSimilarNodes } from '../semantic-search.js';
 import { createLogger } from '../logger.js';
@@ -286,6 +286,18 @@ Analyze the knowledge graph and perform consolidation:
         },
       },
       {
+        name: 'find_ppr_candidates',
+        description: 'Find related nodes using graph-based PPR search (finds connections Jaccard misses)',
+        input_schema: {
+          type: 'object' as const,
+          properties: {
+            nodeId: { type: 'string', description: 'ID of the seed node to run PPR from' },
+            limit: { type: 'number', description: 'Maximum number of results to return (default 10)' },
+          },
+          required: ['nodeId'],
+        },
+      },
+      {
         name: 'write_consolidation_report',
 
         description: 'Write the consolidation report to the run directory.',
@@ -343,6 +355,11 @@ Analyze the knowledge graph and perform consolidation:
             case 'find_abstraction_candidates':
               result = await this.executeFindAbstractionCandidates(
                 block.input as { minClusterSize?: number }
+              );
+              break;
+            case 'find_ppr_candidates':
+              result = await this.executeFindPprCandidates(
+                block.input as { nodeId: string; limit?: number }
               );
               break;
             case 'write_consolidation_report':
@@ -427,7 +444,7 @@ Analyze the knowledge graph and perform consolidation:
     const threshold = input.similarity_threshold ?? 0.6;
 
     // 1. Keyword/Jaccard-based candidates (existing logic)
-    const jaccardCandidates = findDuplicateCandidates(graph, threshold);
+    const jaccardCandidates = findDuplicateCandidates(graph, threshold, { usePpr: true });
     const jaccardPairs = new Set(
       jaccardCandidates.map(c => [c.nodeA, c.nodeB].sort().join('|'))
     );
@@ -496,6 +513,37 @@ Analyze the knowledge graph and perform consolidation:
   }
 
   /**
+   * Find related nodes using Personalized PageRank (PPR) from a seed node.
+   * Useful for finding conceptually related nodes that Jaccard similarity misses.
+   */
+  private async executeFindPprCandidates(input: {
+    nodeId: string;
+    limit?: number;
+  }): Promise<string> {
+    const graphPath = path.join(this.memoryDir, 'graph.json');
+    const graph = await loadGraph(graphPath);
+
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'consolidator',
+      tool: 'find_ppr_candidates',
+      allowed: true,
+      note: `Finding PPR candidates for node ${input.nodeId} (limit: ${input.limit ?? 10})`,
+    });
+
+    try {
+      const candidates = findPprCandidates(graph, input.nodeId, { limit: input.limit });
+      return JSON.stringify(
+        candidates.map(({ node, score }) => ({ nodeId: node.id, title: node.title, type: node.type, score })),
+        null,
+        2
+      );
+    } catch (error) {
+      return `Error: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  }
+
+  /**
    * Find stale nodes with low confidence that haven't been updated recently.
    */
   private async executeFindStaleNodes(input: {
@@ -559,7 +607,15 @@ Analyze the knowledge graph and perform consolidation:
         abstractionSection += `\n### ${title}\n${reason}\n`;
       }
     }
-    const fullReport = input.content + abstractionSection;
+    // PPR-discoveries section (header only — LLM fills content in input.content)
+    const pprSection = '\n## PPR-upptäckter\n' +
+      '*(Noder som PPR hittade men Jaccard missade. Fylls i av LLM i rapport-innehållet.)*\n';
+
+    // Graph stats section (header only — LLM fills content in input.content)
+    const graphStatsSection = '\n## Grafstatistik (noder/kanter före/efter)\n' +
+      '*(Statistik fylls i av LLM i rapport-innehållet.)*\n';
+
+    const fullReport = input.content + abstractionSection + pprSection + graphStatsSection;
 
     await this.ctx.audit.log({
       ts: new Date().toISOString(),

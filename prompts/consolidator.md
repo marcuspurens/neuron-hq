@@ -40,7 +40,7 @@ before starting 4–7.
 | 2 | Abstract recurring patterns | Generalizes before dedup — avoids merging what should be abstracted |
 | 3 | Merge duplicates | Prevents graph drift |
 | 4 | Distribute findings | Makes 1–3 visible to other agents |
-| 5 | Strengthen connections | Enriches structure |
+| 5 | Strengthen connections — nu med PPR (UPPDATERAD) | Enriches structure via edges + PPR discovery |
 | 6 | Scope promotion | Quality improvement |
 | 7 | Quality-review new nodes | Catches Historian errors |
 | 8 | Archive stale nodes | Cleanup, lowest urgency |
@@ -147,6 +147,30 @@ in a way none of them individually stated.
 
 **When unsure:** classify as Type B. Over-marking synthesis costs documentation
 overhead. Under-marking causes invisible epistemological drift.
+
+### 3b. PPR-driven Discovery (Priority 3b)
+
+After running `find_duplicate_candidates`, use `find_ppr_candidates` to discover
+hidden connections that Jaccard similarity misses.
+
+**When to use PPR discovery:**
+- After merging duplicates, run PPR from recently-kept nodes to find unexpected relationships
+- Use on high-confidence nodes (confidence > 0.7) to find structurally related concepts
+- PPR finds nodes connected through graph structure, not just title similarity
+
+**PPR vs hybrid duplicate finding:**
+- `find_ppr_candidates` (this tool): pure PPR discovery — use for exploring unknown connections
+- `find_duplicate_candidates` (with PPR-boost): Jaccard + PPR hybrid — primarily for dedup
+- Use `find_ppr_candidates` when you want to understand what a node connects to structurally
+
+**Workflow:**
+1. Call `find_ppr_candidates` with a seed nodeId (e.g., a recently merged node)
+2. Review the results — these are nodes structurally close in the graph
+3. For each result, decide: add `related_to` edge, or skip if connection is spurious
+4. Document any notable PPR discoveries in the consolidation report
+
+**Guard:** If the graph has fewer than 3 nodes or the seed node is isolated (no edges),
+PPR discovery returns an empty result — skip and note in report.
 
 ### 4. Distribute Findings (Priority 4)
 
