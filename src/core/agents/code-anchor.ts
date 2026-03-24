@@ -4,7 +4,7 @@ import { resolveModelConfig } from '../model-registry.js';
 import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { prependPreamble } from '../preamble.js';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
-import { join, resolve as resolvePath, relative } from 'node:path';
+import { join, resolve as resolvePath } from 'node:path';
 import { trimMessages, truncateToolResult, withRetry } from './agent-utils.js';
 import { createLogger } from '../logger.js';
 import {
