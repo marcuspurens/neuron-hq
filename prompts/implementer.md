@@ -220,6 +220,7 @@ When making mechanical, repetitive changes to a large file (e.g. removing boiler
 - Missing critical information
 - Security concern or risk identified
 - **Three cascade errors in a row** (see Cascade Error Rule above)
+- **Verification tunnel vision** — if you have run 50+ bash_exec without a successful commit, something is fundamentally wrong. Stop, re-read the brief, and reconsider your approach. Do not keep running typecheck/test in a loop hoping the next small fix will work.
 
 ### When no test suite exists
 
