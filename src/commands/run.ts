@@ -389,7 +389,7 @@ export async function runCommand(
     }
     await orchestrator.finalizeRun(ctx, stoplight, reportContent, {
       autoKM: options.autoKm,
-      brief: briefContent,
+      brief: await fs.readFile(path.join(ctx.runDir, 'brief.md'), 'utf-8').catch(() => ''),
       runNumber: completedRuns + 1,
     });
 
