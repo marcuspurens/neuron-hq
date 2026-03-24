@@ -1119,3 +1119,123 @@ Uppdateras av Librarian-agenten.
 **Relaterat:** techniques.md#MECW, techniques.md#D-Mem, techniques.md#BudgetMem, techniques.md#Focus
 
 ---
+
+## Toward a Theory of Hierarchical Memory for Language Agents (2026)
+**Källa:** arxiv:2603.21564 | Yashar Talebirad et al.
+**Kärna:** Proposes a unifying formal theory for hierarchical memory systems in terms of three operators: Extraction (α) that maps raw data to atomic information units; Coarsening (C = (π, ρ)) that partitions units and assigns representatives to each group; and Traversal (τ) that selects which units to include in context given a query and token budget. Identifies a self-sufficiency spectrum for representative functions and shows how it constrains viable retrieval strategies (coarsening-traversal coupling). Instantiates the decomposition on eleven existing systems spanning document hierarchies, conversational memory, and agent execution traces.
+**Nyckelresultat:** Provides a shared formalism for comparing design choices across eleven existing memory systems, enabling systematic analysis of trade-offs between self-sufficient (standalone) and non-self-sufficient (query-dependent) representatives.
+**Relevans för Neuron HQ:** Direkt tillämpbar som designramverk för vår minnessarkitektur. De tre operatorerna (α, C, τ) ger ett gemensamt språk för att jämföra och förbättra hur Historian extraherar, grupperar och hämtar information från patterns.md/errors.md/runs.md. Coarsening-traversal coupling-insikten innebär att om vi väljer ett icke-självtillräckligt sammanfattningsformat (t.ex. nyckelord utan kontext) måste vår traversal kompensera med dyrare query-time-reasoning.
+**Keywords:** hierarchical-memory, theory, formal-model, extraction, coarsening, traversal, context-budget, agent
+**Relaterat:** techniques.md#A-MEM, techniques.md#xMemory, techniques.md#E-mem, techniques.md#CAM
+
+---
+
+## Memory Poisoning and Secure Multi-Agent Systems (2026)
+**Källa:** arxiv:2603.20357 | Vicenç Torra et al.
+**Kärna:** Systematisk analys av minnespoisoning-attacker på agentiska AI- och multi-agent-system. Identifierar olika minnessystem (semantiskt, episodiskt, korttidsminne) och diskuterar attackfeasibility för varje typ. Föreslår kryptobaserade mitigeringsstrategier inklusive lokal inferens baserad på Private Knowledge Retrieval (PKR) för semantiskt minne. Belyser särskilt svårformaliserade risker vid agentinteraktioner, som kan orsaka minnespoisoning genom kaskadeffekter vid kommunikation mellan agenter — ett problem som kräver "secure by design"-arkitekturer.
+**Nyckelresultat:** Identifierar att agentinteraktioner (ej bara externa attacker) kan initiera minnespoisoning via kommunikationskaskader. PKR-baserad lokal inferens ger stark isolering för semantiskt minne men kräver kryptoinfrastruktur. Aktiva risker via inter-agent-kommunikation är svårast att formalisera och lösa.
+**Relevans för Neuron HQ:** Viktig arkitekturvarning — vår Manager → Worker-kommunikation kan oavsiktligt propagera poisonade mönster genom swarm-kedjor. Analysens kaskadeffekt-fokus kompletterar A-MemGuard (validering) och MCFA/MEMFLOW (kontrollflödesattacker) med ett kommunikationsprotokoll-perspektiv: strukturerade, schema-validerade meddelanden (som ESAA förespråkar) reducerar poisoning-ytan. PKR är överkill för Neuron HQ men motiverar åtminstone checksumning av minnesfiler för integritetsverifiering.
+**Keywords:** memory-poisoning, security, multi-agent, cryptography, private-knowledge-retrieval, inter-agent-communication, attack
+**Relaterat:** techniques.md#A-MemGuard, techniques.md#AgentSys, techniques.md#MCFA-MEMFLOW, techniques.md#ESAA
+
+---
+
+## Memori: Persistent Memory Layer via Semantic Triples (2026)
+**Källa:** arxiv:2603.19935 | Luiz C. Borro et al.
+**Kärna:** Memori är ett LLM-agnostiskt persistent minneslager som behandlar minne som ett datastruktureringsprobl em. En Advanced Augmentation-pipeline konverterar ostrukturerad dialog till kompakta semantiska tripletter (subjekt-predikat-objekt) och konversationssammanfattningar, vilket möjliggör precis retrieval och koherent resonemang. Systemet är vektorbaserat men med strutured extraction snarare än rå embeddings, vilket ger bättre precision vid retrieval.
+**Nyckelresultat:** 81.95% accuracy på LoCoMo-benchmark — överträffar existerande minnessystem. Använder bara 1,294 tokens per query (~5% av full kontext). 67% färre tokens än konkurrerande approaches och >20x besparingar jämfört med full-context-metoder.
+**Relevans för Neuron HQ:** Det semantiska triplett-formatet (subjekt-predikat-objekt) är direkt tillämpbart på vår patterns.md. Istället för ostrukturerade textblock kunde Historian lagra mönster som tripletter ("Implementer-agent — misslyckas vid — cirkulära imports") som möjliggör präcis retrieval med minimal tokenförbrukning. 20x tokenbesparing jämfört med full-context motiverar starkare investering i strukturerad memorisering.
+**Keywords:** memory, semantic-triples, structured-extraction, persistent, token-efficiency, LLM-agnostic, agent
+**Relaterat:** techniques.md#Mem0, techniques.md#xMemory, techniques.md#A-MAC, techniques.md#E-mem
+
+---
+
+## All-Mem: Agentic Lifelong Memory via Dynamic Topology Evolution (2026)
+**Källa:** arxiv:2603.19595 | Can Lv et al.
+**Kärna:** All-Mem är ett online/offline livslångt minnessystem som upprätthåller en topology-strukturerad minnesbank via explicit, icke-destruktiv konsolidering. I online-drift anchorar systemet retrieval på en begränsad synlig yta för att hålla sökkostnaderna bounded. Periodiskt offline föreslår en LLM-diagnoser konfidenspoängsatta topologiredigeringar via tre operatorer: SPLIT (dela ett minne), MERGE (slå ihop relaterade minnen) och UPDATE (uppdatera innehåll), allt med oföränderlig evidensbevaranfring för spårbarhet. Vid query-tid möjliggör typade länkar hop-begränsad, budget-anpassad expansion från aktiva ankare till arkiverade bevis.
+**Nyckelresultat:** Förbättrad retrieval och QA jämfört med representativa baslinjer på LOCOMO och LONGMEMEVAL. Icke-destruktiv konsolidering undviker irreversibel informationsförlust typisk för sammanfattningsbaserad kompression.
+**Relevans för Neuron HQ:** All-Mems tre topologioperatorer (SPLIT/MERGE/UPDATE) erbjuder konkreta primitiver för att underhålla patterns.md över tid. Istället för att bara appenda nya mönster kunde Historian periodiskt: (1) SPLIT stora generella mönster till specifika, (2) MERGE duplicerande mönster, (3) UPDATE föråldrade mönster. Oföränderlig evidensbevaranfring (inga permanenta raderingar) matchar vår säkerhets- och spårbarhetsfilosofi. Direkta paralleller till Kumiho:s belief revision-primitiver.
+**Keywords:** lifelong-memory, topology-evolution, SPLIT-MERGE-UPDATE, non-destructive, anchored-retrieval, agent
+**Relaterat:** techniques.md#Kumiho, techniques.md#Live-Evo, techniques.md#Darwinian-Memory-System, techniques.md#MemMA
+
+---
+
+## Pichay: Demand Paging for LLM Context Windows (2026)
+**Källa:** arxiv:2603.09023 | Tony Mason
+**Kärna:** Pichay är ett demand paging-system för LLM-kontext-fönster, implementerat som en transparent proxy mellan klient och inference-API. Systemet interceptar meddelandeströmmen för att vräka inaktuellt innehåll, detektera "page faults" när modellen återbegär vräkt material, och pinna working-set-sidor identifierade av felhistorik. Tillämpar klassisk OS virtual memory-teori (Dennig 1968) direkt på LLM-kontext: L1 cache (in-context), L2 fault-driven pinning, L3 model-initiated conversation compaction. Identifierar att 21.8% av tokens i 857 produktionssessioner är strukturellt slöseri.
+**Nyckelresultat:** Kontext-konsumtion reduceras med upp till 93% (5,038KB till 339KB) i live-produktion. Fault rate 0.0254% offline (1.4M simulerade vräkningar). Under extrem ihållande press: förväntat thrashing-beteende. Produktionsdistribuerat system.
+**Relevans för Neuron HQ:** Den OS-inspirerade paginganalysen är ett direkt komplement till MemGPT:s RAM/disk-metafor. Pichays konkreta produktionsresultat (93% kontestreduktion, 0.025% fault rate) ger empirisk validering för vår minnesfils-selektiva läsningsstrategi. 21.8% strukturellt slöseri i produktionssessioner bekräftar att tool-definitioner och system-prompts bör evikt aggressivt. Proxy-arkitekturen (transparent, ingen modellmodifiering) gör det möjligt att tillämpa principer utan att ändra agenternas kärnkod.
+**Keywords:** context-window, demand-paging, virtual-memory, working-set, eviction, proxy, OS-inspired, LLM, agent
+**Relaterat:** techniques.md#MemGPT, techniques.md#CMV, techniques.md#Focus, techniques.md#AgentRM, techniques.md#MECW
+
+---
+
+## LongRoPE2: Near-Lossless LLM Context Window Scaling (2025)
+**Källa:** arxiv:2502.20082 | Ning Shang et al.
+**Kärna:** LongRoPE2 utökar effektivt kontextfönster i förtränade LLMs till målängd och bevarar prestanda vid kortare kontexter. Baseras på hypotesen att otillräcklig träning i högre RoPE-dimensioner bidrar till out-of-distribution-problem. Introducerar en effektiv RoPE-reskaleringsalgoritm med evolutionär sökning guidad av "needle-driven" perplexity och en mixed context window training som finjusterar modellvikter för reskalerad RoPE vid långa sekvenser medan kort-kontextprestanda bevaras med original RoPE.
+**Nyckelresultat:** Utökar LLaMA3-8B till 128K effektiv kontext-längd med >98.5% bevarad kort-kontextprestanda, med bara 10B träningstoken — 80x färre än Metas approach, som inte ens når mål-effektiv kontextlängd. Validerad på LLaMA3-8B och Phi3-mini-3.8B.
+**Relevans för Neuron HQ:** Relevant om vi vill använda modeller med utökade kontextfönster utan att offra prestanda vid korta kontexter. Insikten om att RoPE-höga-dimensioner undertränats motiverar skepticism mot nyligen lanserade "extended context"-modeller — kontrollera om de använder korrekt reskalering. 80x effektivitetsvinst i träning gör LongRoPE2 till en praktisk teknik för att kustomanpassa modeller för vår swarms kontextbehov.
+**Keywords:** context-window, RoPE, positional-encoding, near-lossless, scaling, LLM, fine-tuning
+**Relaterat:** techniques.md#MECW, techniques.md#SWAA, techniques.md#Positional-Biases, techniques.md#DySCO
+
+---
+
+## EAGER: Efficient Failure Management for Multi-Agent Systems (2026)
+**Källa:** arxiv:2603.21522 | Lingzhe Zhang et al.
+**Kärna:** EAGER är ett effektivt felhanteringsramverk för multi-agent-system baserat på reasoning trace-representationer. Använder osupervised reasoning-scoped contrastive learning för att koda både intra-agent-resonemang och inter-agent-koordinering, vilket möjliggör realtids stegvis feldetektering, diagnostik och reflexiv mitigering guidad av historiska felmönster. Till skillnad från per-trace-approaches som är ineffektiva och ignorerar historiska mönster, kodifierar EAGER dessa mönster för återanvändning. Accepterad vid FSE'26.
+**Nyckelresultat:** Preliminär evaluering på tre open-source MASs visar effektivitet. Realtids stegvis feldetektering är signifikant snabbare och mer precis än retroaktiv analys. Historiska felmönster förbättrar diagnostiknoggrannhet markant.
+**Relevans för Neuron HQ:** Direkt applicerbart på vår swarm-monitoring. EAGER:s contrastive learning-approach för att koda inter-agent-koordineringsmönster kompletterar Wink (single-agent-kurskorrigering) med ett system-nivå-perspektiv. Reflexiv mitigering guidad av historiska mönster matchar exakt vår errors.md-filosofi men med automation. Realtids stegvis detektering (inte bara slutresultat) möjliggör tidig intervention innan en misslyckad trajektoria förslösar alla tillgängliga tokens.
+**Keywords:** failure-management, multi-agent, contrastive-learning, real-time-detection, historical-patterns, reasoning-trace, agent
+**Relaterat:** techniques.md#Wink, techniques.md#TraceCoder, techniques.md#XAI-for-Coding-Agent-Failures, techniques.md#Agyn
+
+---
+
+## ALARA for Agents: Least-Privilege Context Engineering (2026)
+**Källa:** arxiv:2603.20380 | Christopher J. Agostino et al.
+**Kärna:** Tillämpar ALARA-principen (As Low As Reasonably Achievable) från strålskyddssäkerhet på agentkontext. Introducerar ett deklarativt context-agent-tool (CAT) data-lager uttryckt via sammankopplade filer som avgränsar varje agents verktygsåtkomst och kontext till det minimum dess roll kräver. Systemet (npcsh) parsar och genomdriver dessa filer strukturellt — att modifiera en agents verktygslista ger en garanterad beteendeförändring snarare än ett förslag som modellen kan ignorera. Utvärderade 22 modeller från 0.6B till 35B på 115 praktiska uppgifter.
+**Nyckelresultat:** ~2500 totala exekveringar. Strukturell genomdrivning ger garanterade beteendeförändringar (vs prompt-baserade suggestioner). Tydlig uppdelning av vilka modellstorlekar som klarar vilka uppgiftskategorier. Open source (github.com/NPC-Worldwide/npcsh).
+**Relevans för Neuron HQ:** Direkt tillämpbar på vår swarm-säkerhetsarkitektur. Vår nuvarande approach med prose-instruktioner i AGENTS.md är exakt den "suggestion"-baserade metod som ALARA-konceptet ersätter. CAT-lagret (strukturerade, maskinläsbara verktygsåtkomstregler) ger oss möjlighet att garantera att t.ex. Researcher-agenten aldrig kan skriva till filer, eller att Historian-agenten aldrig kan köra kod. Komplementerar AgentSys (minnesisolering) med verktygsnivåisolering.
+**Keywords:** least-privilege, context-engineering, declarative, tool-access-control, behavioral-guarantees, ALARA, security, agent
+**Relaterat:** techniques.md#AgentSys, techniques.md#ESAA, techniques.md#Talk-Freely-Execute-Strictly, techniques.md#LLM-Constitutional-Multi-Agent-Governance
+
+---
+
+## SkillProbe: Security Auditing for Agent Skill Marketplaces (2026)
+**Källa:** arxiv:2603.21019 | Zihan Guo et al.
+**Kärna:** SkillProbe är ett multi-stage säkerhetsgranskningsramverk drivet av multi-agent-samarbete för centraliserade skill-marknadsplatser. Introducerar "Skills-for-Skills"-designparadigmet: auditeringsprocesserna kapslas in i standardiserade skill-moduler som driver specialiserade agenter genom en rigorös pipeline (admission filtering → semantisk-beteendemässig alignment-detektion → kombinationsrisk-simulering). Identifierar specifikt "inter-skill kombinationsrisker" — individuellt harmlösa skills som inducerar skadliga beteenden vid kollaborativ invokation.
+**Nyckelresultat:** Storskalig evaluering med 8 LLM-serier på 2,500 verkliga skills från ClawHub. Popularity-security paradox: nedladdningsvolym korrelerar inte med säkerhet — >90% av högt nedladdade skills klarade inte rigorös granskning. Högriskskills bildar en enda stor sammanhängande komponent i riskdimensionen (kaskadrisker är systemiska, inte isolerade).
+**Relevans för Neuron HQ:** Kraftig varning för ekosystem-säkerhet. Om vi utökar vår swarm med externa verktyg (MCP-servrar, plugins) gäller samma popularitets-säkerhet-paradox — populärt ≠ säkert. Inter-skill-kombinationsrisk är särskilt relevant: verktyg som fungerar tryggt isolerat kan kombineras på farliga sätt. Komplementerar SkillJect (attack-syntes) och Skill-Inject (benchmark) med ett proaktivt auditeringsramverk för vår verktygsportfölj. Kaskad-komponent-insikten motiverar att utföra kombinationsrisk-tester, inte bara enskilda verktyg.
+**Keywords:** security, skill-marketplace, auditing, combinatorial-risk, inter-skill, popularity-paradox, multi-agent, agent
+**Relaterat:** techniques.md#SkillJect, techniques.md#Skill-Inject, techniques.md#AgentSys, techniques.md#ALARA-for-Agents
+
+---
+
+## SEA-TS: Self-Evolving Agent for Autonomous Time Series Code Generation (2026)
+**Källa:** arxiv:2603.04873 | Longkun Xu et al.
+**Kärna:** SEA-TS är ett ramverk som autonomt genererar, validerar och optimerar forecasting-kod via en iterativ självevolutionsloop. Tre nyckelinnovationer: (1) Metric-Advantage Monte Carlo Tree Search (MA-MCTS) som ersätter fixerade belöningar med normaliserade advantage-score för diskriminativ sökguidning; (2) Code Review med running prompt refinement — varje exekverad lösning genomgår automatisk granskning följt av prompt-uppdateringar som kodifierar korrigerande mönster för att förhindra återkommande fel; (3) Global Steerable Reasoning som jämför varje nod mot globalt bästa och sämsta lösningar för cross-trajectory-kunskapsöverföring. Använder MAP-Elites-arkiv för arkitekturell mångfald.
+**Nyckelresultat:** På Solar-Energy-benchmark: 40% MAE-reduktion relativt TimeMixer. På proprietär solcellsdataset: 8.6% WAPE-reduktion vs mänskliga baslinjer. Genererar genuint nya arkitekturella mönster (fysik-informerade monoton-decay-heads, stationsspecifika diurnala profiler) bortom manuell design.
+**Relevans för Neuron HQ:** Tre direkt tillämpbara principer: (1) Code Review med running prompt refinement är exakt vad vår Manager bör göra — uppdatera Implementer-agentens instruktioner baserat på mönster i tidigare fel. (2) MA-MCTS för kodgenerering ger ett alternativ till lineär revision-loop — parallellt utforska flera lösningsgrenar. (3) Global Steerable Reasoning (jämför mot bästa + sämsta) matchar vår Reviewer-agents roll med explicit referens till vad som fungerat respektive misslyckats.
+**Keywords:** self-evolution, Monte-Carlo-tree-search, code-generation, prompt-refinement, advantage-score, iterative, agent
+**Relaterat:** techniques.md#AgentFactory, techniques.md#ReflexiCoder, techniques.md#SEMAG, techniques.md#TraceCoder
+
+---
+
+## AriadneMem: Structured Memory for Lifelong LLM Agents (2026)
+**Källa:** arxiv:2603.03290 | Wenhui Zhu et al.
+**Kärna:** AriadneMem adresserar två persistenta utmaningar i långtidsdialog: (i) frånkopplad evidens, där multi-hop-svar kräver länkning av fakta distribuerade över tid, och (ii) tillståndsuppdateringar, där evolverande information skapar konflikter med äldre statiska loggar. En offline konstruktionsfas använder entropy-aware gating för att filtrera brus och låginfo-meddelanden och conflict-aware coarsening för att slå samman statiska duplikat medan tillståndsövergångar bevaras som temporala kanter. En online reasoning-fas kör algoritmisk brygge-discovery för att rekonstruera saknade logiska vägar, följt av single-call topologi-medveten syntes.
+**Nyckelresultat:** Multi-Hop F1 +15.2% och genomsnittlig F1 +9.0% över starka baslinjer på LoCoMo med GPT-4o. Minskar total körtid med 77.8% med bara 497 kontexttokens (extremt tokeneffektivt).
+**Relevans för Neuron HQ:** Entropy-aware gating för att filtrera brus matchar exakt vad Historian bör göra — inte allt förtjänar att sparas i patterns.md. Conflict-aware coarsening (slå samman duplikat, bevara tillståndsövergångar) ger konkreta algoritmer för att underhålla mönsterbanken. Brygge-discovery för att rekonstruera multi-hop-logik är relevant när agenter behöver kombinera insikter från multipla minnesfiler. 497-token-kontextanvändning är exceptionellt effektivt — en benchmark för hur kompakta våra minneshämtningar borde vara.
+**Keywords:** memory, lifelong, entropy-gating, conflict-resolution, multi-hop, bridge-discovery, token-efficient, agent
+**Relaterat:** techniques.md#All-Mem, techniques.md#xMemory, techniques.md#Kumiho, techniques.md#LoCoMo-Plus
+
+---
+
+## SimpleMem: Semantic Lossless Compression for LLM Agent Memory (2026)
+**Källa:** arxiv:2601.02553 | Jiaqi Liu et al.
+**Kärna:** SimpleMem är ett effektivt minnessystem baserat på semantisk förlustfri kompression i tre steg: (1) Semantic Structured Compression som destillerar ostrukturerade interaktioner till kompakta, multi-view-indexerade minnesenheter; (2) Online Semantic Synthesis, en intra-sessions process som omedelbart integrerar relaterad kontext i enhetliga abstrakta representationer för att eliminera redundans; och (3) Intent-Aware Retrieval Planning som infererar sökintention för att dynamiskt bestämma hämtningsomfång och konstruera precis kontext effektivt.
+**Nyckelresultat:** Genomsnittlig F1-förbättring på 26.4% på LoCoMo. Token-konsumtion reduceras med upp till 30x vid inferenstid jämfört med full-context-approach. Överträffar baslinjer konsekvent i noggrannhet, hämtningseffektivitet och inferenskostnad.
+**Relevans för Neuron HQ:** Tre-stegs-pipeline (compression → synthesis → retrieval) erbjuder en fullständig implementation för hur Historian kan hantera memories. Speciellt Online Semantic Synthesis (intra-sessions redundanseliminering) är direkt applicerbart — om Implementer-agenten upprepar liknande försök i samma session bör de deduplikeras omedelbart. 30x tokenreduktion är det starkaste resultat vi sett och motiverar att investera i strukturerad kompression framför rå loggning.
+**Keywords:** memory, semantic-compression, lossless, multi-view-indexing, intent-aware-retrieval, deduplication, token-efficiency, agent
+**Relaterat:** techniques.md#Memori, techniques.md#Focus, techniques.md#CMV, techniques.md#xMemory
+
+---
