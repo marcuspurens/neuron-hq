@@ -6,6 +6,22 @@ import { createEmptyGraph, addNode, addEdge, saveGraph, loadGraph, type KGNode }
 import { mergeNodes, findDuplicateCandidates, findStaleNodes, findMissingEdges } from '../../../src/core/graph-merge.js';
 import * as graphMerge from '../../../src/core/graph-merge.js';
 
+// Mock agent-client and model-registry so ConsolidatorAgent can be instantiated without API key
+vi.mock('../../../src/core/agent-client.js', () => ({
+  createAgentClient: () => ({ client: {}, model: 'test-model', maxTokens: 4096 }),
+  buildCachedSystemBlocks: () => [],
+}));
+vi.mock('../../../src/core/model-registry.js', () => ({
+  resolveModelConfig: () => ({ modelId: 'test-model', maxOutputTokens: 4096 }),
+}));
+vi.mock('../../../src/core/prompt-overlays.js', () => ({
+  loadOverlay: async () => null,
+  mergePromptWithOverlay: (prompt: string) => prompt,
+}));
+vi.mock('../../../src/core/preamble.js', () => ({
+  prependPreamble: async (prompt: string) => prompt,
+}));
+
 function makeNode(overrides: Partial<KGNode> = {}): KGNode {
   return {
     id: 'test-001',
@@ -406,5 +422,154 @@ describe('ConsolidatorAgent tool handlers — abstraction tools', () => {
       expect(findingsContent).toBe(fullReport);
       expect(findingsContent).toContain('## Abstraktioner skapade');
     });
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// AC17 STRICT: End-to-end dispatcher tests via ConsolidatorAgent.executeTools()
+// These tests instantiate the real agent and invoke its private executeTools()
+// to verify the actual dispatch chain: tool_use block → switch → handler → function
+// ──────────────────────────────────────────────────────────────────────────────
+
+import { ConsolidatorAgent } from '../../../src/core/agents/consolidator.js';
+
+function createMockRunContext(runDir: string, baseDir: string) {
+  return {
+    runid: '20260324-test-consolidator' as any,
+    target: { name: 'test', path: '/tmp/test', default_branch: 'main' },
+    hours: 1,
+    workspaceDir: '/tmp/workspace',
+    runDir,
+    policy: { getLimits: () => ({ max_iterations_per_run: 10 }) },
+    audit: { log: async () => {} },
+    manifest: { addCommand: async () => {} },
+    usage: { recordTokens: () => {}, recordToolCall: () => {} },
+    artifacts: { readBrief: async () => '# Brief' },
+    startTime: new Date(),
+    endTime: new Date(Date.now() + 3_600_000),
+  } as any;
+}
+
+describe('AC17 STRICT — ConsolidatorAgent dispatcher calls graph-merge functions', () => {
+  let tmpDir: string;
+  let memoryDir: string;
+  let runDir: string;
+  let agent: ConsolidatorAgent;
+
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'consolidator-dispatch-'));
+    memoryDir = path.join(tmpDir, 'memory');
+    runDir = path.join(tmpDir, 'runs', 'test-run');
+    const promptsDir = path.join(tmpDir, 'prompts');
+    await fs.mkdir(memoryDir, { recursive: true });
+    await fs.mkdir(runDir, { recursive: true });
+    await fs.mkdir(promptsDir, { recursive: true });
+
+    // Write minimal consolidator prompt
+    await fs.writeFile(path.join(promptsDir, 'consolidator.md'), '# Consolidator\nYou consolidate.', 'utf-8');
+
+    // Write a graph with nodes for abstraction
+    let graph = createEmptyGraph();
+    graph = addNode(graph, makeNode({ id: 'a1', title: 'timeout pattern A' }));
+    graph = addNode(graph, makeNode({ id: 'a2', title: 'timeout pattern B' }));
+    graph = addNode(graph, makeNode({ id: 'a3', title: 'timeout pattern C' }));
+    // Add shared neighbors so findAbstractionCandidates returns results
+    graph = addNode(graph, makeNode({ id: 'hub1', title: 'shared hub 1' }));
+    graph = addNode(graph, makeNode({ id: 'hub2', title: 'shared hub 2' }));
+    const meta = { runId: 'test', agent: 'test', timestamp: new Date().toISOString() };
+    graph = addEdge(graph, { from: 'a1', to: 'hub1', type: 'related_to', metadata: meta });
+    graph = addEdge(graph, { from: 'a2', to: 'hub1', type: 'related_to', metadata: meta });
+    graph = addEdge(graph, { from: 'a3', to: 'hub1', type: 'related_to', metadata: meta });
+    graph = addEdge(graph, { from: 'a1', to: 'hub2', type: 'related_to', metadata: meta });
+    graph = addEdge(graph, { from: 'a2', to: 'hub2', type: 'related_to', metadata: meta });
+    graph = addEdge(graph, { from: 'a3', to: 'hub2', type: 'related_to', metadata: meta });
+    await saveGraph(graph, path.join(memoryDir, 'graph.json'));
+
+    const ctx = createMockRunContext(runDir, tmpDir);
+    agent = new ConsolidatorAgent(ctx, tmpDir);
+  });
+
+  afterEach(async () => {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+    vi.restoreAllMocks();
+  });
+
+  it('graph_abstract_nodes tool_use → dispatcher calls abstractNodes()', async () => {
+    const spy = vi.spyOn(graphMerge, 'abstractNodes');
+
+    const toolUseBlock = {
+      type: 'tool_use' as const,
+      id: 'tool_01',
+      name: 'graph_abstract_nodes',
+      input: {
+        nodeIds: ['a1', 'a2'],
+        title: 'Timeout Resilience',
+        description: 'Generalizes timeout handling patterns',
+        reason: 'Both handle timeout — common root cause',
+      },
+    };
+
+    // Invoke the actual dispatcher
+    const results = await (agent as any).executeTools([toolUseBlock]);
+
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ nodes: expect.any(Array) }),
+      expect.objectContaining({
+        sourceNodeIds: ['a1', 'a2'],
+        title: 'Timeout Resilience',
+      })
+    );
+    // Verify it returned a tool_result
+    expect(results).toHaveLength(1);
+    expect(results[0].tool_use_id).toBe('tool_01');
+  });
+
+  it('find_abstraction_candidates tool_use → dispatcher calls findAbstractionCandidates()', async () => {
+    const spy = vi.spyOn(graphMerge, 'findAbstractionCandidates');
+
+    const toolUseBlock = {
+      type: 'tool_use' as const,
+      id: 'tool_02',
+      name: 'find_abstraction_candidates',
+      input: { minClusterSize: 3 },
+    };
+
+    const results = await (agent as any).executeTools([toolUseBlock]);
+
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ nodes: expect.any(Array) }),
+      3
+    );
+    expect(results).toHaveLength(1);
+    expect(results[0].tool_use_id).toBe('tool_02');
+  });
+
+  it('graph_abstract_nodes dispatcher stores reason in abstractionReasons (not graph)', async () => {
+    const toolUseBlock = {
+      type: 'tool_use' as const,
+      id: 'tool_03',
+      name: 'graph_abstract_nodes',
+      input: {
+        nodeIds: ['a1', 'a2'],
+        title: 'Timeout Meta',
+        description: 'Meta pattern',
+        reason: 'Both are timeout handlers',
+      },
+    };
+
+    await (agent as any).executeTools([toolUseBlock]);
+
+    // Check internal abstractionReasons was populated
+    const reasons = (agent as any).abstractionReasons;
+    expect(reasons).toHaveLength(1);
+    expect(reasons[0]).toEqual({ title: 'Timeout Meta', reason: 'Both are timeout handlers' });
+
+    // Check graph node does NOT have reason in properties
+    const graph = await loadGraph(path.join(memoryDir, 'graph.json'));
+    const metaNode = graph.nodes.find((n: any) => n.title === 'Timeout Meta');
+    expect(metaNode).toBeDefined();
+    expect(metaNode!.properties).not.toHaveProperty('reason');
   });
 });
