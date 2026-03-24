@@ -3283,6 +3283,35 @@ Alla 23 acceptanskriterier verifierades gröna. Implementer skapade `src/core/gr
 
 ---
 
+## Körning 20260324-0559-neuron-hq — neuron-hq (3.2a A-MEM)
+**Datum:** 2026-03-24
+**Uppgift:** Brief 3.2a — orchestrator-flytt + abstraktion. Flytta Consolidator till orchestratorn, lägga till abstraktionsverktyg, `generalizes`-kanttyp.
+**Resultat:** ⚠️ RÄDDAD — Implementer nådde 180/180 max iterationer, ingen merge till main. Koden räddades manuellt från workspace i S138. 19/19 AC efter manuell fix av T5 (prompts) + AC15/AC16 (tester).
+
+**Vad som fungerade:**
+T1-T4 implementerades komplett: `generalizes` EdgeType, `abstractNodes()` + `findAbstractionCandidates()` med connected-components-algoritm, Consolidator-tools + handlers med `vi.spyOn`-tester, orchestrator-flytt i run.ts, Manager-delegering borttagen. Alla 3873 tester gröna i workspace (3844 + 29 nya).
+
+**Vad som inte fungerade:**
+Implementer körde 499 bash_exec-anrop — "verification tunnel vision" med upprepade `tsc --noEmit` och `git stash`. T5 (prompter) markerades som klar (score 1.075) men hade 0 ändringar i `consolidator.md` och `manager.md` — Manager verifierade inte. Historian fick bara 1 tool-anrop och kunde inte göra sitt jobb. 6 Python-patchskript (`scripts/patch_*.py`) kvarglömda i workspace.
+
+**Manuell räddning (S138):**
+- Patchade workspace-kod (T1-T4) till vår branch
+- Fixade T5 manuellt: Abstraction Protocol + Priority Order i consolidator.md
+- Skapade `tests/commands/run-orchestrator.test.ts` (5 tester) för AC15/AC16
+- Fixade AC10 (sektionsnamn "Abstraction Protocol")
+- 3878 tester gröna efter räddning
+
+**Lärdomar:**
+- Manager måste verifiera att T5 (prompts) faktiskt ändrades — att ge score 1.075 utan diff är ett systemfel
+- Implementer med 499 bash_exec behöver ett hårt tak (~200) med tvingad "backa och tänk om"
+- Historian behöver minimal fallback: skriv `⚠️ OFULLSTÄNDIG` i runs.md hellre än tystnad
+- Workspace-räddning fungerar — koden var komplett trots max iterations
+
+**Tokens:** 14.2M ($44.76) — 3-4M över normalt pga verification tunnel vision
+**Testtillväxt:** 3844 → 3878 (+34 tester)
+
+---
+
 [INV-011] Grafens hälsokontroll körs som pre-step i varje körning och skriver graph-health.md
 **Beskrivning:** `run.ts` måste köra `runHealthCheck(graph)` och skriva `runs/<runId>/graph-health.md` innan agenter startar. Om `loadGraph()` kastar ska körningen fortsätta utan att blockeras (try/catch). Vid RED injicerar `maybeInjectHealthTrigger()` en trigger i briefen.
 **Vaktas av:** `tests/core/graph-health.test.ts` (AC17–AC18, AC22), `tests/commands/graph-health.test.ts` (AC21)

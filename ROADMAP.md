@@ -15,10 +15,10 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3844 |
-| Körningar | 178 |
+| Tester | 3878 |
+| Körningar | 179 |
 | MCP-tools | 44 |
-| Sessioner | 135 |
+| Sessioner | 138 |
 | Agenter | 13 (inkl Observer + Code Anchor) |
 | Idé-noder | 924 |
 | Code Review | ★★★★☆ (Fas 1 klar) |
@@ -360,18 +360,26 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
-### 3.2 A-MEM — agentdriven minnesreorganisering ⬜
+### 3.2a A-MEM — orchestrator-flytt + abstraktion ✅ S138 · 2026-03-24
 
-**Vad det ger dig:** Systemet reorganiserar sitt eget minne automatiskt — mergar liknande noder, skapar abstraktioner, bygger nya kopplingar. Som att rensa och organisera ett arkiv.
+**Vad det ger dig:** Systemet reorganiserar sitt eget minne automatiskt — mergar liknande noder, skapar abstraktioner, bygger nya kopplingar. Consolidator körs nu automatiskt i orchestratorn (som Historian).
 
-**Tekniskt:**
-- Periodisk agent (som Consolidator men smartare)
-- Mergar, abstraherar, kopplar
-- Bygger på HippoRAG (2.1) för navigering
+**Gjort:** Körning 179 (räddad från workspace efter 180/180 max iterations), $44.76, +34 tester (3878 totalt)
+- `generalizes` EdgeType tillagd i knowledge-graph.ts
+- `abstractNodes()` + `findAbstractionCandidates()` i graph-merge.ts (connected components-algoritm)
+- `graph_abstract_nodes` + `find_abstraction_candidates` tools i consolidator.ts
+- Consolidator flyttad till orchestratorn (run.ts): Historian → Consolidator → Observer
+- `delegate_to_consolidator` borttagen från Manager
+- Abstraction Protocol + uppdaterad Priority Order i consolidator.md
+- T5 (prompter) fixade manuellt — workspace missade dem
 
-**Förutsättning:** HippoRAG (2.1) klart.
+### 3.2b A-MEM — PPR-hybrid duplicate finding ⬜
 
-**Effort:** 2-3 körningar · **Brief:** `a-mem`
+**Vad det ger dig:** PPR-baserad kandidathittning + hybrid-scoring (Jaccard + PPR-boost) i duplicate finding. Brief bollad 8 rundor (8.8/10 GODKÄND).
+
+**Förutsättning:** 3.2a ✅
+
+**Effort:** 1 körning · **Brief:** `briefs/2026-03-23-a-mem-3.2b-ppr-hybrid.md`
 
 ---
 
@@ -497,7 +505,8 @@ Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21)
 | **2.7** | **Modellstrategi (Sonnet+Opus)** | **2** | **<1 sess** | — | **✅ S123 2026-03-22** |
 | 2.8 | AI Act Art. 14 — Mänsklig tillsyn | 2 | 3-5 körn | RT-2/3 | ⬜ |
 | 3.1 | Reviewer severity levels | 3 | 1-2 körn | — | ⬜ |
-| 3.2 | A-MEM | 3 | 2-3 körn | 2.1 | ⬜ |
+| 3.2a | A-MEM orchestrator + abstraktion | 3 | 1 körn | 2.1 | **✅ S138 2026-03-24** |
+| 3.2b | A-MEM PPR-hybrid | 3 | 1 körn | 3.2a | ⬜ |
 | 3.3 | Research före implementation | 3 | 1 körn | 2.3 | ⬜ |
 | 3.4 | Schemalagda agent-samtal | 3 | 2-3 körn | 2.3, server | ⬜ |
 | 3.5 | Dynamisk diff-limit | 3 | 1 körn | — | ⬜ |
@@ -507,7 +516,7 @@ Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21)
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
 | 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~30-45 körningar. **Klar:** 19/27
+**Totalt:** ~30-45 körningar. **Klar:** 20/28
 
 ---
 
