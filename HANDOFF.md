@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-03-24T1700-session142-mini-brief-skriven.md](docs/handoffs/HANDOFF-2026-03-24T1700-session142-mini-brief-skriven.md)
+Senaste handoff: [HANDOFF-2026-03-24T1930-session143-brief-godkand-korning-startad.md](docs/handoffs/HANDOFF-2026-03-24T1930-session143-brief-godkand-korning-startad.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -110,5 +110,6 @@ Senaste handoff: [HANDOFF-2026-03-24T1700-session142-mini-brief-skriven.md](docs
 | 2026-03-24 | 13:30 | 140 | **3.2b GRÖN** — 11/11 AC, 3898 tester, agentproblem identifierade | [länk](docs/handoffs/HANDOFF-2026-03-24T1330-session140-3.2b-gron-agentproblem.md) |
 | 2026-03-24 | 15:30 | 141 | **Alla agentproblem fixade** — 10/11 lösta, promptfixar + kodfixar + rensning | [länk](docs/handoffs/HANDOFF-2026-03-24T1530-session141-agentfixar-alla-problem.md) |
 | 2026-03-24 | 17:00 | 142 | **Mini-brief 3.5 skriven** — dynamisk diff-limit, 3 bollningsrundor, omskriven från scratch | [länk](docs/handoffs/HANDOFF-2026-03-24T1700-session142-mini-brief-skriven.md) |
+| 2026-03-24 | 19:30 | 143 | **Brief 3.5 godkänd + körning startad** — CA R2-R3 + BR R3-R5 + 4 djuptänk-fixar | [länk](docs/handoffs/HANDOFF-2026-03-24T1930-session143-brief-godkand-korning-startad.md) |
 
 > **Not:** Session 1, 6, 79, 92 och 96-103, 106-116, 120-126 saknas — handoffs skapades inte vid dessa tillfällen.
