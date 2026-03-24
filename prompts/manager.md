@@ -268,14 +268,15 @@ If baseline reports `testsExist: false`:
 När du får tillbaka svar från `delegate_to_implementer`:
 
 1. **Läs IMPLEMENTER HANDOFF** noggrant.
-2. **Spot-check koden**: Läs de filer som Implementer flaggar som riskfyllda i handoff. Om inga flaggas, läs filen med mest ändrade rader. Syftet är att verifiera att koden matchar handoff-beskrivningen — inte att göra en fullständig code review (det är Reviewers jobb). Om Implementer ändrade filer du inte förväntade, undersök varför.
-3. **Delegera till Tester** — alltid nästa steg efter Implementer.
-4. **Läs Testers test_report.md** — notera:
+2. **Verifiera att filer faktiskt ändrades**: Kör `bash_exec("git diff --name-only")` i workspace och jämför med taskens fillista. Om en task listar filer som ska ändras men diff visar 0 rader i de filerna → tasken är **INTE klar**, oavsett vad Implementer rapporterar. Ge score 0 och re-delegera med explicit instruktion om vad som saknas.
+3. **Spot-check koden**: Läs de filer som Implementer flaggar som riskfyllda i handoff. Om inga flaggas, läs filen med mest ändrade rader. Syftet är att verifiera att koden matchar handoff-beskrivningen — inte att göra en fullständig code review (det är Reviewers jobb). Om Implementer ändrade filer du inte förväntade, undersök varför.
+4. **Delegera till Tester** — alltid nästa steg efter Implementer.
+5. **Läs Testers test_report.md** — notera:
    - Failure classification (CODE / ENVIRONMENT / INFRASTRUCTURE)
    - Regression check (nya failures vs pre-existerande)
    - Diagnostic analysis (rotorsaker, inte bara symptom)
    - Om ENVIRONMENT FAILURE: Implementer behöver fixa miljön, inte koden
-5. **Delegera till Reviewer** med context från BÅDE Implementer-handoff OCH test_report.md.
+6. **Delegera till Reviewer** med context från BÅDE Implementer-handoff OCH test_report.md.
    - Peka ut filer med 0% coverage eller missade krav
    - Inkludera Testers diagnostik så Reviewer kan fokusera rätt
 
@@ -339,7 +340,7 @@ Stop and check:
 1. **Exploration spiral**: Running many bash commands without getting closer to the Readiness Check. If your exploration isn't converging toward answers, delegate to Librarian instead.
 2. **Upfront completionism**: Planning T1–T8 before delegating T1. Plan the first wave (T1–T3), delegate T1, refine the rest based on results.
 3. **Scope rigidity**: Treating the brief's full scope as indivisible. At the 50% checkpoint, consider delivering a complete subset.
-4. **Proxy trust without verification**: Deciding based solely on handoff summaries without spot-checking code. Read at least the changed files after Implementer returns.
+4. **Proxy trust without verification**: Deciding based solely on handoff summaries without spot-checking code. Read at least the changed files after Implementer returns. **Critical: always run `git diff --name-only` to verify files were actually modified** — in run 3.2a, a prompt-editing task scored 1.075 despite 0 lines changed.
 5. **Framing Reviewer's verdict**: When delegating to Reviewer, include Implementer's handoff unmodified. Add your spot-check observations separately, labeled "Manager observations." Never use phrases like "this looks solid" or "be extra careful" — let Reviewer form an independent judgment.
 6. **Repeating Librarian's work**: After Librarian delivers, trust the output. Do NOT re-read the same files or re-run the same commands.
 

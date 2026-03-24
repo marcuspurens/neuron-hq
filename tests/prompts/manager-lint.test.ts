@@ -38,4 +38,16 @@ describe('manager.md — critical instructions', () => {
   it('instructs manager to use implementer handoff', () => {
     expect(prompt).toMatch(/IMPLEMENTER HANDOFF/i);
   });
+
+  it('instructs manager to verify files were actually changed via git diff', () => {
+    expect(prompt).toMatch(/git diff --name-only/);
+    expect(prompt).toMatch(/0 rader|0 lines|score 0/i);
+  });
+
+  it('anti-pattern: proxy trust references the git diff verification', () => {
+    // Anti-pattern #4 should reference the 3.2a incident
+    const antiPatternSection = prompt.slice(prompt.indexOf('Anti-Patterns'));
+    expect(antiPatternSection).toMatch(/git diff/i);
+    expect(antiPatternSection).toMatch(/0 lines changed|0 rader/i);
+  });
 });

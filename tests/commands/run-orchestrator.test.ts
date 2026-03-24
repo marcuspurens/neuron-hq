@@ -61,4 +61,31 @@ describe('Orchestrator agent order in run.ts', () => {
     expect(fnBody).toContain('new ConsolidatorAgent(');
     expect(fnBody).toContain('agent.run()');
   });
+
+  // Historian fallback: writes ⚠️ OFULLSTÄNDIG entry to runs.md on failure
+  it('Historian catch block writes fallback entry to runs.md', () => {
+    // Find the Historian try/catch block
+    const historianComment = runSource.indexOf('// Historian: write run summary');
+    const catchBlock = runSource.indexOf('catch (err)', historianComment);
+    const nextComment = runSource.indexOf('// Consolidator:', catchBlock);
+    const catchBody = runSource.slice(catchBlock, nextComment);
+
+    expect(catchBody).toContain('OFULLSTÄNDIG');
+    expect(catchBody).toContain('runs.md');
+    expect(catchBody).toContain('Historian kraschade');
+  });
+
+  it('Historian fallback has its own try/catch (does not break orchestrator)', () => {
+    const historianComment = runSource.indexOf('// Historian: write run summary');
+    const catchBlock = runSource.indexOf('catch (err)', historianComment);
+    const nextComment = runSource.indexOf('// Consolidator:', catchBlock);
+    const catchBody = runSource.slice(catchBlock, nextComment);
+
+    // The fallback writing is wrapped in its own try/catch
+    const innerTryCount = (catchBody.match(/try \{/g) || []).length;
+    const innerCatchCount = (catchBody.match(/catch \(/g) || []).length;
+    // At least 2: one for reading existing file, one for the outer fallback write
+    expect(innerTryCount).toBeGreaterThanOrEqual(2);
+    expect(innerCatchCount).toBeGreaterThanOrEqual(2);
+  });
 });

@@ -288,7 +288,31 @@ export async function runCommand(
       eventBus.safeEmit('agent:end', { runid: ctx.runid, agent: 'historian' });
       console.log(chalk.gray('  Historian: run summary written'));
     } catch (err) {
-      console.log(chalk.yellow('  ⚠ Historian failed, continuing without run summary'));
+      console.log(chalk.yellow('  ⚠ Historian failed, writing fallback entry to runs.md'));
+      // Minimal fallback — ⚠️ OFULLSTÄNDIG hellre än tystnad
+      try {
+        const runsPath = path.join(BASE_DIR, 'memory', 'runs.md');
+        await fs.mkdir(path.join(BASE_DIR, 'memory'), { recursive: true });
+        let existing = '';
+        try {
+          existing = await fs.readFile(runsPath, 'utf-8');
+        } catch { /* file may not exist */ }
+        const fallbackEntry = [
+          `## Körning ${ctx.runid} — ⚠️ OFULLSTÄNDIG`,
+          `**Datum:** ${new Date().toISOString().slice(0, 10)}`,
+          `**Resultat:** ⚠️ Historian kraschade — ingen fullständig sammanfattning`,
+          `**Fel:** ${err instanceof Error ? err.message : String(err)}`,
+          '',
+          'Granska run-artefakter manuellt: `runs/' + ctx.runid + '/`',
+          '',
+          '---',
+        ].join('\n');
+        const updated = existing.trimEnd() + '\n\n' + fallbackEntry + '\n';
+        await fs.writeFile(runsPath, updated, 'utf-8');
+        console.log(chalk.yellow('  ⚠ Fallback entry written to memory/runs.md'));
+      } catch (fallbackErr) {
+        console.log(chalk.red('  ✗ Could not write fallback entry to runs.md'));
+      }
     }
 
     // Consolidator: reorganize graph nodes after Historian (non-fatal)
