@@ -1,6 +1,6 @@
 # Neuron HQ — Roadmap
 
-> **Senast uppdaterad:** 2026-03-24 · Session 141
+> **Senast uppdaterad:** 2026-03-24 · Session 145
 > **Källa:** Djupsamtal S102 + Marcus ~40 kommentarer + diskussionsdokument S103
 > Editera direkt — kryssa av med ✅ när klart.
 > **Arkiv:** Alla versioner sparas i [docs/roadmaps/](docs/roadmaps/) med datumstämpel.
@@ -15,10 +15,10 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3898 |
+| Tester | 3916 |
 | Körningar | 180 |
 | MCP-tools | 44 |
-| Sessioner | 140 |
+| Sessioner | 145 |
 | Agenter | 13 (inkl Observer + Code Anchor) |
 | Idé-noder | 924 |
 | Code Review | ★★★★☆ (Fas 1 klar) |
@@ -508,19 +508,19 @@ Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21)
 | **2.6b** | **Observer feedback-loop → Brief Reviewer** | **2** | **1 körn** | 2.6 | **✅ S126 2026-03-22** |
 | **2.7** | **Modellstrategi (Sonnet+Opus)** | **2** | **<1 sess** | — | **✅ S123 2026-03-22** |
 | 2.8 | AI Act Art. 14 — Mänsklig tillsyn | 2 | 3-5 körn | RT-2/3 | ⬜ |
-| 3.1 | Reviewer severity levels | 3 | 1-2 körn | — | ⬜ |
+| 3.1 | Reviewer severity levels | 3 | 1-2 körn | — | ✅ S132 2026-03-23 |
 | 3.2a | A-MEM orchestrator + abstraktion | 3 | 1 körn | 2.1 | **✅ S138 2026-03-24** |
-| 3.2b | A-MEM PPR-hybrid | 3 | 1 körn | 3.2a | ⬜ |
+| 3.2b | A-MEM PPR-hybrid | 3 | 1 körn | 3.2a | ✅ S140 2026-03-24 |
 | 3.3 | Research före implementation | 3 | 1 körn | 2.3 | ⬜ |
 | 3.4 | Schemalagda agent-samtal | 3 | 2-3 körn | 2.3, server | ⬜ |
-| 3.5 | Dynamisk diff-limit | 3 | 1 körn | — | ⬜ |
+| 3.5 | Dynamisk diff-limit | 3 | 1 körn | — | ✅ S143 2026-03-24 |
 | 3.6 | Agentintervjuer (prompt-förbättring) | 3 | 3-5 sess | — | ✅ → 2.2b |
 | 4.1 | Docker-compose | 4 | 2 körn | — | ⬜ |
 | 4.2 | Webb-UI | 4 | 5-10 körn | — | ⬜ |
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
 | 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~30-45 körningar. **Klar:** 20/28
+**Totalt:** ~30-45 körningar. **Klar:** 23/28
 
 ---
 
