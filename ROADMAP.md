@@ -1,6 +1,6 @@
 # Neuron HQ — Roadmap
 
-> **Senast uppdaterad:** 2026-03-23 · Session 135
+> **Senast uppdaterad:** 2026-03-24 · Session 141
 > **Källa:** Djupsamtal S102 + Marcus ~40 kommentarer + diskussionsdokument S103
 > Editera direkt — kryssa av med ✅ när klart.
 > **Arkiv:** Alla versioner sparas i [docs/roadmaps/](docs/roadmaps/) med datumstämpel.
@@ -15,10 +15,10 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3878 |
-| Körningar | 179 |
+| Tester | 3898 |
+| Körningar | 180 |
 | MCP-tools | 44 |
-| Sessioner | 138 |
+| Sessioner | 140 |
 | Agenter | 13 (inkl Observer + Code Anchor) |
 | Idé-noder | 924 |
 | Code Review | ★★★★☆ (Fas 1 klar) |
@@ -373,13 +373,17 @@ Fas 4: Produkt                ← andra kan använda det
 - Abstraction Protocol + uppdaterad Priority Order i consolidator.md
 - T5 (prompter) fixade manuellt — workspace missade dem
 
-### 3.2b A-MEM — PPR-hybrid duplicate finding ⬜
+### 3.2b A-MEM — PPR-hybrid duplicate finding ✅ S140 · 2026-03-24
 
-**Vad det ger dig:** PPR-baserad kandidathittning + hybrid-scoring (Jaccard + PPR-boost) i duplicate finding. Brief bollad 8 rundor (8.8/10 GODKÄND).
+**Vad det ger dig:** PPR-baserad kandidathittning + hybrid-scoring (Jaccard + PPR-boost) i duplicate finding.
 
-**Förutsättning:** 3.2a ✅
+**Gjort:** Körning 180, 🟢 GRÖN, 11/11 AC, +17 tester (3898 totalt), 14M tokens, $44
+- `findPprCandidates()` + hybrid `findDuplicateCandidates()` med usePpr i graph-merge.ts
+- `find_ppr_candidates` tool + handler i consolidator.ts
+- PPR Discovery-sektion + uppdaterad Priority Order i consolidator.md
+- 12 nya PPR-tester + AC2b spy-test
 
-**Effort:** 1 körning · **Brief:** `briefs/2026-03-23-a-mem-3.2b-ppr-hybrid.md`
+**Brief:** `briefs/2026-03-23-a-mem-3.2b-ppr-hybrid.md`
 
 ---
 

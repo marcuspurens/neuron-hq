@@ -76,7 +76,8 @@ interface PromptLintResult {
 const TOOL_ALIGNMENT_TABLE: Array<{ keyword: RegExp; tool: string; agents: string[] }> = [
   { keyword: /read\s*file|läs\s*fil/i, tool: 'read_file', agents: ['manager', 'implementer'] },
   { keyword: /write\s*file|skriv\s*fil/i, tool: 'write_file', agents: ['implementer'] },
-  { keyword: /\bsearch\b|\bsök\b/i, tool: 'aurora_search', agents: ['librarian', 'researcher'] },
+  { keyword: /\bsearch\b|\bsök\b/i, tool: 'bash_exec', agents: ['librarian'] },
+  { keyword: /\bfetch\b|\bsearch\b.*external/i, tool: 'fetch_url', agents: ['researcher'] },
   { keyword: /run\s*test|kör\s*test/i, tool: 'bash_exec', agents: ['tester'] },
   { keyword: /\bread\b|\bgranska\b/i, tool: 'read_file', agents: ['reviewer'] },
   { keyword: /\bwrite\b|\bdokumentera\b/i, tool: 'write_to_memory', agents: ['historian'] },
