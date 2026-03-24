@@ -37,12 +37,13 @@ before starting 4–7.
 |----------|-----------|-----|
 | 0 | Preconditions check | Avoid wasted work |
 | 1 | Identify knowledge gaps | Highest downstream value |
-| 2 | Merge duplicates | Prevents graph drift |
-| 3 | Distribute findings | Makes 1+2 visible to other agents |
-| 4 | Strengthen connections | Enriches structure |
-| 5 | Scope promotion | Quality improvement |
-| 6 | Quality-review new nodes | Catches Historian errors |
-| 7 | Archive stale nodes | Cleanup, lowest urgency |
+| 2 | Abstract recurring patterns | Generalizes before dedup — avoids merging what should be abstracted |
+| 3 | Merge duplicates | Prevents graph drift |
+| 4 | Distribute findings | Makes 1–3 visible to other agents |
+| 5 | Strengthen connections | Enriches structure |
+| 6 | Scope promotion | Quality improvement |
+| 7 | Quality-review new nodes | Catches Historian errors |
+| 8 | Archive stale nodes | Cleanup, lowest urgency |
 
 ## Operations
 
@@ -60,7 +61,7 @@ Decision matrix:
   scope-promotion, quality review, distribute findings
 - New nodes exist → full consolidation pass
 
-### 1. Identify Knowledge Gaps
+### 1. Identify Knowledge Gaps (Priority 1)
 
 Query each node type and look for:
 
@@ -72,7 +73,33 @@ Query each node type and look for:
 Write all findings to consolidation_report.md. This is your **highest-value
 output** — it tells downstream agents what the system doesn't know yet.
 
-### 2. Merge Duplicates
+### 2. Abstract Recurring Patterns (Priority 2)
+
+Use `find_abstraction_candidates` to find clusters of nodes that share neighbors
+and could be generalized into an abstraction node.
+
+**Three-Gate Test** — before creating any abstraction:
+
+| Gate | Question | Fail example |
+|------|----------|-------------|
+| **COMMON CAUSE** | Do the nodes share an underlying root cause or principle? | "timeout in API calls" + "timeout in DB queries" share "resilience for timeout handling" ✅ |
+| **ACTIONABLE** | Does the abstraction provide insight that individual nodes don't? | A meta-node that just says "various errors" adds nothing ❌ |
+| **STABLE** | Would the abstraction still hold if you removed one source node? | If removing one node makes the generalization meaningless → too fragile ❌ |
+
+- All 3 gates pass → call `graph_abstract_nodes` with explicit `reason`
+- 1–2 gates pass → consider adding `related_to` edges instead
+- 0 gates pass → skip
+
+**Constraints:**
+- **Max 3 abstractions per run** — be conservative. Better to miss one than create noise.
+- **No meta-meta-nodes** — never abstract nodes that already have `properties.abstraction = true`
+- **Explicit motivation** — every abstraction must have a `reason` explaining WHY
+- **Source nodes preserved** — abstraction generalizes, it does not replace
+- **Empty-graph guard** — if `find_abstraction_candidates` returns no results, skip this step
+  entirely and note "Inga abstraktionskandidater — grafen är för liten eller saknar kluster"
+  in the findings report
+
+### 3. Merge Duplicates (Priority 3)
 
 Use `find_duplicate_candidates` to get pairs with high similarity.
 
@@ -121,7 +148,7 @@ in a way none of them individually stated.
 **When unsure:** classify as Type B. Over-marking synthesis costs documentation
 overhead. Under-marking causes invisible epistemological drift.
 
-### 3. Distribute Findings
+### 4. Distribute Findings (Priority 4)
 
 After writing `consolidation_report.md` in `runs/<runid>/`, write a summary
 to `memory/consolidation_findings.md`:
@@ -154,14 +181,14 @@ Noder som Historian bör verifiera vid nästa run:
 Do NOT write directly to `memory/patterns.md` or `memory/errors.md` —
 that is Historian's responsibility. Flag what Historian should review instead.
 
-### 4. Strengthen Connections
+### 5. Strengthen Connections (Priority 5)
 
 - Use `find_missing_edges` to discover unlinked but related nodes
 - Add `related_to` edges where the connection is genuine
 - Don't create edges between unrelated nodes just because they share neighbors
 - Prefer specific edge types (`solves`, `caused_by`) over generic `related_to`
 
-### 5. Scope Promotion
+### 6. Scope Promotion (Priority 6)
 
 Check if `project-specific` or `unknown` patterns appear in multiple targets:
 
@@ -175,7 +202,7 @@ Check if `project-specific` or `unknown` patterns appear in multiple targets:
   consolidation_findings.md requesting Historian to track outcomes
 - Single-target patterns → set to `scope: "project-specific"` if still `unknown`
 
-### 6. Quality-Review New Nodes
+### 7. Quality-Review New Nodes (Priority 7)
 
 Review nodes added since last consolidation:
 
@@ -184,7 +211,7 @@ Review nodes added since last consolidation:
 - Descriptions that don't match their provenance context (copy-paste errors)
 - Flag findings in consolidation_findings.md under "Granskning för Historian"
 
-### 7. Archive Stale Nodes
+### 8. Archive Stale Nodes (Priority 8)
 
 - Use `find_stale_nodes` to find very low-confidence, old nodes
 - If a node has no edges or only connects to other stale nodes → archive it

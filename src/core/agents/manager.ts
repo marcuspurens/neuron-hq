@@ -6,7 +6,6 @@ import { ResearcherAgent } from './researcher.js';
 import { MergerAgent } from './merger.js';
 import { TesterAgent } from './tester.js';
 import { LibrarianAgent } from './librarian.js';
-import { ConsolidatorAgent } from './consolidator.js';
 import { trimMessages, searchMemoryFiles, withRetry } from './agent-utils.js';
 import { executeSharedBash, executeSharedReadFile, executeSharedWriteFile, executeSharedListFiles, coreToolDefinitions, type AgentToolContext } from './shared-tools.js';
 import { graphReadToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
@@ -55,7 +54,6 @@ export class ManagerAgent {
   private baseDir: string;
   private memoryDir: string;
   private librarianAutoTrigger: boolean;
-  private consolidationAutoTrigger: boolean;
   private testStatus: { testsExist: boolean; testFramework: string | null } | null = null;
   private _emittedDecisionIds = new Set<string>();
   private _accumulatedThinking = '';
@@ -69,10 +67,9 @@ export class ManagerAgent {
     pprCount: number;
   } | null = null;
 
-  constructor(private ctx: RunContext, baseDir: string, librarianAutoTrigger = false, consolidationAutoTrigger = false) {
+  constructor(private ctx: RunContext, baseDir: string, librarianAutoTrigger = false) {
     this.baseDir = baseDir;
     this.librarianAutoTrigger = librarianAutoTrigger;
-    this.consolidationAutoTrigger = consolidationAutoTrigger;
     this.promptPath = path.join(baseDir, 'prompts', 'manager.md');
     this.memoryDir = path.join(baseDir, 'memory');
 
@@ -312,7 +309,7 @@ Stop when time limit approaches or when blockers are encountered.
     const messages: Anthropic.MessageParam[] = [
       {
         role: 'user',
-        content: `Here is your brief:\n\n${brief}\n\nPlease proceed with planning and implementation.${this.librarianAutoTrigger ? '\n\n⚡ Auto-trigger: After Historian has completed, automatically delegate to Researcher for an arxiv knowledge update.' : ''}${this.consolidationAutoTrigger ? '\n\n⚡ Consolidation-trigger: After Historian completes, delegate to Consolidator for knowledge graph consolidation before Librarian.' : ''}`,
+        content: `Here is your brief:\n\n${brief}\n\nPlease proceed with planning and implementation.${this.librarianAutoTrigger ? '\n\n⚡ Auto-trigger: After Historian has completed, automatically delegate to Researcher for an arxiv knowledge update.' : ''}`,
       },
     ];
 
@@ -631,18 +628,6 @@ Stop when time limit approaches or when blockers are encountered.
         },
       },
       {
-        name: 'delegate_to_consolidator',
-        description:
-          'Delegate knowledge graph consolidation to the Consolidator agent. ' +
-          'The Consolidator merges duplicate nodes, strengthens connections, ' +
-          'identifies knowledge gaps, and archives stale nodes. ' +
-          'Runs after Historian, before Librarian.',
-        input_schema: {
-          type: 'object',
-          properties: {},
-        },
-      },
-      {
         name: 'write_task_plan',
         description: 'Write a structured task plan to task_plan.md in the run directory. Call this BEFORE delegating to Implementer.',
         input_schema: {
@@ -731,9 +716,6 @@ Stop when time limit approaches or when blockers are encountered.
               break;
             case 'delegate_to_librarian':
               result = await this.delegateToLibrarian();
-              break;
-            case 'delegate_to_consolidator':
-              result = await this.delegateToConsolidator();
               break;
             case 'graph_query':
             case 'graph_traverse': {
@@ -1195,22 +1177,6 @@ Stop when time limit approaches or when blockers are encountered.
     await librarian.run();
     eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'librarian' });
     return 'Librarian agent completed. See research_brief.md in runs directory.';
-  }
-
-  private async delegateToConsolidator(): Promise<string> {
-    logger.info('Delegating to Consolidator agent...');
-    await this.ctx.audit.log({
-      ts: new Date().toISOString(),
-      role: 'manager',
-      tool: 'delegate_to_consolidator',
-      allowed: true,
-      note: 'Delegating graph consolidation to Consolidator agent',
-    });
-    eventBus.safeEmit('agent:start', { runid: this.ctx.runid, agent: 'consolidator' });
-    const consolidator = new ConsolidatorAgent(this.ctx, this.baseDir);
-    await consolidator.run();
-    eventBus.safeEmit('agent:end', { runid: this.ctx.runid, agent: 'consolidator' });
-    return 'Consolidator agent completed. Check consolidation_report.md for details.';
   }
 
   /**

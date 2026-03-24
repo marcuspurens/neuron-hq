@@ -8,6 +8,7 @@ import {
   updateNode,
   removeNode,
   KGNodeSchema,
+  EdgeTypeSchema,
   KnowledgeGraphSchema,
   IdeaPropertiesSchema,
   computePriority,
@@ -1057,5 +1058,12 @@ describe('pprQuery', () => {
     const resultIds = results.map(r => r.node.id);
     expect(resultIds).toContain('idea-002');
     expect(resultIds).toContain('idea-004');
+  });
+});
+
+describe('EdgeTypeSchema', () => {
+  it("'generalizes' is a valid EdgeType", () => {
+    const result = EdgeTypeSchema.safeParse('generalizes');
+    expect(result.success).toBe(true);
   });
 });

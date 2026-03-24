@@ -34,6 +34,7 @@ export const EdgeTypeSchema = z.enum([
   'causes',
   'used_by',
   'inspired_by',
+  'generalizes',
 ]);
 export type EdgeType = z.infer<typeof EdgeTypeSchema>;
 

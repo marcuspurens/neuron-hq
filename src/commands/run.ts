@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import chalk from 'chalk';
 import ora from 'ora';
 import { TargetsManager } from '../core/targets.js';
-import { RunOrchestrator, countMemoryRuns, EstopError } from '../core/run.js';
+import { RunOrchestrator, countMemoryRuns, EstopError, type RunContext } from '../core/run.js';
 import { createPolicyEnforcer } from '../core/policy.js';
 import { ManagerAgent } from '../core/agents/manager.js';
 import { ObserverAgent } from '../core/agents/observer.js';
@@ -16,7 +16,21 @@ import { installShutdownHandlers, onShutdown } from '../core/shutdown.js';
 import { closePool } from '../core/db.js';
 import { appendCalibration } from '../core/observer-calibration.js';
 import { HistorianAgent } from '../core/agents/historian.js';
+import { ConsolidatorAgent } from '../core/agents/consolidator.js';
 import { eventBus } from '../core/event-bus.js';
+
+async function runConsolidator(ctx: RunContext, baseDir: string): Promise<void> {
+  try {
+    console.log(chalk.gray('  Consolidator: reorganizing memory graph...'));
+    eventBus.safeEmit('agent:start', { runid: ctx.runid, agent: 'consolidator' });
+    const agent = new ConsolidatorAgent(ctx, baseDir);
+    await agent.run();
+    eventBus.safeEmit('agent:end', { runid: ctx.runid, agent: 'consolidator' });
+    console.log(chalk.gray('  Consolidator: memory graph reorganized'));
+  } catch (err) {
+    console.log(chalk.yellow('  ⚠ Consolidator failed, continuing to Observer-retro'));
+  }
+}
 
 export async function runCommand(
   targetName: string,
@@ -172,18 +186,9 @@ export async function runCommand(
       console.log(chalk.magenta(`  ⚡ Auto-trigger: Librarian will run after Historian (run #${completedRuns + 1} in cycle)`));
     }
 
-    // Check if consolidation trigger was injected into the brief
-    const processedBrief = await ctx.artifacts.readBrief();
-    const briefContent = processedBrief;
-    const consolidationAutoTrigger = processedBrief.includes('⚡ Consolidation-trigger:');
-
-    if (consolidationAutoTrigger) {
-      console.log(chalk.magenta('  ⚡ Consolidation-trigger: Consolidator will run after Historian'));
-    }
-
     // Run manager agent
     console.log(chalk.cyan('\n→ Starting manager agent...'));
-    const manager = new ManagerAgent(ctx, BASE_DIR, librarianAutoTrigger, consolidationAutoTrigger);
+    const manager = new ManagerAgent(ctx, BASE_DIR, librarianAutoTrigger);
     try {
       await manager.run();
     } catch (runError) {
@@ -285,6 +290,9 @@ export async function runCommand(
     } catch (err) {
       console.log(chalk.yellow('  ⚠ Historian failed, continuing without run summary'));
     }
+
+    // Consolidator: reorganize graph nodes after Historian (non-fatal)
+    await runConsolidator(ctx, BASE_DIR);
 
     // Observer: prompt-health report with retro + alignment (non-fatal, runs after stoplight is known)
     if (observer) {

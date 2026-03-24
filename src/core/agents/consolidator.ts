@@ -10,7 +10,7 @@ import { loadOverlay, mergePromptWithOverlay } from '../prompt-overlays.js';
 import { prependPreamble } from '../preamble.js';
 import { graphToolDefinitions, executeGraphTool, type GraphToolContext } from './graph-tools.js';
 import { loadGraph, saveGraph } from '../knowledge-graph.js';
-import { mergeNodes, findDuplicateCandidates, findStaleNodes, findMissingEdges } from '../graph-merge.js';
+import { mergeNodes, findDuplicateCandidates, findStaleNodes, findMissingEdges, abstractNodes, findAbstractionCandidates, type AbstractionProposal } from '../graph-merge.js';
 import { isEmbeddingAvailable } from '../embeddings.js';
 import { findSimilarNodes } from '../semantic-search.js';
 import { createLogger } from '../logger.js';
@@ -29,6 +29,7 @@ export class ConsolidatorAgent {
   private modelMaxTokens: number;
   private maxIterations: number;
   private memoryDir: string;
+  private abstractionReasons: Array<{ title: string; reason: string }> = [];
 
   constructor(
     private ctx: RunContext,
@@ -56,6 +57,7 @@ export class ConsolidatorAgent {
    * Run the consolidator — analyzes and consolidates the knowledge graph.
    */
   async run(): Promise<void> {
+    this.abstractionReasons = [];
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
       role: 'consolidator',
@@ -257,7 +259,35 @@ Analyze the knowledge graph and perform consolidation:
         },
       },
       {
+        name: 'graph_abstract_nodes',
+        description:
+          'Create an abstraction node that generalizes multiple source nodes. ' +
+          'Only call after using find_abstraction_candidates to identify good candidates. ' +
+          'Max 3 abstractions per run.',
+        input_schema: {
+          type: 'object' as const,
+          properties: {
+            nodeIds: { type: 'array', items: { type: 'string' }, description: 'IDs of source nodes to generalize' },
+            title: { type: 'string', description: 'Short title for the abstraction node' },
+            description: { type: 'string', description: 'Detailed description of the abstraction' },
+            reason: { type: 'string', description: 'Explanation of why this abstraction is meaningful (3-step test reasoning)' },
+          },
+          required: ['nodeIds', 'title', 'description', 'reason'],
+        },
+      },
+      {
+        name: 'find_abstraction_candidates',
+        description: 'Find clusters of nodes that share common neighbors and could be abstracted into a meta-node',
+        input_schema: {
+          type: 'object' as const,
+          properties: {
+            minClusterSize: { type: 'number', description: 'Minimum cluster size (default: 3)' },
+          },
+        },
+      },
+      {
         name: 'write_consolidation_report',
+
         description: 'Write the consolidation report to the run directory.',
         input_schema: {
           type: 'object' as const,
@@ -305,8 +335,19 @@ Analyze the knowledge graph and perform consolidation:
             case 'find_missing_edges':
               result = await this.executeFindMissingEdges();
               break;
+            case 'graph_abstract_nodes':
+              result = await this.executeGraphAbstractNodes(
+                block.input as { nodeIds: string[]; title: string; description: string; reason: string }
+              );
+              break;
+            case 'find_abstraction_candidates':
+              result = await this.executeFindAbstractionCandidates(
+                block.input as { minClusterSize?: number }
+              );
+              break;
             case 'write_consolidation_report':
               result = await this.executeWriteConsolidationReport(
+
                 block.input as { content: string }
               );
               break;
@@ -502,21 +543,96 @@ Analyze the knowledge graph and perform consolidation:
 
   /**
    * Write the consolidation report to the run directory.
+   * Programmatically appends an "## Abstraktioner skapade" section based on
+   * abstractions performed during this run (stored in this.abstractionReasons).
    */
   private async executeWriteConsolidationReport(input: { content: string }): Promise<string> {
     const reportPath = path.join(this.ctx.runDir, 'consolidation_report.md');
+    const findingsPath = path.join(this.memoryDir, 'consolidation_findings.md');
+
+    // Build the "Abstraktioner skapade" section programmatically
+    let abstractionSection = '\n## Abstraktioner skapade\n';
+    if (this.abstractionReasons.length === 0) {
+      abstractionSection += 'Inga abstraktioner skapades denna körning.\n';
+    } else {
+      for (const { title, reason } of this.abstractionReasons) {
+        abstractionSection += `\n### ${title}\n${reason}\n`;
+      }
+    }
+    const fullReport = input.content + abstractionSection;
 
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
       role: 'consolidator',
       tool: 'write_consolidation_report',
       allowed: true,
-      files_touched: [reportPath],
+      files_touched: [reportPath, findingsPath],
       note: 'Writing consolidation report',
     });
 
-    await fs.writeFile(reportPath, input.content, 'utf-8');
+    await fs.writeFile(reportPath, fullReport, 'utf-8');
+    await fs.writeFile(findingsPath, fullReport, 'utf-8');
 
-    return `Consolidation report written to ${reportPath}`;
+    return `Consolidation report written to ${reportPath} and ${findingsPath}`;
+  }
+
+  /**
+   * Create an abstraction node that generalizes multiple source nodes.
+   */
+  private async executeGraphAbstractNodes(input: {
+    nodeIds: string[];
+    title: string;
+    description: string;
+    reason: string;
+  }): Promise<string> {
+    const graphPath = path.join(this.memoryDir, 'graph.json');
+
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'consolidator',
+      tool: 'graph_abstract_nodes',
+      allowed: true,
+      note: `Creating abstraction node '${input.title}' from ${input.nodeIds.length} source nodes`,
+    });
+
+    const graph = await loadGraph(graphPath);
+    const proposal: AbstractionProposal = {
+      sourceNodeIds: input.nodeIds,
+      title: input.title,
+      description: input.description,
+      reason: input.reason,
+    };
+    const result = abstractNodes(graph, proposal);
+    await saveGraph(graph, graphPath);
+
+    // Track for report — reason stays here, NOT in the graph
+    this.abstractionReasons.push({ title: input.title, reason: input.reason });
+
+    return `Created abstraction node '${input.title}' (id: ${result.abstractionNode.id}) with ${result.edgesCreated} generalizes edges`;
+  }
+
+  /**
+   * Find clusters of nodes that share common neighbors and could be abstracted.
+   */
+  private async executeFindAbstractionCandidates(input: {
+    minClusterSize?: number;
+  }): Promise<string> {
+    const graphPath = path.join(this.memoryDir, 'graph.json');
+
+    await this.ctx.audit.log({
+      ts: new Date().toISOString(),
+      role: 'consolidator',
+      tool: 'find_abstraction_candidates',
+      allowed: true,
+      note: `Finding abstraction candidates (minClusterSize: ${input.minClusterSize ?? 3})`,
+    });
+
+    const graph = await loadGraph(graphPath);
+    const candidates = findAbstractionCandidates(graph, input.minClusterSize);
+
+    if (candidates.length === 0) {
+      return 'No abstraction candidates found — graph is too small or lacks clusters';
+    }
+    return JSON.stringify(candidates, null, 2);
   }
 }

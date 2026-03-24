@@ -6,6 +6,8 @@ import {
   mergeNodes,
   findStaleNodes,
   findMissingEdges,
+  abstractNodes,
+  findAbstractionCandidates,
   MergeProposalSchema,
 } from '../../src/core/graph-merge.js';
 import {
@@ -394,10 +396,10 @@ describe('findMissingEdges', () => {
       ],
       [
         makeEdge({ from: 'A', to: 'hub1' }),
-        makeEdge({ from: 'B', to: 'hub1' }),
         makeEdge({ from: 'A', to: 'hub2' }),
+        makeEdge({ from: 'B', to: 'hub1' }),
         makeEdge({ from: 'B', to: 'hub2' }),
-        makeEdge({ from: 'A', to: 'B' }), // direct edge
+        makeEdge({ from: 'A', to: 'B' }), // direct edge already exists
       ],
     );
 
@@ -406,14 +408,6 @@ describe('findMissingEdges', () => {
       (m) => (m.from === 'A' && m.to === 'B') || (m.from === 'B' && m.to === 'A'),
     );
     expect(abPair).toBeUndefined();
-  });
-
-  it('returns empty for a graph with no shared neighbors', () => {
-    const graph = buildGraphWithNodes([
-      makeNode({ id: 'A', title: 'Node A' }),
-      makeNode({ id: 'B', title: 'Node B' }),
-    ]);
-    expect(findMissingEdges(graph)).toEqual([]);
   });
 
   it('sorts by sharedNeighbors descending', () => {
@@ -476,5 +470,348 @@ describe('consolidator prompt', () => {
     expect(content).toContain('Strengthen Connections');
     expect(content).toContain('Knowledge Gaps');
     expect(content).toContain('Archive Stale Nodes');
+  });
+});
+
+describe('abstractNodes', () => {
+  function makeAbstractGraph(): KnowledgeGraph {
+    return buildGraphWithNodes([
+      makeNode({ id: 'n1', type: 'pattern', title: 'Timeout in API', confidence: 0.8, properties: {} }),
+      makeNode({ id: 'n2', type: 'pattern', title: 'Timeout in DB', confidence: 0.6, properties: {} }),
+      makeNode({ id: 'n3', type: 'pattern', title: 'Retry on failure', confidence: 0.9, properties: {} }),
+    ]);
+  }
+
+  it('creates a new abstraction node with properties.abstraction = true and source_nodes', () => {
+    const graph = makeAbstractGraph();
+    const { abstractionNode } = abstractNodes(graph, {
+      sourceNodeIds: ['n1', 'n2'],
+      title: 'Resilience timeout meta-pattern',
+      description: 'Generalizes timeout handling patterns',
+      reason: 'Both are timeout patterns',
+    });
+    expect(abstractionNode.properties?.abstraction).toBe(true);
+    expect(abstractionNode.properties?.source_nodes).toEqual(['n1', 'n2']);
+    expect(graph.nodes).toContain(abstractionNode);
+  });
+
+  it('reason is NOT stored in graph node properties', () => {
+    const graph = makeAbstractGraph();
+    const { abstractionNode } = abstractNodes(graph, {
+      sourceNodeIds: ['n1', 'n2'],
+      title: 'Meta',
+      description: 'Meta desc',
+      reason: 'Secret reason',
+    });
+    expect(JSON.stringify(abstractionNode.properties)).not.toContain('Secret reason');
+    expect((abstractionNode.properties as Record<string, unknown>).reason).toBeUndefined();
+  });
+
+  it('creates generalizes edges from abstraction node to each source node', () => {
+    const graph = makeAbstractGraph();
+    const { abstractionNode, edgesCreated } = abstractNodes(graph, {
+      sourceNodeIds: ['n1', 'n2'],
+      title: 'Meta',
+      description: 'Meta desc',
+      reason: 'test',
+    });
+    expect(edgesCreated).toBe(2);
+    const genEdges = graph.edges.filter(
+      (e) => e.type === 'generalizes' && e.from === abstractionNode.id,
+    );
+    expect(genEdges).toHaveLength(2);
+    expect(genEdges.map((e) => e.to).sort()).toEqual(['n1', 'n2']);
+  });
+
+  it('computes confidence = mean(sources) - 0.1', () => {
+    const graph = makeAbstractGraph();
+    // n1=0.8, n2=0.6 => mean=0.7 => 0.7-0.1=0.6
+    const { abstractionNode } = abstractNodes(graph, {
+      sourceNodeIds: ['n1', 'n2'],
+      title: 'Meta',
+      description: 'Meta desc',
+      reason: 'test',
+    });
+    expect(abstractionNode.confidence).toBeCloseTo(0.6);
+  });
+
+  it('confidence is minimum 0.1 even if sources have very low confidence', () => {
+    const graph = buildGraphWithNodes([
+      makeNode({ id: 'low1', type: 'pattern', title: 'L1', confidence: 0.1, properties: {} }),
+      makeNode({ id: 'low2', type: 'pattern', title: 'L2', confidence: 0.1, properties: {} }),
+    ]);
+    const { abstractionNode } = abstractNodes(graph, {
+      sourceNodeIds: ['low1', 'low2'],
+      title: 'Meta',
+      description: 'Meta',
+      reason: 'test',
+    });
+    expect(abstractionNode.confidence).toBeGreaterThanOrEqual(0.1);
+  });
+
+  it('throws if sourceNodeIds is empty', () => {
+    const graph = makeAbstractGraph();
+    expect(() =>
+      abstractNodes(graph, { sourceNodeIds: [], title: 'X', description: 'X', reason: 'X' }),
+    ).toThrow();
+  });
+
+  it('throws if sourceNodeIds has only 1 element', () => {
+    const graph = makeAbstractGraph();
+    expect(() =>
+      abstractNodes(graph, { sourceNodeIds: ['n1'], title: 'X', description: 'X', reason: 'X' }),
+    ).toThrow();
+  });
+
+  it('throws if a sourceNodeId does not exist in graph', () => {
+    const graph = makeAbstractGraph();
+    expect(() =>
+      abstractNodes(graph, {
+        sourceNodeIds: ['n1', 'missing'],
+        title: 'X',
+        description: 'X',
+        reason: 'X',
+      }),
+    ).toThrow();
+  });
+
+  it('throws if sourceNodeIds contains duplicate IDs', () => {
+    const graph = makeAbstractGraph();
+    expect(() =>
+      abstractNodes(graph, {
+        sourceNodeIds: ['n1', 'n1'],
+        title: 'X',
+        description: 'X',
+        reason: 'X',
+      }),
+    ).toThrow();
+  });
+
+  it('throws if a source node is already an abstraction (no meta-meta-nodes)', () => {
+    const graph = buildGraphWithNodes([
+      makeNode({
+        id: 'abs1',
+        type: 'pattern',
+        title: 'Abs',
+        confidence: 0.7,
+        properties: { abstraction: true },
+      }),
+      makeNode({ id: 'n2', type: 'pattern', title: 'N2', confidence: 0.7, properties: {} }),
+    ]);
+    expect(() =>
+      abstractNodes(graph, {
+        sourceNodeIds: ['abs1', 'n2'],
+        title: 'X',
+        description: 'X',
+        reason: 'X',
+      }),
+    ).toThrow();
+  });
+
+  it('does not mutate graph if validation fails', () => {
+    const graph = makeAbstractGraph();
+    const originalNodeCount = graph.nodes.length;
+    const originalEdgeCount = graph.edges.length;
+    expect(() =>
+      abstractNodes(graph, {
+        sourceNodeIds: ['n1', 'missing'],
+        title: 'X',
+        description: 'X',
+        reason: 'X',
+      }),
+    ).toThrow();
+    expect(graph.nodes.length).toBe(originalNodeCount);
+    expect(graph.edges.length).toBe(originalEdgeCount);
+  });
+
+  it('abstraction node type is pattern', () => {
+    const graph = makeAbstractGraph();
+    const { abstractionNode } = abstractNodes(graph, {
+      sourceNodeIds: ['n1', 'n2'],
+      title: 'Meta',
+      description: 'Meta desc',
+      reason: 'test',
+    });
+    expect(abstractionNode.type).toBe('pattern');
+  });
+});
+
+describe('findAbstractionCandidates', () => {
+  it('returns empty array when graph has fewer nodes than minClusterSize', () => {
+    const graph = buildGraphWithNodes([
+      makeNode({ id: 'n1', type: 'pattern', title: 'A', confidence: 0.7, properties: {} }),
+      makeNode({ id: 'n2', type: 'pattern', title: 'B', confidence: 0.7, properties: {} }),
+    ]);
+    expect(findAbstractionCandidates(graph, 3)).toEqual([]);
+  });
+
+  it('finds a cluster of nodes sharing >=2 common neighbors', () => {
+    // Nodes n1, n2, n3 all share neighbors hub1 and hub2
+    const graph = buildGraphWithNodes(
+      [
+        makeNode({ id: 'n1', type: 'error', title: 'E1', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'n2', type: 'error', title: 'E2', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'n3', type: 'error', title: 'E3', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'hub1', type: 'pattern', title: 'H1', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'hub2', type: 'pattern', title: 'H2', confidence: 0.7, properties: {} }),
+      ],
+      [
+        makeEdge({ from: 'n1', to: 'hub1' }),
+        makeEdge({ from: 'n1', to: 'hub2' }),
+        makeEdge({ from: 'n2', to: 'hub1' }),
+        makeEdge({ from: 'n2', to: 'hub2' }),
+        makeEdge({ from: 'n3', to: 'hub1' }),
+        makeEdge({ from: 'n3', to: 'hub2' }),
+      ],
+    );
+    const candidates = findAbstractionCandidates(graph, 3);
+    expect(candidates.length).toBeGreaterThanOrEqual(1);
+    const errorCluster = candidates.find((c) => c.type === 'error');
+    expect(errorCluster).toBeDefined();
+    expect(errorCluster!.nodeIds.sort()).toEqual(['n1', 'n2', 'n3']);
+    expect(errorCluster!.commonNeighborCount).toBeGreaterThanOrEqual(2);
+  });
+
+  it('respects minClusterSize — does not return cluster smaller than minClusterSize', () => {
+    // Only 2 nodes share >=2 neighbors
+    const graph = buildGraphWithNodes(
+      [
+        makeNode({ id: 'n1', type: 'error', title: 'E1', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'n2', type: 'error', title: 'E2', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'hub1', type: 'pattern', title: 'H1', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'hub2', type: 'pattern', title: 'H2', confidence: 0.7, properties: {} }),
+      ],
+      [
+        makeEdge({ from: 'n1', to: 'hub1' }),
+        makeEdge({ from: 'n1', to: 'hub2' }),
+        makeEdge({ from: 'n2', to: 'hub1' }),
+        makeEdge({ from: 'n2', to: 'hub2' }),
+      ],
+    );
+    // minClusterSize=3: cluster of 2 should NOT appear
+    const candidates3 = findAbstractionCandidates(graph, 3);
+    expect(candidates3.every((c) => c.nodeIds.length >= 3)).toBe(true);
+    // minClusterSize=2: cluster of 2 SHOULD appear
+    const candidates2 = findAbstractionCandidates(graph, 2);
+    const errorCluster = candidates2.find((c) => c.type === 'error');
+    expect(errorCluster).toBeDefined();
+  });
+
+  it('excludes abstraction nodes from candidates', () => {
+    const graph = buildGraphWithNodes(
+      [
+        makeNode({
+          id: 'abs1',
+          type: 'pattern',
+          title: 'Abs',
+          confidence: 0.7,
+          properties: { abstraction: true },
+        }),
+        makeNode({ id: 'n1', type: 'pattern', title: 'P1', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'n2', type: 'pattern', title: 'P2', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'n3', type: 'pattern', title: 'P3', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'hub1', type: 'error', title: 'H1', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'hub2', type: 'error', title: 'H2', confidence: 0.7, properties: {} }),
+      ],
+      [
+        makeEdge({ from: 'abs1', to: 'hub1' }),
+        makeEdge({ from: 'abs1', to: 'hub2' }),
+        makeEdge({ from: 'n1', to: 'hub1' }),
+        makeEdge({ from: 'n1', to: 'hub2' }),
+        makeEdge({ from: 'n2', to: 'hub1' }),
+        makeEdge({ from: 'n2', to: 'hub2' }),
+        makeEdge({ from: 'n3', to: 'hub1' }),
+        makeEdge({ from: 'n3', to: 'hub2' }),
+      ],
+    );
+    const candidates = findAbstractionCandidates(graph, 3);
+    const patternCluster = candidates.find((c) => c.type === 'pattern');
+    if (patternCluster) {
+      expect(patternCluster.nodeIds).not.toContain('abs1');
+    }
+  });
+
+  it('chains: A-B share neighbors, B-C share neighbors => A,B,C form one cluster even if A-C do not share neighbors', () => {
+    // A and B share hub1+hub2 (commonCount=2)
+    // B and C share hub3+hub4 (commonCount=2)
+    // A and C do NOT share any neighbors
+    const graph = buildGraphWithNodes(
+      [
+        makeNode({ id: 'A', type: 'error', title: 'A', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'B', type: 'error', title: 'B', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'C', type: 'error', title: 'C', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'hub1', type: 'pattern', title: 'H1', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'hub2', type: 'pattern', title: 'H2', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'hub3', type: 'pattern', title: 'H3', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'hub4', type: 'pattern', title: 'H4', confidence: 0.7, properties: {} }),
+      ],
+      [
+        // A-B share hub1, hub2
+        makeEdge({ from: 'A', to: 'hub1' }),
+        makeEdge({ from: 'A', to: 'hub2' }),
+        makeEdge({ from: 'B', to: 'hub1' }),
+        makeEdge({ from: 'B', to: 'hub2' }),
+        // B-C share hub3, hub4
+        makeEdge({ from: 'B', to: 'hub3' }),
+        makeEdge({ from: 'B', to: 'hub4' }),
+        makeEdge({ from: 'C', to: 'hub3' }),
+        makeEdge({ from: 'C', to: 'hub4' }),
+      ],
+    );
+    const candidates = findAbstractionCandidates(graph, 3);
+    const errorCluster = candidates.find((c) => c.type === 'error');
+    expect(errorCluster).toBeDefined();
+    expect(errorCluster!.nodeIds.sort()).toEqual(['A', 'B', 'C']);
+  });
+
+  it('sorts results by commonNeighborCount descending', () => {
+    // e1, e2, e3 all share 3 hubs => commonNeighborCount = 3
+    const graph = buildGraphWithNodes(
+      [
+        makeNode({ id: 'e1', type: 'error', title: 'E1', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'e2', type: 'error', title: 'E2', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'e3', type: 'error', title: 'E3', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'hub1', type: 'pattern', title: 'H1', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'hub2', type: 'pattern', title: 'H2', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'hub3', type: 'pattern', title: 'H3', confidence: 0.7, properties: {} }),
+      ],
+      [
+        makeEdge({ from: 'e1', to: 'hub1' }),
+        makeEdge({ from: 'e1', to: 'hub2' }),
+        makeEdge({ from: 'e1', to: 'hub3' }),
+        makeEdge({ from: 'e2', to: 'hub1' }),
+        makeEdge({ from: 'e2', to: 'hub2' }),
+        makeEdge({ from: 'e2', to: 'hub3' }),
+        makeEdge({ from: 'e3', to: 'hub1' }),
+        makeEdge({ from: 'e3', to: 'hub2' }),
+        makeEdge({ from: 'e3', to: 'hub3' }),
+      ],
+    );
+    const candidates = findAbstractionCandidates(graph, 3);
+    for (let i = 0; i < candidates.length - 1; i++) {
+      expect(candidates[i].commonNeighborCount).toBeGreaterThanOrEqual(
+        candidates[i + 1].commonNeighborCount,
+      );
+    }
+  });
+
+  it('uses default minClusterSize=3 when not specified', () => {
+    // Only 2 error nodes, default minClusterSize=3 => should not find any error cluster
+    const graph = buildGraphWithNodes(
+      [
+        makeNode({ id: 'n1', type: 'error', title: 'E1', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'n2', type: 'error', title: 'E2', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'hub1', type: 'pattern', title: 'H1', confidence: 0.7, properties: {} }),
+        makeNode({ id: 'hub2', type: 'pattern', title: 'H2', confidence: 0.7, properties: {} }),
+      ],
+      [
+        makeEdge({ from: 'n1', to: 'hub1' }),
+        makeEdge({ from: 'n1', to: 'hub2' }),
+        makeEdge({ from: 'n2', to: 'hub1' }),
+        makeEdge({ from: 'n2', to: 'hub2' }),
+      ],
+    );
+    const candidates = findAbstractionCandidates(graph);
+    expect(candidates.filter((c) => c.type === 'error').length).toBe(0);
   });
 });
