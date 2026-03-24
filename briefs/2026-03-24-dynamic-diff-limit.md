@@ -4,8 +4,6 @@
 **Effort:** 1 körning
 **Roadmap:** Fas 3 — Agent-mognad, punkt 3.5
 
-⚡ Auto-trigger: After Historian has completed, automatically delegate to Researcher for an arxiv knowledge update on "dynamic code review size limits in multi-agent systems"
-
 ## Bakgrund
 
 Diff-gränsen är idag statisk: 150 rader varning, 300 rader block (`policy/limits.yaml`). Alla tasks behandlas lika — en mekanisk rename över 40 filer bedöms identiskt med en komplex algoritmändring i 2 filer.
@@ -46,6 +44,7 @@ checkDiffSize(
 - `effectiveWarn = min(overrideWarnLines, this.limits.diff_block_lines)` — override kan aldrig överstiga BLOCK
 - WARN-tröskel: `effectiveWarn ?? this.limits.diff_warn_lines`
 - BLOCK-tröskel: `this.limits.diff_block_lines` (300, OFÖRÄNDRAD)
+- **Viktigt:** Override påverkar BARA WARN-tröskeln, aldrig BLOCK. En override på 50 rader gör att WARN triggas vid 51+ rader, men BLOCK sker fortfarande bara vid 300+. Override = "varna mig tidigare", BLOCK = "absolut säkerhetsgräns"
 - Funktionen förblir ren (pure function) — ingen audit-loggning, ingen sidoeffekt
 
 ### 5. Reviewer bedömer oberoende
@@ -102,8 +101,9 @@ Uppdatera `checkDiffSize()` (sök efter metodnamnet i `src/core/policy.ts`) enli
 - Type cast (rad ~732) i `executeTools` har hårdkodad typ — uppdatera så `maxDiffLines` och `maxDiffJustification` inkluderas
 
 **delegateToImplementer()** (sök efter metodnamnet i `src/core/agents/manager.ts`):
+- Bryt ut en pure function `buildTaskString(taskDescription: string, maxDiffLines?: number): string` som appendar diff-gränsen till task-strängen. Denna funktion är trivialt testbar utan att mocka Manager
 - Läs `maxDiffLines` från aktuell task i TaskPlan. Om TaskPlan saknas eller task saknar `maxDiffLines`: använd default 150
-- Lägg ALLTID till i task-strängen — oavsett om override finns eller ej: `\nDiff limit for this task: ${maxDiffLines ?? 150} lines.`
+- Anropa `buildTaskString()` som ALLTID lägger till: `\nDiff limit for this task: ${maxDiffLines ?? 150} lines.`
 - Om `maxDiffLines` sätts: logga `diff_override_set` i audit.jsonl (via befintlig audit-mekanism `this.ctx.audit.log()` — sök efter `audit.log` i manager.ts)
 
 ### 4. implementer.ts — respektera injicerad gräns
@@ -178,11 +178,12 @@ Default remains 150 lines — only override when objectively justified.
 
 - **AC5:** `AtomicTaskSchema` accepterar `{ ..., maxDiffLines: 250, maxDiffJustification: "mechanical rename across 40 files" }`. Parsningen lyckas
 - **AC6:** `validateTaskPlan()` returnerar fel om `maxDiffLines` sätts utan `maxDiffJustification`, eller med `maxDiffJustification` kortare än 10 tecken
+- **AC6b:** `validateTaskPlan()` lyckas om `maxDiffJustification` sätts utan `maxDiffLines` (orphaned justification är ofarligt och ignoreras)
 - **AC7:** `validateTaskPlan()` lyckas om varken `maxDiffLines` eller `maxDiffJustification` sätts (bakåtkompatibelt)
 
 ### Integration
 
-- **AC8:** Manager injicerar ALLTID diff-gräns i task-strängen: "Diff limit for this task: 150 lines" (default) eller "Diff limit for this task: 250 lines" (override). Verifiera via test som mockar `delegateToImplementer()` och inspekterar task-strängen
+- **AC8:** `buildTaskString("implement feature X")` returnerar sträng som slutar med `\nDiff limit for this task: 150 lines.` (default). `buildTaskString("implement feature X", 250)` returnerar sträng som slutar med `\nDiff limit for this task: 250 lines.` Pure function — testas direkt utan mocking
 - **AC9:** `audit.jsonl` innehåller entry med `event: 'diff_override_set'` inkl `effective_limit` när Manager sätter override. Ingen audit-entry vid default (150)
 
 ### Prompt
