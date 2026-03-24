@@ -73,7 +73,7 @@ Query each node type and look for:
 Write all findings to consolidation_report.md. This is your **highest-value
 output** — it tells downstream agents what the system doesn't know yet.
 
-### 2. Abstract Recurring Patterns (Priority 2)
+### 2. Abstraction Protocol — Abstract Recurring Patterns (Priority 2)
 
 Use `find_abstraction_candidates` to find clusters of nodes that share neighbors
 and could be generalized into an abstraction node.
