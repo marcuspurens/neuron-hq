@@ -6,6 +6,8 @@ export const AtomicTaskSchema = z.object({
   files: z.array(z.string()).describe('Expected files to touch'),
   passCriterion: z.string().describe('How to verify this task passed'),
   dependsOn: z.array(z.string()).optional().describe('IDs of tasks that must complete first'),
+  maxDiffLines: z.number().positive().optional(),
+  maxDiffJustification: z.string().min(10).optional(),
 });
 
 export type AtomicTask = z.infer<typeof AtomicTaskSchema>;
@@ -43,6 +45,15 @@ export function validateTaskPlan(plan: TaskPlan): string[] {
     // Check description is actionable (starts with verb)
     if (task.description.trim().length < 10) {
       errors.push(`Task ${task.id} has too short description`);
+    }
+
+    // Validate maxDiffLines requires maxDiffJustification
+    if (task.maxDiffLines !== undefined) {
+      if (!task.maxDiffJustification || task.maxDiffJustification.trim().length < 10) {
+        errors.push(
+          `Task ${task.id}: maxDiffJustification is required when maxDiffLines is set (min 10 characters)`
+        );
+      }
     }
   }
 

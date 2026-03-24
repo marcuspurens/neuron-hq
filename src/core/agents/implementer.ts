@@ -143,7 +143,7 @@ export class ImplementerAgent {
 # Policy Constraints
 
 All bash commands and file writes are subject to policy enforcement.
-Keep diffs under 150 lines per iteration. Run fast checks after each change.
+Keep diffs under 150 lines per iteration (unless a different limit is specified in your task). Run fast checks after each change.
 `;
 
     return prependPreamble(this.baseDir, `${overlayedPrompt}\n\n${contextInfo}`);
@@ -153,7 +153,7 @@ Keep diffs under 150 lines per iteration. Run fast checks after each change.
     const messages: Anthropic.MessageParam[] = [
       {
         role: 'user',
-        content: `Your task:\n\n${task}\n\nPlease implement this change following the implementer guidelines. Keep diffs small (<150 lines), verify after each change, and follow existing code patterns.`,
+        content: `Your task:\n\n${task}\n\nPlease implement this change following the implementer guidelines. Keep diffs within the limit specified in your task (default: 150 lines), verify after each change, and follow existing code patterns.`,
       },
     ];
 

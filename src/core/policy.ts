@@ -144,13 +144,21 @@ export class PolicyEnforcer {
    *
    * @param additions - Number of lines added
    * @param deletions - Number of lines deleted
+   * @param overrideWarnLines - Optional per-task override for warn threshold (from Manager).
+   *   Clipped to diff_block_lines so override can never exceed the BLOCK limit.
    * @returns Object with status and severity
    */
   checkDiffSize(
     additions: number,
-    deletions: number
+    deletions: number,
+    overrideWarnLines?: number
   ): { status: 'OK' | 'WARN' | 'BLOCK'; reason?: string } {
     const total = additions + deletions;
+
+    // Override WARN threshold — clipped to BLOCK limit so override never exceeds BLOCK
+    const effectiveWarn = overrideWarnLines !== undefined
+      ? Math.min(overrideWarnLines, this.limits.diff_block_lines)
+      : this.limits.diff_warn_lines;
 
     if (total > this.limits.diff_block_lines) {
       return {
@@ -159,7 +167,7 @@ export class PolicyEnforcer {
       };
     }
 
-    if (total > this.limits.diff_warn_lines) {
+    if (total > effectiveWarn) {
       return {
         status: 'WARN',
         reason: `Large diff (${total} lines). Consider splitting if possible.`,

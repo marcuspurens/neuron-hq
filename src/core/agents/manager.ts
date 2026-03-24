@@ -42,6 +42,17 @@ const logger = createLogger('agent:manager');
 
 
 /**
+ * Pure function — appends the diff limit to a task description.
+ * Always injects the diff limit so it's explicit to Implementer.
+ * @param taskDescription - The task string
+ * @param maxDiffLines - Optional per-task override. Default 150.
+ */
+export function buildTaskString(taskDescription: string, maxDiffLines?: number): string {
+  const limit = maxDiffLines ?? 150;
+  return `${taskDescription}\nDiff limit for this task: ${limit} lines.`;
+}
+
+/**
  * Manager Agent - orchestrates the swarm using Anthropic SDK.
  */
 export class ManagerAgent {
@@ -537,6 +548,14 @@ Stop when time limit approaches or when blockers are encountered.
               type: 'string',
               description: 'The specific coding task for the Implementer to carry out',
             },
+            maxDiffLines: {
+              type: 'number',
+              description: 'Optional: the per-task diff limit for this task (from TaskPlan). If omitted, defaults to 150.',
+            },
+            maxDiffJustification: {
+              type: 'string',
+              description: 'Optional: justification for the override. Required when maxDiffLines is set.',
+            },
           },
           required: ['task'],
         },
@@ -643,6 +662,14 @@ Stop when time limit approaches or when blockers are encountered.
                   files: { type: 'array', items: { type: 'string' } },
                   passCriterion: { type: 'string' },
                   dependsOn: { type: 'array', items: { type: 'string' } },
+                  maxDiffLines: {
+                    type: 'number',
+                    description: "Optional: Override the warn-level diff limit for this task. Must be > 0. Requires maxDiffJustification.",
+                  },
+                  maxDiffJustification: {
+                    type: 'string',
+                    description: "Required if maxDiffLines is set. Must be at least 10 characters. Valid: 'mechanical renames', 'test-only additions'. Invalid: 'complex' or 'need more space'.",
+                  },
                 },
                 required: ['id', 'description', 'files', 'passCriterion'],
               },
@@ -695,7 +722,7 @@ Stop when time limit approaches or when blockers are encountered.
               result = await this.executeSearchMemory(block.input as { query: string });
               break;
             case 'delegate_to_implementer':
-              result = await this.delegateToImplementer(block.input as { task: string });
+              result = await this.delegateToImplementer(block.input as { task: string; maxDiffLines?: number; maxDiffJustification?: string });
               break;
             case 'delegate_parallel_wave':
               result = await this.delegateParallelWave(
@@ -729,7 +756,17 @@ Stop when time limit approaches or when blockers are encountered.
               break;
             }
             case 'write_task_plan':
-              result = await this.executeWriteTaskPlan(block.input as { tasks: Array<{ id: string; description: string; files: string[]; passCriterion: string; dependsOn?: string[] }> });
+              result = await this.executeWriteTaskPlan(block.input as {
+                tasks: Array<{
+                  id: string;
+                  description: string;
+                  files: string[];
+                  passCriterion: string;
+                  dependsOn?: string[];
+                  maxDiffLines?: number;
+                  maxDiffJustification?: string;
+                }>
+              });
               break;
             default:
               result = `Error: Unknown tool ${block.name}`;
@@ -758,7 +795,7 @@ Stop when time limit approaches or when blockers are encountered.
   /**
    * Write a structured task plan to the run directory.
    */
-  private async executeWriteTaskPlan(input: { tasks: Array<{ id: string; description: string; files: string[]; passCriterion: string; dependsOn?: string[] }> }): Promise<string> {
+  private async executeWriteTaskPlan(input: { tasks: Array<{ id: string; description: string; files: string[]; passCriterion: string; dependsOn?: string[]; maxDiffLines?: number; maxDiffJustification?: string }> }): Promise<string> {
     const plan: TaskPlan = { tasks: input.tasks };
     const errors = validateTaskPlan(plan);
 
@@ -842,7 +879,11 @@ Stop when time limit approaches or when blockers are encountered.
   /**
    * Delegate a coding task to the Implementer agent.
    */
-  private async delegateToImplementer(input: { task: string }): Promise<string> {
+  private async delegateToImplementer(input: { task: string; maxDiffLines?: number; maxDiffJustification?: string }): Promise<string> {
+    // maxDiffLines from TaskPlan maps to overrideWarnLines in policy.checkDiffSize()
+    // — both mean "per-task WARN threshold override". BLOCK threshold is always 300 (diff_block_lines).
+    const taskString = buildTaskString(input.task, input.maxDiffLines);
+
     logger.info('Delegating to Implementer agent...');
     await this.ctx.audit.log({
       ts: new Date().toISOString(),
@@ -851,9 +892,30 @@ Stop when time limit approaches or when blockers are encountered.
       allowed: true,
       note: `Delegating task: ${input.task.slice(0, 120)}`,
     });
-    eventBus.safeEmit('agent:start', { runid: this.ctx.runid, agent: 'implementer', task: input.task.slice(0, 200) });
+
+    // Audit-log override if maxDiffLines is set
+    if (input.maxDiffLines !== undefined) {
+      const blockLimit = this.ctx.policy.getLimits().diff_block_lines;
+      const effectiveLimit = Math.min(input.maxDiffLines, blockLimit);
+      await this.ctx.audit.log({
+        ts: new Date().toISOString(),
+        role: 'manager',
+        tool: 'delegate_to_implementer',
+        allowed: true,
+        note: JSON.stringify({
+          event: 'diff_override_set',
+          task: input.task.slice(0, 120),
+          default_limit: 150,
+          override_limit: input.maxDiffLines,
+          effective_limit: effectiveLimit,
+          justification: input.maxDiffJustification ?? '(not provided)',
+        }),
+      });
+    }
+
+    eventBus.safeEmit('agent:start', { runid: this.ctx.runid, agent: 'implementer', task: taskString.slice(0, 200) });
     const implementer = new ImplementerAgent(this.ctx, this.baseDir);
-    await implementer.run(input.task);
+    await implementer.run(taskString);
 
     // Try to read structured JSON result first
     let structuredResult: ImplementerResult | null = null;
