@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-03-24T1200-session139-prompt-health-fixar.md](docs/handoffs/HANDOFF-2026-03-24T1200-session139-prompt-health-fixar.md)
+Senaste handoff: [HANDOFF-2026-03-24T1330-session140-3.2b-gron-agentproblem.md](docs/handoffs/HANDOFF-2026-03-24T1330-session140-3.2b-gron-agentproblem.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -107,5 +107,6 @@ Senaste handoff: [HANDOFF-2026-03-24T1200-session139-prompt-health-fixar.md](doc
 | 2026-03-24 | 08:00 | 137 | **Brief 3.2b bollad klart** — 7 rundor Reviewer + Code Anchor R3, 3.2a startad | [länk](docs/handoffs/HANDOFF-2026-03-24T0800-session137-brief-bollning-komplett.md) |
 | 2026-03-24 | 11:00 | 138 | **3.2a räddad från workspace** — T1-T5 komplett, AC17 strict, 3.2b redo | [länk](docs/handoffs/HANDOFF-2026-03-24T1100-session138-3.2a-raddad-3.2b-redo.md) |
 | 2026-03-24 | 12:00 | 139 | **Prompt Health-fixar** — 8 issues, Observer alignment, typecheck ren | [länk](docs/handoffs/HANDOFF-2026-03-24T1200-session139-prompt-health-fixar.md) |
+| 2026-03-24 | 13:30 | 140 | **3.2b GRÖN** — 11/11 AC, 3898 tester, agentproblem identifierade | [länk](docs/handoffs/HANDOFF-2026-03-24T1330-session140-3.2b-gron-agentproblem.md) |
 
 > **Not:** Session 1, 6, 79, 92 och 96-103, 106-116, 120-126 saknas — handoffs skapades inte vid dessa tillfällen.
