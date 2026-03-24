@@ -53,6 +53,21 @@ describe('parseTestCounts', () => {
     const text = '5 passed\n2 failed\n3 pre-existing fail';
     expect(parseTestCounts(text)).toEqual({ passed: 5, failed: 5 });
   });
+
+  it('handles "3916/3916 passed" format', () => {
+    const text = 'Tests  3916/3916 passed';
+    expect(parseTestCounts(text)).toEqual({ passed: 3916, failed: 0 });
+  });
+
+  it('handles "N tests" fallback when "passed" is absent', () => {
+    const text = '232 files, 3916 tests';
+    expect(parseTestCounts(text)).toEqual({ passed: 3916, failed: 0 });
+  });
+
+  it('prefers "passed" over "tests" fallback', () => {
+    const text = '3916 tests\n3900 passed';
+    expect(parseTestCounts(text)).toEqual({ passed: 3900, failed: 0 });
+  });
 });
 
 // ---------------------------------------------------------------------------

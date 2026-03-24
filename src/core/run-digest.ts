@@ -275,7 +275,7 @@ function stoplightEmoji(status: string): string {
 }
 
 function extractStoplight(reportText: string): 'GREEN' | 'YELLOW' | 'RED' | 'unknown' {
-  const match = reportText.match(/STOPLIGHT[:\s]+(GREEN|YELLOW|RED)/i);
+  const match = reportText.match(/STOPLIGHT[:\s]+(?:(?:🟢|🟡|🔴|⚪)\s*)?(GREEN|YELLOW|RED)/i);
   if (match) return match[1].toUpperCase() as 'GREEN' | 'YELLOW' | 'RED';
   return 'unknown';
 }

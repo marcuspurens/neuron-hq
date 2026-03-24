@@ -80,6 +80,22 @@ describe('PolicyEnforcer', () => {
       expect(result.status).toBe('BLOCK');
       expect(result.reason).toContain('too large');
     });
+
+    it('should WARN on any diff when overrideWarnLines=0', () => {
+      const result = policy.checkDiffSize(1, 0, 0);
+      expect(result.status).toBe('WARN');
+    });
+
+    it('should return OK at zero diff even with overrideWarnLines=0', () => {
+      const result = policy.checkDiffSize(0, 0, 0);
+      expect(result.status).toBe('OK');
+    });
+
+    it('should respect overrideWarnLines below default', () => {
+      // override at 50 — diff of 60 should WARN (default threshold is higher)
+      const result = policy.checkDiffSize(40, 20, 50);
+      expect(result.status).toBe('WARN');
+    });
   });
 
   describe('validateRunHours', () => {

@@ -217,6 +217,17 @@ describe('generateDigest', () => {
     expect(md).toContain('GREEN');
   });
 
+  it('extracts stoplight when emoji is between colon and keyword', async () => {
+    const emojiDir = await createRunDir({
+      ...standardMockFiles(),
+      'report.md': 'STOPLIGHT: 🟢 GREEN\n\nAll tests pass.',
+    });
+    const md = await generateDigest(emojiDir);
+    expect(md).toContain('🟢');
+    expect(md).toContain('GREEN');
+    await fs.rm(emojiDir, { recursive: true, force: true });
+  });
+
   it('includes cost', async () => {
     const md = await generateDigest(tempDir);
     expect(md).toContain('$');

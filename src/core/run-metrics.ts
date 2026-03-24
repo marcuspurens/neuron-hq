@@ -67,9 +67,16 @@ export function parseTestCounts(text: string): {
   let passed = 0;
   let failed = 0;
 
-  const passedMatches = [...text.matchAll(/(\d+)\s+passed/g)];
+  // Match "3916 passed" and "3916/3916 passed" (captures first number)
+  const passedMatches = [...text.matchAll(/(\d+)(?:\/\d+)?\s+passed/g)];
   if (passedMatches.length > 0) {
     passed = Number(passedMatches[passedMatches.length - 1][1]);
+  } else {
+    // Fallback: match "3916 tests" (pytest/vitest summary without "passed" keyword)
+    const testMatches = [...text.matchAll(/(\d+)\s+tests?\b/g)];
+    if (testMatches.length > 0) {
+      passed = Number(testMatches[testMatches.length - 1][1]);
+    }
   }
 
   const failedMatches = [...text.matchAll(/(\d+)\s+failed/g)];

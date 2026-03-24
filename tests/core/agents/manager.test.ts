@@ -32,7 +32,7 @@ vi.mock('../../../src/core/knowledge-graph.js', async (importOriginal) => {
   };
 });
 
-import { ManagerAgent } from '../../../src/core/agents/manager.js';
+import { ManagerAgent, buildTaskString } from '../../../src/core/agents/manager.js';
 import { createPolicyEnforcer } from '../../../src/core/policy.js';
 import { loadGraph, rankIdeas } from '../../../src/core/knowledge-graph.js';
 import type { KnowledgeGraph, KGNode } from '../../../src/core/knowledge-graph.js';
@@ -278,5 +278,93 @@ describe('ManagerAgent — graph context integration', () => {
 
     expect(prompt).not.toContain(GRAPH_SECTION_MARKER);
     expect(prompt).toContain('Run Context');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildTaskString (pure function)
+// ---------------------------------------------------------------------------
+
+describe('buildTaskString', () => {
+  it('appends default 150-line diff limit', () => {
+    const result = buildTaskString('implement feature X');
+    expect(result).toBe('implement feature X\nDiff limit for this task: 150 lines.');
+  });
+
+  it('appends overridden diff limit', () => {
+    const result = buildTaskString('implement feature X', 250);
+    expect(result).toBe('implement feature X\nDiff limit for this task: 250 lines.');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// diff_override_set audit logging
+// ---------------------------------------------------------------------------
+
+describe('ManagerAgent — diff_override_set audit logging', () => {
+  let policy: Awaited<ReturnType<typeof createPolicyEnforcer>>;
+  let tmpDir: string;
+  let runDir: string;
+  let workspaceDir: string;
+
+  beforeAll(async () => {
+    policy = await createPolicyEnforcer(path.join(BASE_DIR, 'policy'), BASE_DIR);
+  });
+
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'manager-audit-test-'));
+    runDir = path.join(tmpDir, 'runs', '20260320-1200-test');
+    workspaceDir = path.join(tmpDir, 'workspace');
+    await fs.mkdir(runDir, { recursive: true });
+    await fs.mkdir(workspaceDir, { recursive: true });
+  });
+
+  afterEach(async () => {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('logs diff_override_set when maxDiffLines is provided', async () => {
+    const auditEntries: any[] = [];
+    const mockAudit = async (entry: any) => { auditEntries.push(entry); };
+    const ctx = createMockContext(policy, runDir, workspaceDir, mockAudit);
+    const agent = new ManagerAgent(ctx, BASE_DIR);
+
+    // Call the private method directly
+    try {
+      await (agent as any).delegateToImplementer({
+        task: 'implement feature X',
+        maxDiffLines: 250,
+        maxDiffJustification: 'large refactor',
+      });
+    } catch {
+      // ImplementerAgent.run is mocked — may throw, that's OK
+    }
+
+    const overrideEntry = auditEntries.find(
+      (e) => e.note && typeof e.note === 'string' && e.note.includes('diff_override_set'),
+    );
+    expect(overrideEntry).toBeDefined();
+    const parsed = JSON.parse(overrideEntry.note);
+    expect(parsed.event).toBe('diff_override_set');
+    expect(parsed.override_limit).toBe(250);
+    expect(parsed.justification).toBe('large refactor');
+  });
+
+  it('does NOT log diff_override_set when maxDiffLines is absent', async () => {
+    const auditEntries: any[] = [];
+    const mockAudit = async (entry: any) => { auditEntries.push(entry); };
+    const ctx = createMockContext(policy, runDir, workspaceDir, mockAudit);
+    const agent = new ManagerAgent(ctx, BASE_DIR);
+
+    try {
+      await (agent as any).delegateToImplementer({ task: 'small fix' });
+    } catch {
+      // ImplementerAgent.run is mocked — may throw, that's OK
+    }
+
+    const overrideEntry = auditEntries.find(
+      (e) => e.note && typeof e.note === 'string' && e.note.includes('diff_override_set'),
+    );
+    expect(overrideEntry).toBeUndefined();
   });
 });
