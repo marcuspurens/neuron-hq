@@ -169,8 +169,10 @@ Svaren styr vilka av A3-A8 som körs.
 | | Aurora-fix | | | $0 | Reverta MCP-refaktorering |
 | 2026-03-24 | Neuron F1-F5 | ✅ KLAR | 3909 | $0 | F1-F4 fixade, F5 redan klar. Commit `e3bae8e` |
 | 2026-03-24 | N1 (3.6) | ✅ GRÖN | 3917 | $60.54 | 12/12 AC, streamWithEmptyRetry, Observer checkZeroTokenAgents |
+| 2026-03-25 | A1 (Obsidian round-trip) | ✅ GRÖN | 3936 | ~$39 | 12/12 AC, mergad till main |
+| 2026-03-25 | Code Anchor härdning (ej i deal) | ✅ GRÖN | 3949 | ~$39 | 13/14 AC, säkerhetsfix |
+| | Aurora-fix | | | $0 | **BLOCKERAR A2** — Marcus fixar |
 | | Manuell verifiering | | | $0 | decay, embedding, dedup, cross-search |
-| | A1 | | | | Obsidian round-trip |
 | | A2 | | | | DOCX/XLSX intake |
 | | A3-A8 | | | | Valfria, baserat på behov |
 | | N2? | | | | Bash-budget (om behov) |
