@@ -55,6 +55,14 @@ Körningen avslutades under sessionen. Commit `3430d3d` på branch `swarm/202603
 
 Marcus föreslog att göra handoff-processen till en Skill (slash command). Sparad som idé i minnet.
 
+### 8. Push till GitHub
+
+202 commits på `main` hade samlats utan push. Pushade allt:
+- `main` → `origin/main` (202 commits, `f748a34..c6fb840`)
+- `swarm/20260325-0715-neuron-hq` → ny remote branch
+
+**Ny feedback sparad:** `feedback-always-push.md` — pusha ALLTID direkt efter commit, fråga inte om lov.
+
 ## Vad som INTE gjordes
 
 | Sak | Varför | Nästa steg |
@@ -62,7 +70,6 @@ Marcus föreslog att göra handoff-processen till en Skill (slash command). Spar
 | Läsa A1-rapporten | Körningen blev klar sent, context snart slut | **Första prioritet nästa session** |
 | Köra Code Anchor härdning | Brief klar men ej körbar — analysera A1 först | Efter A1-analys |
 | Lägga till `xargs`-blockerare | Brief Reviewer noterade lucka men ej blockerande | Fixa i briefen innan körning |
-| Pusha till GitHub | Oklart om main ska pushas | Marcus bestämmer |
 | Skapa Handoff-skill | Idé dokumenterad | Framtida session |
 
 ## Insikter
@@ -86,6 +93,13 @@ Code Anchor kringgår Neurons policycheck (bash_allowlist, forbidden_patterns) f
 | `docs/DAGBOK.md` | Tillagda rader för S149 |
 | `runs/verifications/verification-1774433280236.json` | Code Anchor verifiering |
 | `runs/reviews/review-1774433405829.json` | Brief Reviewer dialog (2 rundor) |
+
+### Push-status vid sessionsslut
+
+| Branch | Commits | Status |
+|--------|---------|--------|
+| `main` | 202 pushade | ✅ Synkad med GitHub |
+| `swarm/20260325-0715-neuron-hq` | Ny branch | ✅ Pushad |
 
 ---
 
