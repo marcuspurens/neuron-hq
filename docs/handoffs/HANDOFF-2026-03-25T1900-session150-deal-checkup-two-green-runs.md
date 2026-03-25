@@ -54,6 +54,9 @@
 ### Deal-drift
 Vi har spenderat 5 sessioner (S146-S150) på Neuron-interna förbättringar sedan dealen. Bra arbete — men inte i dealen. Code Anchor härdning var inte i sprint-planen.
 
+### CoT och agentkonversationer är viktiga
+Marcus betonar att Chain-of-Thought (synligt resonemang) och att kunna läsa agenternas tankar/konversationer från körningar är viktigt. Inte bara slutrapporter — utan att förstå *hur* agenterna tänkte. Detta knyter an till P2 (output försvinner) som vi just fixade, och till run-narrative/transcripts som redan sparas i `runs/<runid>/transcripts/`.
+
 ### Retro-connection errors
 Nytt problem. Kan vara rate limiting, kan vara tillfälligt. Värt att bevaka nästa körning.
 
