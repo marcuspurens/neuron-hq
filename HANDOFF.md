@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-03-25T0900-session148-brief-a1-obsidian-round-trip.md](docs/handoffs/HANDOFF-2026-03-25T0900-session148-brief-a1-obsidian-round-trip.md)
+Senaste handoff: [HANDOFF-2026-03-25T1500-session149-code-anchor-djupanalys.md](docs/handoffs/HANDOFF-2026-03-25T1500-session149-code-anchor-djupanalys.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -115,5 +115,6 @@ Senaste handoff: [HANDOFF-2026-03-25T0900-session148-brief-a1-obsidian-round-tri
 | 2026-03-24 | 22:30 | 145 | **Deal: Aurora-pivot** — djupsamtal, NemoClaw-analys, sprint-plan, 4/6 briefs redan klara | [länk](docs/handoffs/HANDOFF-2026-03-24T2230-session145-deal-aurora-pivot.md) |
 | 2026-03-25 | 00:10 | 147 | **Brief 3.6 GRÖN** + Behavioral Control Plan | [länk](docs/handoffs/HANDOFF-2026-03-25T0010-session147-brief36-klar-behavioral-control-plan.md) |
 | 2026-03-25 | 09:00 | 148 | **Brief A1 Obsidian Round-Trip GODKÄND** — körning startad | [länk](docs/handoffs/HANDOFF-2026-03-25T0900-session148-brief-a1-obsidian-round-trip.md) |
+| 2026-03-25 | 15:00 | 149 | **Code Anchor djupanalys** — brief härdning godkänd, A1 klar | [länk](docs/handoffs/HANDOFF-2026-03-25T1500-session149-code-anchor-djupanalys.md) |
 
 > **Not:** Session 1, 6, 79, 92 och 96-103, 106-116, 120-126, 146 saknas — handoffs skapades inte vid dessa tillfällen.

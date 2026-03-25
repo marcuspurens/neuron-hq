@@ -133,6 +133,14 @@
 | ~22:20 | BESLUT | Ny fil: ROADMAP-AURORA.md (separat Aurora-roadmap) |
 | ~22:30 | SESSION | S145 slut — handoff, samtalslogg, minne, commit (`5f2defa`) |
 
+## 2026-03-25
+
+| Tid | Typ | Vad hände |
+|-----|-----|-----------|
+| ~09:00 | SESSION | S148 — Brief A1 Obsidian round-trip godkänd, körning startad |
+| ~14:30 | SAMTAL | S149 — Code Anchor djupanalys: 2 Explore-agenter + 6000 rader kod. 6 problem (P1-P6), output-trunkering HÖG. [Rapport](docs/samtal/samtal-2026-03-25T1430-code-anchor-djupanalys.md) |
+| ~15:00 | BRIEF | Code Anchor härdning — bash-policycheck + output-bevarande. 12 AC, 3 filer. `briefs/2026-03-25-code-anchor-hardening.md` |
+
 ---
 
 ## Hur du använder dagboken
