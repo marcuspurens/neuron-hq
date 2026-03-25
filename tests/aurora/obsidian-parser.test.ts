@@ -73,6 +73,8 @@ import {
   parseObsidianFile,
   parseSentiment,
   extractBriefingAnswers,
+  extractTitle,
+  extractContentSection,
 } from '../../src/aurora/obsidian-parser.js';
 
 // Mock the logger to suppress output during tests
@@ -512,5 +514,84 @@ describe('extractBriefingAnswers', () => {
     expect(result[0].answer).toBe('Nej, inte relevant');
     expect(result[0].sentiment).toBe('negative');
     expect(result[0].questionCategory).toBe('idea');
+  });
+});
+
+describe('extractTitle', () => {
+  it('returns title from first H1 heading', () => {
+    expect(extractTitle('# Min Rubrik\n\nText')).toBe('Min Rubrik');
+  });
+  it('returns null when no H1 heading', () => {
+    expect(extractTitle('Ingen rubrik')).toBeNull();
+  });
+  it('returns null for empty string', () => {
+    expect(extractTitle('')).toBeNull();
+  });
+  it('ignores H2 headings', () => {
+    expect(extractTitle('## Not H1\n\n# Rätt')).toBe('Rätt');
+  });
+});
+
+describe('extractContentSection', () => {
+  it('extracts content under ## Innehåll heading', () => {
+    expect(extractContentSection('## Innehåll\n\nHello world\n\n## Kopplingar')).toBe('Hello world');
+  });
+  it('returns null when no ## Innehåll section', () => {
+    expect(extractContentSection('Inget innehåll')).toBeNull();
+  });
+  it('returns null for empty ## Innehåll section (AC2)', () => {
+    expect(extractContentSection('## Innehåll\n\n## Kopplingar')).toBeNull();
+  });
+  it('extracts content until end of file when no next section', () => {
+    expect(extractContentSection('## Innehåll\n\nJust text here')).toBe('Just text here');
+  });
+  it('returns null for whitespace-only content', () => {
+    expect(extractContentSection('## Innehåll\n\n   \n\n## Annat')).toBeNull();
+  });
+});
+
+describe('parseObsidianFile new fields', () => {
+  it('returns title, confidence, textContent, exportedAt correctly when all present', () => {
+    const content = [
+      '---',
+      'id: new-fields-test',
+      'confidence: 0.8',
+      'exported_at: "2026-01-01T00:00:00.000Z"',
+      '---',
+      '',
+      '# My Title',
+      '',
+      '## Innehåll',
+      '',
+      'Test content',
+      '',
+      '## Kopplingar',
+      '',
+      'Other stuff',
+    ].join('\n');
+
+    const result = parseObsidianFile(content);
+    expect(result).not.toBeNull();
+    expect(result!.title).toBe('My Title');
+    expect(result!.confidence).toBe(0.8);
+    expect(result!.textContent).toBe('Test content');
+    expect(result!.exportedAt).toBe('2026-01-01T00:00:00.000Z');
+  });
+
+  it('returns null fields when confidence, exported_at, title, and ## Innehåll not present', () => {
+    const content = [
+      '---',
+      'id: minimal-new-fields',
+      '---',
+      '',
+      'Just plain text, no headings.',
+    ].join('\n');
+
+    const result = parseObsidianFile(content);
+    expect(result).not.toBeNull();
+    expect(result!.title).toBeNull();
+    expect(result!.confidence).toBeNull();
+    expect(result!.textContent).toBeNull();
+    expect(result!.exportedAt).toBeNull();
   });
 });

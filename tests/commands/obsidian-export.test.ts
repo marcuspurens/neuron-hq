@@ -4,11 +4,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockWriteFile = vi.fn();
 const mockMkdir = vi.fn();
 const mockRm = vi.fn();
+const mockReaddir = vi.fn();
 
 vi.mock('fs/promises', () => ({
   writeFile: (...args: unknown[]) => mockWriteFile(...args),
   mkdir: (...args: unknown[]) => mockMkdir(...args),
   rm: (...args: unknown[]) => mockRm(...args),
+  readdir: (...args: unknown[]) => mockReaddir(...args),
 }));
 
 const mockQuery = vi.fn();
@@ -47,6 +49,7 @@ describe('obsidian-export', () => {
     });
     mockMkdir.mockResolvedValue(undefined);
     mockRm.mockResolvedValue(undefined);
+    mockReaddir.mockResolvedValue([]);
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -746,4 +749,72 @@ describe('obsidian-export', () => {
     expect(writtenFiles.size).toBe(3);
   });
 
+
+describe('AC4-AC6: exported_at frontmatter and stale cleanup', () => {
+  it('AC4: exported file contains exported_at with valid ISO timestamp', async () => {
+    const docNode = makeNode({
+      id: 'ac4-doc',
+      title: 'AC4 Test',
+      type: 'document',
+      properties: { text: 'Some content' },
+    });
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [docNode] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await obsidianExportCommand({ vault: '/tmp/vault' });
+
+    expect(writtenFiles.size).toBe(1);
+    const content = [...writtenFiles.values()][0];
+    expect(content).toMatch(/exported_at: "\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z"/);
+  });
+
+  it('AC5: export does NOT delete the Aurora directory (rm not called with recursive:true for directory)', async () => {
+    const docNode = makeNode({
+      id: 'ac5-doc',
+      title: 'AC5 Test',
+      type: 'document',
+      properties: { text: 'Content' },
+    });
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [docNode] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    mockReaddir.mockResolvedValue([]);
+
+    await obsidianExportCommand({ vault: '/tmp/vault' });
+
+    // rm should NOT have been called with { recursive: true } on the directory
+    const rmCallsWithRecursive = mockRm.mock.calls.filter(
+      (args: unknown[]) => args[1] && (args[1] as Record<string, unknown>).recursive === true
+    );
+    expect(rmCallsWithRecursive).toHaveLength(0);
+  });
+
+  it('AC6: stale files (not matching current nodes) are removed', async () => {
+    const docNode = makeNode({
+      id: 'ac6-doc',
+      title: 'AC6 Test',
+      type: 'document',
+      properties: { text: 'Content' },
+    });
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [docNode] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    // Simulate that the directory has both current node file AND a stale file
+    mockReaddir.mockResolvedValue(['AC6 Test.md', 'stale-old-node.md']);
+
+    await obsidianExportCommand({ vault: '/tmp/vault' });
+
+    // rm should have been called for the stale file only
+    const rmCalls = mockRm.mock.calls.filter(
+      (args: unknown[]) => typeof args[0] === 'string' && (args[0] as string).includes('stale-old-node.md')
+    );
+    expect(rmCalls).toHaveLength(1);
+  });
+});
 });

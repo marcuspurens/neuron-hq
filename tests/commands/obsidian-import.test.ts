@@ -57,6 +57,12 @@ vi.mock('../../src/aurora/obsidian-parser.js', async () => {
     ...actual,
   };
 });
+vi.mock('../../src/commands/obsidian-export.js', () => ({
+  isVideoTranscript: (node: { type?: string; properties?: { rawSegments?: unknown } }) => {
+    return node.type === 'transcript' && Array.isArray((node.properties as Record<string, unknown>)?.rawSegments);
+  },
+}));
+
 
 import { obsidianImportCommand } from '../../src/commands/obsidian-import.js';
 
@@ -532,5 +538,174 @@ describe('obsidian-import', () => {
 
     // Graph saved only once
     expect(mockSaveAuroraGraph).toHaveBeenCalledOnce();
+  });
+
+  it('AC7: imports text changes for non-video document nodes', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue(['doc.md']);
+
+    const mdContent = [
+      '---',
+      'id: doc-1',
+      'exported_at: "2026-01-01T00:00:00.000Z"',
+      '---',
+      '',
+      '# My Document',
+      '',
+      '## Innehåll',
+      '',
+      'Updated content from Obsidian',
+      '',
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(mdContent);
+
+    const graph = makeGraph([
+      {
+        id: 'doc-1',
+        type: 'document',
+        title: 'My Document',
+        updated: '2025-12-01T00:00:00.000Z',
+        properties: {
+          text: 'Original content',
+        },
+      },
+    ]);
+
+    mockLoadAuroraGraph.mockResolvedValue(graph);
+    const updatedGraph = { ...graph };
+    mockUpdateAuroraNode.mockReturnValue(updatedGraph);
+
+    const result = await obsidianImportCommand({ vault: '/test-vault' });
+
+    expect(mockUpdateAuroraNode).toHaveBeenCalledOnce();
+    const updateCall = mockUpdateAuroraNode.mock.calls[0];
+    expect(updateCall[2].properties.text).toBe('Updated content from Obsidian');
+    expect(result.contentUpdates).toBe(1);
+  });
+
+  it('AC8: imports title changes for non-video document nodes', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue(['doc.md']);
+
+    const mdContent = [
+      '---',
+      'id: doc-2',
+      'exported_at: "2026-01-01T00:00:00.000Z"',
+      '---',
+      '',
+      '# New Title From Obsidian',
+      '',
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(mdContent);
+
+    const graph = makeGraph([
+      {
+        id: 'doc-2',
+        type: 'document',
+        title: 'Old Title',
+        updated: '2025-12-01T00:00:00.000Z',
+        properties: {},
+      },
+    ]);
+
+    mockLoadAuroraGraph.mockResolvedValue(graph);
+    const updatedGraph = { ...graph };
+    mockUpdateAuroraNode.mockReturnValue(updatedGraph);
+
+    await obsidianImportCommand({ vault: '/test-vault' });
+
+    expect(mockUpdateAuroraNode).toHaveBeenCalledOnce();
+    const updateCall = mockUpdateAuroraNode.mock.calls[0];
+    expect(updateCall[2].title).toBe('New Title From Obsidian');
+  });
+
+  it('AC9: imports confidence changes for non-video document nodes', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue(['doc.md']);
+
+    const mdContent = [
+      '---',
+      'id: doc-3',
+      'confidence: 0.9',
+      'exported_at: "2026-01-01T00:00:00.000Z"',
+      '---',
+      '',
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(mdContent);
+
+    const graph = makeGraph([
+      {
+        id: 'doc-3',
+        type: 'document',
+        title: 'Doc Three',
+        confidence: 0.5,
+        updated: '2025-12-01T00:00:00.000Z',
+        properties: {},
+      },
+    ]);
+
+    mockLoadAuroraGraph.mockResolvedValue(graph);
+    const updatedGraph = { ...graph };
+    mockUpdateAuroraNode.mockReturnValue(updatedGraph);
+
+    await obsidianImportCommand({ vault: '/test-vault' });
+
+    expect(mockUpdateAuroraNode).toHaveBeenCalledOnce();
+    const updateCall = mockUpdateAuroraNode.mock.calls[0];
+    expect(updateCall[2].confidence).toBe(0.9);
+  });
+
+  it('AC10: logs conflict warning when node.updated > exported_at (non-blocking)', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue(['doc.md']);
+
+    const mdContent = [
+      '---',
+      'id: doc-4',
+      'exported_at: "2026-01-01T00:00:00.000Z"',
+      '---',
+      '',
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(mdContent);
+
+    const graph = makeGraph([
+      {
+        id: 'doc-4',
+        type: 'document',
+        title: 'Doc Four',
+        updated: '2026-02-01T00:00:00.000Z', // AFTER exported_at — conflict!
+        properties: {},
+      },
+    ]);
+
+    mockLoadAuroraGraph.mockResolvedValue(graph);
+    const updatedGraph = { ...graph };
+    mockUpdateAuroraNode.mockReturnValue(updatedGraph);
+
+    // Should not throw
+    const result = await obsidianImportCommand({ vault: '/test-vault' });
+
+    // Import should still succeed (non-blocking)
+    expect(mockUpdateAuroraNode).toHaveBeenCalledOnce();
+    expect(result.conflictWarnings).toBe(1);
+  });
+
+  it('AC11: result includes contentUpdates and conflictWarnings counts', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue([]);
+
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph([]));
+
+    const result = await obsidianImportCommand({ vault: '/test-vault' });
+
+    // Even with no files, the result should include these fields
+    expect(result).toHaveProperty('contentUpdates');
+    expect(result).toHaveProperty('conflictWarnings');
+    expect(typeof result.contentUpdates).toBe('number');
+    expect(typeof result.conflictWarnings).toBe('number');
   });
 });

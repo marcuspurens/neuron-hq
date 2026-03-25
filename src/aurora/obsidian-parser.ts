@@ -32,6 +32,10 @@ export interface ParsedObsidianFile {
   speakers: ParsedSpeaker[];
   highlights: Highlight[];
   comments: Comment[];
+  title: string | null;
+  confidence: number | null;
+  textContent: string | null;
+  exportedAt: string | null;
 }
 
 export interface BriefingAnswer {
@@ -309,6 +313,39 @@ export function extractBriefingAnswers(
 }
 
 /**
+ * Extracts the first H1 heading from a markdown body.
+ * Returns null if none found.
+ */
+export function extractTitle(markdownBody: string): string | null {
+  const match = markdownBody.match(/^# (.+)$/m);
+  return match ? match[1].trim() : null;
+}
+
+/**
+ * Extracts text content under "## Innehåll" heading.
+ * Reads until the next "## " heading or end of string.
+ * Returns null if section not found, or if section exists but is empty after trimming.
+ */
+export function extractContentSection(markdownBody: string): string | null {
+  // Match "## Innehåll" only at the start of a line (prevents matching inline occurrences)
+  const headingMatch = markdownBody.match(/^## Innehåll[ \t]*$/m);
+  if (!headingMatch || headingMatch.index === undefined) return null;
+
+  // Content starts after the heading line
+  const afterHeadingStart = headingMatch.index + headingMatch[0].length;
+  const afterHeading = markdownBody.slice(afterHeadingStart);
+
+  // Find the next "## " section at start of line
+  const nextSectionMatch = afterHeading.match(/^## /m);
+  const section = nextSectionMatch?.index !== undefined
+    ? afterHeading.slice(0, nextSectionMatch.index)
+    : afterHeading;
+
+  const trimmed = section.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
  * Main entry point. Parse an Obsidian markdown file with YAML frontmatter.
  * Returns null if no `id` in frontmatter or if the file is corrupt.
  */
@@ -339,11 +376,22 @@ export function parseObsidianFile(
       text: c.text,
     }));
 
+    // New fields
+    const title = extractTitle(parsed.content);
+    const rawConfidence = frontmatter['confidence'];
+    const confidence = typeof rawConfidence === 'number' ? rawConfidence : null;
+    const textContent = extractContentSection(parsed.content);
+    const exportedAt = typeof frontmatter['exported_at'] === 'string' ? frontmatter['exported_at'] : null;
+
     return {
       id: idStr,
       speakers,
       highlights,
       comments,
+      title,
+      confidence,
+      textContent,
+      exportedAt,
     };
   } catch (err) {
     logger.warn('Failed to parse Obsidian file', {

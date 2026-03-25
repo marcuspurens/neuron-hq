@@ -16,6 +16,7 @@ import {
 } from '../aurora/aurora-graph.js';
 import { renameSpeaker } from '../aurora/voiceprint.js';
 import { getPool } from '../core/db.js';
+import { isVideoTranscript } from './obsidian-export.js';
 
 const logger = createLogger('obsidian:import');
 
@@ -32,6 +33,8 @@ export interface ObsidianImportResult {
   comments: number;
   speakersRenamed: number;
   feedbackNodes: number;
+  contentUpdates: number;
+  conflictWarnings: number;
 }
 
 /**
@@ -72,11 +75,11 @@ export async function obsidianImportCommand(options: {
     const dirStat = await stat(auroraDir);
     if (!dirStat.isDirectory()) {
       console.error(chalk.red(`Not a directory: ${auroraDir}`));
-      return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0, feedbackNodes: 0 };
+      return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0, feedbackNodes: 0, contentUpdates: 0, conflictWarnings: 0 };
     }
   } catch {
     console.error(chalk.red(`Aurora directory not found: ${auroraDir}`));
-    return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0, feedbackNodes: 0 };
+    return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0, feedbackNodes: 0, contentUpdates: 0, conflictWarnings: 0 };
   }
 
   console.log(chalk.bold('\n📥 Obsidian Import\n'));
@@ -90,12 +93,12 @@ export async function obsidianImportCommand(options: {
   } catch (err) {
     console.error(chalk.red(`Failed to read directory: ${auroraDir}`));
     logger.warn('readdir failed', { error: String(err) });
-    return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0, feedbackNodes: 0 };
+    return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0, feedbackNodes: 0, contentUpdates: 0, conflictWarnings: 0 };
   }
 
   if (files.length === 0) {
     console.log(chalk.yellow('  No .md files found in Aurora directory.'));
-    return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0, feedbackNodes: 0 };
+    return { filesProcessed: 0, highlights: 0, comments: 0, speakersRenamed: 0, feedbackNodes: 0, contentUpdates: 0, conflictWarnings: 0 };
   }
 
   // 3. Load graph once
@@ -104,6 +107,8 @@ export async function obsidianImportCommand(options: {
   let filesProcessed = 0;
   let totalHighlights = 0;
   let totalComments = 0;
+  let totalContentUpdates = 0;
+  let totalConflictWarnings = 0;
   const pendingRenames: SpeakerRename[] = [];
 
   // 4. Process each file
@@ -162,14 +167,41 @@ export async function obsidianImportCommand(options: {
       }
     }
 
-    // Update node — replace highlights and comments (idempotent)
-    graph = updateAuroraNode(graph, node.id, {
-      properties: {
-        ...node.properties,
-        highlights: matchedHighlights,
-        comments: matchedComments,
-      },
-    });
+    // Build base updated properties (highlights + comments — all nodes)
+    const updatedProperties = { ...node.properties, highlights: matchedHighlights, comments: matchedComments };
+
+    // Conflict warning: if node was updated in Aurora after last export
+    if (parsed.exportedAt && node.updated > parsed.exportedAt) {
+      logger.warn('Node updated in Aurora since last export — Obsidian changes may overwrite newer data', {
+        nodeId: node.id,
+        nodeUpdated: node.updated,
+        exportedAt: parsed.exportedAt,
+      });
+      totalConflictWarnings++;
+    }
+
+    // Build the single update object
+    const nodeUpdates: { properties: Record<string, unknown>; title?: string; confidence?: number } = {
+      properties: updatedProperties,
+    };
+
+    // Non-video nodes: also update text content, title, confidence
+    const isVideo = isVideoTranscript(node);
+    if (!isVideo) {
+      if (parsed.textContent !== null && parsed.textContent !== undefined && parsed.textContent !== node.properties.text) {
+        nodeUpdates.properties = { ...nodeUpdates.properties, text: parsed.textContent };
+        totalContentUpdates++;
+      }
+      if (parsed.title !== null && parsed.title !== undefined && parsed.title !== node.title) {
+        nodeUpdates.title = parsed.title;
+      }
+      if (parsed.confidence !== null && parsed.confidence !== undefined && parsed.confidence !== node.confidence) {
+        nodeUpdates.confidence = parsed.confidence;
+      }
+    }
+
+    // ONE single updateAuroraNode call — never call it twice for the same node
+    graph = updateAuroraNode(graph, node.id, nodeUpdates);
 
     // Collect speaker renames
     for (const speaker of parsed.speakers) {
@@ -370,11 +402,22 @@ export async function obsidianImportCommand(options: {
   }
 
   // 7. Print summary
-  console.log(chalk.green(`\n  ✅ Import complete`));
-  console.log(`     Files processed: ${filesProcessed}`);
-  console.log(`     Highlights:      ${totalHighlights}`);
-  console.log(`     Comments:        ${totalComments}`);
-  console.log(`     Speakers renamed: ${speakersRenamed}`);
-  console.log(`     Feedback nodes:  ${totalFeedback}`);
-  return { filesProcessed, highlights: totalHighlights, comments: totalComments, speakersRenamed, feedbackNodes: totalFeedback };
+  console.log(chalk.green(`\n✅ Import complete`));
+  console.log(`  Files processed : ${filesProcessed}`);
+  console.log(`  Highlights      : ${totalHighlights}`);
+  console.log(`  Comments        : ${totalComments}`);
+  console.log(`  Content updates : ${totalContentUpdates}`);
+  console.log(`  Conflict warnings: ${totalConflictWarnings}`);
+  console.log(`  Speakers renamed: ${speakersRenamed}`);
+  console.log(`  Feedback nodes  : ${totalFeedback}`);
+
+  return {
+    filesProcessed,
+    highlights: totalHighlights,
+    comments: totalComments,
+    speakersRenamed,
+    feedbackNodes: totalFeedback,
+    contentUpdates: totalContentUpdates,
+    conflictWarnings: totalConflictWarnings,
+  };
 }

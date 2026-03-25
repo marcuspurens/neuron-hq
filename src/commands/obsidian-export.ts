@@ -1,6 +1,7 @@
 import chalk from 'chalk';
-import { writeFile, mkdir, rm, readFile, access } from 'fs/promises';
+import { writeFile, mkdir, rm, readFile, access, readdir } from 'fs/promises';
 import { join } from 'path';
+import { createLogger } from '../core/logger.js';
 import { getPool } from '../core/db.js';
 import {
   buildSpeakerTimeline,
@@ -42,8 +43,10 @@ function sanitizeFilename(name: string): string {
     .slice(0, 200);
 }
 
+const logger = createLogger('obsidian:export');
+
 /** Check if a node is a video transcript with raw segments. */
-function isVideoTranscript(node: AuroraNode): boolean {
+export function isVideoTranscript(node: AuroraNode): boolean {
   const props = node.properties || {};
   return node.type === 'transcript' && Array.isArray(props.rawSegments);
 }
@@ -69,6 +72,7 @@ function formatFrontmatter(node: AuroraNode): string {
   if (props.sourceUrl) lines.push(`url: "${props.sourceUrl}"`);
   if (props.wordCount) lines.push(`words: ${props.wordCount}`);
 
+  lines.push(`exported_at: "${new Date().toISOString()}"`);
   lines.push('---');
   return lines.join('\n');
 }
@@ -99,6 +103,7 @@ function formatVideoFrontmatter(
     lines.push(`    role: "${info.role}"`);
   }
 
+  lines.push(`exported_at: "${new Date().toISOString()}"`);
   lines.push('---');
   return lines.join('\n');
 }
@@ -336,8 +341,7 @@ export async function obsidianExportCommand(cmdOptions: {
       incomingEdges.get(edge.to_id)!.push(edge);
     }
 
-    // Clean and recreate output directory
-    await rm(nodesDir, { recursive: true, force: true });
+    // Ensure output directory exists (preserve manually created files)
     await mkdir(nodesDir, { recursive: true });
 
     let written = 0;
@@ -477,6 +481,21 @@ export async function obsidianExportCommand(cmdOptions: {
       const filePath = join(nodesDir, `${filename}.md`);
       await writeFile(filePath, lines.join('\n'), 'utf-8');
       written++;
+    }
+
+    // Remove stale export files (files for nodes no longer in Aurora)
+    const exportedFilenames = new Set();
+    for (const nd of nodes) {
+      if (skipChunkIds.has(nd.id)) continue;
+      const fn = filenameMap.get(nd.id);
+      if (fn) exportedFilenames.add(fn + '.md');
+    }
+    const existingFiles = await readdir(nodesDir);
+    for (const file of existingFiles) {
+      if (file.endsWith('.md') && !exportedFilenames.has(file)) {
+        logger.info('Removing stale export file', { file });
+        await rm(join(nodesDir, file));
+      }
     }
 
     console.log(chalk.green(`  ✅ ${written} noder exporterade till ${nodesDir}/`));
