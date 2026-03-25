@@ -15,8 +15,8 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3936 |
-| Körningar | 182 |
+| Tester | 3949 |
+| Körningar | 183 |
 | MCP-tools | 44 |
 | Sessioner | 150 |
 | Agenter | 13 (inkl Observer + Code Anchor) |
@@ -371,6 +371,18 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
+### 3.1c Code Anchor härdning — bash-policycheck + output-bevarande ✅ S150 · 2026-03-25
+
+**Vad det ger dig:** Code Anchor kan inte längre hallucera destruktiva bash-kommandon, och verifieringsrapporter försvinner inte längre efter 40 iterationer.
+
+**Gjort:** Körning A2, +13 tester, 13/14 AC (AC11 partial), 3949 tester
+- `checkReadonlyCommand()` — 14 readonly-patterns + 16 forbidden patterns (inkl. pipe/redirect/xargs)
+- `allTextResponses[]` — ackumulerar alla text-svar istället för överskrivning
+- `Promise.all()` — parallell tool-exekvering
+- `'code-anchor'` tillagd i AGENT_ROLES (11 roller)
+
+---
+
 ### 3.2a A-MEM — orchestrator-flytt + abstraktion ✅ S138 · 2026-03-24
 
 **Vad det ger dig:** Systemet reorganiserar sitt eget minne automatiskt — mergar liknande noder, skapar abstraktioner, bygger nya kopplingar. Consolidator körs nu automatiskt i orchestratorn (som Historian).
@@ -555,6 +567,7 @@ Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21)
 | **2.7** | **Modellstrategi (Sonnet+Opus)** | **2** | **<1 sess** | — | **✅ S123 2026-03-22** |
 | 2.8 | AI Act Art. 14 — Mänsklig tillsyn | 2 | 3-5 körn | RT-2/3 | ⬜ |
 | 3.1 | Reviewer severity levels | 3 | 1-2 körn | — | ✅ S132 2026-03-23 |
+| **3.1c** | **Code Anchor härdning** | **3** | **1 körn** | **3.1b** | **✅ S150 2026-03-25** |
 | 3.2a | A-MEM orchestrator + abstraktion | 3 | 1 körn | 2.1 | **✅ S138 2026-03-24** |
 | 3.2b | A-MEM PPR-hybrid | 3 | 1 körn | 3.2a | ✅ S140 2026-03-24 |
 | 3.3 | Research före implementation | 3 | 1 körn | 2.3 | ⬜ |
@@ -569,7 +582,7 @@ Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21)
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
 | 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~32-47 körningar. **Klar:** 25/31
+**Totalt:** ~32-47 körningar. **Klar:** 26/32
 
 ---
 
