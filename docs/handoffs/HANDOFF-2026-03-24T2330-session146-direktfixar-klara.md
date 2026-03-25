@@ -64,3 +64,18 @@
 - **Skriv brief → Marcus kör → läs rapport.** Kör aldrig `run` själv.
 - **Dubbelkolla planer mot faktisk kod** (S145-insikt)
 - Brief 3.6 **måste vara GRÖN** innan Aurora-körningar startar
+
+---
+
+## VIKTIGT för nästa chatt
+
+- Läs ROADMAP.md och MEMORY.md noggrant innan du agerar
+- **CoT (Chain of Thought):** Visa alltid ditt resonemang som synlig text i chatten
+- **Persisted-output:** Kör agent-dialoger (brief-review etc.) via bash så Marcus kan klicka och läsa i chatten
+- Läs dessa minnen INNAN du agerar:
+  - `feedback-always-cot.md`
+  - `feedback-brief-review-always.md`
+  - `feedback-brief-quality.md`
+  - `feedback-never-run-commands.md`
+  - `feedback-doublecheck-plans.md`
+  - `project-aurora-pivot.md`

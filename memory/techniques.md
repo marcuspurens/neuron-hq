@@ -1239,3 +1239,113 @@ Uppdateras av Librarian-agenten.
 **Relaterat:** techniques.md#Memori, techniques.md#Focus, techniques.md#CMV, techniques.md#xMemory
 
 ---
+
+## Diagnosing Retrieval vs. Utilization Bottlenecks in LLM Agent Memory (2026)
+**Källa:** arxiv:2603.02473 | Boqin Yuan et al.
+**Kärna:** Systematisk 3×3-studie som korsar tre write-strategier (råa chunks, Mem0-stilig faktaextraktion, MemGPT-stilig sammanfattning) med tre retrieval-metoder (cosine, BM25, hybrid reranking). Visar att retrieval-metod är den dominerande faktorn: accuracy spänner 20 procentenheter över retrieval-metoder (57.1%–77.2%) men bara 3–8 pp över write-strategier. Avgörande insikt: råa chunks utan LLM-bearbetning matchar eller överträffar dyra lossy-alternativ, vilket tyder på att befintliga minnesrörledningar slänger kontext som downstream-retrieval inte kan kompensera för.
+**Nyckelresultat:** Retrieval-metod förklarar 20 pp accuracy-variation; write-strategi bara 3–8 pp. Råa chunks (noll LLM-anrop vid skrivning) ≈ dyra sammanfattningar. Fel uppstår primärt i retrieval-steget, inte i utnyttjande-steget.
+**Relevans för Neuron HQ:** Fundamental prioritering för vår minnesarkitektur: investera i bättre retrieval (hybrid BM25 + vektorsökning) snarare än i avancerad skrivbearbetning av Historian-agenten. Mönster och fel bör lagras som råa, välstrukturerade blocks snarare än destilleras aggressivt — förlusten uppstår vid komprimering, inte vid lagring. Motiverar att patterns.md behåller fullständiga beskrivningar snarare än ultrakompakta sammanfattningar.
+**Keywords:** retrieval, write-strategy, BM25, cosine, hybrid-reranking, memory-bottleneck, agent
+**Relaterat:** techniques.md#xMemory, techniques.md#ZeroClaw-RAG, techniques.md#CLAG
+
+---
+
+## Semantic XPath: Structured Agentic Memory Access for Conversational AI (2026)
+**Källa:** arxiv:2603.01160 | Yifan Simon Liu et al.
+**Kärna:** Semantic XPath introducerar träd-strukturerat minne för conversational AI-agenter. Istället för platta RAG-samlingar organiseras minnen i en hierarkisk struktur som speglar konversationens naturliga trädstruktur. XPath-liknande queries traverserar minneshierarkin för att hitta relevant kontext, vilket undviker begränsningarna hos flat similarity search. Kombinerar semantisk sökning med strukturell traversal — hittar information via position i trädet, inte bara likhet med query.
+**Nyckelresultat:** 176.7% förbättring över flat-RAG-baslinjer. Använder bara 9.1% av de tokens som krävs av in-context memory. Demonstreras i ett end-to-end ConvAI-system med visuell minnesinspelning och query-exekveringsdetaljer.
+**Relevans för Neuron HQ:** Direkt tillämpbar på hur vi strukturerar patterns.md och errors.md. Istället för en flat lista av mönster kunde vi organisera dem i en hierarki (t.ex. Säkerhet → SQL-injection → Parametriserade queries) och traversera med Semantic XPath-liknande queries. 176.7% förbättring motiverar att investera i trädstruktur. 9.1% tokenanvändning är exceptionellt effektivt — motiverar hierarkisk organisation framför linjär loggning.
+**Keywords:** tree-structured-memory, XPath, hierarchical, conversational-AI, structured-retrieval, token-efficiency, agent
+**Relaterat:** techniques.md#Diagnosing-Retrieval-vs-Utilization, techniques.md#AriadneMem, techniques.md#xMemory
+
+---
+
+## Multi-Agent Memory from a Computer Architecture Perspective (2026)
+**Källa:** arxiv:2603.10062 | Zhongming Yu et al.
+**Kärna:** Positionspapper som ramar in multi-agent-minne som ett datorarkitekturproblem. Skiljer mellan delade och distribuerade minnesparadigm och föreslår en trelagers minneshierarki analogt med datorer: I/O-lager (persistens), cache-lager (snabb åtkomst för aktiva agenter), och minneslager (koordinerad tillgång). Identifierar två kritiska protokolluckor: cache-delning mellan agenter (varje agent bör se konsistenta vyer av delad data) och strukturerad minnesåtkomstkontroll (vem får skriva vad). Det mest pressande öppna problemet: multi-agent minneskonsistens.
+**Nyckelresultat:** Identifierar att cache-koherensprotokollet är den oapprecierade flaskhalsen i multi-agent-system. Föreslår MESI-liknande protokoll (Modified, Exclusive, Shared, Invalid) för agentminne. Visar att befintliga system saknar formella konsistensgarantier.
+**Relevans för Neuron HQ:** Avgörande systemtänkande för vår swarm. Vår nuvarande arkitektur har inga konsistensgarantier — om Manager och Historian skriver till patterns.md simultant kan race conditions uppstå. Trelagers-hierarkin (I/O = minnesfiler, cache = aktiv agent-kontext, minne = shared state) ger ett arkitekturell ramverk för att designa om vår minnesinfrastruktur. Cache-koherensproblemets allvar motiverar att minimera simultana skrivningar till delade minnesfiler.
+**Keywords:** multi-agent, memory-consistency, cache-coherence, distributed-memory, architecture, protocol, agent
+**Relaterat:** techniques.md#Pancake, techniques.md#AgentRM, techniques.md#ESAA, techniques.md#Governed-Memory
+
+---
+
+## SuperLocalMemory V3: Information-Geometric Foundations for Zero-LLM Enterprise Agent Memory (2026)
+**Källa:** arxiv:2603.14588 | Varun Pratap Bhardwaj
+**Kärna:** Etablerar formella matematiska grunder för agentminne via tre bidrag: (1) ett retrieval-mått härlett från Fisher-informationsstrukturen i diagonala Gaussiska familjer, som uppfyller Riemannska metriska axiom och är beräkningsbart i O(d) tid; (2) minnes-livscykel formulerad som Riemannsk Langevin-dynamik med bevisad existens och unikhet för stationär distribution via Fokker-Planck-ekvationen; (3) en cellulär kärve-modell där icke-triviala första kohomologiklasser exakt motsvarar oförenliga motsägelser i minneskontexts. En fyrkanalig retrieval-arkitektur uppnår 75% accuracy utan molnberoende.
+**Nyckelresultat:** +12.7 procentenheter på LoCoMo jämfört med engineering-baslinjer (upp till +19.9 pp på svåraste dialogerna). 87.7% accuracy med molnaugmentering. Zero-LLM-konfiguration uppfyller EU AI Acts dataintritetskrav per design. Kärve-modellen möjliggör matematisk detektion av irreconcilable contradictions.
+**Relevans för Neuron HQ:** Den formella contradiction detection-mekanismen är direkt tillämpbar på vårt minnessystem — kärvemodellen kan identifiera när ett nytt mönster fundamentalt motsäger ett befintligt, och veta att de är oförenliga (inte bara olika). Riemannsk Langevin-dynamiken för livscykel ersätter våra intuitiva decay-heuristiker med principiellt grundade formler. Zero-LLM-konfigurationen är relevant om vi vill reducera kostnader för minnessökning drastiskt.
+**Keywords:** information-geometry, formal-foundations, contradiction-detection, sheaf-theory, lifecycle, zero-LLM, agent
+**Relaterat:** techniques.md#Kumiho, techniques.md#A-MemGuard, techniques.md#SSGM, techniques.md#SuperLocalMemory
+
+---
+
+## Structured Distillation for Personalized Agent Memory: 11x Token Reduction with Retrieval Preservation (2026)
+**Källa:** arxiv:2603.13017 | Sydney Lewis
+**Kärna:** Studerar personaliserat agentminne i ett specifikt scenario: en användares konversationshistorik med en agent, komprimerad till ett kompakt retrieval-lager. Varje utbyte komprimeras till ett fyrafälts-objekt: exchange_core, specific_context, thematic room_assignments, och regex-extraherade files_touched. Metoden tillämpas på 4,182 konversationer (14,340 utbyten) från sex mjukvaruutvecklingsprojekt. Avgörande insikt: BM25-sökning degraderas av komprimering, medan vektorsökning inte gör det — detta motiverar hybrid-retrieval med semantiska representationer.
+**Nyckelresultat:** 11x komprimering (371 → 38 tokens/utbyte). Bästa rena destillationskonfiguration når 96% av bästa verbatim MRR (0.717 vs 0.745). Bästa cross-layer-konfiguration överträffar verbatim-baslinje (MRR 0.759). BM25-konfigurationer degraderar signifikant; vektorsökning förblir robust. Validerad på 201 recall-queries, 214,519 consensus-graderade query-result-par.
+**Relevans för Neuron HQ:** Det fyrafälts-komprimeringsformatet (kärna, kontext, tematisk tilldelning, berörda filer) är direkt tillämpbart på hur Historian komprimerar körningsminnen. Speciellt files_touched-fältet matchar exakt vad vi behöver spåra i runs.md. Insikten att BM25 degraderas men vektor inte motiverar vektorsökning för komprimerade minnen. 11x komprimering med 96% retrieval-bevarandegrad är det bästa empiriska validerade komprimeringsresultat vi sett för software engineering-specifika minnesdata.
+**Keywords:** memory-distillation, compression, personalized, retrieval-preservation, BM25, vector-search, software-engineering, agent
+**Relaterat:** techniques.md#SimpleMem, techniques.md#Memori, techniques.md#Diagnosing-Retrieval-vs-Utilization, techniques.md#Focus
+
+---
+
+## AMV-L: Lifecycle-Managed Agent Memory for Tail-Latency Control in Long-Running LLM Systems (2026)
+**Källa:** arxiv:2603.04443 | Emmanuel Bamidele
+**Kärna:** AMV-L (Adaptive Memory Value Lifecycle) behandlar agentminne som en managed systems-resurs. Tilldelar varje minnesobjekt ett kontinuerligt uppdaterat utility-score och använder value-driven promotion, demotion och eviction för att upprätthålla lifecycle-tiers. Retrieval begränsas till en bounded, tier-medveten kandidatmängd som frikopplar request-path working set från totalt bevarat minne — detta är nyckelinsikten: retrieval-set storlek, inte kontextlängd, bestämmer latenstail-beteende. Implementerad i ett full-stack LLM-servingssystem.
+**Nyckelresultat:** Jämfört med TTL: 3.1x throughput-förbättring, 4.2x medianlatens-minskning, 4.7x p95-latens-minskning, 4.4x p99-latens-minskning. Andel förfrågningar >2s minskar från 13.8% till 0.007%. Jämfört med LRU: bättre extreme-tail (-15% p99, -98% >2s) och lägre token-overhead (~6% färre tokens/förfrågan). Vinsterna beror primärt på bounded retrieval-set, inte kortare prompts.
+**Relevans för Neuron HQ:** Direkt applicerbar på hur vi hanterar långlivade minnesfiler. Vår nuvarande TTL-fria approach (allt i patterns.md för alltid) riskerar exakt det AMV-L löser: okontrollerat växande retrieval-kandidatmängder. Value-driven lifecycle-management — promovera mönster som används ofta, demotera sällan använda, eviktera irrelevanta — ger prediktabel prestanda. 0.007% av förfrågningar >2s (vs 13.8% utan AMV-L) motiverar investering i formell livscykelhantering av våra minnesfiler.
+**Keywords:** memory-lifecycle, tail-latency, utility-score, value-driven, eviction, bounded-retrieval, serving, agent
+**Relaterat:** techniques.md#AgentRM, techniques.md#Darwinian-Memory-System, techniques.md#BudgetMem, techniques.md#A-MAC
+
+---
+
+## Coding Agents are Effective Long-Context Processors (2026)
+**Källa:** arxiv:2603.20432 | Weili Cao et al.
+**Kärna:** Studerar om long-context-bearbetning kan externaliseras från latent attention-mekanism till explicita, körbara interaktioner via att låta coding agents organisera text i filsystem och manipulera den med native verktyg. Utvärderar off-the-shelf frontier coding agents som ett generellt gränssnitt för uppgifter som kräver long-context-bearbetning: long-context reasoning, RAG, och open-domain QA med corpus på upp till tre biljoner tokens. Identifierar två nyckelfaktorer: native tool proficiency (körbara kommandon > passiva semantiska queries) och filsystemsbekantskap (navigera korpus som katalogstrukturer).
+**Nyckelresultat:** Coding agents överträffar publicerat state-of-the-art med 17.3% i genomsnitt över multipla benchmarks. Fördelen härrör inte från modellkapacitet utan från agentens förmåga att använda verktyg och filsystem som external memory substrate.
+**Relevans för Neuron HQ:** Fundamental insikt som validerar vår swarm-arkitektur: Researcher-agenten är inte primärt en textläsare utan en filsystemnavigatör. Att ge Researcher explicita bash-kommandon (grep, find, cat, awk) för att söka i kodbasen är mer effektivt än att ladda hela filer i kontext. 17.3% förbättring motiverar att prioritera verktygsanrop framför naiv kontextfyllning. Filsystemsbekantskap som kompetens är träningsbar — motiverar RL-baserad träning (som CodeScout-RL redan demonstrerat).
+**Keywords:** long-context, file-system, native-tools, coding-agent, external-memory, tool-use, agent
+**Relaterat:** techniques.md#CodeScout-RL, techniques.md#MECW, techniques.md#LongCodeBench, techniques.md#Focus
+
+---
+
+## OPENDEV: Building Effective AI Coding Agents for the Terminal (2026)
+**Källa:** arxiv:2603.05344 | Nghi D. Q. Bui
+**Kärna:** OPENDEV är ett open-source, command-line coding agent skrivet i Rust, designad för terminal-native autonomt mjukvaruutveckling. Implementerar ett compound AI-systemarkitektur med fyra kärnmekanismer: (1) workload-specialized model routing (rätt modell per uppgiftstyp), (2) dual-agent-arkitektur som separerar planering från exekvering, (3) lazy tool discovery (verktyg exponeras för agenten successivt, inte alla på en gång), och (4) adaptiv kontextkomprimering som progressivt reducerar äldre observationer. Dessutom: automatiserat minnessystem som ackumulerar projektspecifik kunskap över sessioner, och event-driven system reminders för att motverka instruktionsförlust.
+**Nyckelresultat:** Systems-bidrag snarare än benchmark-resultat. Identifierar kontextuppsvällning och "instruction fade-out" som primära anledningar till agentmisslyckanden i långa sessioner. Lazy tool discovery reducerar context overhead avsevärt. Event-driven reminders motverkar den välkända fenomenet att instruktioner tidigt i prompten glöms bort.
+**Relevans för Neuron HQ:** Fyra direkt tillämpbara principer: (1) Dual-agent-separation (planering ≠ exekvering) matchar vår Manager → Implementer-design. (2) Lazy tool discovery — ge Implementer-agenten bara de verktyg den behöver för det aktuella steget, inte alla möjliga verktyg direkt. (3) Adaptiv kontextkomprimering matches Focus-principen men med explicit progressiv minskning av äldre observationer. (4) Event-driven reminders kan motverka att våra agenter "glömmer" kritiska constraints från AGENTS.md i långa körningar. Workload-specialized model routing matchar SWE-Protégé-principen om kostnadsoptimering.
+**Keywords:** terminal-native, compound-AI, dual-agent, lazy-tool-discovery, context-compaction, instruction-fadeout, agent
+**Relaterat:** techniques.md#Focus, techniques.md#SWE-Protégé, techniques.md#Positional-Biases, techniques.md#SEMAG
+
+---
+
+## SWE-Bench Mobile: Can LLM Agents Develop Industry-Level Mobile Applications? (2026)
+**Källa:** arxiv:2602.09540 | Muxin Tian et al.
+**Kärna:** SWE-Bench Mobile är ett benchmark för att utvärdera coding agents på realistiska mjukvaruutvecklingsuppgifter härledda från en produktions-iOS-kodbas. Till skillnad från befintliga benchmarks fångar det full industriell komplexitet: multimodala inputs (PRDs och Figma-designer), storskalig blandad Swift/Objective-C-kodbas, och comprehensiva testsviter. Utvärderar 22 agent-modellkonfigurationer över fyra coding agents (tre kommersiella: Cursor, Codex, Claude Code; ett öppen källkod: OpenCode).
+**Nyckelresultat:** Bästa konfiguration uppnår bara 12% task success rate. Agentdesign spelar lika stor roll som modellkapacitet — samma modell visar upp till 6x prestandagap över agenter. Kommersiella agenter överträffar konsekvent öppna alternativ. "Defensive Programming"-prompts överträffar komplexa prompts med 7.4%. Benchmarketet publiceras som hosted challenge för att förhindra datakontaminering.
+**Relevans för Neuron HQ:** Tre avgörande insikter: (1) 12% success rate på industriell kodbas bekräftar att autonomt mjukvaruutveckling förblir svårt — vår swarms ambitiösa mål kräver realistiska förväntningar. (2) 6x agentdesign-effekt > modelleffekt stödjer vår strategi att investera i arkitekturdesign (AGENTS.md, pipeline-strukturering) snarare än att bara använda starkare modeller. (3) "Defensive Programming"-prompts (enklare, tydligare instruktioner) som överträffar komplexa — motiverar att hålla agentinstruktioner konkreta och direkta snarare än långa och elaborerade.
+**Keywords:** benchmark, iOS, mobile-development, industrial-codebase, multimodal, agent-design, defensive-programming, agent
+**Relaterat:** techniques.md#Agyn, techniques.md#Hybrid-Gym, techniques.md#AI-IDEs-or-Autonomous-Agents
+
+---
+
+## Does SWE-Bench-Verified Test Agent Ability or Model Memory? (2025)
+**Källa:** arxiv:2512.10218 | Thanosan Prathifkumar et al.
+**Kärna:** Undersöker om SWE-Bench-Verified-scores reflekterar faktisk problemlösningsförmåga eller träningsdata-återkallelse. Testar Claude-modeller som ofta förekommer i toppagerenter på att hitta relevanta filer med enbart issue-text, med och utan filstigar. Jämför med BeetleBox och SWE-rebench (nyare, contamination-medvetna datasets). Uppgiften är designad för att vara logiskt omöjlig utan kunskap om projektet — om modeller ändå klarar det tyder det på träningsdata-läckage.
+**Nyckelresultat:** Modeller presterade 3x bättre på SWE-Bench-Verified än nyare datasets. De var 6x bättre på att hitta redigerade filer utan kontext. Gapet tyder starkt på att modeller sett SWE-Bench-Verified-uppgifter under träning. Scores kan reflektera träningsåterkallelse, inte agentförmåga.
+**Relevans för Neuron HQ:** Kritisk metodologisk varning. När vi utvärderar vår Implementer-agents effektivitet bör vi inte förlita oss på SWE-Bench-Verified-scores som den primära metriken — de kan vara uppblåsta av datakontaminering. Motiverar att använda nyare, contamination-medvetna benchmarks (SWE-Bench Mobile, SWE-AGI) eller projektspecifika tester för genuin evalueringsvaliditet. Stödjer vår befintliga approach att testa på egna projekt snarare än publika benchmarks.
+**Keywords:** benchmark-contamination, SWE-bench, model-memory, evaluation-validity, data-leakage, agent
+**Relaterat:** techniques.md#SWE-AGI, techniques.md#Anatomy-of-Agentic-Memory, techniques.md#Hybrid-Gym
+
+---
+
+## SWE-Bench++: Scalable Generation of Software Engineering Benchmarks from Open-Source Repositories (2025)
+**Källa:** arxiv:2512.17419 | Lilin Wang et al.
+**Kärna:** SWE-Bench++ är ett automatiserat ramverk som genererar repository-nivå kodningsuppgifter från open-source GitHub-projekt. Skördar live pull requests för att täcka både buggfixar och feature requests över 11 programmeringsspråk via fyra steg: programmatisk sourcing, miljösyntes, test-oracle-extraktion, och kvalitetssäkring. En hint-guided trajectory synthesis-steg konverterar instanser som starka modeller misslyckas med till träningsdata. Designad specifikt för att undvika kontamineringsproblematiken i SWE-Bench-Verified.
+**Nyckelresultat:** 11,133 instanser från 3,971 repositorys över 11 språk. Starkaste modell (claude-sonnet-4.5) uppnår 36.20% pass@10 på ett delmängd av 1,782 instanser. Fine-tuning på SWE-Bench++ förbättrar prestanda på SWE-bench Multilingual. Automatiserad pipeline: bara uppgiftskonstruktion kräver mänsklig intervention.
+**Relevans för Neuron HQ:** Metodologiskt värdefullt som en blueprint för hur vi skapar egna evaluerings-dataset för vår swarm. SWE-Bench++:s fyrastegs-pipeline (sourcing → miljö → oracle → QA) kan anpassas för att skapa projektspecifika benchmarks som testar vår Implementer-agent på verkliga kodbaser utan kontaminering. Att stöd för 11 programmeringsspråk finns motiverar att vår swarm bör testas på polyglot-projekt, inte bara Python.
+**Keywords:** benchmark, scalable-generation, multilingual, automated, open-source, pull-requests, contamination-aware, agent
+**Relaterat:** techniques.md#Does-SWE-Bench-Test-Ability, techniques.md#RepoLaunch, techniques.md#SWE-AGI, techniques.md#Hybrid-Gym
+
+---

@@ -15,8 +15,8 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3916 |
-| Körningar | 180 |
+| Tester | 3917 |
+| Körningar | 181 |
 | MCP-tools | 44 |
 | Sessioner | 145 |
 | Agenter | 13 (inkl Observer + Code Anchor) |
@@ -416,7 +416,7 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
-### 3.5 150-raders diff-limit: dynamisk gräns ⬜
+### 3.5 150-raders diff-limit: dynamisk gräns ✅ S143 · 2026-03-24
 
 **Vad det ger dig:** Implementer kan begära mer utrymme när det behövs, med motivering. Manager godkänner. Loggas. Flexibilitet utan kaos.
 
@@ -430,9 +430,43 @@ Fas 4: Produkt                ← andra kan använda det
 
 ---
 
-### 3.6 Agentintervjuer — Opus samtalar med varje agent ✅ → Flyttad till 2.2b
+### 3.6 Historian/Consolidator reliability ✅ S147 · 2026-03-24
+
+**Vad det ger dig:** Historian och Consolidator tappar inte längre data tyst vid API:ets 0-token-svar. 3x retry med exponentiell backoff, diagnostiklogg, fallback till icke-streaming, och Observer flaggar 0-token-agenter.
+
+**Gjort:** Körning 3.6, 12/12 AC, 3917 tester, $60.54
+- `streamWithEmptyRetry()` i agent-utils.ts (gemensam 0-token-retry)
+- `isEmptyResponse()` ren funktion + `EMPTY_RETRY_DELAYS` konstant
+- Observer `checkZeroTokenAgents()` — flaggar som WARNING
+- 47 nya tester
+
+---
+
+### 3.6b Agentintervjuer — Opus samtalar med varje agent ✅ → Flyttad till 2.2b
 
 Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21). 11/11 klara i S119.
+
+---
+
+### 3.7 Tool-call-budgetar + mid-run-varningar ⬜
+
+**Vad det ger dig:** Agenter kan inte längre slösa 200 bash_exec. Hårda budgetar per agent per tool i limits.yaml. WARN vid 80%, BLOCK vid 100%. Samma mönster som diff-limit (3.5) — bevisat robust.
+
+**Detaljerad plan:** [docs/PLAN-behavioral-control.md](docs/PLAN-behavioral-control.md)
+
+**Effort:** 1-2 körningar · **Brief:** `tool-call-budgets`
+
+---
+
+### 3.8 Retro → Prompt-pipeline ⬜
+
+**Vad det ger dig:** Retro-insikter flödar automatiskt tillbaka in i prompter. Lessons pensioneras efter 3 lyckade körningar, gradueras till policy-limits efter 5+ misslyckade. Systemet lär sig.
+
+**Detaljerad plan:** [docs/PLAN-behavioral-control.md](docs/PLAN-behavioral-control.md)
+
+**Förutsättning:** Brief 3.7 klar (graduation skapar tool_budgets)
+
+**Effort:** 1-2 körningar · **Brief:** `retro-prompt-pipeline`
 
 ---
 
@@ -514,13 +548,16 @@ Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21)
 | 3.3 | Research före implementation | 3 | 1 körn | 2.3 | ⬜ |
 | 3.4 | Schemalagda agent-samtal | 3 | 2-3 körn | 2.3, server | ⬜ |
 | 3.5 | Dynamisk diff-limit | 3 | 1 körn | — | ✅ S143 2026-03-24 |
-| 3.6 | Agentintervjuer (prompt-förbättring) | 3 | 3-5 sess | — | ✅ → 2.2b |
+| 3.6 | Historian/Consolidator reliability | 3 | 1 körn | — | ✅ S147 2026-03-24 |
+| 3.6b | Agentintervjuer (prompt-förbättring) | 3 | 3-5 sess | — | ✅ → 2.2b |
+| 3.7 | Tool-call-budgetar + mid-run-varningar | 3 | 1-2 körn | — | ⬜ |
+| 3.8 | Retro → Prompt-pipeline | 3 | 1-2 körn | 3.7 | ⬜ |
 | 4.1 | Docker-compose | 4 | 2 körn | — | ⬜ |
 | 4.2 | Webb-UI | 4 | 5-10 körn | — | ⬜ |
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
 | 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~30-45 körningar. **Klar:** 23/28
+**Totalt:** ~32-47 körningar. **Klar:** 24/30
 
 ---
 

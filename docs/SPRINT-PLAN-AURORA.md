@@ -168,7 +168,7 @@ Svaren styr vilka av A3-A8 som körs.
 |-------|---------|--------|--------|---------|-------------|
 | | Aurora-fix | | | $0 | Reverta MCP-refaktorering |
 | 2026-03-24 | Neuron F1-F5 | ✅ KLAR | 3909 | $0 | F1-F4 fixade, F5 redan klar. Commit `e3bae8e` |
-| | N1 (3.6) | | | | Historian reliability |
+| 2026-03-24 | N1 (3.6) | ✅ GRÖN | 3917 | $60.54 | 12/12 AC, streamWithEmptyRetry, Observer checkZeroTokenAgents |
 | | Manuell verifiering | | | $0 | decay, embedding, dedup, cross-search |
 | | A1 | | | | Obsidian round-trip |
 | | A2 | | | | DOCX/XLSX intake |

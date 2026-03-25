@@ -2497,3 +2497,14 @@ Inga mönster sänkta — alla relevanta mönster bekräftades i denna körning.
 **Senast bekräftad:** 20260322-1724-neuron-hq
 
 ---
+
+## streamWithEmptyRetry: retry + diagnostik + icke-streaming fallback för 0-token API-svar
+**Kontext:** Körning 20260324-2114-neuron-hq — API kan returnera HTTP 200 med 0 output tokens (tyst dataförlust). Historian och Consolidator hade begränsad retry enbart på iteration 1.
+**Lösning:** Tre streaming-retries med exponentiell backoff [5s, 15s, 30s] oavsett iteration. Efter 3 misslyckanden: ett icke-streaming anrop (`client.messages.create()`). Vid varje 0-token-svar loggas diagnostik (agent, iteration, systemPromptChars, messagesChars, model, retryAttempt). Om fallback också ger 0 tokens returneras svaret ändå. `isEmptyResponse()` är en ren funktion. `EMPTY_RETRY_DELAYS` exporteras för testbarhet.
+**Effekt:** Eliminerar tyst dataförlust i Historian och Consolidator. Diagnostikloggning möjliggör felsökning av när 0-token-svar uppstår och under vilka omständigheter (systemprompt-storlek, modell). Icke-streaming fallback kringgår eventuella SDK-buggar i streaming.
+**Keywords:** 0-token, retry, backoff, streaming, fallback, historian, consolidator, dataförlust, reliability
+**Relaterat:** patterns.md#DRY extraction av retry-logik till delad utility-funktion
+**Körningar:** #20260324-2114-neuron-hq
+**Senast bekräftad:** 20260324-2114-neuron-hq
+
+---
