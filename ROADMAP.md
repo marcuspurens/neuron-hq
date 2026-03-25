@@ -1,6 +1,6 @@
 # Neuron HQ — Roadmap
 
-> **Senast uppdaterad:** 2026-03-24 · Session 145
+> **Senast uppdaterad:** 2026-03-25 · Session 150
 > **Källa:** Djupsamtal S102 + Marcus ~40 kommentarer + diskussionsdokument S103
 > Editera direkt — kryssa av med ✅ när klart.
 > **Arkiv:** Alla versioner sparas i [docs/roadmaps/](docs/roadmaps/) med datumstämpel.
@@ -15,10 +15,10 @@
 
 | Mått | Värde |
 |------|-------|
-| Tester | 3917 |
-| Körningar | 181 |
+| Tester | 3936 |
+| Körningar | 182 |
 | MCP-tools | 44 |
-| Sessioner | 145 |
+| Sessioner | 150 |
 | Agenter | 13 (inkl Observer + Code Anchor) |
 | Idé-noder | 924 |
 | Code Review | ★★★★☆ (Fas 1 klar) |
@@ -76,6 +76,17 @@ Fas 4: Produkt                ← andra kan använda det
 - Kommentarer renderas som HTML-kommentarer under rätt segment
 - Round-trip fungerar utan dubbletter
 - Nya MCP-tools: `aurora_obsidian_export`, `aurora_obsidian_import`
+
+---
+
+### 1.2c OB-1e: Obsidian round-trip — non-video content + konfliktvarning ✅ S150 · 2026-03-25
+
+**Vad det ger dig:** Icke-video-noder (idéer, patterns, errors) exporteras med titel och innehåll till Obsidian, och ändringar i Obsidian flödar tillbaka. Om en nod ändrats i Aurora sedan senaste export visas en konfliktvarning.
+
+**Gjort:** Körning A1, +19 tester, 12/12 AC, 3936 tester
+- `obsidian-parser.ts`: `extractTitle()`, `extractContentSection()`, utökad `ParsedObsidianFile`
+- `obsidian-export.ts`: `exported_at` i frontmatter, borttagen `rm -rf`, stale-filrensning
+- `obsidian-import.ts`: non-video text/title/confidence import, konfliktvarning, ett `updateAuroraNode()`-anrop
 
 ---
 
@@ -527,6 +538,7 @@ Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21)
 | 1.1 | Robust input-pipeline | 1 | 1-2 körn | — | ✅ S104 2026-03-19 |
 | 1.2 | OB-1c: taggar & synk | 1 | 1-2 körn | — | ✅ S104 2026-03-19 |
 | 1.2b | OB-1d: re-export & MCP | 1 | 1 körn | 1.2 | ✅ S104 2026-03-19 |
+| **1.2c** | **OB-1e: round-trip non-video + konflikt** | **1** | **1 körn** | **1.2b** | **✅ S150 2026-03-25** |
 | 1.3 | Morgon-briefing | 1 | 1-2 körn | 1.2 | ✅ S105 2026-03-19 |
 | 1.4 | Loggkörningsbok | 1 | 2 körn | — | ✅ S106 2026-03-20 |
 | 1.5 | Manager prompt-fix | 1 | <1 körn | — | ✅ S103 2026-03-19 |
@@ -557,7 +569,7 @@ Se [2.2b](#22b-agentintervjuer--opus-samtalar-med-varje-agent--s119--2026-03-21)
 | 4.3 | Persistent medvetenhet | 4 | 2-3 körn | 1.4, 2.1 | ⬜ |
 | 4.4 | Server | 4 | 2 körn | 4.1 | ⬜ |
 
-**Totalt:** ~32-47 körningar. **Klar:** 24/30
+**Totalt:** ~32-47 körningar. **Klar:** 25/31
 
 ---
 

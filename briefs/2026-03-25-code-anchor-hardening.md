@@ -65,6 +65,7 @@ private static readonly FORBIDDEN_PATTERNS: RegExp[] = [
   /\|\s*sh\b/,      // pipe till sh
   /\|\s*bash\b/,    // pipe till bash
   /\|\s*tee\b/,     // pipe till tee (skrivning)
+  /\|\s*xargs\b/,   // pipe till xargs (kan köra godtyckliga kommandon)
   />\s*\//,          // redirect till absolut sökväg
   />\s*\.\//,        // redirect till relativ sökväg
 ];
@@ -189,6 +190,7 @@ I `src/core/model-registry.ts` rad 15-18, lägg till `'code-anchor'` i `AGENT_RO
 - **AC7:** `READONLY_ALLOWLIST` och `FORBIDDEN_PATTERNS` är statiska properties på klassen — inte instansvariabler
 - **AC8:** `executeBash('grep "foo" | rm -rf /')` returnerar `"BLOCKED: matches forbidden pattern"` — pipe-bypass blockeras
 - **AC9:** `executeBash('grep "foo" > /etc/passwd')` returnerar `"BLOCKED: matches forbidden pattern"` — redirect-bypass blockeras
+- **AC9b:** `executeBash('find . -name "*.ts" | xargs rm')` returnerar `"BLOCKED: matches forbidden pattern"` — xargs-bypass blockeras
 
 ### Output-bevarande
 
