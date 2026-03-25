@@ -135,9 +135,10 @@ describe('DEFAULT_MODEL_CONFIG', () => {
 });
 
 describe('AGENT_ROLES', () => {
-  it('contains all 10 agent roles', () => {
-    expect(AGENT_ROLES).toHaveLength(10);
+  it('contains all 11 agent roles', () => {
+    expect(AGENT_ROLES).toHaveLength(11);
     expect(AGENT_ROLES).toContain('manager');
     expect(AGENT_ROLES).toContain('brief-agent');
+    expect(AGENT_ROLES).toContain('code-anchor');
   });
 });

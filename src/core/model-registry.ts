@@ -15,6 +15,7 @@ export type ModelConfig = z.infer<typeof ModelConfigSchema>;
 export const AGENT_ROLES = [
   'manager', 'implementer', 'reviewer', 'researcher',
   'tester', 'merger', 'historian', 'librarian', 'consolidator', 'brief-agent',
+  'code-anchor',
 ] as const;
 
 export type AgentRole = typeof AGENT_ROLES[number];

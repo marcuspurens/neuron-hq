@@ -105,6 +105,64 @@ export class CodeAnchor {
   private maxTokens!: number;
   private client!: Anthropic;
 
+  private static readonly READONLY_ALLOWLIST: RegExp[] = [
+    /^grep(\s|$)/,
+    /^rg(\s|$)/,
+    /^find(\s|$)/,
+    /^wc(\s|$)/,
+    /^head(\s|$)/,
+    /^tail(\s|$)/,
+    /^cat(\s|$)/,
+    /^ls(\s|$)/,
+    /^tree(\s|$)/,
+    /^diff(\s|$)/,
+    /^git\s+log/,
+    /^git\s+show/,
+    /^git\s+diff/,
+    /^git\s+rev-parse/,
+  ];
+
+  private static readonly FORBIDDEN_PATTERNS: RegExp[] = [
+    /^rm\s/,
+    /^sudo\s/,
+    /\bsudo\b/,
+    /^curl(\s|$)/,
+    /^wget(\s|$)/,
+    /`.*`/,
+    /\$\(/,
+    /;\s*(sh|bash)\b/,
+    /\|\s*rm\b/,
+    /\|\s*sudo\b/,
+    /\|\s*sh\b/,
+    /\|\s*bash\b/,
+    /\|\s*tee\b/,
+    /\|\s*xargs\b/,
+    />\s*\//,
+    />\s*\.\//, 
+  ];
+
+  /**
+   * Lightweight readonly policy check for standalone Code Anchor.
+   * Mirrors the approach in PolicyEnforcer (policy.ts) but without RunContext.
+   * Note: FORBIDDEN_PATTERNS is a subset of policy/forbidden_patterns.txt.
+   *       READONLY_ALLOWLIST covers commands listed in prompts/code-anchor.md.
+   */
+  private static checkReadonlyCommand(command: string): { allowed: boolean; reason?: string } {
+    // Check forbidden patterns first (deny takes priority)
+    for (const pattern of CodeAnchor.FORBIDDEN_PATTERNS) {
+      if (pattern.test(command)) {
+        return { allowed: false, reason: `matches forbidden pattern: ${pattern.toString()}` };
+      }
+    }
+    // Check readonly allowlist — command must match at least one
+    for (const pattern of CodeAnchor.READONLY_ALLOWLIST) {
+      if (pattern.test(command)) {
+        return { allowed: true };
+      }
+    }
+    return { allowed: false, reason: 'not in readonly allowlist' };
+  }
+
   constructor(
     private targetName: string,
     private baseDir: string,
@@ -221,6 +279,11 @@ export class CodeAnchor {
   }
 
   private async executeBash(command: string): Promise<string> {
+    // Policy check: only readonly commands allowed (no RunContext needed)
+    const check = CodeAnchor.checkReadonlyCommand(command);
+    if (!check.allowed) {
+      return `BLOCKED: ${check.reason}`;
+    }
     try {
       const { stdout, stderr } = await execAsync(command, {
         cwd: this.baseDir,
@@ -261,7 +324,7 @@ export class CodeAnchor {
     systemPrompt: string,
     messages: Anthropic.MessageParam[],
   ): Promise<string> {
-    let lastTextResponse = '';
+    const allTextResponses: string[] = [];
 
     for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
       logger.info('Iteration', { iteration: String(iteration) });
@@ -295,7 +358,7 @@ export class CodeAnchor {
         (b): b is Anthropic.TextBlock => b.type === 'text',
       );
       if (textBlocks.length > 0) {
-        lastTextResponse = textBlocks.map((b) => b.text).join('\n');
+        allTextResponses.push(textBlocks.map((b) => b.text).join('\n'));
       }
 
       // Add assistant response to messages
@@ -312,34 +375,22 @@ export class CodeAnchor {
       }
 
       // Execute tools
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
-
-      for (const block of toolUseBlocks) {
-        logger.info('Executing tool', { tool: block.name });
-        try {
-          const result = await this.executeTool(
-            block.name,
-            block.input as Record<string, unknown>,
-          );
-          toolResults.push({
-            type: 'tool_result',
-            tool_use_id: block.id,
-            content: result,
-          });
-        } catch (error) {
-          toolResults.push({
-            type: 'tool_result',
-            tool_use_id: block.id,
-            content: `Error: ${error}`,
-            is_error: true,
-          });
-        }
-      }
+      const toolResults = await Promise.all(
+        toolUseBlocks.map(async (block) => {
+          logger.info('Executing tool', { tool: block.name });
+          try {
+            const result = await this.executeTool(block.name, block.input as Record<string, unknown>);
+            return { type: 'tool_result' as const, tool_use_id: block.id, content: result };
+          } catch (error) {
+            return { type: 'tool_result' as const, tool_use_id: block.id, content: `Error: ${error}`, is_error: true };
+          }
+        })
+      );
 
       messages.push({ role: 'user', content: toolResults });
     }
 
-    return lastTextResponse;
+    return allTextResponses.join('\n\n---\n\n');
   }
 
   /**
