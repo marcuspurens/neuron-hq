@@ -99,6 +99,8 @@ Nytt problem. Kan vara rate limiting, kan vara tillfälligt. Värt att bevaka n�
 
 ## VIKTIGT för nästa chatt
 
+Läs ROADMAP.md och MEMORY.md noggrant innan du agerar. CoT + persisted-output. Kör ALDRIG agent swarm. Läs feedback-always-cot.md, feedback-post-run-workflow.md, feedback-always-commit.md, feedback-never-run-commands.md, feedback-no-agent-assumptions.md, feedback-handoff-detail.md.
+
 - Läs SPRINT-PLAN-AURORA.md — det är körplanen
 - Läs ROADMAP-AURORA.md — det är Aurora-kontexten
 - Aurora-repot: `/Users/mpmac/Documents/VS Code/aurora-swarm-lab`
