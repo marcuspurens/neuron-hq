@@ -1,0 +1,1487 @@
+openapi: 3.1.0
+info:
+  title: Aurora Knowledge Graph API
+  description: |
+    API for Aurora second-brain knowledge graph — ingest, search, ask, remember, analyze.
+
+    Aurora is the knowledge layer of Neuron HQ. It stores documents, transcripts, facts,
+    preferences, and research as nodes in a graph with semantic embeddings, confidence scores,
+    and cross-references. This spec documents all MCP tools as REST-compatible endpoints.
+
+    ## MCP Protocol
+    These tools are natively exposed via Model Context Protocol (MCP) over stdio.
+    Each endpoint maps to an MCP tool call: `POST /tools/{tool_name}` with JSON body.
+
+    ## Enum Reference
+    - **AuroraNodeType**: document, transcript, fact, preference, research, voice_print, speaker_identity, article, concept
+    - **AuroraScope**: personal, shared, project
+    - **AuroraEdgeType**: related_to, derived_from, references, contradicts, supports, summarizes, supersedes, broader_than, about
+  version: 1.0.0
+  contact:
+    name: Marcus (Neuron HQ)
+
+tags:
+  - name: search
+    description: Semantic search and question-answering
+  - name: ingest
+    description: Data ingestion (URL, video, PDF, image, book)
+  - name: memory
+    description: Remember facts, recall information
+  - name: insights
+    description: Briefings, timelines, research suggestions
+  - name: media
+    description: Speaker management, voice prints, jobs, EBUCore metadata
+  - name: quality
+    description: Confidence, freshness, gaps, integrity
+  - name: obsidian
+    description: Obsidian vault sync (export/import)
+  - name: library
+    description: Knowledge library — synthesized articles, ontology, concepts
+  - name: graph
+    description: Graph analysis — Personalized PageRank, cross-references
+
+components:
+  schemas:
+    AuroraNodeType:
+      type: string
+      enum:
+        - document
+        - transcript
+        - fact
+        - preference
+        - research
+        - voice_print
+        - speaker_identity
+        - article
+        - concept
+      description: Type of knowledge node in the Aurora graph
+
+    AuroraSearchNodeType:
+      type: string
+      enum:
+        - document
+        - transcript
+        - fact
+        - preference
+        - research
+        - voice_print
+      description: Subset of node types available for search/ask filtering
+
+    AuroraScope:
+      type: string
+      enum:
+        - personal
+        - shared
+        - project
+      description: Visibility scope for knowledge nodes
+
+    AuroraEdgeType:
+      type: string
+      enum:
+        - related_to
+        - derived_from
+        - references
+        - contradicts
+        - supports
+        - summarizes
+        - supersedes
+        - broader_than
+        - about
+      description: Relationship type between nodes
+
+    McpToolResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [text]
+              text:
+                type: string
+        isError:
+          type: boolean
+      required:
+        - content
+
+    ErrorResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [text]
+              text:
+                type: string
+                example: "Error: Node not found"
+        isError:
+          type: boolean
+          enum: [true]
+
+    ConversationMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+      required:
+        - role
+        - content
+
+paths:
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  #  SEARCH (3 tools)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /tools/aurora_search:
+    post:
+      operationId: aurora_search
+      summary: Semantic search over Aurora knowledge graph
+      description: |
+        Söker i Auroras kunskapsgraf med semantisk sökning och returnerar relevanta noder.
+
+        Searches documents, facts, preferences, and research nodes ranked by cosine similarity
+        against the query embedding.
+      tags: [search]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  minLength: 1
+                  description: Search text — will be embedded and matched against Aurora nodes
+                  example: klimatförändringar
+                type:
+                  $ref: '#/components/schemas/AuroraSearchNodeType'
+                  description: Filter by node type
+                scope:
+                  $ref: '#/components/schemas/AuroraScope'
+                  description: Filter by scope
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 10
+                  description: Max results to return
+      responses:
+        '200':
+          description: Search results ranked by similarity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+              example:
+                content:
+                  - type: text
+                    text: '[{"id":"doc_abc","title":"Climate Report","type":"document","similarity":0.92,"confidence":0.85,"scope":"personal","text":"...","source":"https://...","related":[]}]'
+
+  /tools/aurora_ask:
+    post:
+      operationId: aurora_ask
+      summary: Ask a question and get a synthesized answer with citations
+      description: |
+        Ställer en fråga och får ett syntetiserat svar med källhänvisningar från Aurora.
+
+        Uses RAG (retrieval-augmented generation) to find relevant sources and synthesize
+        an answer with citations.
+      tags: [search]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question:
+                  type: string
+                  minLength: 1
+                  description: The question to answer
+                  example: Vad vet vi om AI-reglering i EU?
+                type:
+                  $ref: '#/components/schemas/AuroraSearchNodeType'
+                  description: Filter by node type
+                scope:
+                  $ref: '#/components/schemas/AuroraScope'
+                  description: Filter by scope
+                max_sources:
+                  type: integer
+                  minimum: 1
+                  maximum: 20
+                  default: 10
+                  description: Maximum number of sources to use as context
+      responses:
+        '200':
+          description: Synthesized answer with source citations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/aurora_status:
+    post:
+      operationId: aurora_status
+      summary: Get Aurora knowledge graph statistics
+      description: |
+        Visar statistik för Auroras kunskapsgraf — antal noder, kanter och täckning.
+
+        Returns node counts by type, edge counts by type, embedding coverage,
+        confidence distribution, and latest node info.
+      tags: [search]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: Graph statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+              example:
+                content:
+                  - type: text
+                    text: '{"totalNodes":142,"totalEdges":387,"nodesByType":{"document":45,"fact":67,"transcript":20,"preference":10},"edgesByType":{"related_to":200,"references":100},"embeddingCoverage":{"withEmbedding":140,"total":142},"latestNode":{"title":"AI Ethics Report","created":"2026-03-25T10:00:00Z"},"confidenceDistribution":{"stale":5,"active":130}}'
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  #  INGEST (5 tools)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /tools/aurora_ingest_url:
+    post:
+      operationId: aurora_ingest_url
+      summary: Ingest a URL into Aurora knowledge graph
+      description: |
+        Indexerar innehållet från en webbsida i Aurora med automatisk textextraktion.
+
+        Extracts text, chunks it, generates embeddings, and creates document + chunk nodes.
+      tags: [ingest]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  description: URL to ingest
+                  example: https://example.com/artikel
+                scope:
+                  $ref: '#/components/schemas/AuroraScope'
+                  description: Scope for created nodes (default: personal)
+                type:
+                  $ref: '#/components/schemas/AuroraSearchNodeType'
+                  description: Node type (default: document)
+      responses:
+        '200':
+          description: Ingest result with created node IDs and chunk count
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/aurora_ingest_doc:
+    post:
+      operationId: aurora_ingest_doc
+      summary: Ingest a local file into Aurora knowledge graph
+      description: |
+        Indexerar ett dokument (PDF, Word, text) i Auroras kunskapsgraf.
+
+        Supports text, markdown, and PDF files. Extracts text, chunks it,
+        generates embeddings, and creates document + chunk nodes.
+      tags: [ingest]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                path:
+                  type: string
+                  minLength: 1
+                  description: Path to the file to ingest
+                  example: /path/to/document.pdf
+                scope:
+                  $ref: '#/components/schemas/AuroraScope'
+                  description: Scope for created nodes (default: personal)
+                type:
+                  $ref: '#/components/schemas/AuroraSearchNodeType'
+                  description: Node type (default: document)
+      responses:
+        '200':
+          description: Ingest result with created node IDs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/aurora_ingest_video:
+    post:
+      operationId: aurora_ingest_video
+      summary: Queue a video for ingestion (async job)
+      description: |
+        Indexerar en YouTube-video med transkription och kunskapsgraf.
+
+        Supports YouTube, SVT, Vimeo, TV4, TikTok, and any yt-dlp supported site.
+        Returns immediately with a job ID. Use aurora_jobs to track progress.
+      tags: [ingest]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  description: Video URL (any yt-dlp supported site)
+                  example: https://youtube.com/watch?v=abc123
+                diarize:
+                  type: boolean
+                  default: true
+                  description: Run speaker identification (requires pyannote)
+                scope:
+                  $ref: '#/components/schemas/AuroraScope'
+                  default: personal
+                  description: Scope for the nodes
+                whisper_model:
+                  type: string
+                  description: Whisper model to use for transcription
+                  example: KBLab/kb-whisper-large
+                language:
+                  type: string
+                  description: Language code — skip auto-detection
+                  example: sv
+      responses:
+        '200':
+          description: Job queued with ID and estimated time
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+              example:
+                content:
+                  - type: text
+                    text: 'Queued! 🎬\n"Video Title" (15 min)\nEstimated time: ~5 min\nJob ID: abc-123'
+
+  /tools/aurora_ingest_book:
+    post:
+      operationId: aurora_ingest_book
+      summary: Batch OCR a folder of scanned images into a single document
+      description: |
+        Indexerar en bok (EPUB/PDF) med kapitelstruktur i kunskapsgrafen.
+
+        Processes a folder of scanned page images using OCR and combines them
+        into a single document node.
+      tags: [ingest]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [folderPath]
+              properties:
+                folderPath:
+                  type: string
+                  description: Path to folder containing scanned images
+                  example: /path/to/scanned-book/
+                language:
+                  type: string
+                  default: en
+                  description: OCR language hint (en, sv, de, fr, etc.)
+                title:
+                  type: string
+                  description: Document title (default: folder name)
+                outputPath:
+                  type: string
+                  description: Save combined markdown to this path
+      responses:
+        '200':
+          description: OCR result with extracted text and created nodes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/aurora_ingest_image:
+    post:
+      operationId: aurora_ingest_image
+      summary: Extract text from an image using OCR
+      description: |
+        Indexerar en bild i Aurora med automatisk bildbeskrivning och OCR.
+
+        Uses PaddleOCR to extract text from image files.
+      tags: [ingest]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filePath]
+              properties:
+                filePath:
+                  type: string
+                  description: Path to image file (.png, .jpg, .jpeg, .webp, .tiff, .bmp)
+                  example: /path/to/image.jpg
+                language:
+                  type: string
+                  default: en
+                  description: Language hint for OCR (en, sv, de, fr, etc.)
+      responses:
+        '200':
+          description: OCR result with extracted text
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  #  MEMORY (2 tools)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /tools/aurora_memory:
+    post:
+      operationId: aurora_memory
+      summary: Manage Aurora memory — remember, recall, stats
+      description: |
+        Sparar och hämtar fakta och preferenser i Auroras långtidsminne.
+
+        Consolidated tool for memory operations:
+        - **remember**: Store a fact or preference
+        - **recall**: Search memory by query
+        - **stats**: View memory statistics
+      tags: [memory]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [remember, recall, stats]
+                  description: Memory operation to perform
+                text:
+                  type: string
+                  description: The fact or preference to remember (required for remember)
+                  example: Marcus föredrar korta sammanfattningar
+                query:
+                  type: string
+                  description: What to recall (required for recall)
+                  example: Marcus preferenser
+                type:
+                  type: string
+                  enum: [fact, preference]
+                  description: Memory type filter
+                scope:
+                  $ref: '#/components/schemas/AuroraScope'
+                  description: Scope filter
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  description: Tags for categorization (for remember)
+                  example: [preferens, kommunikation]
+                source:
+                  type: string
+                  description: Source of information (for remember)
+                  example: konversation 2026-03-20
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 10
+                  description: Max results (for recall)
+      responses:
+        '200':
+          description: Memory operation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/aurora_learn_conversation:
+    post:
+      operationId: aurora_learn_conversation
+      summary: Extract and learn facts from a conversation
+      description: |
+        Extraherar och sparar fakta och insikter från en konversation till minnet.
+
+        Analyzes conversation messages to extract facts, preferences, and decisions,
+        then stores them as memory nodes in Aurora.
+      tags: [memory]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messages]
+              properties:
+                messages:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ConversationMessage'
+                  description: Conversation messages to learn from
+                  example:
+                    - role: user
+                      content: Jag föredrar att få korta sammanfattningar istället för långa rapporter.
+                    - role: assistant
+                      content: Noterat! Jag sparar det som en preferens.
+                dry_run:
+                  type: boolean
+                  default: false
+                  description: Preview extracted facts without storing them
+      responses:
+        '200':
+          description: Extracted facts and storage results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  #  INSIGHTS (5 tools)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /tools/aurora_briefing:
+    post:
+      operationId: aurora_briefing
+      summary: Generate a comprehensive knowledge briefing
+      description: |
+        Genererar en sammanfattande briefing om ett ämne baserat på Aurora-data.
+
+        Combines facts, timeline, knowledge gaps, and cross-references between
+        Neuron and Aurora knowledge graphs into a structured report with an
+        AI-generated summary.
+      tags: [insights]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [topic]
+              properties:
+                topic:
+                  type: string
+                  minLength: 1
+                  description: The topic to generate a briefing about
+                  example: svensk mediepolitik
+                max_facts:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 10
+                  description: Maximum facts to include
+                max_timeline:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 10
+                  description: Maximum timeline entries
+                max_gaps:
+                  type: integer
+                  minimum: 1
+                  maximum: 20
+                  default: 5
+                  description: Maximum knowledge gaps
+                max_cross_refs:
+                  type: integer
+                  minimum: 1
+                  maximum: 20
+                  default: 5
+                  description: Maximum cross-refs per graph
+      responses:
+        '200':
+          description: Structured briefing with summary, facts, timeline, gaps
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/aurora_morning_briefing:
+    post:
+      operationId: aurora_morning_briefing
+      summary: Generate a daily morning briefing
+      description: |
+        Skapar en morgonbriefing med nyheter, uppdateringar och föreslagna åtgärder.
+
+        Produces a markdown file in the Obsidian vault with new nodes, recent runs,
+        stale sources, knowledge gaps, and 3 questions for Marcus.
+      tags: [insights]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date:
+                  type: string
+                  description: Date for briefing in YYYY-MM-DD format (defaults to today)
+                  example: "2026-03-26"
+                force:
+                  type: boolean
+                  default: false
+                  description: Overwrite existing briefing for the same date
+      responses:
+        '200':
+          description: Morning briefing summary with file path
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/aurora_timeline:
+    post:
+      operationId: aurora_timeline
+      summary: Get a chronological timeline of knowledge entries
+      description: |
+        Skapar en tidslinje över händelser och kunskapsutveckling för ett ämne.
+
+        Returns Aurora knowledge base entries sorted chronologically with
+        optional filtering by type, scope, and date range.
+      tags: [insights]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 20
+                  description: Max entries to return
+                type:
+                  type: string
+                  description: Filter by node type
+                scope:
+                  $ref: '#/components/schemas/AuroraScope'
+                  description: Filter by scope
+                since:
+                  type: string
+                  description: From date (ISO format)
+                  example: "2026-01-01T00:00:00Z"
+      responses:
+        '200':
+          description: Chronological list of knowledge entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/aurora_gaps:
+    post:
+      operationId: aurora_gaps
+      summary: List knowledge gaps
+      description: |
+        Identifierar kunskapsluckor i Aurora — ämnen där information saknas.
+
+        Returns questions that Aurora could not answer due to missing sources.
+      tags: [insights]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 10
+                  description: Max gaps to return
+      responses:
+        '200':
+          description: List of knowledge gaps
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/aurora_suggest_research:
+    post:
+      operationId: aurora_suggest_research
+      summary: Generate research suggestions from knowledge gaps
+      description: |
+        Analyserar kunskapsluckor och föreslår vad som bör undersökas vidare.
+
+        Provide a specific gap question for targeted suggestions, or omit for
+        top gaps with batch suggestions.
+      tags: [insights]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                question:
+                  type: string
+                  description: Specific gap question (omit for top gaps)
+                  example: Hur fungerar public service-finansiering i Finland?
+                top:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  default: 3
+                  description: Number of top gaps to process (when no question)
+                max_facts:
+                  type: integer
+                  minimum: 0
+                  maximum: 20
+                  default: 10
+                  description: Max known facts to include as context
+      responses:
+        '200':
+          description: Research suggestions with recommended sources and approaches
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  #  MEDIA (4 tools)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /tools/aurora_speakers:
+    post:
+      operationId: aurora_speakers
+      summary: Manage speaker voice prints and identities
+      description: |
+        Hanterar röstavtryck och talaridentifiering för transkriberade medier.
+
+        Consolidated tool for speaker management:
+        - **gallery**: List all voice prints
+        - **identities**: List confirmed speaker identities
+        - **rename**: Rename a voice print
+        - **merge**: Merge two voice prints
+        - **suggest**: Find similar voice prints
+        - **confirm**: Confirm a voice print as a known speaker
+        - **reject**: Reject a speaker suggestion
+        - **auto_tag**: Auto-tag voice prints based on similarity
+      tags: [media]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [gallery, identities, rename, merge, suggest, confirm, reject, auto_tag]
+                  description: Speaker management action
+                voicePrintId:
+                  type: string
+                  description: Voice print node ID
+                targetId:
+                  type: string
+                  description: Target voice print ID (for merge)
+                newName:
+                  type: string
+                  description: New speaker name (for rename)
+                identityName:
+                  type: string
+                  description: Speaker identity name (for confirm)
+                identityId:
+                  type: string
+                  description: Speaker identity ID (for reject)
+                voicePrintIds:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of voice print IDs (for auto_tag)
+                threshold:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+                  default: 0.7
+                  description: Similarity threshold (for suggest)
+      responses:
+        '200':
+          description: Speaker operation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/aurora_describe_image:
+    post:
+      operationId: aurora_describe_image
+      summary: Analyze an image using AI vision model
+      description: |
+        Genererar en detaljerad beskrivning av en bild med hjälp av AI.
+
+        Uses local Ollama vision model to analyze images. Can either just describe
+        the image or also ingest the description into Aurora as a document node.
+      tags: [media]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [imagePath]
+              properties:
+                imagePath:
+                  type: string
+                  description: Path to image file (png, jpg, webp, etc.)
+                  example: /path/to/image.png
+                title:
+                  type: string
+                  description: Document title (default: filename)
+                prompt:
+                  type: string
+                  description: Custom prompt for the vision model
+                model:
+                  type: string
+                  description: Ollama model (default: qwen3-vl:8b)
+                describeOnly:
+                  type: boolean
+                  default: false
+                  description: Only describe, do not ingest into Aurora
+      responses:
+        '200':
+          description: Image description and optionally created node IDs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/aurora_jobs:
+    post:
+      operationId: aurora_jobs
+      summary: Manage video ingest jobs
+      description: |
+        Visar och hanterar pågående och slutförda indexeringsjobb.
+
+        Consolidated tool for job management:
+        - **status**: Get status of a specific job
+        - **list**: List jobs with optional status filter
+        - **stats**: Get job queue statistics
+        - **cancel**: Cancel a running or queued job
+      tags: [media]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [status, list, stats, cancel]
+                  description: Job management action
+                job_id:
+                  type: string
+                  format: uuid
+                  description: Job ID (required for status/cancel)
+                status:
+                  type: string
+                  description: Filter by job status (for list)
+                  example: running
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 20
+                  description: Max jobs to return (for list)
+      responses:
+        '200':
+          description: Job operation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/aurora_ebucore_metadata:
+    post:
+      operationId: aurora_ebucore_metadata
+      summary: EBUCore metadata for Aurora multimedia nodes
+      description: |
+        Exporterar EBUCore-metadata för medietillgångar i standardformat.
+
+        EBUCore is the European Broadcasting Union metadata standard.
+        - **ebucore_metadata**: Get metadata for a specific node
+        - **metadata_coverage**: Get a coverage report across all nodes
+      tags: [media]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [ebucore_metadata, metadata_coverage]
+                  description: Metadata action
+                nodeId:
+                  type: string
+                  description: Node ID (required for ebucore_metadata action)
+                  example: doc_abc123
+      responses:
+        '200':
+          description: EBUCore metadata or coverage report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  #  QUALITY (4 tools)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /tools/aurora_confidence_history:
+    post:
+      operationId: aurora_confidence_history
+      summary: Show Bayesian confidence update history for a node
+      description: |
+        Visar hur en nods konfidenspoäng har utvecklats över tid.
+
+        Returns the history of Bayesian confidence updates for a specific
+        Aurora knowledge node, showing how confidence has changed over time.
+      tags: [quality]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nodeId]
+              properties:
+                nodeId:
+                  type: string
+                  description: Aurora node ID
+                  example: doc_abc123
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 20
+                  description: Max entries to return
+      responses:
+        '200':
+          description: Confidence history entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/aurora_freshness:
+    post:
+      operationId: aurora_freshness
+      summary: Check and manage source freshness
+      description: |
+        Kontrollerar hur aktuella Auroras källor är och flaggar föråldrade noder.
+
+        Consolidated tool for freshness management:
+        - **verify**: Mark a source as verified/fresh
+        - **report**: Get a freshness report across all sources
+      tags: [quality]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [verify, report]
+                  description: Freshness action
+                node_id:
+                  type: string
+                  description: Aurora node ID to verify (required for verify action)
+                only_stale:
+                  type: boolean
+                  default: false
+                  description: Only show stale/unverified sources (for report)
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 20
+                  description: Max sources to return (for report)
+      responses:
+        '200':
+          description: Verification result or freshness report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/aurora_cross_ref:
+    post:
+      operationId: aurora_cross_ref
+      summary: Cross-reference search and integrity checking
+      description: |
+        Korsrefererar kunskap mellan noder för att hitta kopplingar och konflikter.
+
+        Consolidated tool for cross-reference operations across Neuron and Aurora graphs:
+        - **search**: Cross-reference search across both knowledge graphs
+        - **integrity**: Check cross-reference integrity for broken or low-confidence links
+      tags: [quality]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [search, integrity]
+                  description: Cross-reference action
+                query:
+                  type: string
+                  description: Search query (required for search action)
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 10
+                  description: Max results
+                min_similarity:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+                  default: 0.3
+                  description: Min cosine similarity threshold (for search)
+                type:
+                  type: string
+                  description: Filter by node type (for search)
+                confidence_threshold:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+                  default: 0.5
+                  description: Flag cross-refs below this confidence (for integrity)
+      responses:
+        '200':
+          description: Cross-reference search results or integrity issues
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/aurora_check_deps:
+    post:
+      operationId: aurora_check_deps
+      summary: Check Python dependencies and Whisper models
+      description: |
+        Validerar beroenden mellan kunskapsnoder och hittar brutna länkar.
+
+        Checks which Python dependencies (PaddleOCR, Whisper, pyannote) and
+        Whisper models are available for Aurora workers.
+      tags: [quality]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                preload_models:
+                  type: boolean
+                  default: false
+                  description: Also try loading Whisper models (slow on first run)
+      responses:
+        '200':
+          description: Dependency check results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  #  OBSIDIAN (2 tools)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /tools/aurora_obsidian_export:
+    post:
+      operationId: aurora_obsidian_export
+      summary: Export Aurora knowledge to Obsidian vault
+      description: |
+        Exporterar Aurora-kunskap till Obsidian-vault som markdown-filer.
+
+        Exports all Aurora knowledge graph nodes as markdown files with frontmatter,
+        wiki-links, speaker timelines, highlights, and comments.
+      tags: [obsidian]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vault:
+                  type: string
+                  description: Path to Obsidian vault (default: AURORA_OBSIDIAN_VAULT env or ~/Documents/Neuron Lab)
+      responses:
+        '200':
+          description: Export result with count of exported files
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/aurora_obsidian_import:
+    post:
+      operationId: aurora_obsidian_import
+      summary: Import from Obsidian vault back into Aurora
+      description: |
+        Importerar markdown-filer från Obsidian-vault till Aurora.
+
+        Imports tags, comments, highlights, and speaker names from Obsidian vault
+        markdown files back into Aurora knowledge graph.
+      tags: [obsidian]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vault:
+                  type: string
+                  description: Path to Obsidian vault (default: AURORA_OBSIDIAN_VAULT env or ~/Documents/Neuron Lab)
+      responses:
+        '200':
+          description: Import result with counts of processed files and changes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  #  LIBRARY (2 tools)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /tools/neuron_knowledge_library:
+    post:
+      operationId: neuron_knowledge_library
+      summary: Manage the knowledge library
+      description: |
+        Bläddrar och söker i kunskapsbiblioteket med syntetiserade artiklar.
+
+        Comprehensive tool for the knowledge library with synthesized articles from Aurora.
+        Actions:
+        - **list**: List articles with optional domain/tag filters
+        - **search**: Search articles by query
+        - **read**: Read a specific article
+        - **history**: View article revision history
+        - **synthesize**: Generate a new article from Aurora knowledge
+        - **refresh**: Refresh an article with latest knowledge
+        - **import**: Import a markdown article
+        - **browse**: Browse the concept ontology tree
+        - **concepts**: Get details about a specific concept
+        - **ontology_stats**: View ontology statistics
+        - **merge_suggestions**: Get concept merge suggestions
+        - **lookup_external_ids**: Look up external IDs (Wikidata, etc.) for a concept
+        - **backfill_ids**: Backfill missing external IDs
+        - **export_jsonld**: Export as JSON-LD (single node, ontology, articles, or all)
+      tags: [library]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum:
+                    - list
+                    - search
+                    - read
+                    - history
+                    - synthesize
+                    - refresh
+                    - import
+                    - browse
+                    - concepts
+                    - ontology_stats
+                    - merge_suggestions
+                    - lookup_external_ids
+                    - backfill_ids
+                    - export_jsonld
+                  description: Library action to perform
+                query:
+                  type: string
+                  description: Search query (for search action)
+                articleId:
+                  type: string
+                  description: Article ID (for read/history/refresh)
+                topic:
+                  type: string
+                  description: Topic to synthesize (for synthesize action)
+                  example: public service i Norden
+                domain:
+                  type: string
+                  description: Domain filter (for list/synthesize/import)
+                  example: media
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  description: Tags filter (for list/import)
+                title:
+                  type: string
+                  description: Article title (for import)
+                content:
+                  type: string
+                  description: Article content markdown (for import)
+                limit:
+                  type: integer
+                  description: Max results (for list/search)
+                conceptName:
+                  type: string
+                  description: Concept name (for browse/concepts/lookup_external_ids)
+                facet:
+                  type: string
+                  description: "Facet filter: topic, entity, method, domain, tool"
+                maxDepth:
+                  type: integer
+                  description: Max tree depth (for browse)
+                dryRun:
+                  type: boolean
+                  description: Dry run mode (for backfill_ids)
+                nodeId:
+                  type: string
+                  description: Node ID for single node export (for export_jsonld)
+                scope:
+                  type: string
+                  description: "Export scope: ontology, articles, all (for export_jsonld)"
+                includeEbucore:
+                  type: boolean
+                  description: Include EBUCore fields in export (default true)
+      responses:
+        '200':
+          description: Library operation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/neuron_knowledge_manager:
+    post:
+      operationId: neuron_knowledge_manager
+      summary: Run the Knowledge Manager agent
+      description: |
+        Kör Knowledge Manager-agenten som hittar luckor och uppdaterar artiklar.
+
+        Autonomous agent that scans for knowledge gaps, researches them,
+        and refreshes stale sources. Supports topic chaining for multi-cycle research.
+      tags: [library]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                maxActions:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 5
+                  description: Maximum actions to take
+                focusTopic:
+                  type: string
+                  description: Optional topic to focus on
+                includeStale:
+                  type: boolean
+                  default: true
+                  description: Include stale source refresh
+                chain:
+                  type: boolean
+                  default: false
+                  description: Enable topic chaining for multi-cycle research
+                maxCycles:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  default: 3
+                  description: Maximum chaining cycles (only used when chain=true)
+      responses:
+        '200':
+          description: Knowledge Manager run report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  #  GRAPH ANALYSIS (3 tools)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /tools/graph_ppr:
+    post:
+      operationId: graph_ppr
+      summary: Find related nodes via Personalized PageRank
+      description: |
+        Hitta relaterade noder via grafstruktur med Personalized PageRank (PPR).
+
+        Starts from seed nodes and walks the graph to find connections that
+        keyword search misses. Uses the Neuron knowledge graph structure.
+      tags: [graph]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [seed_ids]
+              properties:
+                seed_ids:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                  description: Node IDs to start from (at least 1)
+                  example: [idea-042]
+                limit:
+                  type: integer
+                  default: 10
+                  description: Max results
+                type:
+                  type: string
+                  enum: [pattern, error, technique, run, agent, idea]
+                  description: Filter result type
+                min_score:
+                  type: number
+                  default: 0.01
+                  description: Minimum PPR score threshold
+      responses:
+        '200':
+          description: Related nodes ranked by PPR score
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/neuron_crossref:
+    post:
+      operationId: neuron_crossref
+      summary: CrossRef DOI lookup for academic sources
+      description: |
+        Slår upp externa referenser och DOI-nummer för akademiska källor.
+
+        Look up publication metadata, search papers, or import papers as Aurora nodes.
+        - **lookup_doi**: Get metadata for a DOI
+        - **search_papers**: Search CrossRef for papers
+        - **ingest_doi**: Import a paper by DOI into Aurora
+      tags: [graph]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [lookup_doi, search_papers, ingest_doi]
+                  description: CrossRef action
+                doi:
+                  type: string
+                  description: DOI identifier (for lookup_doi, ingest_doi)
+                  example: 10.1038/nature12373
+                query:
+                  type: string
+                  description: Search query (for search_papers)
+                  example: machine learning survey 2024
+                author:
+                  type: string
+                  description: Author filter (for search_papers)
+                limit:
+                  type: integer
+                  description: Max results (for search_papers, default 5)
+      responses:
+        '200':
+          description: DOI metadata, search results, or ingest confirmation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'
+
+  /tools/aurora_ocr_pdf:
+    post:
+      operationId: aurora_ocr_pdf
+      summary: Re-extract text from a PDF using OCR
+      description: |
+        Kör OCR på en skannad PDF och extraherar text till Aurora.
+
+        For PDFs with broken font encoding or scanned pages. Renders pages as
+        images and runs OCR to extract text.
+      tags: [ingest]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filePath]
+              properties:
+                filePath:
+                  type: string
+                  description: Path to PDF file
+                  example: /path/to/scanned.pdf
+                language:
+                  type: string
+                  default: en
+                  description: Language hint for OCR
+                dpi:
+                  type: integer
+                  default: 200
+                  description: Render resolution (higher = better quality, slower)
+      responses:
+        '200':
+          description: OCR result with extracted text
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResponse'

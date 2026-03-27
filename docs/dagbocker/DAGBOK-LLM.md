@@ -1,0 +1,165 @@
+# Neuron HQ — LLM Agent Logbook
+
+**Purpose:** Context injection for AI agents starting a new session. Read this first. Dense, parseable, no filler.
+
+**Who writes:** Active agent (Atlas/Claude) at end of each session. One entry per day minimum.
+
+**Who reads:** Any LLM agent starting work on Neuron HQ. This is your orient step.
+
+**Historical record:** Sessions S1-S150 + runs #1-#183 → `docs/DAGBOK.md` (pre-2026-03-26). Session-level handoffs → `docs/handoffs/`. Architecture decisions → `docs/adr/`.
+
+**Format per entry:**
+
+```
+## YYYY-MM-DD
+### State       — current system snapshot
+### Decisions   — what was decided and why
+### Active Context — files/modules currently in flux
+### Next Actions — prioritized next steps
+```
+
+---
+
+## 2026-03-26
+
+### State
+
+```
+project:        Neuron HQ (autonomous agent swarm control plane)
+repo:           /Users/mpmac/Documents/VS Code/neuron-hq
+language:       TypeScript (strict, NodeNext, noUncheckedIndexedAccess)
+runtime:        Node.js + pnpm
+test_suite:     Vitest, 3949 tests (all passing as of 2026-03-24)
+agents:         13 (see list below)
+runs_total:     183
+runs_green:     ~120
+knowledge_graph: Aurora (pgvector + MCP server + Obsidian)
+aurora_nodes:   924 idea nodes
+roadmap_phase:  Fas 2 (Intelligens) — 26/32 tasks done in Fas 3
+```
+
+**Agent roster:**
+Manager, Implementer, Reviewer, Researcher, Librarian, Historian, Tester, Consolidator, Knowledge Manager, Merger, Observer, Brief Reviewer, Code Anchor
+
+**Tooling as of today:**
+
+- IDE: OpenCode (replacing VS Code)
+- Model routing: LiteLLM proxy (`svt-litellm/` prefix)
+- Active model: `claude-opus-4-6` (was direct Anthropic API via VS Code)
+- Orchestrator: Atlas (OhMyOpenCode Master Orchestrator, replacing informal Opus-in-VS Code)
+- Session numbering: S1-S150 retired. New sessions not yet numbered in old system.
+
+### Decisions
+
+**D1: Tooling migration (2026-03-26)**
+Migrated from VS Code + direct Claude Opus to OpenCode + LiteLLM. Rationale: model-agnostic routing, structured multi-task orchestration via Atlas, better session management. No production code changed. Same TypeScript codebase, same policy files, same Aurora integration.
+
+**D2: Three-audience logbook split (2026-03-26)**
+`docs/DAGBOK.md` mixed audiences poorly (Marcus/developer/LLM in one stream). Split into:
+
+- `docs/dagbocker/DAGBOK-MARCUS.md` — Swedish plain language for project owner
+- `docs/dagbocker/DAGBOK-DEV.md` — Swedish+English technical for developers
+- `docs/dagbocker/DAGBOK-LLM.md` — English structured for AI agents (this file)
+
+`docs/DAGBOK.md` preserved as historical record. Do not modify it.
+
+### Active Context
+
+**No production code changed today.** Documentation/tooling setup + full codebase analysis.
+
+Files written today:
+
+- `docs/dagbocker/DAGBOK-MARCUS.md` (new) — plain Swedish logbook for Marcus
+- `docs/dagbocker/DAGBOK-DEV.md` (new) — technical logbook for developers
+- `docs/dagbocker/DAGBOK-LLM.md` (this file, new) — structured logbook for AI agents
+- `docs/RAPPORT-KODANALYS-2026-03-26.md` (new) — **466-line comprehensive codebase analysis**
+
+**Codebase analysis key findings** (see full report for details):
+
+- ~46,000 lines TypeScript source code
+- Aurora module: 38 files, 11,358 lines in `src/aurora/`
+- Agent system: 13 agents, 9,818 lines in `src/core/agents/`
+- MCP server: 44 tools in `src/mcp/tools/`
+- Python workers: 12 files, 834 lines in `aurora-workers/`
+- Two separate knowledge graphs: Neuron KG (`kg_nodes`) and Aurora KG (`aurora_nodes`)
+- Connected via cross-references in `src/aurora/cross-ref.ts`
+
+**Completed briefs (corrected — initial entry had stale data):**
+
+| Brief                                  | Status  | Session |
+| -------------------------------------- | ------- | ------- |
+| 3.6 Historian/Consolidator reliability | ✅ DONE | S147    |
+| 3.1c Code Anchor hardening             | ✅ DONE | S150    |
+| A1 Obsidian round-trip                 | ✅ DONE | S150    |
+
+**Remaining open work:**
+
+| Priority | Brief                              | Status                       | Risk                     |
+| -------- | ---------------------------------- | ---------------------------- | ------------------------ |
+| HIGH     | Aurora B1 — MCP test fix           | Not started (~15 min manual) | Blocks aurora-repo tests |
+| MED      | 3.3 Research before implementation | Not written                  | —                        |
+| MED      | 3.4 Scheduled agent conversations  | Not written                  | Needs server             |
+| MED      | 3.7 Tool-call budgets              | Not written                  | —                        |
+| MED      | 3.8 Retro → prompt pipeline        | Not written                  | Depends on 3.7           |
+| MED      | Aurora A2 DOCX/XLSX intake         | Not written                  | —                        |
+| LOW      | 2.8 AI Act Art. 14                 | Not written                  | 3-5 runs                 |
+
+**Known open risks:**
+
+1. Aurora MCP version mismatch (1.25 vs 1.26) — identified S145. ~15 min manual fix.
+2. TD-1: `timeline()`/`search()` load entire graph in memory — no pagination.
+3. TD-4: N+1 DB writes in `saveAuroraGraphToDb()`.
+4. TD-9: `requirements.txt` incomplete — new machine may fail Python worker setup.
+
+### Next Actions
+
+Priority order for next session:
+
+1. **Marcus to provide info for MARCUS.md** — profile file for all agents to read
+2. **Commit all new files** (4 new docs, no code changes) — waiting for Marcus OK
+3. **Verify environment** — `pnpm test`, check DB connection, check Python workers
+4. **End-to-end Aurora test** — ingest a URL/video, ask a question, verify pipeline works
+5. **Fix Aurora B1** (MCP version in aurora-repo) if blocking
+6. **Create OpenAPI/Swagger spec for Aurora MCP tools** (requested by Marcus)
+7. **Tackle remaining Fas 3 tasks** (3.3, 3.4, 3.7, 3.8)
+
+### Session Handoff Protocol
+
+**IMPORTANT for future agents:** This project migrated from VS Code + Claude Opus (sessions S1-S150) to OpenCode + LiteLLM on 2026-03-26. The old handoff system (`docs/handoffs/HANDOFF-*.md`) is retired. New handoff protocol:
+
+1. At session end: update this file (`DAGBOK-LLM.md`) with State/Decisions/Active Context/Next Actions
+2. At session start: read this file FIRST, then `AGENTS.md`, then `docs/ROADMAP.md`
+3. For deep history: search `docs/handoffs/` and `docs/DAGBOK.md` (pre-2026-03-26)
+4. Handoff document: `docs/HANDOFF-OPENCODE.md` (see below for format)
+
+### Orient Checklist (for new agent)
+
+Before touching any code, verify:
+
+```bash
+pnpm typecheck   # must be zero errors
+pnpm test        # must be 3949 passing
+pnpm lint        # must be zero warnings on changed files
+```
+
+Key files to read before implementing anything:
+
+- `AGENTS.md` — engineering protocol (mandatory)
+- `docs/dagbocker/DAGBOK-LLM.md` — THIS FILE, current state (mandatory)
+- `docs/ROADMAP.md` — current phase and task status
+- `docs/RAPPORT-KODANALYS-2026-03-26.md` — full codebase analysis
+- `memory/patterns.md` — proven patterns from previous runs
+- `memory/errors.md` — known failure modes to avoid
+
+Architecture entrypoints:
+
+- `src/cli.ts` — CLI entrypoint
+- `src/aurora/` — Aurora knowledge graph (38 files, the focus area)
+- `src/core/agents/` — agent implementations (13 agents)
+- `src/mcp/server.ts` — MCP server (44 tools)
+- `src/core/ppr.ts` — HippoRAG PPR algorithm
+- `src/core/graph-merge.ts` — A-MEM abstraction/dedup
+- `src/core/knowledge-graph.ts` — Neuron KG (1095 lines)
+- `prompts/` — agent role definitions
+
+---
