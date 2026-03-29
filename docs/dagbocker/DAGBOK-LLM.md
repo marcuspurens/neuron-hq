@@ -193,7 +193,10 @@ Files changed this session:
 - `scripts/reembed-aurora.ts` — MAX_EMBED_CHARS
 - `ROADMAP.md` — status + TD-13
 - `ROADMAP-AURORA.md` — B2 fixad, A1 klar
-- `docs/ARKITEKTUR-AURORA.md` — ny (Scope 2)
+- `docs/ARKITEKTUR-AURORA.md` — indexfil (pekar på tre versioner)
+- `docs/ARKITEKTUR-AURORA-LLM-2026-03-29.md` — modulkarta, dataflöden, DB-schema
+- `docs/ARKITEKTUR-AURORA-MARCUS-2026-03-29.md` — beslutsbakgrund (Swedish prose)
+- `docs/ARKITEKTUR-AURORA-DEV-2026-03-29.md` — onboarding för ny utvecklare
 
 ### Orient Checklist (for new agent)
 

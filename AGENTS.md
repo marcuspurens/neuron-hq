@@ -490,5 +490,21 @@ When working under time pressure:
 
 ---
 
+## 14) Documentation Conventions
+
+### Versioned documents — never overwrite
+Important documents (architecture, roadmaps, analyses) use date-stamped filenames:
+`DOCUMENT-YYYY-MM-DD.md`. New versions are new files. Old versions are never deleted.
+
+### Three-audience pattern
+Complex documents (like architecture) may exist in three versions:
+- `-LLM-`: Dense, parseable, module maps, file references — for AI agents
+- `-MARCUS-`: Swedish prose, decision rationale — for the project owner
+- `-DEV-`: Setup, conventions, cookbook, troubleshooting — for new developers
+
+An index file (e.g. `ARKITEKTUR-AURORA.md`) links to the latest version of each audience.
+
+---
+
 *This protocol is a living document. Update it when a new pattern proves stable across
 multiple runs. Do not update it speculatively.*

@@ -178,6 +178,7 @@ Startpunkten är Marcus eget system, men visionen är större: ett autonomt, mod
 | Modell                 | Storlek | Användning                        |
 | ---------------------- | ------: | --------------------------------- |
 | snowflake-arctic-embed |  669 MB | Embeddings (1024-dim, default)    |
+| gemma3                 |  3.3 GB | Polish + speaker-gissning         |
 | qwen3-vl:8b            |  6.1 GB | Vision / bildanalys               |
 | bge-m3                 |  1.2 GB | Alternativ embedding (ej default) |
 | nemotron-3-nano:30b    |   24 GB | —                                 |
@@ -212,6 +213,30 @@ Vid sessionsstart ska agenten läsa dessa filer i följande ordning:
 **Viktigt för OpenCode:** OpenCode gör inte detta automatiskt om det inte sätts upp via bootstrap-prompt, agentinstruktion, session-init eller dokumenterad rutin i projektet.
 
 Historik från sessioner S1–S150 finns i `docs/DAGBOK.md` och `docs/handoffs/`.
+
+---
+
+## 7b. Dokumentationskonventioner
+
+Marcus preferenser för hur dokument versioneras och struktureras:
+
+### Datumstämplade versioner — aldrig överskriva
+Viktiga dokument (arkitektur, roadmaps, kodanalyser) ska sparas med datum i filnamnet: `DOKUMENT-YYYY-MM-DD.md`. Nya versioner skapas som nya filer — gamla versioner raderas aldrig. De är historik.
+
+Mönstret används redan för:
+- `docs/roadmaps/ROADMAP-2026-03-19-session103.md`
+- `docs/ARKITEKTUR-AURORA-LLM-2026-03-29.md`
+
+### Tre versioner för tre publiker
+Komplexa dokument (som arkitektur) skrivs i tre versioner:
+
+| Suffix | Publik | Fokus |
+|--------|--------|-------|
+| `-LLM-` | AI-agenter | Tät, parsebar, modulkartor, filreferenser |
+| `-MARCUS-` | Marcus | Swedish prose, beslutsbakgrund, inga fillistor |
+| `-DEV-` | Ny utvecklare | Setup, konventioner, cookbook, felsökning |
+
+En indexfil (t.ex. `ARKITEKTUR-AURORA.md`) pekar på senaste version av varje publik.
 
 ---
 
@@ -253,4 +278,4 @@ När flera vägar är möjliga ska följande principer väga tungt:
 
 _Denna fil underhålls av Marcus och AI-agenter gemensamt._  
 _Uppdatera när ny relevant information framkommer._  
-_Senast granskad: 2026-03-26_
+_Senast granskad: 2026-03-29_
