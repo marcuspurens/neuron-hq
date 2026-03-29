@@ -14,7 +14,9 @@ export async function embedNodesCommand(): Promise<void> {
   }
 
   if (!(await isEmbeddingAvailable())) {
-    console.error('Embedding provider not available. Ensure Ollama is running with snowflake-arctic-embed model.');
+    console.error(
+      'Embedding provider not available. Ensure Ollama is running with snowflake-arctic-embed model.'
+    );
     return;
   }
 
@@ -39,19 +41,23 @@ export async function embedNodesCommand(): Promise<void> {
 
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
+    const MAX_EMBED_CHARS = 2000;
     const texts = batch.map(
-      (node: { type: string; title: string; properties: Record<string, unknown> }) =>
-        `${node.type}: ${node.title}. ${JSON.stringify(node.properties)}`
+      (node: { type: string; title: string; properties: Record<string, unknown> }) => {
+        const textContent = typeof node.properties?.text === 'string' ? node.properties.text : '';
+        const full = `${node.type}: ${node.title}. ${textContent}`;
+        return full.length > MAX_EMBED_CHARS ? full.slice(0, MAX_EMBED_CHARS) : full;
+      }
     );
 
     try {
       const embeddings = await provider.embedBatch(texts);
 
       for (let j = 0; j < batch.length; j++) {
-        await pool.query(
-          'UPDATE kg_nodes SET embedding = $1 WHERE id = $2',
-          [`[${embeddings[j].join(',')}]`, batch[j].id]
-        );
+        await pool.query('UPDATE kg_nodes SET embedding = $1 WHERE id = $2', [
+          `[${embeddings[j].join(',')}]`,
+          batch[j].id,
+        ]);
       }
 
       embedded += batch.length;

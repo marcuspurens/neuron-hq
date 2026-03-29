@@ -37,9 +37,7 @@ describe('embed-nodes command', () => {
 
     await embedNodesCommand();
 
-    expect(console.log).toHaveBeenCalledWith(
-      'All nodes already have embeddings. Nothing to do.'
-    );
+    expect(console.log).toHaveBeenCalledWith('All nodes already have embeddings. Nothing to do.');
     expect(mockEmbedBatch).not.toHaveBeenCalled();
   });
 
@@ -71,12 +69,14 @@ describe('embed-nodes command', () => {
   });
 
   it('generates correct text format for embedding', async () => {
-    const nodes = [{
-      id: 'p-1',
-      type: 'pattern',
-      title: 'Retry Logic',
-      properties: { context: 'API calls' },
-    }];
+    const nodes = [
+      {
+        id: 'p-1',
+        type: 'pattern',
+        title: 'Retry Logic',
+        properties: { context: 'API calls' },
+      },
+    ];
 
     mockQuery.mockResolvedValueOnce({ rows: nodes });
     const embedding = Array.from({ length: 1024 }, () => 0.1);
@@ -85,9 +85,7 @@ describe('embed-nodes command', () => {
 
     await embedNodesCommand();
 
-    expect(mockEmbedBatch).toHaveBeenCalledWith([
-      'pattern: Retry Logic. {"context":"API calls"}'
-    ]);
+    expect(mockEmbedBatch).toHaveBeenCalledWith(['pattern: Retry Logic. ']);
   });
 
   it('reports progress', async () => {
@@ -115,9 +113,7 @@ describe('embed-nodes command', () => {
 
     await embedNodesCommand();
 
-    expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining('Database not available')
-    );
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Database not available'));
     expect(mockEmbedBatch).not.toHaveBeenCalled();
   });
 

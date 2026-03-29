@@ -22,10 +22,7 @@ export class OllamaEmbedding implements EmbeddingProvider {
   private baseUrl: string;
   private model: string;
 
-  constructor(
-    baseUrl = getOllamaUrl(),
-    model = getConfig().OLLAMA_MODEL_EMBED,
-  ) {
+  constructor(baseUrl = getOllamaUrl(), model = getConfig().OLLAMA_MODEL_EMBED) {
     this.baseUrl = baseUrl;
     this.model = model;
   }
@@ -44,14 +41,23 @@ export class OllamaEmbedding implements EmbeddingProvider {
 
   async embedBatch(texts: string[]): Promise<number[][]> {
     await ensureOllama(this.model);
-    const resp = await fetch(`${this.baseUrl}/api/embed`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: this.model, input: texts }),
-    });
-    if (!resp.ok) throw new Error(`Ollama embed batch failed: ${resp.status}`);
-    const data = (await resp.json()) as OllamaEmbedResponse;
-    return data.embeddings;
+    try {
+      const resp = await fetch(`${this.baseUrl}/api/embed`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: this.model, input: texts }),
+      });
+      if (!resp.ok) throw new Error(`Ollama embed batch failed: ${resp.status}`);
+      const data = (await resp.json()) as OllamaEmbedResponse;
+      return data.embeddings;
+    } catch {
+      // Fallback: embed individually if batch fails
+      const results: number[][] = [];
+      for (const text of texts) {
+        results.push(await this.embed(text));
+      }
+      return results;
+    }
   }
 }
 
@@ -64,7 +70,8 @@ export async function isEmbeddingAvailable(): Promise<boolean> {
     const provider = getEmbeddingProvider();
     const result = await provider.embed('test');
     return result.length === provider.dimension;
-  } catch {  /* intentional: ollama embedding not available */
+  } catch {
+    /* intentional: ollama embedding not available */
     return false;
   }
 }

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { OllamaEmbedding, isEmbeddingAvailable, getEmbeddingProvider, resetEmbeddingProvider } from '../../src/core/embeddings.js';
+import {
+  OllamaEmbedding,
+  isEmbeddingAvailable,
+  getEmbeddingProvider,
+  resetEmbeddingProvider,
+} from '../../src/core/embeddings.js';
 
 // Mock global fetch
 const mockFetch = vi.fn();
@@ -72,11 +77,23 @@ describe('OllamaEmbedding', () => {
     await expect(provider.embed('test')).rejects.toThrow('Ollama embed failed: 500');
   });
 
-  it('embedBatch() throws on non-OK response', async () => {
+  it('embedBatch() falls back to individual calls on batch failure', async () => {
+    const fakeEmbedding = Array.from({ length: 1024 }, () => 0);
+    // First call (batch) fails, then two individual calls succeed
     mockFetch.mockResolvedValueOnce({ ok: false, status: 503 });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ embeddings: [fakeEmbedding] }),
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ embeddings: [fakeEmbedding] }),
+    });
 
     const provider = new OllamaEmbedding();
-    await expect(provider.embedBatch(['a', 'b'])).rejects.toThrow('Ollama embed batch failed: 503');
+    const result = await provider.embedBatch(['a', 'b']);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toHaveLength(1024);
   });
 
   it('uses custom baseUrl and model', async () => {

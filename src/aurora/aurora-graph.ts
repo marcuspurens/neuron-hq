@@ -19,14 +19,11 @@ const logger = createLogger('aurora:graph');
 
 /** Internal sleep helper for retry backoff. */
 function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // --- Default path ---
-const DEFAULT_GRAPH_PATH = path.resolve(
-  import.meta.dirname ?? '.',
-  '../../aurora/graph.json',
-);
+const DEFAULT_GRAPH_PATH = path.resolve(import.meta.dirname ?? '.', '../../aurora/graph.json');
 
 // --- CRUD Operations ---
 
@@ -71,7 +68,7 @@ export function addAuroraEdge(graph: AuroraGraph, edge: AuroraEdge): AuroraGraph
 /** Find nodes matching optional type, query string, and scope filter. */
 export function findAuroraNodes(
   graph: AuroraGraph,
-  filter: { type?: AuroraNodeType; query?: string; scope?: AuroraScope },
+  filter: { type?: AuroraNodeType; query?: string; scope?: AuroraScope }
 ): AuroraNode[] {
   return graph.nodes.filter((node) => {
     if (filter.type && node.type !== filter.type) return false;
@@ -80,7 +77,7 @@ export function findAuroraNodes(
       const q = filter.query.toLowerCase();
       const inTitle = node.title.toLowerCase().includes(q);
       const inProps = Object.values(node.properties).some((v) =>
-        String(v).toLowerCase().includes(q),
+        String(v).toLowerCase().includes(q)
       );
       if (!inTitle && !inProps) return false;
     }
@@ -92,7 +89,7 @@ export function findAuroraNodes(
 export function updateAuroraNode(
   graph: AuroraGraph,
   id: string,
-  updates: Partial<Pick<AuroraNode, 'confidence' | 'properties' | 'title'>>,
+  updates: Partial<Pick<AuroraNode, 'confidence' | 'properties' | 'title'>>
 ): AuroraGraph {
   const idx = graph.nodes.findIndex((n) => n.id === id);
   if (idx === -1) throw new Error(`Node not found: ${id}`);
@@ -123,7 +120,7 @@ export function removeAuroraNode(graph: AuroraGraph, id: string): AuroraGraph {
 /** Apply confidence decay to nodes not updated recently. */
 export function applyAuroraConfidenceDecay(
   graph: AuroraGraph,
-  options?: { inactiveDays?: number; decayFactor?: number },
+  options?: { inactiveDays?: number; decayFactor?: number }
 ): AuroraGraph {
   const inactiveDays = options?.inactiveDays ?? 20;
   const decayFactor = options?.decayFactor ?? 0.9;
@@ -149,7 +146,7 @@ export function traverseAurora(
   graph: AuroraGraph,
   startId: string,
   edgeType?: AuroraEdgeType,
-  depth: number = 3,
+  depth: number = 3
 ): AuroraNode[] {
   const visited = new Set<string>([startId]);
   let frontier = [startId];
@@ -189,11 +186,11 @@ export async function loadAuroraGraphFromDb(): Promise<AuroraGraph | null> {
     const pool = getPool();
 
     const { rows: nodeRows } = await pool.query(
-      'SELECT id, type, title, properties, confidence, scope, source_url, created, updated FROM aurora_nodes',
+      'SELECT id, type, title, properties, confidence, scope, source_url, created, updated FROM aurora_nodes'
     );
 
     const { rows: edgeRows } = await pool.query(
-      'SELECT from_id, to_id, type, metadata FROM aurora_edges',
+      'SELECT from_id, to_id, type, metadata FROM aurora_edges'
     );
 
     const nodes: AuroraNode[] = nodeRows.map((r: Record<string, unknown>) => ({
@@ -243,12 +240,18 @@ export async function saveAuroraGraphToDb(graph: AuroraGraph): Promise<void> {
         const n = graph.nodes[i];
         const o = i * COLS;
         placeholders.push(
-          `($${o + 1}, $${o + 2}, $${o + 3}, $${o + 4}, $${o + 5}, $${o + 6}, $${o + 7}, $${o + 8}, $${o + 9})`,
+          `($${o + 1}, $${o + 2}, $${o + 3}, $${o + 4}, $${o + 5}, $${o + 6}, $${o + 7}, $${o + 8}, $${o + 9})`
         );
         values.push(
-          n.id, n.type, n.title, JSON.stringify(n.properties),
-          n.confidence, n.scope ?? 'personal', n.sourceUrl ?? null,
-          n.created, n.updated,
+          n.id,
+          n.type,
+          n.title,
+          JSON.stringify(n.properties),
+          n.confidence,
+          n.scope ?? 'personal',
+          n.sourceUrl ?? null,
+          n.created,
+          n.updated
         );
       }
       await client.query(
@@ -259,7 +262,7 @@ export async function saveAuroraGraphToDb(graph: AuroraGraph): Promise<void> {
            properties = EXCLUDED.properties, confidence = EXCLUDED.confidence,
            scope = EXCLUDED.scope, source_url = EXCLUDED.source_url,
            updated = EXCLUDED.updated`,
-        values,
+        values
       );
     }
 
@@ -274,7 +277,7 @@ export async function saveAuroraGraphToDb(graph: AuroraGraph): Promise<void> {
            SELECT 1 FROM unnest($1::text[], $2::text[], $3::text[]) AS v(f, t, tp)
            WHERE e.from_id = v.f AND e.to_id = v.t AND e.type = v.tp
          )`,
-        [fromIds, toIds, edgeTypes],
+        [fromIds, toIds, edgeTypes]
       );
     } else {
       await client.query('DELETE FROM aurora_edges');
@@ -288,9 +291,7 @@ export async function saveAuroraGraphToDb(graph: AuroraGraph): Promise<void> {
       for (let i = 0; i < graph.edges.length; i++) {
         const e = graph.edges[i];
         const o = i * COLS;
-        placeholders.push(
-          `($${o + 1}, $${o + 2}, $${o + 3}, $${o + 4})`,
-        );
+        placeholders.push(`($${o + 1}, $${o + 2}, $${o + 3}, $${o + 4})`);
         values.push(e.from, e.to, e.type, JSON.stringify(e.metadata));
       }
       await client.query(
@@ -298,17 +299,14 @@ export async function saveAuroraGraphToDb(graph: AuroraGraph): Promise<void> {
          VALUES ${placeholders.join(', ')}
          ON CONFLICT (from_id, to_id, type) DO UPDATE SET
            metadata = EXCLUDED.metadata`,
-        values,
+        values
       );
     }
 
     // 4. Delete stale nodes (batch)
     if (graph.nodes.length > 0) {
       const nodeIds = graph.nodes.map((n) => n.id);
-      await client.query(
-        'DELETE FROM aurora_nodes WHERE id != ALL($1::text[])',
-        [nodeIds],
-      );
+      await client.query('DELETE FROM aurora_nodes WHERE id != ALL($1::text[])', [nodeIds]);
     } else {
       await client.query('DELETE FROM aurora_nodes');
     }
@@ -334,13 +332,18 @@ export async function autoEmbedAuroraNodes(nodeIds: string[]): Promise<void> {
     const placeholders = nodeIds.map((_, i) => `$${i + 1}`).join(',');
     const { rows } = await pool.query(
       `SELECT id, type, title, properties FROM aurora_nodes WHERE id IN (${placeholders}) AND embedding IS NULL`,
-      nodeIds,
+      nodeIds
     );
 
-    // Build texts for all nodes
-    const texts = rows.map((node: Record<string, unknown>) =>
-      `${node.type}: ${node.title}. ${JSON.stringify(node.properties)}`
-    );
+    // Build texts for all nodes — truncate to avoid Ollama 400 errors
+    // snowflake-arctic-embed has ~512 token limit; ~2000 chars is safe
+    const MAX_EMBED_CHARS = 2000;
+    const texts = rows.map((node: Record<string, unknown>) => {
+      const props = node.properties as Record<string, unknown> | undefined;
+      const textContent = typeof props?.text === 'string' ? props.text : '';
+      const full = `${node.type}: ${node.title}. ${textContent}`;
+      return full.length > MAX_EMBED_CHARS ? full.slice(0, MAX_EMBED_CHARS) : full;
+    });
 
     // Process in batches of 20 with retry
     const BATCH_SIZE = 20;
@@ -356,23 +359,29 @@ export async function autoEmbedAuroraNodes(nodeIds: string[]): Promise<void> {
         try {
           const embeddings = await provider.embedBatch(batchTexts);
           const ids = batchIds;
-          const vectors = embeddings.map((e: number[]) => `[${e.join(",")}]`);
+          const vectors = embeddings.map((e: number[]) => `[${e.join(',')}]`);
 
           await pool.query(
             `UPDATE aurora_nodes AS n
              SET embedding = v.emb::vector
              FROM unnest($1::text[], $2::text[]) AS v(id, emb)
              WHERE n.id = v.id`,
-            [ids, vectors],
+            [ids, vectors]
           );
           break;
         } catch (err) {
           if (attempt < MAX_RETRIES) {
             const delayMs = BACKOFF_BASE_MS * Math.pow(2, attempt);
-            logger.warn(`Embedding batch failed (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${delayMs}ms...`, { i, error: String(err) });
+            logger.warn(
+              `Embedding batch failed (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${delayMs}ms...`,
+              { i, error: String(err) }
+            );
             await sleep(delayMs);
           } else {
-            logger.error(`Embedding batch failed after ${MAX_RETRIES + 1} attempts. Nodes missing embedding:`, { nodeIds: batchIds, error: String(err) });
+            logger.error(
+              `Embedding batch failed after ${MAX_RETRIES + 1} attempts. Nodes missing embedding:`,
+              { nodeIds: batchIds, error: String(err) }
+            );
           }
         }
       }
@@ -385,9 +394,7 @@ export async function autoEmbedAuroraNodes(nodeIds: string[]): Promise<void> {
 // --- Load / Save ---
 
 /** Load Aurora graph from DB (preferred) or JSON file (fallback). */
-export async function loadAuroraGraph(
-  filePath: string = DEFAULT_GRAPH_PATH,
-): Promise<AuroraGraph> {
+export async function loadAuroraGraph(filePath: string = DEFAULT_GRAPH_PATH): Promise<AuroraGraph> {
   // Try loading from DB first
   if (await isDbAvailable()) {
     const dbGraph = await loadAuroraGraphFromDb();
@@ -402,11 +409,7 @@ export async function loadAuroraGraph(
     const data: unknown = JSON.parse(raw);
     return AuroraGraphSchema.parse(data);
   } catch (err: unknown) {
-    if (
-      err instanceof Error &&
-      'code' in err &&
-      (err as NodeJS.ErrnoException).code === 'ENOENT'
-    ) {
+    if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
       return createEmptyAuroraGraph();
     }
     throw err;
@@ -416,7 +419,7 @@ export async function loadAuroraGraph(
 /** Save Aurora graph to file (always) and DB (if available). Dual-write with auto-embed. */
 export async function saveAuroraGraph(
   graph: AuroraGraph,
-  filePath: string = DEFAULT_GRAPH_PATH,
+  filePath: string = DEFAULT_GRAPH_PATH
 ): Promise<void> {
   // Always save to file (primary/backup)
   const validated = AuroraGraphSchema.parse(graph);
@@ -433,6 +436,8 @@ export async function saveAuroraGraph(
       await autoEmbedAuroraNodes(nodeIds);
     }
   } catch (err) {
-    logger.warn('DB write failed during saveAuroraGraph (file backup exists)', { error: String(err) });
+    logger.warn('DB write failed during saveAuroraGraph (file backup exists)', {
+      error: String(err),
+    });
   }
 }
