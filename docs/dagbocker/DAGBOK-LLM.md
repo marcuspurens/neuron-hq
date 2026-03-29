@@ -115,13 +115,42 @@ Files written today:
 
 Priority order for next session:
 
-1. **Marcus to provide info for MARCUS.md** — profile file for all agents to read
-2. **Commit all new files** (4 new docs, no code changes) — waiting for Marcus OK
-3. **Verify environment** — `pnpm test`, check DB connection, check Python workers
-4. **End-to-end Aurora test** — ingest a URL/video, ask a question, verify pipeline works
-5. **Fix Aurora B1** (MCP version in aurora-repo) if blocking
-6. **Create OpenAPI/Swagger spec for Aurora MCP tools** (requested by Marcus)
-7. **Tackle remaining Fas 3 tasks** (3.3, 3.4, 3.7, 3.8)
+1. **Add AURORA_PYTHON_PATH to .env** — currently requires manual export
+2. **Test PDF-ingest** end-to-end
+3. **Test morning briefing** — `aurora:morning-briefing`
+4. **Index real content** — Marcus chooses URLs, docs, YouTube videos
+5. **Fix `vid-4fc93ffbb1cd`** — debug special chars causing Ollama 400
+6. **Install `gemma3` in Ollama** — or change polish model in config
+7. **Update ROADMAP.md** with new status
+
+### Session Log (2026-03-29)
+
+**OpenCode Session 1 — Aurora end-to-end verified**
+
+Commits pushed to main:
+
+- `5f69730` — docs: dagböcker, rapport, swagger, handoff protocol
+- `0c819da` — docs: MARCUS.md with full profile
+- `04d0478` — fix: embedding text truncation + batch fallback
+- `dcf34ed` — fix: YouTube temp-dir persistence
+
+Key results:
+
+- URL ingest → ask → answer with citations: WORKING
+- YouTube ingest → transcribe → ask → answer: WORKING
+- 3949 tests green
+- 84 aurora_nodes in DB (was 45)
+- 2 bugfixes: embedding truncation, video temp-dir
+
+Environment setup required:
+
+```
+export PATH="/Users/mpmac/.nvm/versions/node/v20.19.5/bin:/opt/homebrew/bin:$PATH"
+corepack enable pnpm
+export AURORA_PYTHON_PATH=/opt/anaconda3/bin/python3
+```
+
+Full handoff: `docs/handoffs/HANDOFF-2026-03-29T1700-opencode-session1-aurora-e2e.md`
 
 ### Session Handoff Protocol
 
