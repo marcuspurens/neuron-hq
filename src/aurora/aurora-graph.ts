@@ -336,29 +336,31 @@ export async function autoEmbedAuroraNodes(nodeIds: string[]): Promise<void> {
     );
 
     // Build texts for all nodes — truncate to avoid Ollama 400 errors
-    // snowflake-arctic-embed has ~512 token limit; ~2000 chars is safe
-    const MAX_EMBED_CHARS = 2000;
-    const texts = rows.map((node: Record<string, unknown>) => {
-      const props = node.properties as Record<string, unknown> | undefined;
-      const textContent = typeof props?.text === 'string' ? props.text : '';
-      const full = `${node.type}: ${node.title}. ${textContent}`;
-      return full.length > MAX_EMBED_CHARS ? full.slice(0, MAX_EMBED_CHARS) : full;
-    });
+    // snowflake-arctic-embed has ~512 token limit; non-English text tokenises
+    // to more tokens per char, so 1500 chars keeps us safely under 512 tokens.
+    const MAX_EMBED_CHARS = 1500;
+    const buildTexts = (maxChars: number) =>
+      rows.map((node: Record<string, unknown>) => {
+        const props = node.properties as Record<string, unknown> | undefined;
+        const textContent = typeof props?.text === 'string' ? props.text : '';
+        const full = `${node.type}: ${node.title}. ${textContent}`;
+        return full.length > maxChars ? full.slice(0, maxChars) : full;
+      });
 
     // Process in batches of 20 with retry
     const BATCH_SIZE = 20;
     const MAX_RETRIES = 2;
     const BACKOFF_BASE_MS = 2000;
 
-    for (let i = 0; i < texts.length; i += BATCH_SIZE) {
-      const batchTexts = texts.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
       const batchRows = rows.slice(i, i + BATCH_SIZE);
       const batchIds = batchRows.map((r: Record<string, unknown>) => r.id as string);
+      let currentMaxChars = MAX_EMBED_CHARS;
 
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        const batchTexts = buildTexts(currentMaxChars).slice(i, i + BATCH_SIZE);
         try {
           const embeddings = await provider.embedBatch(batchTexts);
-          const ids = batchIds;
           const vectors = embeddings.map((e: number[]) => `[${e.join(',')}]`);
 
           await pool.query(
@@ -366,11 +368,19 @@ export async function autoEmbedAuroraNodes(nodeIds: string[]): Promise<void> {
              SET embedding = v.emb::vector
              FROM unnest($1::text[], $2::text[]) AS v(id, emb)
              WHERE n.id = v.id`,
-            [ids, vectors]
+            [batchIds, vectors]
           );
           break;
         } catch (err) {
-          if (attempt < MAX_RETRIES) {
+          const is400 = String(err).includes('400') || String(err).includes('context length');
+          if (is400 && attempt < MAX_RETRIES) {
+            currentMaxChars = Math.max(MAX_EMBED_CHARS - (attempt + 1) * 500, 500);
+            logger.warn(
+              `Embedding exceeded context length, truncating to ${currentMaxChars} chars (attempt ${attempt + 1})`,
+              { i, error: String(err) }
+            );
+            await sleep(BACKOFF_BASE_MS);
+          } else if (attempt < MAX_RETRIES) {
             const delayMs = BACKOFF_BASE_MS * Math.pow(2, attempt);
             logger.warn(
               `Embedding batch failed (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${delayMs}ms...`,

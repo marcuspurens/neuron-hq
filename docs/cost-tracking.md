@@ -1,20 +1,20 @@
 # Neuron HQ — Körningshistorik & Kostnader
 
-Genererad: 2026-03-24 22:13  
-Antal körningar: 181  
+Genererad: 2026-03-25 17:07  
+Antal körningar: 183  
 Prismodell: Sonnet 4.5 — $3/MTok input, $15/MTok output
 
 ## Sammanfattning
 
 | Mått | Värde |
 |------|-------|
-| Körningar | 181 |
-| GREEN | 121 |
-| Totala tokens | 1223.5M |
-| Total kostnad | $3826.32 |
-| Snitt per körning | $21.14 |
+| Körningar | 183 |
+| GREEN | 123 |
+| Totala tokens | 1261.9M |
+| Total kostnad | $3944.71 |
+| Snitt per körning | $21.56 |
 | Billigaste | $0.00 |
-| Dyraste | $68.28 |
+| Dyraste | $79.39 |
 
 ## Alla körningar
 
@@ -201,17 +201,19 @@ Prismodell: Sonnet 4.5 — $3/MTok input, $15/MTok output
 | 179 | 2026-03-24 | 09:59 | 3.2b A-MEM — PPR-hybrid duplicate … | GREEN | Sonnet 4.5 | 13.9M | 0.16M | 14.0M | $43.96 | 8 | 64m |
 | 180 | 2026-03-24 | 15:23 | 3.5 Dynamisk diff-limit | GREEN | Sonnet 4.5 | 12.5M | 0.15M | 12.7M | $39.85 | 7 | 62m |
 | 181 | 2026-03-24 | 21:14 | 3.6 Historian/Consolidator reliabi… | GREEN | Sonnet 4.5 | 19.5M | 0.14M | 19.6M | $60.54 | 9 | 59m |
+| 182 | 2026-03-25 | 07:15 | A1 Obsidian Round-Trip — icke-vide… | GREEN | Sonnet 4.5 | 25.5M | 0.18M | 25.7M | $79.39 | 8 | 89m |
+| 183 | 2026-03-25 | 16:13 | Code Anchor härdning — bash-policy… | GREEN | Sonnet 4.5 | 12.6M | 0.08M | 12.7M | $39.01 | 7 | 54m |
 
 ## Kostnad per agent (genomsnitt)
 
 | Agent | Snitt tokens | Kostnad/körning | Andel |
 |-------|------------:|----------------:|------:|
-| manager | 2.00M | $6.18 | 29.1% |
-| implementer | 2.45M | $7.78 | 33.0% |
-| reviewer | 1.21M | $3.72 | 16.0% |
-| tester | 0.23M | $0.70 | 2.9% |
-| merger | 0.28M | $0.93 | 3.8% |
-| researcher | 0.89M | $2.83 | 2.6% |
-| historian | 0.67M | $2.05 | 9.1% |
-| librarian | 0.45M | $1.40 | 1.2% |
-| consolidator | 2.10M | $6.42 | 2.3% |
+| manager | 2.01M | $6.21 | 28.7% |
+| implementer | 2.45M | $7.81 | 32.5% |
+| reviewer | 1.22M | $3.76 | 15.8% |
+| tester | 0.23M | $0.71 | 2.9% |
+| merger | 0.30M | $0.96 | 3.9% |
+| researcher | 0.89M | $2.83 | 2.5% |
+| historian | 0.71M | $2.17 | 9.4% |
+| librarian | 0.53M | $1.65 | 1.4% |
+| consolidator | 2.36M | $7.19 | 2.9% |

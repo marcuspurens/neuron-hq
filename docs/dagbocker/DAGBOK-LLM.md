@@ -161,6 +161,40 @@ Full handoff: `docs/handoffs/HANDOFF-2026-03-29T1700-opencode-session1-aurora-e2
 3. For deep history: search `docs/handoffs/` and `docs/DAGBOK.md` (pre-2026-03-26)
 4. Handoff document: `docs/HANDOFF-OPENCODE.md` (see below for format)
 
+### Session Log (2026-03-29 — Session 2)
+
+**OpenCode Session 2 — teknisk skuld + arkitektur**
+
+Commits:
+
+- (denna session — ej pushad ännu)
+
+Key results:
+
+- MAX_EMBED_CHARS sänkt 2000→1500 (3 filer) — icke-engelska text tokeniseras hårdare
+- Embedding-bug i retry-logiken fixad: `batchTexts[k-i] = shorter[k]` ersatt med `currentMaxChars`-mönster — renare och korrekt
+- `vid-4fc93ffbb1cd` har nu embedding (enda noden som saknades)
+- `gemma3` installerad i Ollama (3.3 GB) — polish-pipeline fullt funktionell
+- ROADMAP.md + ROADMAP-AURORA.md uppdaterade
+- `docs/ARKITEKTUR-AURORA.md` skapad (Scope 2 — teknisk komponentkarta, 11 sektioner)
+
+Code review findings:
+
+- 🔴 BLOCK: index-mutation i retry-logik var korrekt men extremt ömtålig — fixad
+- 🟡 WARN: `const ids = batchIds` (dead assignment) — fixad i samma veva
+- 🟡 WARN: `crossref.ts` vs `cross-ref.ts` — dubbla filer, kandidat för sammanslagning (TD-noterat i arkitektur-doc)
+- 🟢 OK: `String(err).includes('400')` — tillräckligt robust för intern Ollama-kommunikation
+- 🟢 OK: `buildTexts` closure är korrekt — `rows` ändras aldrig under retry
+
+Files changed this session:
+
+- `src/aurora/aurora-graph.ts` — MAX_EMBED_CHARS + retry-refaktor
+- `src/commands/embed-nodes.ts` — MAX_EMBED_CHARS
+- `scripts/reembed-aurora.ts` — MAX_EMBED_CHARS
+- `ROADMAP.md` — status + TD-13
+- `ROADMAP-AURORA.md` — B2 fixad, A1 klar
+- `docs/ARKITEKTUR-AURORA.md` — ny (Scope 2)
+
 ### Orient Checklist (for new agent)
 
 Before touching any code, verify:

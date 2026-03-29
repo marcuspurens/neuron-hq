@@ -41,7 +41,7 @@ export async function embedNodesCommand(): Promise<void> {
 
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
-    const MAX_EMBED_CHARS = 2000;
+    const MAX_EMBED_CHARS = 1500;
     const texts = batch.map(
       (node: { type: string; title: string; properties: Record<string, unknown> }) => {
         const textContent = typeof node.properties?.text === 'string' ? node.properties.text : '';

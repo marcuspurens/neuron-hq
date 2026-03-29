@@ -3344,3 +3344,54 @@ Inga kända problem. Inga blockers i questions.md, inga policy-blockeringar i au
 - **Diff-storlek:** 4 filer ändrade (agent-utils.ts, historian.ts, consolidator.ts, observer.ts + testfiler) — avgränsat scope, LOW risk
 
 ---
+
+## Körning 20260325-0715-neuron-hq — neuron-hq
+**Datum:** 2026-03-25
+**Uppgift:** A1 Obsidian Round-Trip — utöka obsidian-parser.ts med title/confidence/textContent/exportedAt, lägga till `exported_at` i export-frontmatter, ta bort destruktiv `rm()` vid export och ersätta med stale-cleanup, importera text/titel/confidence för icke-video-noder, och logga konfliktvarning
+**Resultat:** ✅ 12 av 12 acceptanskriterier klara — 3917→3936 tester (+19), noll regressioner, merge till main (commit 3430d3d)
+
+**Vad som fungerade:**
+T1 (obsidian-parser.ts) och T3 (obsidian-import.ts) levererades utan problem — Implementer läste befintliga signaturer korrekt och lade till `extractTitle()`, `extractContentSection()`, utökade `ParsedObsidianFile`-interface, non-video content-import, konfliktvarning och `ObsidianImportResult`-utökning. Reviewer-körning fångade att `extractContentSection()` använde `indexOf()` istället för regex (kunde ge falska positiver vid inline `## Innehåll`-förekomster) och markerade det som F2 SUGGEST — äntligen applicerat före merge. Merger filtrerade inga hjälpskript (inga skapades) och committade 6 filer rent. Librarian körde på koden och hittade relevanta papers. Total testtillväxt: 10 parser + 3 export + 5 import + 1 import (separatad) = 19 nya tester.
+
+**Vad som inte fungerade:**
+T2-Implementer (obsidian-export.ts) skrevs om "för tydlighets skull" — ändrade link-formatet och raderade `## Innehåll`-body-skrivning trots att briefen specificerade exakt 6 kirurgiska ändringar. Resulterade i 12 testmisslyckanden. Recovery krävde: `git checkout <baseline_sha> -- src/commands/obsidian-export.ts`, sedan applicera alla 7 nödvändiga ändringar via ett Node.js-skript. Grafens hälsa är 🔴 RED (83% isolerade noder, 277 saknar proveniens, 17 dubbletter) — Consolidator-trigger läggs in automatiskt i nästa brief.
+
+**Lärdomar:**
+- När Implementer "förtydligar" existerande kod vid en targeted-ändringsuppgift är det en sterk signal att beteendetester kommer att bryta — återgå alltid till git-baseline och applicera minimala diff
+- `indexOf()` för sektion-matchning i markdown är en latent bugg: `"## Innehåll"` kan förekomma inline i text och matcha fel. Regex med `^`-ankar (`/^## Innehåll[ \t]*$/m`) är alltid säkrare
+- Grafens hälso-trigger (⚡ i brief) aktiveras korrekt vid RED — Consolidator ska köras som nästa körning
+
+**Grafstatus:** 🔴 RED — 1149/1385 noder isolerade (83%), 277 saknar proveniens, 17 dubbletter
+
+## Körningseffektivitet
+- **Pipeline-flöde:** Manager → Implementer T1 → Implementer T2 (regression!) → manuell restore + script → Implementer T3 → Tester → Reviewer (1 SUGGEST) → Merger → Librarian → Historian = 9+ agentdelegationer, 1 extra pga T2-regression
+- **Testtillväxt:** 3917 baseline → 3936 (+19 nya tester, krav var 15+), 0 regressioner
+- **Diff-storlek:** 6 filer, 460 insertions, 23 deletions — rent scope, LOW-MEDIUM risk
+- **BLOCKED:** 0 policy-blockeringar rapporterade under körningen
+- **Recovery:** T2-regress löst via git restore + Node.js-patchskript — ingen extra Implementer-delegation behövdes
+
+---
+
+## Körning 20260325-1613-neuron-hq — neuron-hq
+**Datum:** 2026-03-25
+**Uppgift:** Code Anchor-härdning: lägga till bash-policycheck (readonly allowlist + forbidden patterns) och ackumulera text-svar istället för att skriva över dem, plus parallell tool-exekvering och AGENT_ROLES-registrering.
+**Resultat:** ✅ 13 av 14 AC klara (AC11 delvis — integration test saknas) — Alla blockerande acceptanskriterier uppfyllda, 3949/3949 tester gröna, merge till main
+
+**Vad som fungerade:**
+Implementer levererade alla fyra förändringar i `code-anchor.ts` (READONLY_ALLOWLIST med 14 regex, FORBIDDEN_PATTERNS med 16 regex, statisk `checkReadonlyCommand()`-metod, ackumulerade text-svar via `allTextResponses[]`, parallell tool-exekvering med `Promise.all()`) samt AGENT_ROLES-tillägg i `model-registry.ts`. Testfilen `tests/agents/code-anchor.test.ts` fick 10 bash-policy-tester (AC1–AC9b), accumulated-responses-test (AC10) och model-registry-test (AC13). Reviewer verifierade alla 14 AC individuellt, Merger committade 4 filer rent utan policy-blockeringar.
+
+**Vad som inte fungerade:**
+AC11 (integration test för konversationsfilen med mock-Anthropic-klient) fick status PARTIAL — strukturkoden är korrekt men inget äkta mock-Anthropic-test skrevs. Reviewer bedömde detta som SUGGEST, inte BLOCK. Implementer skapade ett Python-hjälpskript (`scripts/patch_code_anchor.py`) som workaround för att infoga koden — samma återkommande anti-pattern. Grafstatus vid körningens start var 🔴 RED med 82.5% isolerade noder (1152 av 1396).
+
+**Lärdomar:**
+- Lightweight readonly-allowlist som statisk klass-property (utan `PolicyEnforcer` eller `RunContext`) är rätt mönster för standalone-agenter som behöver bash-validering utanför swärm-kontexten
+- Ackumulering av text-svar (`allTextResponses.push()` istället för `lastTextResponse =`) är det kritiska fixet för att bevara fullständiga verifieringsrapporter vid långa körningar (>6 iterationer)
+- Grafstatus: 🔴 RED — 82.5% isolerade noder, 282 saknar proveniens, 17 dubbletter. ⚡ Health-trigger: Consolidator bör köras.
+
+## Körningseffektivitet
+- **Pipeline-flöde:** Manager → Implementer (T1: bash-policy + accumulated responses) → Tester → Reviewer → Merger → Historian = 5 agentdelegationer utan re-delegation
+- **Testtillväxt:** Exakt 0 regression, från pre-existing 3949 tester — 10 nya bash-policy + 3 accumulated + 1 model-registry + 1 testfix = ~15 nya tester
+- **BLOCKED:** 1 policy-blockering (Implementer: conditional-bracket-test med `&&`) — kringgicks via Python-hjälpskript
+- **AC-status:** 13/14 gröna, 1 PARTIAL (AC11 integration test)
+
+---

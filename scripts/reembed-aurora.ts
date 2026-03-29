@@ -23,7 +23,7 @@ async function main() {
   }
 
   const provider = getEmbeddingProvider();
-  const MAX_EMBED_CHARS = 2000;
+  const MAX_EMBED_CHARS = 1500;
   let embedded = 0;
 
   for (const node of rows) {

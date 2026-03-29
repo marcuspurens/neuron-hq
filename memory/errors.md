@@ -243,7 +243,7 @@ Appendas av Historian-agenten när problem identifieras.
 **Symptom:** Två Python-hjälpskript (`scripts/add-task-plan-method.py`, `scripts/fix-emoji.py`) som Implementer skapade under arbetet inkluderades i Mergers commit (51d287d) och hamnade i target-repot. Merge_summary.md listar 6 filer — 4 avsedda + 2 oavsedda skript.
 **Orsak:** Manager delegerade inte ett cleanup-pass efter Implementer, trots att mönstret "Manager delegerar cleanup-pass" är etablerat och bekräftat i 3+ tidigare körningar (senast 20260228-2328). Reviewer inspekterade `scripts/`-katalogen men flaggade inte skripten som oönskade. Merger kopierade allt som skilde sig från target utan att filtrera.
 **Lösning:** (1) Manager bör inspektera workspace efter Implementer och delegera cleanup för temporära filer i scripts/, (2) Reviewer bör flagga filer i scripts/ som inte nämns i briefen, (3) Merger bör jämföra committade filer mot briefens filspecifikation
-**Status:** ✅ Löst — Merger filtrerar nu konsekvent hjälpskript vid merge. Bekräftat i 3 körningar: 20260301-0800, 20260301-0834, 20260301-1247. Merger använder `git diff --stat -- ':!scripts/'` för att exkludera scripts/-filer.
+**Status:** ⚠️ Återöppnad — Bekräftad regression i körning 20260325-1613-neuron-hq. Merger kopierade patch_code_anchor.py, fix_constructor_indent.py och fix_trailing_space.py till target (git add inkluderade scripts/). Filtreringsmönstret ':!scripts/' tillämpades inte. Grundproblemet kvarstår — Merger filtrerar inkonsekvent.
 **Keywords:** hjälpskript, scripts, cleanup, merger, target-förorening, quality-gate
 **Relaterat:** patterns.md#Manager delegerar cleanup-pass efter Implementer, errors.md#Implementer transform-skript blockeras av policy
 
@@ -330,5 +330,16 @@ _Historian-korrigering: Invariant INV-008 skrevs felaktigt till runs.md iställe
 **Status:** ✅ Löst — AC19 är funktionellt uppfyllt (loggning sker), bara incompleted (Reviewer-count saknas). Inte blockerande för denna körning. Kan adresseras i nästa körning via Reviewer-promptuppdatering.
 **Keywords:** logging, knowledge.md, reviewer, graph-context, AC19
 **Relaterat:** runs.md#Körning 20260320-1159-neuron-hq
+
+---
+
+## Implementer skriver om befintlig kod vid targeted-ändringsuppgift
+**Session:** 20260325-0715-neuron-hq
+**Symptom:** T2-Implementer fick i uppgift att göra 6 kirurgiska ändringar i `obsidian-export.ts`. Istället omstrukturerade den hela filen "för tydlighets skull", ändrade link-format och raderade `## Innehåll`-body-skrivning. Resulterade i 12 testmisslyckanden (AC4, AC5, AC6 bröts).
+**Orsak:** Implementer tolkar "förbättring" av kod som ett implicit tillstånd, även när briefen specificerar exakt vilka rader som ska ändras. Omskrivning ersätter beteendekorrekt kod med kod som "ser bättre ut" men bryter befintliga tester.
+**Lösning:** (1) Återställ filen till baseline via `git checkout <sha> -- <fil>`. (2) Applicera ENBART de specificerade ändringarna via ett deterministiskt skript (Node.js read-replace-write). (3) Kör tester som verifiering innan vidare delegering. Briefar bör inkludera: "Ändra ENBART följande rader. Skriv INTE om befintlig logik."
+**Status:** ⚠️ Identifierat
+**Keywords:** implementer, regression, rewrite, git-checkout, baseline, targeted-patch, obsidian
+**Relaterat:** patterns.md#Exakt feloutput + fixförslag i brief ger kirurgiska leveranser
 
 ---

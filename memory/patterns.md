@@ -2508,3 +2508,47 @@ Inga mönster sänkta — alla relevanta mönster bekräftades i denna körning.
 **Senast bekräftad:** 20260324-2114-neuron-hq
 
 ---
+
+## git-restore + deterministiskt patchskript vid Implementer-regression
+**Kontext:** Körning 20260325-0715-neuron-hq — T2-Implementer omstrukturerade `obsidian-export.ts` vid targeted-patch och bröt 12 tester
+**Lösning:** (1) `git checkout <baseline_sha> -- <fil>` återställer filen exakt till pre-change-state utan att röra andra filer. (2) Applicera de specificerade ändringarna via ett Node.js read-replace-write-skript (deterministic, inspectable). (3) Kör tester för att verifiera att ENBART de avsedda ändringarna landed. Alternativt: Manager applicerar själv de specificerade ändringarna via write_file-baserad patching.
+**Effekt:** Fullständig recovery utan att behöva en ny Implementer-delegation. Skriptbaserad applicering är snabbare än att instruera Implementer om igen, och ger ett transparent audit-trail av exakt vilka rader som ändrades.
+**Keywords:** regression, git-restore, baseline, patch-script, implementer, recovery, obsidian
+**Relaterat:** errors.md#Implementer skriver om befintlig kod vid targeted-ändringsuppgift, patterns.md#Exakt feloutput + fixförslag i brief ger kirurgiska leveranser
+**Körningar:** #20260325-0715-neuron-hq
+**Senast bekräftad:** 20260325-0715-neuron-hq
+
+---
+
+## Reviewer SUGGEST: regex-ankar för sektion-matchning i markdown
+**Kontext:** Körning 20260325-0715-neuron-hq — Reviewer flaggade att `extractContentSection()` använde `indexOf("## Innehåll")` som kunde ge falska positiver vid inline-förekomster
+**Lösning:** Byt från `indexOf()` till `/^## Innehåll[ \t]*$/m` regex med rad-start-ankar (`^`) och multiline-flagga (`m`). Trimma whitespace efter extraktion. Returnera `null` för tom sektion istället för tom sträng.
+**Effekt:** Eliminerar en klass av subtila markdown-parsning-buggar. `indexOf()` matchar var som helst i strängen (inklusive i löptext), medan `^##`-regex enbart matchar vid rad-start. Mönstret gäller all markdown-sektion-extraktion.
+**Keywords:** regex, markdown, section-extraction, indexOf, line-anchor, multiline, parser
+**Relaterat:** errors.md#Implementer skriver om befintlig kod vid targeted-ändringsuppgift
+**Körningar:** #20260325-0715-neuron-hq
+**Senast bekräftad:** 20260325-0715-neuron-hq
+
+---
+
+## Standalone bash-policycheck utan PolicyEnforcer
+**Kontext:** Körning 20260325-1613-neuron-hq — Code Anchor är en standalone-agent utan `RunContext` och behövde bash-validering utan att beroende av swärmens infrastruktur
+**Lösning:** Skapa en statisk privat klass-property `READONLY_ALLOWLIST: RegExp[]` och `FORBIDDEN_PATTERNS: RegExp[]` direkt på agentklassen, plus en statisk `checkReadonlyCommand(cmd: string): { allowed: boolean; reason?: string }`-metod. Kontrollera forbidden-patterns först, sedan allowlist. Returnera `"BLOCKED: <reason>"` om inte tillåtet.
+**Effekt:** Bash-validering utan `PolicyEnforcer` eller `RunContext` — inga sidoeffekter, deterministisk, lätt att testa. Mönstret speglar `policy.ts` rad 72-93 (forbidden → allowlist) utan att beroende av instansen.
+**Keywords:** bash-policy, standalone-agent, allowlist, readonly, code-anchor, static-method
+**Relaterat:** INV-006 (enbart Historian/Librarian har skriv-verktyg), policy/bash_allowlist.txt
+**Körningar:** #körning-20260325-1613
+**Senast bekräftad:** 20260325-1613-neuron-hq
+
+---
+
+## Ackumulera agent-loop text-svar istället för att skriva över
+**Kontext:** Körning 20260325-1613-neuron-hq — Code Anchors `runAgentLoop()` använde `lastTextResponse = ...` som skrev över vid varje iteration. Med 40 iterationer gick alla mellanliggande verifieringsfynd förlorade (S148: "1 turn/154 tecken sparades").
+**Lösning:** Byt `let lastTextResponse = ''` + `lastTextResponse = textBlocks...` mot `const allTextResponses: string[] = []` + `allTextResponses.push(textBlocks...)`. Returnera `allTextResponses.join('\n\n---\n\n')` som slutresultat.
+**Effekt:** Alla textblock från alla iterationer bevaras och sammanfogas i slutrapporten. Konversationsfilen blir komplett oavsett hur många iterationer agenten kör.
+**Keywords:** agent-loop, text-accumulation, output-preservation, code-anchor, runAgentLoop, iteration
+**Relaterat:** trimMessages i agent-utils.ts, code-anchor.ts rad 260-343
+**Körningar:** #körning-20260325-1613
+**Senast bekräftad:** 20260325-1613-neuron-hq
+
+---
