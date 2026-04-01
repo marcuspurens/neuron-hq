@@ -236,6 +236,36 @@ Obsidian vault: /Users/mpmac/Documents/Neuron Lab/
 
 ---
 
+### Session Log (2026-04-01 — Session 5)
+
+**OpenCode Session 5 — LLM metadata, Hermes MCP fix, Knowledge Architecture Plan**
+
+Key results:
+
+- `extractTags()` regex → `generateMetadata()` Gemma 3: tags + language + author + contentType + summary in one Ollama call
+- Obsidian frontmatter redesigned: typ/författare/publicerad/källa/språk/tags/tldr (user-facing, not debug fields)
+- Obsidian export: full text from chunks (was 500 char snippet), markdown formatting preserved (headings/bold/paragraphs)
+- Multi-scope MCP: `createMcpServer()` supports comma-separated scopes
+- Hermes MCP fixed: wrapper script `~/.hermes/aurora-mcp.sh` (tsx cwd bug), MEMORY.md reset (aurora-swarm-lab references)
+- E2e verified: Telegram → Hermes → `aurora_ingest_url` → Neuron HQ → embeddings + LLM tags → Obsidian
+- aurora-swarm-lab moved to `~/Documents/Arkiv/` (retired project)
+- Knowledge architecture analysis: Aurora vs HippoRAG vs A-MEM. Aurora has ~70% of both. Missing: PPR retrieval, memory evolution.
+- Plan written for next session: PPR-retrieval + memory evolution + morning briefing via Hermes
+
+10 commits: `6961f3b..e763718` (see handoff for full list)
+Tests: 3949/3949 green (1 pre-existing timeout in knowledge.test.ts)
+Aurora nodes: 86
+
+Full handoff: `docs/handoffs/HANDOFF-2026-04-01-opencode-session5-llm-metadata-hermes-mcp-plan.md`
+
+### Next session priorities
+
+1. **Morgonbriefing via Hermes** — 30 min config change, `aurora-insights` scope + cron
+2. **PPR-retrieval** — integrate `src/core/ppr.ts` into `searchAurora()`, see brief 3.2b
+3. **Memory evolution** — `evolveRelatedNodes()` in intake.ts after LLM metadata step
+
+---
+
 ### Session Log (2026-04-01 — Session 4)
 
 **OpenCode Session 4 — Hermes Agent + Telegram gateway + Aurora Obsidian improvements**
