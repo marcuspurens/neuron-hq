@@ -61,7 +61,7 @@ Nu har vi:
 
 ### Hur mår projektet?
 
-Bra. Seriöst bra, faktiskt. 🟢
+Bra. Seriöst bra, faktiskt.
 
 - 3949 tester som körs grönt
 - 183 körningar (de flesta gröna)
@@ -71,5 +71,57 @@ Bra. Seriöst bra, faktiskt. 🟢
 - Fas 2 (intelligens) pågår — 26 av 32 uppgifter klara
 
 Det närmaste att göra är att peka Neuron mot Aurora på riktigt, vilket är vad de kommande körningarna handlar om.
+
+---
+
+## 2026-04-01 (Session 5)
+
+### Vad hände idag?
+
+Stor session. Tre saker:
+
+**1. Indexering av webbartiklar funkar nu ordentligt**
+
+Du kan skicka en URL till Hermes i Telegram och den indexeras i Neuron HQ. Inte bara text — systemet förstår nu vad artikeln handlar om. Det använder Gemma 3 (en AI-modell som kör lokalt på din Mac) för att automatiskt lista ut:
+
+- Vem som skrev artikeln
+- Vilka ämnen den handlar om (tags)
+- Vilket språk den är på
+- Vilken typ av text det är (bloggpost, nyhetsartikel, etc.)
+- En kort sammanfattning (TL;DR)
+
+Testade med Matt Shumers AI-artikel. Systemet identifierade korrekt: Matt Shumer, engelska, bloggpost, tags som "ai", "automation", "cognitive work".
+
+**2. Obsidian ser äntligen snyggt ut**
+
+Förut visade Obsidian en massa intern debug-information (id-nummer, confidence-scores, export-datum) och bara 500 tecken av artikeltexten. Nu ser det ut som det ska:
+
+- Typ, författare, publicerad, källa, språk, tags, TL;DR
+- Full artikeltext med styckeindelning, rubriker och fetstil
+- Inga tomma rubriker eller onödiga sektioner
+
+**3. Hermes pratar med Neuron HQ**
+
+Det var krångligt att få igång MCP-kopplingen (tekniska problem med sökvägar), men nu funkar det. Du skickar en URL i Telegram → Hermes ber Neuron HQ indexera den → den dyker upp i Obsidian med all metadata.
+
+### Vad bestämdes?
+
+| Beslut                                                | Varför                                                                            |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------- |
+| "Aurora" behåller sitt namn som modul inuti Neuron HQ | Tydligare kod: Aurora = kunskapsgraf, Neuron HQ = hela systemet, Hermes = chatbot |
+| LLM-baserad tagging istället för enkel ordsökning     | Regex-tags var meningslösa. LLM förstår vad texten _handlar om_                   |
+| Tre dagböcker (du, utvecklare, AI-agenter)            | Olika läsare behöver olika saker. En för dig, en för kodare, en för AI            |
+
+### Vad är planen framöver?
+
+Tre steg som gör systemet levande istället för ett passivt arkiv:
+
+1. **Morgonbriefing via Telegram** (30 min) — Hermes skickar dig en sammanfattning kl 08:00 varje morgon: nya artiklar, kopplingar, kunskapsluckor. Du behöver inte öppna Obsidian.
+
+2. **Smartare sökning** (1 session) — Istället för att hitta _en_ artikel hittar systemet _hela sammanhanget_. "Vad vet jag om AI-kodning?" ger alla relaterade artiklar, klipp och anteckningar — klustrat.
+
+3. **Levande kunskapsgraf** (1 session) — När du lägger till en ny artikel uppdateras befintliga kunskaper automatiskt. "Aha, den här nya artikeln stärker det du redan visste om X."
+
+Det coola: _ingen annan_ har detta. HippoRAG (Stanford) och A-MEM (Rutgers) är de bästa forskningssystemen — men de saknar en proaktiv agent som Hermes. Ditt system kan faktiskt _berätta_ för dig vad det har lärt sig.
 
 ---

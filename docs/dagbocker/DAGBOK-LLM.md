@@ -2,9 +2,11 @@
 
 **Purpose:** Context injection for AI agents starting a new session. Read this first. Dense, parseable, no filler.
 
-**Who writes:** Active agent (Atlas/Claude) at end of each session. One entry per day minimum.
+**Who writes:** Active agent (Sisyphus/Atlas/Claude) at end of each session. One entry per day minimum.
 
 **Who reads:** Any LLM agent starting work on Neuron HQ. This is your orient step.
+
+**Three logbooks:** DAGBOK-MARCUS.md (project owner, Swedish prose), DAGBOK-DEV.md (senior fullstack developers, architecture + patterns), **DAGBOK-LLM.md** (this file, AI agents, dense/parseable). All three must be updated each session.
 
 **Historical record:** Sessions S1-S150 + runs #1-#183 → `docs/DAGBOK.md` (pre-2026-03-26). Session-level handoffs → `docs/handoffs/`. Architecture decisions → `docs/adr/`.
 
