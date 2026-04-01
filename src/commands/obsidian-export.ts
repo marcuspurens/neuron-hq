@@ -71,6 +71,9 @@ function formatFrontmatter(node: AuroraNode): string {
   const tags = Array.isArray(props.tags) ? (props.tags as string[]) : [];
   if (tags.length > 0) lines.push(`tags: [${tags.join(', ')}]`);
 
+  const summary = props.summary as string | undefined;
+  if (summary) lines.push(`tldr: "${summary.replace(/"/g, '\\"')}"`);
+
   lines.push('---');
   return lines.join('\n');
 }
