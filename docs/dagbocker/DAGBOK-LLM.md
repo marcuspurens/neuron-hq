@@ -198,6 +198,87 @@ Files changed this session:
 - `docs/ARKITEKTUR-AURORA-MARCUS-2026-03-29.md` — beslutsbakgrund (Swedish prose)
 - `docs/ARKITEKTUR-AURORA-DEV-2026-03-29.md` — onboarding för ny utvecklare
 
+### Session Log (2026-03-29 — Session 3)
+
+**OpenCode Session 3 — PDF-ingest + morning briefing verified**
+
+Key results:
+
+- PDF-ingest end-to-end: WORKING
+  - Created test PDF (130 words) via fpdf2
+  - `aurora:ingest /tmp/test-aurora-ingest.pdf` → pypdfium2 extraction → 1 chunk → embedding → 2 nodes in DB
+  - Document node `doc_6a6e5cb4e991` + chunk confirmed in PostgreSQL
+  - Garbled-text fallback to OCR path exists but not triggered (clean PDF)
+- Morning briefing: WORKING
+  - `morning-briefing --force` → `briefing-2026-03-29.md` generated in Obsidian vault
+  - 38 new nodes reported (22 transcript + 16 document)
+  - 5 stale sources listed, 3 AI-generated questions with `<!-- svar: -->` feedback slots
+  - File written to `/Users/mpmac/Documents/Neuron Lab/Briefings/`
+- Aurora-noder: 83 (was 81, +2 from test PDF)
+- No code changes this session — verification only
+
+Environment confirmed working:
+
+```
+PostgreSQL 17: running (/opt/homebrew/opt/postgresql@17/)
+Ollama: running (7 models incl. snowflake-arctic-embed, gemma3)
+Python worker: /opt/anaconda3/bin/python3 (pypdfium2 + trafilatura OK)
+Obsidian vault: /Users/mpmac/Documents/Neuron Lab/
+```
+
+**Remaining from handoff (for next session):**
+
+| #   | Action                                   | Priority | Notes                        |
+| --- | ---------------------------------------- | -------- | ---------------------------- |
+| 4   | Index real content (URLs, docs, YouTube) | High     | Marcus chooses material      |
+| —   | `crossref.ts` vs `cross-ref.ts` merge    | Low      | Tech debt                    |
+| —   | TD-1: loadAuroraGraph() full-graph load  | Low      | Memory optimization at scale |
+
+---
+
+### Session Log (2026-04-01 — Session 4)
+
+**OpenCode Session 4 — Hermes Agent + Telegram gateway + Aurora Obsidian improvements**
+
+Key results:
+
+- Baseline: 3 failing tests in `aurora-decay.test.ts` (from uncommitted changes, session 3 artifact) — fixed. 3949/3949 green.
+- Hermes Agent v0.5.0 installed (`~/.hermes/hermes-agent/`)
+- signal-cli 0.14.1 + Java 17.0.18 installed via Homebrew
+- Signal linking FAILED: `sgnl://`-URI not recognized by Signal iOS app (known upstream bug in signal-cli, protocol mismatch with latest Signal)
+- **Telegram gateway deployed instead:** `@hermesaurora_bot` created via BotFather, running as launchd service (`ai.hermes.gateway`)
+- Hermes → LiteLLM → Aurora MCP end-to-end verified: `aurora_status` returned 85 nodes, 74 edges, 97.6% embedding coverage
+- Marcus confirmed: chatted successfully with Hermes via Telegram
+- LiteLLM configured: `https://litellm.app.aurora.svt.se/v1`, model `claude-sonnet-4-6`, OPENAI_API_KEY set in `~/.hermes/.env`
+- `mcp` Python package installed in Hermes venv (was missing, caused `StdioServerParameters` error)
+- Security hardening: `chmod 600 ~/.hermes/config.yaml ~/.hermes/.env`, security context installed at `~/.hermes/context/security.md`
+- `gray-matter` npm package installed (was missing, blocked MCP server startup)
+- Aurora MCP scope `aurora-search` configured in `~/.hermes/config.yaml` as server `kb`
+- **obsidian-export**: chunk nodes now filtered from export (51→16 nodes), only parent articles/transcripts shown
+- **Tags**: `extractTags()` added to `src/aurora/intake.ts` — new ingested documents get auto-tags from domain/language/title keywords. Shown as `tags: [...]` in Obsidian frontmatter.
+- **Obsidian highlight plugin**: `aurora-highlight` community plugin created at `.obsidian/plugins/aurora-highlight/`. Cmd+P → "Spara markerad text till Aurora" → saves selection via `aurora:remember` CLI.
+
+Code changes:
+
+- `src/commands/obsidian-export.ts` — chunk filter (3 lines), tags in frontmatter (2 lines), subagent style reformatting
+- `src/aurora/intake.ts` — `extractTags()` function + call in docNode properties
+- `tests/commands/obsidian-export.test.ts` — updated chunk test to match new behavior
+- `tests/commands/aurora-decay.test.ts` — fixed 3 tests for new multi-query flow
+
+External config changes (NOT in repo):
+
+- `~/.hermes/config.yaml` — LiteLLM provider, model, Aurora MCP server `kb`
+- `~/.hermes/.env` — OPENAI_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_USERS
+- `~/.hermes/context/security.md` — LLM behavior rules
+- `/Users/mpmac/Documents/Neuron Lab/.obsidian/plugins/aurora-highlight/` — Obsidian plugin
+- `/Users/mpmac/Documents/Neuron Lab/.obsidian/community-plugins.json` — plugin registered
+
+Aurora nodes: 85 (unchanged — no new content ingested this session)
+
+Full handoff: `docs/handoffs/HANDOFF-2026-04-01-opencode-session4-hermes-telegram-aurora.md`
+
+---
+
 ### Orient Checklist (for new agent)
 
 Before touching any code, verify:
