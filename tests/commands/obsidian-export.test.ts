@@ -73,7 +73,6 @@ describe('obsidian-export', () => {
 
     expect(content).toContain('typ: document');
     // Should have text section
-    expect(content).toContain('## Innehåll');
     expect(content).toContain('Hello world content');
     // Should NOT have timeline sections
     expect(content).not.toContain('## Tidslinje');

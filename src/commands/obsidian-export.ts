@@ -394,44 +394,22 @@ export async function obsidianExportCommand(cmdOptions: {
         lines.push(`# ${node.title || node.id}`);
         lines.push('');
 
-        const summary = props.summary as string | undefined;
-        if (summary) {
-          lines.push(`> **TL;DR** ${summary}`);
-          lines.push('');
-        }
-
-        // Links section — outgoing
         const out = outgoingEdges.get(node.id) || [];
         const inc = incomingEdges.get(node.id) || [];
+        const visibleOut = out.filter((e) => !e.to_id.includes('_chunk_'));
+        const visibleInc = inc.filter((e) => !e.from_id.includes('_chunk_'));
 
-        if (out.length > 0 || inc.length > 0) {
+        if (visibleOut.length > 0 || visibleInc.length > 0) {
           lines.push('## Kopplingar');
           lines.push('');
-          for (const edge of out) {
+          for (const edge of visibleOut) {
             const targetName = filenameMap.get(edge.to_id);
-            if (targetName && !edge.to_id.includes('_chunk_')) {
-              lines.push(`- → \`${edge.type}\` [[${targetName}]]`);
-            }
+            if (targetName) lines.push(`- → \`${edge.type}\` [[${targetName}]]`);
           }
-          for (const edge of inc) {
+          for (const edge of visibleInc) {
             const sourceName = filenameMap.get(edge.from_id);
-            if (sourceName && !edge.from_id.includes('_chunk_')) {
-              lines.push(`- ← \`${edge.type}\` [[${sourceName}]]`);
-            }
+            if (sourceName) lines.push(`- ← \`${edge.type}\` [[${sourceName}]]`);
           }
-          lines.push('');
-        }
-
-        // Source URL
-        if (props.videoUrl) {
-          lines.push(`## Källa`);
-          lines.push('');
-          lines.push(`[${props.videoUrl}](${props.videoUrl})`);
-          lines.push('');
-        } else if (props.sourceUrl) {
-          lines.push(`## Källa`);
-          lines.push('');
-          lines.push(`[${props.sourceUrl}](${props.sourceUrl})`);
           lines.push('');
         }
 
@@ -446,8 +424,6 @@ export async function obsidianExportCommand(cmdOptions: {
           });
 
         if (chunkNodes.length > 0) {
-          lines.push('## Innehåll');
-          lines.push('');
           for (const chunk of chunkNodes) {
             const chunkText = chunk.properties.text as string | undefined;
             if (chunkText) lines.push(chunkText);
@@ -456,8 +432,6 @@ export async function obsidianExportCommand(cmdOptions: {
         } else {
           const text = props.text as string | undefined;
           if (text) {
-            lines.push('## Innehåll');
-            lines.push('');
             lines.push(text);
             lines.push('');
           }
