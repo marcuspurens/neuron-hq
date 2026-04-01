@@ -311,6 +311,56 @@ Full handoff: `docs/handoffs/HANDOFF-2026-04-01-opencode-session4-hermes-telegra
 
 ---
 
+## 2026-04-01 (session 6)
+
+### State
+
+```
+test_suite:     3963 passing (was 3949 — +15 new tests for PPR + evolution)
+aurora_nodes:   86 (unchanged this session — no new content ingested)
+pre-existing:   1 timeout in auto-cross-ref.test.ts (flaky, existed before)
+```
+
+### Changes
+
+**PPR-retrieval in searchAurora() (HippoRAG-inspired)**
+
+- `src/aurora/search.ts` — New Step 2: `expandViaPpr()` uses semantic top results as PPR seeds (weighted by similarity), runs `personalizedPageRank()` on bidirectional edges, adds graph-connected nodes with `source: 'ppr'`
+- `SearchOptions.usePpr` (default: true), `SearchOptions.pprLimit` (default: 5)
+- `SearchResult.source` gains `'ppr'` value
+- `tests/aurora/search.test.ts` — +10 tests (seeds, dedup, limit, type filter, bidirectional edges, graceful failure, enrichment)
+
+**Memory evolution at ingest (A-MEM-inspired)**
+
+- `src/aurora/intake.ts` — `evolveRelatedNodes()`: after LLM metadata, finds top-5 similar nodes (≥0.6 similarity, excluding chunks), updates their `relatedContext`, auto-resolves matching knowledge gaps via `resolveGap()`
+- `IngestResult.evolution: { nodesUpdated, gapsResolved }`, pipeline step 7 of 7
+- `tests/aurora/intake.test.ts` — +5 tests (relatedContext update, gap resolution, chunk skip, graceful failure, pipeline report)
+
+### Decisions
+
+| Decision                                | Why                                                                       |
+| --------------------------------------- | ------------------------------------------------------------------------- |
+| PPR before keyword fallback (not after) | PPR needs seed nodes — semantic results provide the best seeds            |
+| Bidirectional edges in PPR              | Aurora edges are typed/directed, but graph proximity should be symmetric  |
+| Seed weight = similarity score          | Higher-similarity hits deserve more PPR activation spread                 |
+| Chunk exclusion in evolution            | Only doc-level nodes get relatedContext — chunks are derived fragments    |
+| Gap matching via 50% word overlap       | Simple but sufficient heuristic — avoids false positives without LLM call |
+
+### Active Context
+
+- `src/aurora/search.ts` — PPR integrated, stable
+- `src/aurora/intake.ts` — evolution integrated, stable
+- Both features are graceful-failure: errors caught, logged, pipeline continues
+
+### Next Actions
+
+1. **Morning briefing via Hermes** (30 min, config only — outside repo)
+2. **Consolidator PPR** (brief 3.2b) — separate feature, not done here
+
+Full handoff: `docs/handoffs/HANDOFF-2026-04-01T2130-opencode-session6-ppr-search-memory-evolution.md`
+
+---
+
 ### Orient Checklist (for new agent)
 
 Before touching any code, verify:

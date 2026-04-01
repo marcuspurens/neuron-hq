@@ -9,9 +9,25 @@ Det här är din personliga projektdagbok. Inga kodsnuttar, inget fackspråk. Ba
 
 **Historik:** Allt som hände _innan_ 2026-03-26 finns i `docs/DAGBOK.md`. Den rör vi inte — det är historien. Vill du ha ännu mer detalj om en specifik session hittar du det i `docs/handoffs/`.
 
----
+## 2026-04-01 (kväll) — Sökningen blev smartare, kunskapsgrafen lär sig
 
-## Bakgrund — 150 sessioner med Opus
+Två saker som gör Aurora mer intelligent:
+
+**1. Smartare sökning (PPR)**
+
+Förut hittade sökningen bara artiklar som var semantiskt lika din fråga — ungefär som Google. Nu sprider sökningen ut sig genom hela kunskapsgrafen. Om du söker "AI-kodning" hittar den inte bara den ena artikeln som matchade, utan _allt relaterat_: YouTube-klipp om kodautomation, dina egna anteckningar, relaterade koncept. Den hittar sammanhanget, inte bara en enskild träff.
+
+**2. Kunskapsgrafen lär sig av varje ny artikel**
+
+Förut var det enkelriktat: du lägger till en artikel, den kopplas till befintliga saker, klart. Nu händer något mer: befintliga kunskaper _uppdateras_ när du lägger till nytt. "Aha, den här nya artikeln stärker det jag redan visste om X." Och om en ny artikel besvarar en kunskapslucka markeras den automatiskt som löst.
+
+Det är det som var punkt 2 och 3 i planen från förra sessionen — "smartare sökning" och "levande kunskapsgraf". Båda klara.
+
+### Vad återstår?
+
+Morgonbriefingen via Telegram (punkt 1 i planen). Det är bara konfiguration, ingen kodändring. Nästa session.
+
+---
 
 Sedan januari 2026 har du byggt Neuron HQ ihop med Claude Opus i VS Code. Det är ungefär två månader av intensivt arbete: 183 körningar, 3949 tester, 13 AI-agenttyper, och ett komplett kunskapsgrafsystem (Aurora) som kopplar ihop allt.
 

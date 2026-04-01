@@ -8,9 +8,52 @@
 
 **Historik:** S1–S150 + körningar #1–#183 → `docs/DAGBOK.md`. Handoffs → `docs/handoffs/`. ADR → `docs/adr/`.
 
----
+## 2026-04-01 (session 6) — PPR-retrieval + Memory Evolution
 
-## Kodbasstatistik (baseline 2026-03-26)
+### PPR-retrieval i `searchAurora()`
+
+Integrerade `personalizedPageRank()` från `src/core/ppr.ts` som tredje retrieval-steg i `src/aurora/search.ts`.
+
+**Pipeline:** Semantic search → **PPR expansion** → keyword fallback → graph traversal enrichment.
+
+Nyckeldesign:
+
+- `expandViaPpr()` tar semantiska topresultat som seeds (viktade efter similarity)
+- Kanter görs bidirektionella med `flatMap` (Aurora-kanter är riktade, PPR ska gå åt båda håll)
+- PPR-upptäckta noder läggs till med `source: 'ppr'`, `similarity: null`
+- Respekterar `type`/`scope`-filter, default `usePpr: true`, `pprLimit: 5`
+- Graceful failure: PPR-fel fångas, loggas, sökning fortsätter utan expansion
+
+### Memory Evolution i intake-pipeline
+
+`evolveRelatedNodes()` i `src/aurora/intake.ts` körs efter LLM-metadata, före final save.
+
+1. `findSimilarNodes(newNodeId, { table: 'aurora_nodes', limit: 5, minSimilarity: 0.6 })`
+2. Uppdaterar matchande doc-noder (ej chunks) med `relatedContext: ["Ny relaterad källa: {titel} — {summary}"]`
+3. Kollar öppna kunskapsluckor via ordöverlapp (50%+ av frågeord >3 tecken) → `resolveGap()`
+4. `IngestResult.evolution: { nodesUpdated, gapsResolved }`
+5. Pipeline steps_total: 6 → 7
+
+| Tid   | Typ     | Vad                                                                |
+| ----- | ------- | ------------------------------------------------------------------ |
+| 21:00 | SESSION | Session 6 start, baseline 3949/3949 (1 pre-existing timeout)       |
+| 21:05 | BESLUT  | PPR i searchAurora() (inte Consolidator) — user-facing värde först |
+| 21:15 | FIX     | PPR expansion som Step 2 i search pipeline                         |
+| 21:30 | TEST    | +10 PPR-tester (seeds, dedup, limit, type filter, graceful)        |
+| 21:40 | FIX     | evolveRelatedNodes() i intake.ts pipeline                          |
+| 21:45 | TEST    | +5 evolution-tester (relatedContext, gap resolve, chunk skip)      |
+| 21:50 | BUILD   | typecheck: clean, 3963/3964 (1 pre-existing timeout)               |
+
+### Baseline
+
+```
+typecheck: clean
+tests: 3963/3964 (1 pre-existing timeout: auto-cross-ref.test.ts)
+commit: 5dbd59a
+new tests: +15 (10 PPR + 5 evolution)
+```
+
+---
 
 | Metrik            | Värde                                                                                                                                                         |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
