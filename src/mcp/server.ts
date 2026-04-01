@@ -36,17 +36,11 @@ function wrapToolsWithNotification(server: McpServer): McpServer {
 
           const notes = completed
             .map((j) => {
-              const mins = j.videoDurationSec
-                ? Math.round(j.videoDurationSec / 60)
-                : '?';
-              const chunks =
-                (j.result as Record<string, unknown> | null)?.chunksCreated ?? '?';
-              const crossRefs =
-                (j.result as Record<string, unknown> | null)?.crossRefsCreated ?? 0;
+              const mins = j.videoDurationSec ? Math.round(j.videoDurationSec / 60) : '?';
+              const chunks = (j.result as Record<string, unknown> | null)?.chunksCreated ?? '?';
+              const crossRefs = (j.result as Record<string, unknown> | null)?.crossRefsCreated ?? 0;
               const ago = j.completedAt
-                ? Math.round(
-                    (Date.now() - new Date(j.completedAt).getTime()) / 60000,
-                  )
+                ? Math.round((Date.now() - new Date(j.completedAt).getTime()) / 60000)
                 : '?';
               return `\u2705 BTW: Video job "${j.videoTitle ?? 'Unknown'}" finished ${ago} min ago (${mins} min, ${chunks} chunks, ${crossRefs} cross-refs)`;
             })
@@ -59,7 +53,8 @@ function wrapToolsWithNotification(server: McpServer): McpServer {
             typed.content.unshift({ type: 'text', text: notes });
           }
         }
-      } catch {  /* intentional: best-effort server cleanup */
+      } catch {
+        /* intentional: best-effort server cleanup */
         // Notification check should never break the tool
       }
 
@@ -101,19 +96,29 @@ export function createMcpServer(scope?: string): McpServer {
       s.registerTools(server);
     }
   } else {
-    const selectedScope = SCOPES[scope];
-    if (!selectedScope) {
-      throw new Error(
-        `Unknown scope: "${scope}". Available scopes: ${Object.keys(SCOPES).join(', ')}`,
-      );
+    // Support comma-separated scopes: "aurora-search,aurora-memory"
+    const scopeNames = scope.split(',').map((s) => s.trim());
+
+    let needsNotification = false;
+    for (const name of scopeNames) {
+      const selectedScope = SCOPES[name];
+      if (!selectedScope) {
+        throw new Error(
+          `Unknown scope: "${name}". Available scopes: ${Object.keys(SCOPES).join(', ')}`
+        );
+      }
+      if (NOTIFICATION_SCOPES.has(name)) {
+        needsNotification = true;
+      }
     }
 
-    // Only apply notification wrapper for media/job-related scopes
-    if (NOTIFICATION_SCOPES.has(scope)) {
+    if (needsNotification) {
       wrapToolsWithNotification(server);
     }
 
-    selectedScope.registerTools(server);
+    for (const name of scopeNames) {
+      SCOPES[name]!.registerTools(server);
+    }
   }
 
   return server;
