@@ -24,6 +24,7 @@ def extract_url(url: str) -> dict:
         include_comments=False,
         include_tables=True,
         favor_recall=True,
+        output_format="markdown",
     )
     if not text:
         raise ValueError(f"Could not extract text from URL: {url}")
