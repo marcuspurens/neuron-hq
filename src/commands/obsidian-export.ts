@@ -3,10 +3,7 @@ import { writeFile, mkdir, rm, readFile, access, readdir } from 'fs/promises';
 import { join } from 'path';
 import { createLogger } from '../core/logger.js';
 import { getPool } from '../core/db.js';
-import {
-  buildSpeakerTimeline,
-  formatMs,
-} from '../aurora/speaker-timeline.js';
+import { buildSpeakerTimeline, formatMs } from '../aurora/speaker-timeline.js';
 import type { TimelineBlock } from '../aurora/speaker-timeline.js';
 
 const DEFAULT_VAULT = '/Users/mpmac/Documents/Neuron Lab';
@@ -73,24 +70,17 @@ function formatFrontmatter(node: AuroraNode): string {
   if (props.wordCount) lines.push(`words: ${props.wordCount}`);
 
   lines.push(`exported_at: "${new Date().toISOString()}"`);
+  const tags = Array.isArray(props.tags) ? (props.tags as string[]) : [];
+  if (tags.length > 0) lines.push(`tags: [${tags.join(', ')}]`);
   lines.push('---');
   return lines.join('\n');
 }
 
 /** Build frontmatter for video transcript with timeline speaker data. */
-function formatVideoFrontmatter(
-  node: AuroraNode,
-  speakers: Map<string, SpeakerInfo>,
-): string {
+function formatVideoFrontmatter(node: AuroraNode, speakers: Map<string, SpeakerInfo>): string {
   const props = node.properties || {};
-  const durationMs = typeof props.duration === 'number'
-    ? props.duration * 1000
-    : 0;
-  const lines = [
-    '---',
-    `id: ${node.id}`,
-    `type: transcript`,
-  ];
+  const durationMs = typeof props.duration === 'number' ? props.duration * 1000 : 0;
+  const lines = ['---', `id: ${node.id}`, `type: transcript`];
 
   if (props.platform) lines.push(`platform: ${props.platform}`);
   lines.push(`duration: "${formatMs(durationMs)}"`);
@@ -152,7 +142,7 @@ interface CommentAnnotation {
 function buildTimelineSectionWithAnnotations(
   blocks: TimelineBlock[],
   highlights: HighlightAnnotation[],
-  comments: CommentAnnotation[],
+  comments: CommentAnnotation[]
 ): string[] {
   // If no annotations, delegate to original
   if (highlights.length === 0 && comments.length === 0) {
@@ -245,15 +235,8 @@ function buildNodeFilenameMap(nodes: AuroraNode[]): Map<string, string> {
 }
 
 /** Collect voice_print nodes whose videoNodeId matches the transcript id. */
-function findVoicePrints(
-  nodes: AuroraNode[],
-  transcriptId: string,
-): AuroraNode[] {
-  return nodes.filter(
-    (n) =>
-      n.type === 'voice_print' &&
-      n.properties.videoNodeId === transcriptId,
-  );
+function findVoicePrints(nodes: AuroraNode[], transcriptId: string): AuroraNode[] {
+  return nodes.filter((n) => n.type === 'voice_print' && n.properties.videoNodeId === transcriptId);
 }
 
 /** Build speaker info map from voice_print nodes. */
@@ -276,10 +259,7 @@ function buildSpeakerMap(voicePrints: AuroraNode[]): Map<string, SpeakerInfo> {
 }
 
 /** Build IDs of chunk nodes that belong to a video transcript. */
-function buildVideoChunkIds(
-  nodes: AuroraNode[],
-  videoTranscriptIds: Set<string>,
-): Set<string> {
+function buildVideoChunkIds(nodes: AuroraNode[], videoTranscriptIds: Set<string>): Set<string> {
   const skipIds = new Set<string>();
   for (const node of nodes) {
     const chunkMatch = node.id.match(/^(.+)_chunk_\d+$/);
@@ -304,7 +284,7 @@ export async function obsidianExportCommand(cmdOptions: {
 
     // Fetch all nodes
     const nodesResult = await pool.query<AuroraNode>(
-      'SELECT id, title, type, scope, confidence, created, properties FROM aurora_nodes ORDER BY created',
+      'SELECT id, title, type, scope, confidence, created, properties FROM aurora_nodes ORDER BY created'
     );
     const nodes = nodesResult.rows;
 
@@ -315,7 +295,7 @@ export async function obsidianExportCommand(cmdOptions: {
 
     // Fetch all edges
     const edgesResult = await pool.query<AuroraEdge>(
-      'SELECT from_id, to_id, type FROM aurora_edges',
+      'SELECT from_id, to_id, type FROM aurora_edges'
     );
     const edges = edgesResult.rows;
 
@@ -346,8 +326,8 @@ export async function obsidianExportCommand(cmdOptions: {
 
     let written = 0;
     for (const node of nodes) {
-      // Skip chunk nodes for video transcripts
       if (skipChunkIds.has(node.id)) continue;
+      if (node.id.includes('_chunk_')) continue;
 
       const filename = filenameMap.get(node.id)!;
       const props = node.properties || {};
@@ -380,10 +360,7 @@ export async function obsidianExportCommand(cmdOptions: {
           text: string;
         }>;
 
-        const timelineBlocks = buildSpeakerTimeline(
-          rawSegments,
-          allDiarizationSegments,
-        );
+        const timelineBlocks = buildSpeakerTimeline(rawSegments, allDiarizationSegments);
 
         // Frontmatter
         lines.push(formatVideoFrontmatter(node, speakerMap));
@@ -433,13 +410,13 @@ export async function obsidianExportCommand(cmdOptions: {
           lines.push('');
           for (const edge of out) {
             const targetName = filenameMap.get(edge.to_id);
-            if (targetName) {
+            if (targetName && !edge.to_id.includes('_chunk_')) {
               lines.push(`- → \`${edge.type}\` [[${targetName}]]`);
             }
           }
           for (const edge of inc) {
             const sourceName = filenameMap.get(edge.from_id);
-            if (sourceName) {
+            if (sourceName && !edge.from_id.includes('_chunk_')) {
               lines.push(`- ← \`${edge.type}\` [[${sourceName}]]`);
             }
           }
@@ -487,6 +464,7 @@ export async function obsidianExportCommand(cmdOptions: {
     const exportedFilenames = new Set();
     for (const nd of nodes) {
       if (skipChunkIds.has(nd.id)) continue;
+      if (nd.id.includes('_chunk_')) continue;
       const fn = filenameMap.get(nd.id);
       if (fn) exportedFilenames.add(fn + '.md');
     }
@@ -500,16 +478,13 @@ export async function obsidianExportCommand(cmdOptions: {
 
     console.log(chalk.green(`  ✅ ${written} noder exporterade till ${nodesDir}/`));
     console.log(`  📊 ${edges.length} kopplingar som [[wiki-links]]`);
-    console.log(
-      `\n  Öppna Obsidian → "${vaultPath}" för att se grafvyn.\n`,
-    );
+    console.log(`\n  Öppna Obsidian → "${vaultPath}" för att se grafvyn.\n`);
     return { exported: written };
   } catch (err) {
     console.error(chalk.red(`\n  ❌ Error: ${err instanceof Error ? err.message : err}\n`));
     return { exported: 0 };
   }
 }
-
 
 /**
  * Export a run narrative to the Obsidian vault's Korningar/ folder.

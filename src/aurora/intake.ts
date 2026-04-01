@@ -26,6 +26,69 @@ import type { PipelineReport } from './pipeline-errors.js';
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:intake');
 
+function extractTags(title: string, metadata: Record<string, unknown>): string[] {
+  const tags = new Set<string>();
+  const sourceUrl = metadata.sourceUrl as string | undefined;
+  if (sourceUrl) {
+    try {
+      const domain = new URL(sourceUrl).hostname.replace(/^www\./, '');
+      tags.add(domain);
+    } catch (_) {}
+  }
+  if (metadata.language && metadata.language !== 'unknown') tags.add(String(metadata.language));
+  if (metadata.platform) tags.add(String(metadata.platform));
+  const stopwords = new Set([
+    'the',
+    'a',
+    'an',
+    'in',
+    'on',
+    'at',
+    'to',
+    'for',
+    'of',
+    'and',
+    'or',
+    'with',
+    'that',
+    'this',
+    'is',
+    'are',
+    'was',
+    'were',
+    'be',
+    'been',
+    'has',
+    'have',
+    'had',
+    'den',
+    'det',
+    'de',
+    'en',
+    'ett',
+    'på',
+    'för',
+    'och',
+    'som',
+    'är',
+    'med',
+    'av',
+    'till',
+    'om',
+    'från',
+    'vid',
+    'men',
+    'kan',
+    'har',
+    'när',
+  ]);
+  for (const word of title.toLowerCase().split(/\s+/)) {
+    const clean = word.replace(/[^a-zA-ZåäöÅÄÖ0-9]/g, '');
+    if (clean.length >= 4 && !stopwords.has(clean)) tags.add(clean);
+  }
+  return Array.from(tags).slice(0, 10);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
@@ -74,10 +137,7 @@ export interface IngestResult {
 /**
  * Ingest a URL: extract content, chunk, embed, and store as Aurora nodes.
  */
-export async function ingestUrl(
-  url: string,
-  options?: IngestOptions,
-): Promise<IngestResult> {
+export async function ingestUrl(url: string, options?: IngestOptions): Promise<IngestResult> {
   // Video URL detection — route to specialized video pipeline
   if (isVideoUrl(url)) {
     const result = await ingestVideo(url, {
@@ -86,7 +146,7 @@ export async function ingestUrl(
     });
     return {
       documentNodeId: result.transcriptNodeId,
-      chunkNodeIds: [],  // YouTube pipeline doesn't return chunk IDs in same format
+      chunkNodeIds: [], // YouTube pipeline doesn't return chunk IDs in same format
       title: result.title,
       wordCount: 0,
       chunkCount: result.chunksCreated,
@@ -106,7 +166,7 @@ export async function ingestUrl(
     result.text,
     url,
     result.metadata as Record<string, unknown>,
-    options ?? {},
+    options ?? {}
   );
 }
 
@@ -116,7 +176,7 @@ export async function ingestUrl(
  */
 export async function ingestDocument(
   filePath: string,
-  options?: IngestOptions,
+  options?: IngestOptions
 ): Promise<IngestResult> {
   const ext = extname(filePath).toLowerCase();
   let action: 'extract_text' | 'extract_pdf';
@@ -149,7 +209,7 @@ export async function ingestDocument(
     result.text,
     null,
     result.metadata as Record<string, unknown>,
-    options ?? {},
+    options ?? {}
   );
 }
 
@@ -166,7 +226,7 @@ export async function processExtractedText(
   text: string,
   sourceUrl: string | null,
   metadata: Record<string, unknown>,
-  options: IngestOptions,
+  options: IngestOptions
 ): Promise<IngestResult> {
   const pipelineStart = Date.now();
   const report: PipelineReport = {
@@ -189,12 +249,8 @@ export async function processExtractedText(
   const existingDoc = graph.nodes.find((n) => n.id === docId);
   if (existingDoc) {
     const prefix = `${docId}_chunk_`;
-    const existingChunkIds = graph.nodes
-      .filter((n) => n.id.startsWith(prefix))
-      .map((n) => n.id);
-    const wordCount =
-      (metadata.word_count as number | undefined) ??
-      text.split(/\s+/).length;
+    const existingChunkIds = graph.nodes.filter((n) => n.id.startsWith(prefix)).map((n) => n.id);
+    const wordCount = (metadata.word_count as number | undefined) ?? text.split(/\s+/).length;
     return {
       documentNodeId: docId,
       chunkNodeIds: existingChunkIds,
@@ -215,6 +271,7 @@ export async function processExtractedText(
     properties: {
       text: text.slice(0, 500),
       ...metadata,
+      tags: extractTags(title, metadata),
     },
     confidence: 0.5,
     scope: options.scope ?? 'personal',
@@ -268,9 +325,8 @@ export async function processExtractedText(
   report.details.chunk = {
     status: 'ok',
     chunks: totalChunks,
-    avg_words: totalChunks > 0
-      ? Math.round(chunks.reduce((s, c) => s + c.wordCount, 0) / totalChunks)
-      : 0,
+    avg_words:
+      totalChunks > 0 ? Math.round(chunks.reduce((s, c) => s + c.wordCount, 0) / totalChunks) : 0,
   };
   report.steps_completed++;
 
@@ -307,7 +363,7 @@ export async function processExtractedText(
           'enriches',
           match.similarity,
           { createdBy: 'auto-ingest', source: sourceUrl ?? 'file' },
-          'auto-ingest',
+          'auto-ingest'
         );
         crossRefsCreated++;
         crossRefMatches.push({
@@ -329,7 +385,8 @@ export async function processExtractedText(
               sourceUrl,
             },
           });
-        } catch {  /* intentional: JSON parse may fail */
+        } catch {
+          /* intentional: JSON parse may fail */
           // confidence update failure should not break ingest
         }
       }
@@ -357,9 +414,7 @@ export async function processExtractedText(
   await saveAuroraGraph(graph);
 
   // --- Return result ---
-  const wordCount =
-    (metadata.word_count as number | undefined) ??
-    text.split(/\s+/).length;
+  const wordCount = (metadata.word_count as number | undefined) ?? text.split(/\s+/).length;
   return {
     documentNodeId: docId,
     chunkNodeIds,
