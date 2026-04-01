@@ -73,7 +73,7 @@ async function generateMetadata(
 - "language": the language of the content (e.g. "english", "svenska", "deutsch"). Use the full language name.
 - "author": the author's full name if identifiable from the text, byline, or source URL, otherwise null.
 - "content_type": one of "webbartikel", "forskningsartikel", "bloggpost", "nyhetsartikel", "dokumentation", "transkript", "rapport", "annat".
-- "summary": 1-2 sentences summarizing what the document is about, in the same language as the content.
+- "summary": 1-2 sentences describing what this is about, written directly (NOT "this article discusses..." — just state the core idea), in the same language as the content.
 
 ${contextParts.join('\n')}
 

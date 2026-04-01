@@ -393,7 +393,7 @@ export async function obsidianExportCommand(cmdOptions: {
 
         const summary = props.summary as string | undefined;
         if (summary) {
-          lines.push(`> ${summary}`);
+          lines.push(`> **TL;DR** ${summary}`);
           lines.push('');
         }
 
