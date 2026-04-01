@@ -44,6 +44,16 @@ vi.mock('../../src/aurora/aurora-graph.js', async () => {
   };
 });
 
+const mockFindSimilarNodes = vi.fn();
+vi.mock('../../src/core/semantic-search.js', () => ({
+  findSimilarNodes: (...args: unknown[]) => mockFindSimilarNodes(...args),
+}));
+
+const mockResolveGap = vi.fn();
+vi.mock('../../src/aurora/knowledge-gaps.js', () => ({
+  resolveGap: (...args: unknown[]) => mockResolveGap(...args),
+}));
+
 // Prevent real DB connections
 vi.mock('../../src/core/db.js', () => ({
   getPool: vi.fn(),
@@ -88,6 +98,8 @@ beforeEach(() => {
   mockLoadAuroraGraph.mockResolvedValue(emptyGraph());
   mockSaveAuroraGraph.mockResolvedValue(undefined);
   mockAutoEmbedAuroraNodes.mockResolvedValue(undefined);
+  mockFindSimilarNodes.mockResolvedValue([]);
+  mockResolveGap.mockResolvedValue(undefined);
   mockFetch.mockResolvedValue({
     ok: true,
     json: () =>
@@ -492,5 +504,176 @@ describe('Pipeline report', () => {
     const docNode = savedGraph.nodes.find((n: { id: string }) => n.id.startsWith('doc_'));
     expect(docNode?.properties?.pipeline_report).toBeDefined();
     expect(docNode.properties.pipeline_report.details.extract?.status).toBe('ok');
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  Memory evolution                                                   */
+/* ------------------------------------------------------------------ */
+
+describe('memory evolution', () => {
+  it('updates relatedContext on similar nodes during ingest', async () => {
+    const existingNode = {
+      id: 'existing-1',
+      type: 'document' as const,
+      title: 'Existing Doc',
+      properties: { text: 'Existing content' },
+      confidence: 0.8,
+      scope: 'personal' as const,
+      created: '2024-01-01T00:00:00.000Z',
+      updated: '2024-01-01T00:00:00.000Z',
+    };
+    const graphWithExisting: AuroraGraph = {
+      nodes: [existingNode],
+      edges: [],
+      lastUpdated: '2024-01-01T00:00:00.000Z',
+    };
+    mockLoadAuroraGraph.mockResolvedValue(graphWithExisting);
+    mockRunWorker.mockResolvedValue({
+      ok: true,
+      title: 'New Article',
+      text: SAMPLE_TEXT,
+      metadata: SAMPLE_METADATA,
+    });
+    mockFindSimilarNodes.mockResolvedValue([
+      {
+        id: 'existing-1',
+        title: 'Existing Doc',
+        type: 'document',
+        similarity: 0.75,
+        confidence: 0.8,
+        scope: 'personal',
+      },
+    ]);
+
+    const result = await ingestUrl('https://example.com/new');
+
+    expect(result.evolution).toBeDefined();
+    expect(result.evolution!.nodesUpdated).toBe(1);
+
+    const lastSavedGraph = mockSaveAuroraGraph.mock.calls.at(-1)?.[0] as AuroraGraph;
+    const updatedNode = lastSavedGraph.nodes.find((n) => n.id === 'existing-1');
+    expect(updatedNode).toBeDefined();
+    const ctx = updatedNode!.properties.relatedContext as string[];
+    expect(ctx).toBeDefined();
+    expect(ctx.length).toBe(1);
+    expect(ctx[0]).toContain('New Article');
+  });
+
+  it('resolves matching knowledge gaps', async () => {
+    const gapNode = {
+      id: 'gap-1',
+      type: 'research' as const,
+      title: 'What is quantum computing used for?',
+      properties: { gapType: 'unanswered', text: '' },
+      confidence: 0.5,
+      scope: 'personal' as const,
+      created: '2024-01-01T00:00:00.000Z',
+      updated: '2024-01-01T00:00:00.000Z',
+    };
+    const graphWithGap: AuroraGraph = {
+      nodes: [gapNode],
+      edges: [],
+      lastUpdated: '2024-01-01T00:00:00.000Z',
+    };
+    mockLoadAuroraGraph.mockResolvedValue(graphWithGap);
+    mockRunWorker.mockResolvedValue({
+      ok: true,
+      title: 'Quantum Computing Applications',
+      text: 'Quantum computing is used for cryptography and optimization.',
+      metadata: { source_type: 'url', word_count: 8 },
+    });
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          message: {
+            role: 'assistant',
+            content:
+              '{"tags": ["quantum"], "language": "english", "author": null, "content_type": "bloggpost", "summary": "Quantum computing is used for cryptography and optimization."}',
+          },
+          done: true,
+        }),
+    } as unknown as Response);
+
+    const result = await ingestUrl('https://example.com/quantum');
+
+    expect(result.evolution).toBeDefined();
+    expect(result.evolution!.gapsResolved).toBe(1);
+    expect(mockResolveGap).toHaveBeenCalledWith(
+      'gap-1',
+      expect.objectContaining({
+        researchedBy: 'memory-evolution',
+      })
+    );
+  });
+
+  it('skips chunk nodes for relatedContext updates', async () => {
+    const chunkNode = {
+      id: 'chunk-1',
+      type: 'document',
+      title: 'Chunk [1/3]',
+      properties: { text: 'chunk text', chunkIndex: 0 },
+      confidence: 0.5,
+      scope: 'personal',
+      created: '2024-01-01T00:00:00.000Z',
+      updated: '2024-01-01T00:00:00.000Z',
+    };
+    mockLoadAuroraGraph.mockResolvedValue({
+      nodes: [chunkNode],
+      edges: [],
+      lastUpdated: '2024-01-01T00:00:00.000Z',
+    });
+    mockRunWorker.mockResolvedValue({
+      ok: true,
+      title: 'New Doc',
+      text: SAMPLE_TEXT,
+      metadata: SAMPLE_METADATA,
+    });
+    mockFindSimilarNodes.mockResolvedValue([
+      {
+        id: 'chunk-1',
+        title: 'Chunk [1/3]',
+        type: 'document',
+        similarity: 0.8,
+        confidence: 0.5,
+        scope: 'personal',
+      },
+    ]);
+
+    const result = await ingestUrl('https://example.com/skip-chunks');
+
+    expect(result.evolution!.nodesUpdated).toBe(0);
+  });
+
+  it('continues gracefully when findSimilarNodes fails', async () => {
+    mockRunWorker.mockResolvedValue({
+      ok: true,
+      title: 'Graceful Doc',
+      text: SAMPLE_TEXT,
+      metadata: SAMPLE_METADATA,
+    });
+    mockFindSimilarNodes.mockRejectedValue(new Error('DB unavailable'));
+
+    const result = await ingestUrl('https://example.com/graceful');
+
+    expect(result.evolution).toBeDefined();
+    expect(result.evolution!.nodesUpdated).toBe(0);
+    expect(result.evolution!.gapsResolved).toBe(0);
+  });
+
+  it('includes evolution in pipeline_report', async () => {
+    mockRunWorker.mockResolvedValue({
+      ok: true,
+      title: 'Report Test',
+      text: SAMPLE_TEXT,
+      metadata: SAMPLE_METADATA,
+    });
+
+    const result = await ingestUrl('https://example.com/report');
+
+    expect(result.pipeline_report).toBeDefined();
+    expect(result.pipeline_report!.details.evolution).toBeDefined();
+    expect(result.pipeline_report!.details.evolution?.status).toBe('ok');
   });
 });

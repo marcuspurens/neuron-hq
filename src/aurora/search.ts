@@ -1,14 +1,7 @@
 import { semanticSearch } from '../core/semantic-search.js';
-import {
-  loadAuroraGraph,
-  findAuroraNodes,
-  traverseAurora,
-} from './aurora-graph.js';
-import type {
-  AuroraGraph,
-  AuroraNodeType,
-  AuroraScope,
-} from './aurora-schema.js';
+import { loadAuroraGraph, findAuroraNodes, traverseAurora } from './aurora-graph.js';
+import { personalizedPageRank } from '../core/ppr.js';
+import type { AuroraGraph, AuroraNodeType, AuroraScope } from './aurora-schema.js';
 
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:search');
@@ -20,6 +13,8 @@ export interface SearchOptions {
   scope?: string; // Filter scope
   includeRelated?: boolean; // Default: true
   traversalDepth?: number; // Default: 1
+  usePpr?: boolean; // Default: true — expand results via PPR graph traversal
+  pprLimit?: number; // Default: 5 — max PPR-discovered nodes to add
 }
 
 export interface SearchResult {
@@ -30,7 +25,7 @@ export interface SearchResult {
   confidence: number;
   scope: string;
   text?: string; // From properties.text
-  source: 'semantic' | 'keyword' | 'traversal';
+  source: 'semantic' | 'keyword' | 'traversal' | 'ppr';
   related?: { id: string; title: string; edgeType: string }[];
 }
 
@@ -38,15 +33,9 @@ export interface SearchResult {
  * Find the edge type connecting two nodes in the graph.
  * Checks both directions (from→to and to→from).
  */
-function findEdgeType(
-  graph: AuroraGraph,
-  nodeIdA: string,
-  nodeIdB: string,
-): string | undefined {
+function findEdgeType(graph: AuroraGraph, nodeIdA: string, nodeIdB: string): string | undefined {
   const edge = graph.edges.find(
-    (e) =>
-      (e.from === nodeIdA && e.to === nodeIdB) ||
-      (e.from === nodeIdB && e.to === nodeIdA),
+    (e) => (e.from === nodeIdA && e.to === nodeIdB) || (e.from === nodeIdB && e.to === nodeIdA)
   );
   return edge?.type;
 }
@@ -59,7 +48,7 @@ function findEdgeType(
 function buildRelated(
   graph: AuroraGraph,
   nodeId: string,
-  depth: number,
+  depth: number
 ): { id: string; title: string; edgeType: string }[] {
   const traversed = traverseAurora(graph, nodeId, undefined, depth);
   return traversed.map((n) => ({
@@ -77,13 +66,11 @@ function buildRelated(
 function addParentDocuments(
   graph: AuroraGraph,
   nodeId: string,
-  related: { id: string; title: string; edgeType: string }[],
+  related: { id: string; title: string; edgeType: string }[]
 ): { id: string; title: string; edgeType: string }[] {
   const relatedIds = new Set(related.map((r) => r.id));
 
-  const parentEdges = graph.edges.filter(
-    (e) => e.from === nodeId && e.type === 'derived_from',
-  );
+  const parentEdges = graph.edges.filter((e) => e.from === nodeId && e.type === 'derived_from');
 
   for (const edge of parentEdges) {
     if (!relatedIds.has(edge.to)) {
@@ -111,6 +98,58 @@ function extractText(properties: Record<string, unknown>): string | undefined {
   return undefined;
 }
 
+function expandViaPpr(
+  graph: AuroraGraph,
+  seedResults: SearchResult[],
+  existingIds: Set<string>,
+  pprLimit: number,
+  typeFilter?: string,
+  scopeFilter?: string
+): SearchResult[] {
+  if (seedResults.length === 0 || graph.nodes.length < 2) return [];
+
+  const seeds = new Map<string, number>();
+  for (const r of seedResults) {
+    seeds.set(r.id, r.similarity ?? 0.5);
+  }
+
+  const nodeIds = graph.nodes.map((n) => n.id);
+  const edges = graph.edges.flatMap((e) => [
+    { from: e.from, to: e.to },
+    { from: e.to, to: e.from },
+  ]);
+
+  try {
+    const pprResults = personalizedPageRank(nodeIds, edges, seeds);
+
+    const expanded: SearchResult[] = [];
+    for (const pr of pprResults) {
+      if (existingIds.has(pr.nodeId)) continue;
+      if (expanded.length >= pprLimit) break;
+
+      const node = graph.nodes.find((n) => n.id === pr.nodeId);
+      if (!node) continue;
+      if (typeFilter && node.type !== typeFilter) continue;
+      if (scopeFilter && node.scope !== scopeFilter) continue;
+
+      expanded.push({
+        id: node.id,
+        title: node.title,
+        type: node.type,
+        similarity: null,
+        confidence: node.confidence,
+        scope: node.scope,
+        source: 'ppr',
+      });
+      existingIds.add(node.id);
+    }
+    return expanded;
+  } catch (err) {
+    logger.warn('[search] PPR expansion failed, skipping', { error: String(err) });
+    return [];
+  }
+}
+
 /**
  * Search Aurora knowledge graph with semantic search (preferred)
  * and keyword fallback. Optionally enriches results with related
@@ -118,7 +157,7 @@ function extractText(properties: Record<string, unknown>): string | undefined {
  */
 export async function searchAurora(
   query: string,
-  options?: SearchOptions,
+  options?: SearchOptions
 ): Promise<SearchResult[]> {
   const limit = options?.limit ?? 10;
   const minSimilarity = options?.minSimilarity ?? 0.3;
@@ -169,10 +208,23 @@ export async function searchAurora(
     }));
   }
 
+  // Step 2: PPR expansion — use semantic results as seeds, spread through graph
+  const usePpr = options?.usePpr ?? true;
+  const pprLimit = options?.pprLimit ?? 5;
+
+  if (usePpr && results.length > 0) {
+    cachedGraph = cachedGraph ?? (await loadAuroraGraph());
+    const existingIds = new Set(results.map((r) => r.id));
+    const pprExpanded = expandViaPpr(cachedGraph, results, existingIds, pprLimit, type, scope);
+    if (pprExpanded.length > 0) {
+      results.push(...pprExpanded);
+      logger.debug('[search] PPR expanded results', { added: pprExpanded.length });
+    }
+  }
+
   // Step 3: Enrich with related nodes via graph traversal
   if (includeRelated && results.length > 0) {
-    // Reuse graph from keyword search, or load once for enrichment
-    const graph = cachedGraph ?? await loadAuroraGraph();
+    const graph = cachedGraph ?? (await loadAuroraGraph());
 
     const resultIds = new Set(results.map((r) => r.id));
 

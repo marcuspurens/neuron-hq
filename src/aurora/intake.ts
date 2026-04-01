@@ -23,6 +23,10 @@ import { updateConfidence, classifySource } from './bayesian-confidence.js';
 import { PipelineError, wrapPipelineStep } from './pipeline-errors.js';
 import type { PipelineReport } from './pipeline-errors.js';
 
+import { findSimilarNodes } from '../core/semantic-search.js';
+import { resolveGap } from './knowledge-gaps.js';
+import type { AuroraGraph } from './aurora-schema.js';
+
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:intake');
 
@@ -152,6 +156,83 @@ Respond with ONLY a JSON object, nothing else. Example:
 }
 
 /* ------------------------------------------------------------------ */
+/*  Memory Evolution                                                   */
+/* ------------------------------------------------------------------ */
+
+export interface EvolutionResult {
+  nodesUpdated: number;
+  gapsResolved: number;
+}
+
+export async function evolveRelatedNodes(
+  graph: AuroraGraph,
+  newNodeId: string,
+  newTitle: string,
+  summary: string | null
+): Promise<{ graph: AuroraGraph; evolution: EvolutionResult }> {
+  const evolution: EvolutionResult = { nodesUpdated: 0, gapsResolved: 0 };
+
+  try {
+    const similar = await findSimilarNodes(newNodeId, {
+      table: 'aurora_nodes',
+      limit: 5,
+      minSimilarity: 0.6,
+    });
+
+    const contextEntry = summary
+      ? `Ny relaterad källa: ${newTitle} — ${summary}`
+      : `Ny relaterad källa: ${newTitle}`;
+
+    for (const match of similar) {
+      const node = graph.nodes.find((n) => n.id === match.id);
+      if (!node) continue;
+      if (node.id === newNodeId) continue;
+      if (node.properties.chunkIndex !== undefined) continue;
+
+      const existing = (node.properties.relatedContext as string[] | undefined) ?? [];
+      const updated = [...existing, contextEntry].slice(-10);
+
+      graph = updateAuroraNode(graph, node.id, {
+        properties: { ...node.properties, relatedContext: updated },
+      });
+      evolution.nodesUpdated++;
+    }
+
+    // Check if new node resolves any open knowledge gaps
+    const gapNodes = graph.nodes.filter(
+      (n) => n.type === 'research' && n.properties.gapType === 'unanswered'
+    );
+    for (const gap of gapNodes) {
+      const gapQuestion = gap.title.toLowerCase();
+      const titleLower = newTitle.toLowerCase();
+      const summaryLower = (summary ?? '').toLowerCase();
+
+      const questionWords = gapQuestion.split(/\s+/).filter((w) => w.length > 3);
+      const matchCount = questionWords.filter(
+        (w) => titleLower.includes(w) || summaryLower.includes(w)
+      ).length;
+
+      if (questionWords.length > 0 && matchCount / questionWords.length >= 0.5) {
+        try {
+          await resolveGap(gap.id, {
+            researchedBy: 'memory-evolution',
+            urlsIngested: [newNodeId],
+            factsLearned: 1,
+          });
+          evolution.gapsResolved++;
+        } catch {
+          // Gap resolution failure is non-fatal
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn('[intake] Memory evolution failed, skipping', { error: String(err) });
+  }
+
+  return { graph, evolution };
+}
+
+/* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
@@ -188,6 +269,8 @@ export interface IngestResult {
     similarity: number;
     relationship: string;
   }>;
+  /** Memory evolution stats: how many related nodes were updated. */
+  evolution?: EvolutionResult;
   /** Pipeline execution report with per-step status and metadata. */
   pipeline_report?: PipelineReport;
 }
@@ -293,7 +376,7 @@ export async function processExtractedText(
   const pipelineStart = Date.now();
   const report: PipelineReport = {
     steps_completed: 0,
-    steps_total: 6,
+    steps_total: 7,
     duration_seconds: 0,
     details: {},
   };
@@ -479,6 +562,23 @@ export async function processExtractedText(
     report.details.tags = { status: 'error', message: String(err) };
   }
 
+  // --- Memory evolution: update related nodes + resolve gaps ---
+  let evolution: EvolutionResult = { nodesUpdated: 0, gapsResolved: 0 };
+  try {
+    const summary = (docNode.properties.summary as string | undefined) ?? null;
+    const evoResult = await evolveRelatedNodes(graph, docId, title, summary);
+    graph = evoResult.graph;
+    evolution = evoResult.evolution;
+    report.details.evolution = {
+      status: 'ok',
+      nodesUpdated: evolution.nodesUpdated,
+      gapsResolved: evolution.gapsResolved,
+    };
+    report.steps_completed++;
+  } catch (err) {
+    report.details.evolution = { status: 'error', message: String(err) };
+  }
+
   // --- Save report ---
   report.details.save = { status: 'ok' };
   report.steps_completed++;
@@ -499,6 +599,7 @@ export async function processExtractedText(
     chunkCount: chunkNodeIds.length,
     crossRefsCreated,
     crossRefMatches,
+    evolution,
     pipeline_report: report,
   };
 }
