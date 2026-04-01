@@ -324,7 +324,9 @@ pnpm lint        # must be zero warnings on changed files
 Key files to read before implementing anything:
 
 - `AGENTS.md` — engineering protocol (mandatory)
+- `.claude/rules/*.md` — **ALL rules files** (naming conventions, handoff format, etc.) — MANDATORY, scan every file
 - `docs/dagbocker/DAGBOK-LLM.md` — THIS FILE, current state (mandatory)
+- `HANDOFF.md` — handoff index, naming convention: `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md`
 - `docs/ROADMAP.md` — current phase and task status
 - `docs/RAPPORT-KODANALYS-2026-03-26.md` — full codebase analysis
 - `memory/patterns.md` — proven patterns from previous runs
