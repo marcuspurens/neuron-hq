@@ -12,20 +12,35 @@ vi.mock('../../src/aurora/worker-bridge.js', () => ({
   runWorker: (...args: unknown[]) => mockRunWorker(...args),
 }));
 
+vi.mock('../../src/core/ollama.js', () => ({
+  ensureOllama: vi.fn().mockResolvedValue(true),
+  getOllamaUrl: vi.fn().mockReturnValue('http://localhost:11434'),
+}));
+
+vi.mock('../../src/core/config.js', () => ({
+  getConfig: vi.fn().mockReturnValue({
+    OLLAMA_MODEL_POLISH: 'gemma3',
+    OLLAMA_URL: 'http://localhost:11434',
+  }),
+}));
+
+const originalFetch = globalThis.fetch;
+const mockFetch = vi.fn();
+vi.stubGlobal('fetch', mockFetch);
+
 const mockLoadAuroraGraph = vi.fn();
 const mockSaveAuroraGraph = vi.fn();
 const mockAutoEmbedAuroraNodes = vi.fn();
 
 vi.mock('../../src/aurora/aurora-graph.js', async () => {
-  const actual = await vi.importActual<
-    typeof import('../../src/aurora/aurora-graph.js')
-  >('../../src/aurora/aurora-graph.js');
+  const actual = await vi.importActual<typeof import('../../src/aurora/aurora-graph.js')>(
+    '../../src/aurora/aurora-graph.js'
+  );
   return {
     ...actual,
     loadAuroraGraph: (...args: unknown[]) => mockLoadAuroraGraph(...args),
     saveAuroraGraph: (...args: unknown[]) => mockSaveAuroraGraph(...args),
-    autoEmbedAuroraNodes: (...args: unknown[]) =>
-      mockAutoEmbedAuroraNodes(...args),
+    autoEmbedAuroraNodes: (...args: unknown[]) => mockAutoEmbedAuroraNodes(...args),
   };
 });
 
@@ -56,7 +71,7 @@ function makeHash(text: string): string {
 function generateText(n: number): string {
   return Array.from(
     { length: n },
-    (_, i) => `Sentence ${i + 1} provides important content about the topic.`,
+    (_, i) => `Sentence ${i + 1} provides important content about the topic.`
   ).join(' ');
 }
 
@@ -73,15 +88,21 @@ beforeEach(() => {
   mockLoadAuroraGraph.mockResolvedValue(emptyGraph());
   mockSaveAuroraGraph.mockResolvedValue(undefined);
   mockAutoEmbedAuroraNodes.mockResolvedValue(undefined);
+  mockFetch.mockResolvedValue({
+    ok: true,
+    json: () =>
+      Promise.resolve({
+        message: { role: 'assistant', content: '["test-tag", "example"]' },
+        done: true,
+      }),
+  } as unknown as Response);
 });
 
 /* ------------------------------------------------------------------ */
 /*  Import after mocks are set up                                      */
 /* ------------------------------------------------------------------ */
 
-const { ingestUrl, ingestDocument } = await import(
-  '../../src/aurora/intake.js'
-);
+const { ingestUrl, ingestDocument } = await import('../../src/aurora/intake.js');
 
 /* ------------------------------------------------------------------ */
 /*  1. ingestUrl creates doc node + chunks + edges                     */
@@ -119,9 +140,7 @@ describe('ingestUrl', () => {
     const savedGraph = mockSaveAuroraGraph.mock.calls[0][0] as AuroraGraph;
 
     // Should have doc node + chunk nodes
-    const docNode = savedGraph.nodes.find(
-      (n) => n.id === result.documentNodeId,
-    );
+    const docNode = savedGraph.nodes.find((n) => n.id === result.documentNodeId);
     expect(docNode).toBeDefined();
     expect(docNode!.title).toBe(title);
     expect(docNode!.type).toBe('document');
@@ -133,9 +152,7 @@ describe('ingestUrl', () => {
     }
 
     // derived_from edges from each chunk to the doc
-    const derivedEdges = savedGraph.edges.filter(
-      (e) => e.type === 'derived_from',
-    );
+    const derivedEdges = savedGraph.edges.filter((e) => e.type === 'derived_from');
     expect(derivedEdges.length).toBe(result.chunkNodeIds.length);
     for (const edge of derivedEdges) {
       expect(edge.to).toBe(result.documentNodeId);
@@ -149,9 +166,7 @@ describe('ingestUrl', () => {
       error: 'Network timeout',
     });
 
-    await expect(ingestUrl('https://bad.example.com')).rejects.toThrow(
-      PipelineError,
-    );
+    await expect(ingestUrl('https://bad.example.com')).rejects.toThrow(PipelineError);
   });
 });
 
@@ -225,9 +240,7 @@ describe('ingestDocument', () => {
   });
 
   it('rejects unsupported file type', async () => {
-    await expect(ingestDocument('image.png')).rejects.toThrow(
-      'Unsupported file type',
-    );
+    await expect(ingestDocument('image.png')).rejects.toThrow('Unsupported file type');
   });
 
   it('throws on worker error', async () => {
@@ -236,9 +249,7 @@ describe('ingestDocument', () => {
       error: 'File not found',
     });
 
-    await expect(ingestDocument('missing.txt')).rejects.toThrow(
-      'File not found',
-    );
+    await expect(ingestDocument('missing.txt')).rejects.toThrow('File not found');
   });
 });
 
@@ -303,9 +314,7 @@ describe('options', () => {
     }
 
     // Double-check the doc node specifically
-    const docNode = savedGraph.nodes.find(
-      (n) => n.id === result.documentNodeId,
-    );
+    const docNode = savedGraph.nodes.find((n) => n.id === result.documentNodeId);
     expect(docNode?.scope).toBe('shared');
     expect(docNode?.type).toBe('research');
   });
@@ -347,9 +356,7 @@ describe('worker error handling', () => {
       error: 'Network timeout',
     });
 
-    await expect(
-      ingestUrl('https://example.com/fail'),
-    ).rejects.toThrow(PipelineError);
+    await expect(ingestUrl('https://example.com/fail')).rejects.toThrow(PipelineError);
   });
 
   it('ingestDocument throws with clear error message from worker', async () => {
@@ -358,9 +365,7 @@ describe('worker error handling', () => {
       error: 'PDF corrupted',
     });
 
-    await expect(ingestDocument('broken.pdf')).rejects.toThrow(
-      'PDF corrupted',
-    );
+    await expect(ingestDocument('broken.pdf')).rejects.toThrow('PDF corrupted');
   });
 });
 
@@ -371,10 +376,7 @@ describe('worker error handling', () => {
 describe('short text handling', () => {
   it('short text produces single chunk', async () => {
     // ~50 words — not enough for multiple chunks with default maxWords=200
-    const shortText = Array.from(
-      { length: 50 },
-      (_, i) => `word${i}`,
-    ).join(' ');
+    const shortText = Array.from({ length: 50 }, (_, i) => `word${i}`).join(' ');
 
     mockRunWorker.mockResolvedValue({
       ok: true,
@@ -407,9 +409,7 @@ describe('graph structure', () => {
     const result = await ingestDocument('summary.txt');
 
     const savedGraph = mockSaveAuroraGraph.mock.calls[0][0] as AuroraGraph;
-    const docNode = savedGraph.nodes.find(
-      (n) => n.id === result.documentNodeId,
-    );
+    const docNode = savedGraph.nodes.find((n) => n.id === result.documentNodeId);
     expect((docNode?.properties.text as string).length).toBe(500);
   });
 
@@ -424,9 +424,7 @@ describe('graph structure', () => {
     const result = await ingestUrl('https://example.com/source');
 
     const savedGraph = mockSaveAuroraGraph.mock.calls[0][0] as AuroraGraph;
-    const docNode = savedGraph.nodes.find(
-      (n) => n.id === result.documentNodeId,
-    );
+    const docNode = savedGraph.nodes.find((n) => n.id === result.documentNodeId);
     expect(docNode?.sourceUrl).toBe('https://example.com/source');
   });
 });

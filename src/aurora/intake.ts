@@ -26,67 +26,83 @@ import type { PipelineReport } from './pipeline-errors.js';
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:intake');
 
-function extractTags(title: string, metadata: Record<string, unknown>): string[] {
-  const tags = new Set<string>();
-  const sourceUrl = metadata.sourceUrl as string | undefined;
+interface OllamaTagResponse {
+  message: { role: string; content: string };
+  done: boolean;
+}
+
+async function generateTags(
+  title: string,
+  textSnippet: string,
+  sourceUrl: string | null,
+  crossRefTitles: string[]
+): Promise<string[]> {
+  const tags: string[] = [];
+
   if (sourceUrl) {
     try {
-      const domain = new URL(sourceUrl).hostname.replace(/^www\./, '');
-      tags.add(domain);
-    } catch (_) {}
+      tags.push(new URL(sourceUrl).hostname.replace(/^www\./, ''));
+    } catch {
+      /* invalid URL */
+    }
   }
-  if (metadata.language && metadata.language !== 'unknown') tags.add(String(metadata.language));
-  if (metadata.platform) tags.add(String(metadata.platform));
-  const stopwords = new Set([
-    'the',
-    'a',
-    'an',
-    'in',
-    'on',
-    'at',
-    'to',
-    'for',
-    'of',
-    'and',
-    'or',
-    'with',
-    'that',
-    'this',
-    'is',
-    'are',
-    'was',
-    'were',
-    'be',
-    'been',
-    'has',
-    'have',
-    'had',
-    'den',
-    'det',
-    'de',
-    'en',
-    'ett',
-    'på',
-    'för',
-    'och',
-    'som',
-    'är',
-    'med',
-    'av',
-    'till',
-    'om',
-    'från',
-    'vid',
-    'men',
-    'kan',
-    'har',
-    'när',
-  ]);
-  for (const word of title.toLowerCase().split(/\s+/)) {
-    const clean = word.replace(/[^a-zA-ZåäöÅÄÖ0-9]/g, '');
-    if (clean.length >= 4 && !stopwords.has(clean)) tags.add(clean);
+
+  const contextParts = [`Title: ${title}`, `Text (first 800 chars): ${textSnippet.slice(0, 800)}`];
+  if (sourceUrl) contextParts.push(`Source: ${sourceUrl}`);
+  if (crossRefTitles.length > 0) {
+    contextParts.push(`Related topics: ${crossRefTitles.join(', ')}`);
   }
-  return Array.from(tags).slice(0, 10);
+
+  const prompt = `Extract 5-10 keyword tags for this document. Tags should be lowercase, single words or short phrases (max 2 words), in the same language as the content. Focus on: key topics, people, organizations, locations, and domain.
+
+${contextParts.join('\n')}
+
+Respond with ONLY a JSON array of strings, nothing else. Example: ["energi", "vätgas", "göteborg", "powercell"]`;
+
+  try {
+    const { ensureOllama, getOllamaUrl } = await import('../core/ollama.js');
+    const { getConfig } = await import('../core/config.js');
+    const model = getConfig().OLLAMA_MODEL_POLISH;
+    await ensureOllama(model);
+
+    const resp = await fetch(`${getOllamaUrl()}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        stream: false,
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    if (!resp.ok) {
+      logger.warn('[intake] Ollama tag generation failed', { status: resp.status });
+      return tags;
+    }
+
+    const data = (await resp.json()) as OllamaTagResponse;
+    const content = data.message.content.trim();
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]) as unknown;
+      if (Array.isArray(parsed)) {
+        const llmTags = parsed
+          .filter((t): t is string => typeof t === 'string')
+          .map((t) => t.toLowerCase().trim())
+          .filter((t) => t.length >= 2 && t.length <= 40);
+        return [...new Set([...tags, ...llmTags])].slice(0, 15);
+      }
+    }
+
+    logger.warn('[intake] Could not parse LLM tags', { content: content.slice(0, 200) });
+  } catch (err) {
+    logger.warn('[intake] Tag generation error, using domain-only fallback', {
+      error: String(err),
+    });
+  }
+
+  return tags;
 }
 
 /* ------------------------------------------------------------------ */
@@ -231,7 +247,7 @@ export async function processExtractedText(
   const pipelineStart = Date.now();
   const report: PipelineReport = {
     steps_completed: 0,
-    steps_total: 5,
+    steps_total: 6,
     duration_seconds: 0,
     details: {},
   };
@@ -271,7 +287,7 @@ export async function processExtractedText(
     properties: {
       text: text.slice(0, 500),
       ...metadata,
-      tags: extractTags(title, metadata),
+      tags: [] as string[],
     },
     confidence: 0.5,
     scope: options.scope ?? 'personal',
@@ -402,12 +418,24 @@ export async function processExtractedText(
     // Postgres might not be available, or kg_nodes might be empty
   }
 
+  // --- LLM tag generation (after embeddings + cross-refs) ---
+  const crossRefTitles = crossRefMatches.map((m) => m.neuronTitle);
+  try {
+    const tags = await generateTags(title, text, sourceUrl, crossRefTitles);
+    if (tags.length > 0) {
+      docNode.properties.tags = tags;
+      graph = updateAuroraNode(graph, docId, { properties: docNode.properties });
+    }
+    report.details.tags = { status: 'ok', count: tags.length };
+  } catch (err) {
+    report.details.tags = { status: 'error', message: String(err) };
+  }
+
   // --- Save report ---
   report.details.save = { status: 'ok' };
   report.steps_completed++;
   report.duration_seconds = Math.round((Date.now() - pipelineStart) / 1000);
 
-  // Update doc node with pipeline report
   graph = updateAuroraNode(graph, docId, {
     properties: { ...docNode.properties, pipeline_report: report },
   });
