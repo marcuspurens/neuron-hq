@@ -92,7 +92,11 @@ beforeEach(() => {
     ok: true,
     json: () =>
       Promise.resolve({
-        message: { role: 'assistant', content: '["test-tag", "example"]' },
+        message: {
+          role: 'assistant',
+          content:
+            '{"tags": ["test-tag", "example"], "language": "english", "author": null, "content_type": "web article", "summary": "A test document."}',
+        },
         done: true,
       }),
   } as unknown as Response);

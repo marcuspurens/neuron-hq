@@ -50,28 +50,27 @@ export function isVideoTranscript(node: AuroraNode): boolean {
 
 function formatFrontmatter(node: AuroraNode): string {
   const props = node.properties || {};
-  const lines = [
-    '---',
-    `id: "${node.id}"`,
-    `type: ${node.type}`,
-    `scope: ${node.scope}`,
-    `confidence: ${node.confidence}`,
-    `created: ${node.created}`,
-  ];
+  const lines = ['---'];
 
-  if (props.platform) lines.push(`platform: ${props.platform}`);
-  if (props.videoUrl) lines.push(`url: "${props.videoUrl}"`);
-  if (props.videoId) lines.push(`videoId: ${props.videoId}`);
-  if (props.duration) lines.push(`duration: ${props.duration}`);
-  if (props.language) lines.push(`language: ${props.language}`);
-  if (props.publishedDate) lines.push(`published: ${props.publishedDate}`);
-  if (props.segmentCount) lines.push(`segments: ${props.segmentCount}`);
-  if (props.sourceUrl) lines.push(`url: "${props.sourceUrl}"`);
-  if (props.wordCount) lines.push(`words: ${props.wordCount}`);
+  const contentType = props.contentType as string | undefined;
+  lines.push(`typ: ${contentType ?? node.type}`);
 
-  lines.push(`exported_at: "${new Date().toISOString()}"`);
+  if (props.author) lines.push(`författare: "${props.author}"`);
+
+  if (props.publishedDate) lines.push(`publicerad: ${props.publishedDate}`);
+
+  const sourceUrl = props.videoUrl ?? props.sourceUrl;
+  if (sourceUrl) lines.push(`källa: "${sourceUrl}"`);
+
+  const language = props.language as string | undefined;
+  if (language && language !== 'unknown') lines.push(`språk: ${language}`);
+
+  if (props.platform) lines.push(`plattform: ${props.platform}`);
+  if (props.duration) lines.push(`längd: ${props.duration}`);
+
   const tags = Array.isArray(props.tags) ? (props.tags as string[]) : [];
   if (tags.length > 0) lines.push(`tags: [${tags.join(', ')}]`);
+
   lines.push('---');
   return lines.join('\n');
 }
@@ -389,17 +388,14 @@ export async function obsidianExportCommand(cmdOptions: {
         lines.push(formatFrontmatter(node));
         lines.push('');
 
-        // Title
         lines.push(`# ${node.title || node.id}`);
         lines.push('');
 
-        // Type badge
-        const badges: string[] = [`\`${node.type}\``];
-        if (props.platform) badges.push(`\`${props.platform}\``);
-        if (props.language) badges.push(`\`${props.language}\``);
-        badges.push(`confidence: ${node.confidence}`);
-        lines.push(badges.join(' · '));
-        lines.push('');
+        const summary = props.summary as string | undefined;
+        if (summary) {
+          lines.push(`> ${summary}`);
+          lines.push('');
+        }
 
         // Links section — outgoing
         const out = outgoingEdges.get(node.id) || [];
@@ -436,22 +432,32 @@ export async function obsidianExportCommand(cmdOptions: {
           lines.push('');
         }
 
-        // Text content (truncated for chunks — full for main nodes)
-        const text = props.text as string | undefined;
-        if (text) {
-          const isChunk = node.id.includes('_chunk_');
-          if (isChunk) {
-            lines.push('## Utdrag');
-            lines.push('');
-            // Show first 500 chars for chunks
-            const preview = text.length > 500 ? text.slice(0, 500) + '…' : text;
-            lines.push(preview);
-          } else {
+        // Text content — assemble full text from chunks for parent nodes
+        const chunkPrefix = `${node.id}_chunk_`;
+        const chunkNodes = nodes
+          .filter((n) => n.id.startsWith(chunkPrefix))
+          .sort((a, b) => {
+            const aIdx = (a.properties.chunkIndex as number) ?? 0;
+            const bIdx = (b.properties.chunkIndex as number) ?? 0;
+            return aIdx - bIdx;
+          });
+
+        if (chunkNodes.length > 0) {
+          lines.push('## Innehåll');
+          lines.push('');
+          for (const chunk of chunkNodes) {
+            const chunkText = chunk.properties.text as string | undefined;
+            if (chunkText) lines.push(chunkText);
+          }
+          lines.push('');
+        } else {
+          const text = props.text as string | undefined;
+          if (text) {
             lines.push('## Innehåll');
             lines.push('');
             lines.push(text);
+            lines.push('');
           }
-          lines.push('');
         }
       }
 

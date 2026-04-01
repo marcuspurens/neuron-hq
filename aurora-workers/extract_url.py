@@ -1,4 +1,5 @@
 """Extract main text content from a URL using trafilatura."""
+
 import trafilatura
 
 
@@ -31,15 +32,20 @@ def extract_url(url: str) -> dict:
     title = metadata.title if metadata and metadata.title else url
     language = metadata.language if metadata and metadata.language else "unknown"
     published_date = metadata.date if metadata and metadata.date else None
+    author = metadata.author if metadata and metadata.author else None
 
     words = text.split()
+    result_metadata = {
+        "source_type": "url",
+        "word_count": len(words),
+        "language": language,
+        "publishedDate": published_date,
+    }
+    if author:
+        result_metadata["author"] = author
+
     return {
         "title": title,
         "text": text,
-        "metadata": {
-            "source_type": "url",
-            "word_count": len(words),
-            "language": language,
-            "publishedDate": published_date,
-        },
+        "metadata": result_metadata,
     }

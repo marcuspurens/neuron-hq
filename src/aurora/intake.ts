@@ -26,38 +26,59 @@ import type { PipelineReport } from './pipeline-errors.js';
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:intake');
 
-interface OllamaTagResponse {
+interface OllamaChatResponse {
   message: { role: string; content: string };
   done: boolean;
 }
 
-async function generateTags(
+interface LlmMetadata {
+  tags: string[];
+  language: string | null;
+  author: string | null;
+  contentType: string | null;
+  summary: string | null;
+}
+
+function sampleText(text: string): string {
+  if (text.length <= 3000) return text;
+  const start = text.slice(0, 1000);
+  const mid = text.slice(Math.floor(text.length / 2) - 500, Math.floor(text.length / 2) + 500);
+  const end = text.slice(-1000);
+  return `${start}\n[...]\n${mid}\n[...]\n${end}`;
+}
+
+async function generateMetadata(
   title: string,
-  textSnippet: string,
+  text: string,
   sourceUrl: string | null,
-  crossRefTitles: string[]
-): Promise<string[]> {
-  const tags: string[] = [];
+  crossRefTitles: string[],
+  existingMetadata: Record<string, unknown>
+): Promise<LlmMetadata> {
+  const domainTag = sourceUrl
+    ? (() => {
+        try {
+          return new URL(sourceUrl).hostname.replace(/^www\./, '');
+        } catch {
+          return null;
+        }
+      })()
+    : null;
 
-  if (sourceUrl) {
-    try {
-      tags.push(new URL(sourceUrl).hostname.replace(/^www\./, ''));
-    } catch {
-      /* invalid URL */
-    }
-  }
-
-  const contextParts = [`Title: ${title}`, `Text (first 800 chars): ${textSnippet.slice(0, 800)}`];
+  const contextParts = [`Title: ${title}`, `Text:\n${sampleText(text)}`];
   if (sourceUrl) contextParts.push(`Source: ${sourceUrl}`);
-  if (crossRefTitles.length > 0) {
-    contextParts.push(`Related topics: ${crossRefTitles.join(', ')}`);
-  }
+  if (crossRefTitles.length > 0) contextParts.push(`Related topics: ${crossRefTitles.join(', ')}`);
 
-  const prompt = `Extract 5-10 keyword tags for this document. Tags should be lowercase, single words or short phrases (max 2 words), in the same language as the content. Focus on: key topics, people, organizations, locations, and domain.
+  const prompt = `Analyze this document and return a JSON object with these fields:
+- "tags": 5-10 keyword tags (lowercase, max 2 words each, in the content's language). Include the core subject matter, key concepts, named people/organizations, and activities described (e.g. if the text is about writing code, include "code" or "programming").
+- "language": the language of the content (e.g. "english", "svenska", "deutsch"). Use the full language name.
+- "author": the author's full name if identifiable from the text, byline, or source URL, otherwise null.
+- "content_type": one of "webbartikel", "forskningsartikel", "bloggpost", "nyhetsartikel", "dokumentation", "transkript", "rapport", "annat".
+- "summary": 1-2 sentences summarizing what the document is about, in the same language as the content.
 
 ${contextParts.join('\n')}
 
-Respond with ONLY a JSON array of strings, nothing else. Example: ["energi", "vätgas", "göteborg", "powercell"]`;
+Respond with ONLY a JSON object, nothing else. Example:
+{"tags": ["energi", "vätgas", "göteborg"], "language": "svenska", "author": "Anna Svensson", "content_type": "nyhetsartikel", "summary": "Artikeln handlar om Sveriges satsning på vätgas som energikälla."}`;
 
   try {
     const { ensureOllama, getOllamaUrl } = await import('../core/ollama.js');
@@ -73,36 +94,61 @@ Respond with ONLY a JSON array of strings, nothing else. Example: ["energi", "v�
         messages: [{ role: 'user', content: prompt }],
         stream: false,
       }),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(45_000),
     });
 
     if (!resp.ok) {
-      logger.warn('[intake] Ollama tag generation failed', { status: resp.status });
-      return tags;
+      logger.warn('[intake] Ollama metadata generation failed', { status: resp.status });
+      return {
+        tags: domainTag ? [domainTag] : [],
+        language: null,
+        author: null,
+        contentType: null,
+        summary: null,
+      };
     }
 
-    const data = (await resp.json()) as OllamaTagResponse;
+    const data = (await resp.json()) as OllamaChatResponse;
     const content = data.message.content.trim();
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]) as unknown;
-      if (Array.isArray(parsed)) {
-        const llmTags = parsed
-          .filter((t): t is string => typeof t === 'string')
-          .map((t) => t.toLowerCase().trim())
-          .filter((t) => t.length >= 2 && t.length <= 40);
-        return [...new Set([...tags, ...llmTags])].slice(0, 15);
-      }
+      const parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+
+      const rawTags = Array.isArray(parsed.tags) ? parsed.tags : [];
+      const llmTags = rawTags
+        .filter((t): t is string => typeof t === 'string')
+        .map((t) => t.toLowerCase().trim())
+        .filter((t) => t.length >= 2 && t.length <= 40);
+      const tags = [...new Set([...(domainTag ? [domainTag] : []), ...llmTags])].slice(0, 15);
+
+      const language = typeof parsed.language === 'string' ? parsed.language.toLowerCase() : null;
+      const author =
+        typeof parsed.author === 'string' && parsed.author !== 'null' ? parsed.author : null;
+      const contentType = typeof parsed.content_type === 'string' ? parsed.content_type : null;
+      const summary = typeof parsed.summary === 'string' ? parsed.summary : null;
+
+      return {
+        tags,
+        language:
+          existingMetadata.language !== 'unknown' ? String(existingMetadata.language) : language,
+        author: (existingMetadata.author as string | undefined) ?? author,
+        contentType,
+        summary,
+      };
     }
 
-    logger.warn('[intake] Could not parse LLM tags', { content: content.slice(0, 200) });
+    logger.warn('[intake] Could not parse LLM metadata', { content: content.slice(0, 200) });
   } catch (err) {
-    logger.warn('[intake] Tag generation error, using domain-only fallback', {
-      error: String(err),
-    });
+    logger.warn('[intake] Metadata generation error', { error: String(err) });
   }
 
-  return tags;
+  return {
+    tags: domainTag ? [domainTag] : [],
+    language: null,
+    author: null,
+    contentType: null,
+    summary: null,
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -418,15 +464,17 @@ export async function processExtractedText(
     // Postgres might not be available, or kg_nodes might be empty
   }
 
-  // --- LLM tag generation (after embeddings + cross-refs) ---
+  // --- LLM metadata enrichment (after embeddings + cross-refs) ---
   const crossRefTitles = crossRefMatches.map((m) => m.neuronTitle);
   try {
-    const tags = await generateTags(title, text, sourceUrl, crossRefTitles);
-    if (tags.length > 0) {
-      docNode.properties.tags = tags;
-      graph = updateAuroraNode(graph, docId, { properties: docNode.properties });
-    }
-    report.details.tags = { status: 'ok', count: tags.length };
+    const llm = await generateMetadata(title, text, sourceUrl, crossRefTitles, metadata);
+    if (llm.tags.length > 0) docNode.properties.tags = llm.tags;
+    if (llm.language) docNode.properties.language = llm.language;
+    if (llm.author) docNode.properties.author = llm.author;
+    if (llm.contentType) docNode.properties.contentType = llm.contentType;
+    if (llm.summary) docNode.properties.summary = llm.summary;
+    graph = updateAuroraNode(graph, docId, { properties: docNode.properties });
+    report.details.tags = { status: 'ok', count: llm.tags.length };
   } catch (err) {
     report.details.tags = { status: 'error', message: String(err) };
   }

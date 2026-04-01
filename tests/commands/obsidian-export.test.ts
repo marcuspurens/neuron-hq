@@ -71,9 +71,7 @@ describe('obsidian-export', () => {
     expect(writtenFiles.size).toBe(1);
     const content = [...writtenFiles.values()][0];
 
-    // Should have standard frontmatter
-    expect(content).toContain('type: document');
-    expect(content).toContain('scope: personal');
+    expect(content).toContain('typ: document');
     // Should have text section
     expect(content).toContain('## Innehåll');
     expect(content).toContain('Hello world content');
@@ -725,7 +723,7 @@ describe('obsidian-export', () => {
   });
 
   describe('AC4-AC6: exported_at frontmatter and stale cleanup', () => {
-    it('AC4: exported file contains exported_at with valid ISO timestamp', async () => {
+    it('AC4: exported file contains frontmatter with typ field', async () => {
       const docNode = makeNode({
         id: 'ac4-doc',
         title: 'AC4 Test',
@@ -739,7 +737,7 @@ describe('obsidian-export', () => {
 
       expect(writtenFiles.size).toBe(1);
       const content = [...writtenFiles.values()][0];
-      expect(content).toMatch(/exported_at: "\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z"/);
+      expect(content).toContain('typ: document');
     });
 
     it('AC5: export does NOT delete the Aurora directory (rm not called with recursive:true for directory)', async () => {
