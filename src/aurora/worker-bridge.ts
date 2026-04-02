@@ -18,7 +18,21 @@ const execFileAsync = promisify(execFile);
 /* ------------------------------------------------------------------ */
 
 export interface WorkerRequest {
-  action: 'extract_url' | 'extract_pdf' | 'extract_text' | 'extract_video' | 'extract_youtube' | 'transcribe_audio' | 'diarize_audio' | 'check_deps' | 'extract_ocr' | 'ocr_pdf' | 'batch_ocr' | 'extract_video_metadata';
+  action:
+    | 'extract_url'
+    | 'extract_pdf'
+    | 'extract_text'
+    | 'extract_video'
+    | 'extract_youtube'
+    | 'transcribe_audio'
+    | 'diarize_audio'
+    | 'check_deps'
+    | 'extract_ocr'
+    | 'ocr_pdf'
+    | 'batch_ocr'
+    | 'extract_video_metadata'
+    | 'render_pdf_page'
+    | 'get_pdf_page_count';
   source: string;
   /** Optional key-value options forwarded to the Python handler. */
   options?: Record<string, unknown>;
@@ -28,12 +42,7 @@ export interface WorkerResult {
   ok: true;
   title: string;
   text: string;
-  metadata: {
-    source_type: 'url' | 'pdf' | 'text';
-    word_count: number;
-    language?: string;
-    page_count?: number;
-  };
+  metadata: Record<string, unknown>;
 }
 
 export interface WorkerError {
@@ -60,16 +69,12 @@ export interface WorkerOptions {
  */
 export function runWorker(
   request: WorkerRequest,
-  options?: WorkerOptions,
+  options?: WorkerOptions
 ): Promise<WorkerResponse> {
   return new Promise((resolve, reject) => {
     const timeout = options?.timeout ?? 60_000;
-    const pythonPath =
-      options?.pythonPath ?? getConfig().AURORA_PYTHON_PATH;
-    const workersDir = resolvePath(
-      import.meta.dirname ?? '.',
-      '../../aurora-workers',
-    );
+    const pythonPath = options?.pythonPath ?? getConfig().AURORA_PYTHON_PATH;
+    const workersDir = resolvePath(import.meta.dirname ?? '.', '../../aurora-workers');
     const mainScript = resolvePath(workersDir, '__main__.py');
 
     const proc = spawn(pythonPath, [mainScript], {
@@ -101,7 +106,8 @@ export function runWorker(
       try {
         const result = JSON.parse(stdout.trim()) as WorkerResponse;
         resolve(result);
-      } catch {  /* intentional: parse may fail */
+      } catch {
+        /* intentional: parse may fail */
         reject(new Error(`Worker returned invalid JSON: ${stdout}`));
       }
     });
@@ -121,17 +127,10 @@ export function runWorker(
  * Quick check: can we reach the configured Python interpreter?
  * Returns true if `python3 -c 'print("ok")'` succeeds within 5 s.
  */
-export async function isWorkerAvailable(
-  pythonPath?: string,
-): Promise<boolean> {
-  const python =
-    pythonPath ?? getConfig().AURORA_PYTHON_PATH;
+export async function isWorkerAvailable(pythonPath?: string): Promise<boolean> {
+  const python = pythonPath ?? getConfig().AURORA_PYTHON_PATH;
   try {
-    const { stdout } = await execFileAsync(
-      python,
-      ['-c', 'print("ok")'],
-      { timeout: 5000 },
-    );
+    const { stdout } = await execFileAsync(python, ['-c', 'print("ok")'], { timeout: 5000 });
     return stdout.trim() === 'ok';
   } catch (err) {
     logger.error('[worker-bridge] worker bridge request failed', { error: String(err) });

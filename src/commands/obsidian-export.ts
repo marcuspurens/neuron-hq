@@ -15,6 +15,7 @@ interface AuroraNode {
   scope: string;
   confidence: number;
   created: string;
+  source_url?: string | null;
   properties: Record<string, unknown>;
 }
 
@@ -59,7 +60,7 @@ function formatFrontmatter(node: AuroraNode): string {
 
   if (props.publishedDate) lines.push(`publicerad: ${props.publishedDate}`);
 
-  const sourceUrl = props.videoUrl ?? props.sourceUrl;
+  const sourceUrl = props.videoUrl ?? props.sourceUrl ?? node.source_url;
   if (sourceUrl) lines.push(`källa: "${sourceUrl}"`);
 
   const language = props.language as string | undefined;
@@ -286,7 +287,7 @@ export async function obsidianExportCommand(cmdOptions: {
 
     // Fetch all nodes
     const nodesResult = await pool.query<AuroraNode>(
-      'SELECT id, title, type, scope, confidence, created, properties FROM aurora_nodes ORDER BY created'
+      'SELECT id, title, type, scope, confidence, created, source_url, properties FROM aurora_nodes ORDER BY created'
     );
     const nodes = nodesResult.rows;
 

@@ -8,6 +8,7 @@ import { stat, unlink } from 'fs/promises';
 import { getPool, closePool } from '../core/db.js';
 import { ingestVideo } from './video.js';
 import type { VideoIngestOptions, ProgressUpdate } from './video.js';
+import { ingestPdfRich } from './ocr.js';
 
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:job-worker');
@@ -22,10 +23,7 @@ if (!jobId) {
  * Clean up temporary files and record bytes cleaned in the DB.
  * Silently ignores files that don't exist or are already deleted.
  */
-async function cleanupTempFiles(
-  paths: string[],
-  pool: ReturnType<typeof getPool>,
-): Promise<void> {
+async function cleanupTempFiles(paths: string[], pool: ReturnType<typeof getPool>): Promise<void> {
   let bytesCleaned = 0;
   const tempPaths = paths.filter(Boolean);
   for (const p of tempPaths) {
@@ -33,17 +31,17 @@ async function cleanupTempFiles(
       const s = await stat(p);
       await unlink(p);
       bytesCleaned += s.size;
-    } catch {  /* intentional: jobs directory may not exist */
+    } catch {
+      /* intentional: jobs directory may not exist */
       // File may not exist or already deleted
     }
   }
   if (bytesCleaned > 0) {
     const mb = (bytesCleaned / (1024 * 1024)).toFixed(1);
     logger.error('Cleaned up temp files', { mb });
-    await pool.query(
-      'UPDATE aurora_jobs SET temp_bytes_cleaned = $2 WHERE id = $1',
-      [jobId, bytesCleaned],
-    ).catch(() => {});
+    await pool
+      .query('UPDATE aurora_jobs SET temp_bytes_cleaned = $2 WHERE id = $1', [jobId, bytesCleaned])
+      .catch(() => {});
   }
 }
 
@@ -63,52 +61,69 @@ async function run(): Promise<void> {
     const url = job.video_url as string;
 
     // Mark as running
-    await pool.query(
-      'UPDATE aurora_jobs SET status = $1, started_at = NOW() WHERE id = $2',
-      ['running', jobId],
-    );
+    await pool.query('UPDATE aurora_jobs SET status = $1, started_at = NOW() WHERE id = $2', [
+      'running',
+      jobId,
+    ]);
 
-    const options: VideoIngestOptions = {
-      diarize: (input.diarize as boolean) ?? true,
-      scope: (input.scope as VideoIngestOptions['scope']) ?? 'personal',
-      whisperModel: input.whisper_model as string | undefined,
-      language: input.language as string | undefined,
-    };
+    const jobType = (job.type as string) ?? 'video_ingest';
 
-    // Track real step timings via onProgress callback
     const realStepTimings: Record<string, number> = {};
     let lastStepName: string | null = null;
     let lastStepStart = Date.now();
 
-    const result = await ingestVideo(url, {
-      ...options,
-      onProgress: (update: ProgressUpdate) => {
-        // Track real step timing
-        if (lastStepName && update.step !== lastStepName) {
-          realStepTimings[`${lastStepName}_ms`] = Date.now() - lastStepStart;
-          lastStepStart = Date.now();
-        }
-        if (update.step !== lastStepName) {
-          lastStepName = update.step;
-        }
+    const trackProgress = (step: string, progress: number): void => {
+      if (lastStepName && step !== lastStepName) {
+        realStepTimings[`${lastStepName}_ms`] = Date.now() - lastStepStart;
+        lastStepStart = Date.now();
+      }
+      if (step !== lastStepName) {
+        lastStepName = step;
+      }
+      void pool
+        .query('UPDATE aurora_jobs SET step = $1, progress = $2 WHERE id = $3', [
+          step,
+          progress,
+          jobId,
+        ])
+        .catch(() => {});
+    };
 
-        // Fire-and-forget DB update
-        void pool.query(
-          'UPDATE aurora_jobs SET step = $1, progress = $2 WHERE id = $3',
-          [update.step, update.progress, jobId],
-        ).catch(() => {});
-      },
-    });
+    let result: Record<string, unknown>;
 
-    // Record final step timing
+    if (jobType === 'pdf_ingest') {
+      const filePath = (input.filePath as string) ?? url;
+      const pdfResult = await ingestPdfRich(
+        filePath,
+        {
+          language: input.language as string | undefined,
+          scope: (input.scope as 'personal' | 'shared' | 'project') ?? 'personal',
+        },
+        trackProgress
+      );
+      result = pdfResult as unknown as Record<string, unknown>;
+    } else {
+      const videoOptions: VideoIngestOptions = {
+        diarize: (input.diarize as boolean) ?? true,
+        scope: (input.scope as VideoIngestOptions['scope']) ?? 'personal',
+        whisperModel: input.whisper_model as string | undefined,
+        language: input.language as string | undefined,
+      };
+
+      const videoResult = await ingestVideo(url, {
+        ...videoOptions,
+        onProgress: (update: ProgressUpdate) => {
+          trackProgress(update.step, update.progress);
+        },
+      });
+      result = videoResult as unknown as Record<string, unknown>;
+      knownTempPaths = [videoResult.audioPath, videoResult.videoPath].filter(Boolean) as string[];
+    }
+
     if (lastStepName) {
       realStepTimings[`${lastStepName}_ms`] = Date.now() - lastStepStart;
     }
 
-    // Collect temp paths for cleanup
-    knownTempPaths = [result.audioPath, result.videoPath].filter(Boolean) as string[];
-
-    // Update job as done
     await pool.query(
       `UPDATE aurora_jobs SET
         status = 'done',
@@ -119,7 +134,12 @@ async function run(): Promise<void> {
         backend = $4,
         completed_at = NOW()
       WHERE id = $1`,
-      [jobId, JSON.stringify(result), JSON.stringify(realStepTimings), result.modelUsed ?? null],
+      [
+        jobId,
+        JSON.stringify(result),
+        JSON.stringify(realStepTimings),
+        (result as Record<string, unknown>).modelUsed ?? null,
+      ]
     );
 
     logger.error('Job completed successfully', { jobId });
@@ -133,7 +153,7 @@ async function run(): Promise<void> {
     await pool
       .query(
         `UPDATE aurora_jobs SET status = 'error', error = $2, completed_at = NOW() WHERE id = $1`,
-        [jobId, message],
+        [jobId, message]
       )
       .catch(() => {});
 
@@ -143,7 +163,7 @@ async function run(): Promise<void> {
     // Trigger next job in queue
     try {
       const { rows } = await pool.query(
-        `SELECT id FROM aurora_jobs WHERE status = 'queued' ORDER BY created_at ASC LIMIT 1`,
+        `SELECT id FROM aurora_jobs WHERE status = 'queued' ORDER BY created_at ASC LIMIT 1`
       );
       if (rows.length > 0) {
         // Import dynamically to avoid circular deps

@@ -8,6 +8,84 @@
 
 **Historik:** S1–S150 + körningar #1–#183 → `docs/DAGBOK.md`. Handoffs → `docs/handoffs/`. ADR → `docs/adr/`.
 
+## 2026-04-02 (session 7) — Hermes briefing + Media ingest pipeline + Hybrid PDF
+
+### Morgonbriefing via Hermes
+
+Config utanför repo (`~/.hermes/config.yaml`):
+
+- `aurora-insights` scope tillagt i MCP args → exponerar `aurora_morning_briefing`
+- Cron-jobb `morning_briefing` kl 08:00 → `telegram:8426706690`
+- `croniter` saknades i Hermes venv → installerat
+
+Briefing-pipeline: `aurora_morning_briefing` → SQL-query (nya noder, stale, gaps) → markdown → Obsidian-fil + Telegram.
+
+### Media ingest via Hermes (YT + PDF + bilder)
+
+Lade till `aurora-ingest-media` + `aurora-media` scopes i Hermes config → 8 nya MCP-tools (20 totalt):
+
+| Tool                                                          | Funktion                                          |
+| ------------------------------------------------------------- | ------------------------------------------------- |
+| `aurora_ingest_video`                                         | Async YT/video → transkript → chunks → embeddings |
+| `aurora_ingest_pdf`                                           | **NY** — Async PDF → OCR + vision → rich nodes    |
+| `aurora_ingest_image`                                         | OCR på bilder (PaddleOCR)                         |
+| `aurora_ingest_book`                                          | Batch-OCR folder → single doc                     |
+| `aurora_ocr_pdf`                                              | OCR fallback för broken font encoding             |
+| `aurora_describe_image`                                       | Vision-analys (qwen3-vl via Ollama)               |
+| `aurora_speakers` / `aurora_jobs` / `aurora_ebucore_metadata` | Talarhantering + jobbstatus                       |
+
+### Diarize fix
+
+pyannote.audio installerades i Anaconda-env. numpy-konflikt (2.4.4 vs 1.x) löstes med downgrade. `aurora-mcp.sh` PATH uppdaterad med `/opt/anaconda3/bin`.
+
+### PaddleOCR 3.x API-migrering
+
+`aurora-workers/ocr_pdf.py` uppdaterad: PaddleOCR 3.x använder `predict()` istället för `ocr()`, `PaddleOCR(lang='en')` istället för `PaddleOCR(use_angle_cls=True, lang='latin', show_log=False)`.
+
+### Hybrid PDF-pipeline (ny feature)
+
+`ingestPdfRich()` i `src/aurora/ocr.ts` — 6-stegs pipeline:
+
+1. `get_pdf_page_count` (ny Python worker action)
+2. `extract_pdf` (pypdfium2 text)
+3. `isTextGarbled()` → OCR fallback
+4. Per sida: `render_pdf_page` → temp PNG → `analyzeImage()` (qwen3-vl)
+5. Kombinera text + vision-beskrivningar: `[Page N]\n{text}\n[Visual content: {vision}]`
+6. `processExtractedText()` → Aurora-nod
+
+Asynkt via jobbkö: `startPdfIngestJob()` → `aurora_jobs` table → `job-worker.ts` (generaliserad — dispatchar `video_ingest` vs `pdf_ingest` baserat på `job.type`).
+
+### Obsidian käll-URL i frontmatter
+
+`src/commands/obsidian-export.ts` — `source_url` kolumn (DB) → `källa:` i frontmatter. Fallback-kedja: `props.videoUrl ?? props.sourceUrl ?? node.source_url`.
+
+| Tid   | Typ     | Vad                                                    |
+| ----- | ------- | ------------------------------------------------------ |
+| 06:00 | SESSION | Session 7 start                                        |
+| 06:10 | CONFIG  | `aurora-insights` scope + cron morning_briefing        |
+| 06:25 | FIX     | croniter install, gateway restart, manuellt test       |
+| 06:40 | FIX     | Obsidian käll-URL (source_url kolumn → frontmatter)    |
+| 06:50 | CONFIG  | `aurora-ingest-media` + `aurora-media` scopes i Hermes |
+| 07:00 | TEST    | YT-indexering E2E: "Me at the zoo" (19s) ✅            |
+| 07:05 | FIX     | pyannote install, numpy downgrade, MCP PATH fix        |
+| 07:08 | TEST    | YT med diarize: Gangnam Style → 4 talare, MPS GPU ✅   |
+| 07:15 | FIX     | PaddleOCR 3.x API-migrering i ocr_pdf.py               |
+| 07:30 | FEATURE | `ingestPdfRich()` — hybrid OCR + vision pipeline       |
+| 07:45 | FEATURE | `startPdfIngestJob()` + job-worker generalisering      |
+| 08:00 | FEATURE | `aurora_ingest_pdf` MCP tool + scope-registrering      |
+| 08:18 | BUILD   | typecheck clean, 16/16 OCR-tester, 11/11 worker-bridge |
+
+### Baseline
+
+```
+typecheck: clean
+tests: 3963+ passing (inga regressions)
+aurora nodes: ~90 (ingested "Me at the zoo" + "Gangnam Style")
+commits: uncommitted (session 7 changes)
+```
+
+---
+
 ## 2026-04-01 (session 6) — PPR-retrieval + Memory Evolution
 
 ### PPR-retrieval i `searchAurora()`

@@ -1,6 +1,6 @@
 # Neuron HQ - Handoff Index
 
-Senaste handoff: [HANDOFF-2026-04-01T2000-opencode-session5-llm-metadata-hermes-mcp-plan.md](docs/handoffs/HANDOFF-2026-04-01T2000-opencode-session5-llm-metadata-hermes-mcp-plan.md)
+Senaste handoff: [HANDOFF-2026-04-02T0830-opencode-session7-hermes-briefing-media-ingest-hybrid-pdf.md](docs/handoffs/HANDOFF-2026-04-02T0830-opencode-session7-hermes-briefing-media-ingest-hybrid-pdf.md)
 
 **Namnregel:** `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md` — se [.claude/rules/handoff-naming.md](.claude/rules/handoff-naming.md)
 
@@ -123,5 +123,7 @@ Senaste handoff: [HANDOFF-2026-04-01T2000-opencode-session5-llm-metadata-hermes-
 | 2026-04-01 | 12:00 | OC-3 | OpenCode session 3 | [länk](docs/handoffs/HANDOFF-2026-03-30-opencode-session3.md) |
 | 2026-04-01 | 17:00 | OC-4 | Hermes Telegram + Obsidian improvements | [länk](docs/handoffs/HANDOFF-2026-04-01-opencode-session4-hermes-telegram-aurora.md) |
 | 2026-04-01 | 20:00 | OC-5 | LLM metadata + Hermes MCP fix + PPR/evolution plan | [länk](docs/handoffs/HANDOFF-2026-04-01T2000-opencode-session5-llm-metadata-hermes-mcp-plan.md) |
+| 2026-04-01 | 21:30 | OC-6 | PPR-retrieval + Memory Evolution | [länk](docs/handoffs/HANDOFF-2026-04-01T2130-opencode-session6-ppr-search-memory-evolution.md) |
+| 2026-04-02 | 08:30 | OC-7 | Hermes briefing + Media ingest + Hybrid PDF | [länk](docs/handoffs/HANDOFF-2026-04-02T0830-opencode-session7-hermes-briefing-media-ingest-hybrid-pdf.md) |
 
 > **Not:** Session 1, 6, 79, 92 och 96-103, 106-116, 120-126, 146 saknas — handoffs skapades inte vid dessa tillfällen.

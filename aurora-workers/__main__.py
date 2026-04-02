@@ -1,4 +1,5 @@
 """Aurora workers — JSON stdin/stdout dispatcher."""
+
 import inspect
 import json
 import os
@@ -14,6 +15,7 @@ from extract_video import extract_video
 from transcribe_audio import transcribe_audio
 from diarize_audio import diarize_audio
 from check_deps import check_deps
+from ocr_pdf import render_pdf_page, get_pdf_page_count
 
 # Lazy imports for OCR — PaddleOCR has heavy dependencies (paddlepaddle,
 # numpy, pandas, sklearn) that may conflict with the base Anaconda env.
@@ -31,6 +33,7 @@ def _load_ocr():
     from extract_ocr import extract_ocr as _eo
     from ocr_pdf import ocr_pdf as _op
     from batch_ocr import batch_ocr as _bo
+
     _extract_ocr = _eo
     _ocr_pdf = _op
     _batch_ocr = _bo
@@ -56,10 +59,13 @@ def extract_video_metadata(source: str) -> dict:
     """Fetch video metadata without downloading using yt-dlp --dump-json --no-download."""
     import subprocess
     import json
+
     try:
         result = subprocess.run(
             ["yt-dlp", "--dump-json", "--no-download", source],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
     except FileNotFoundError:
         raise ValueError("yt-dlp is not installed or not in PATH")
@@ -95,6 +101,8 @@ HANDLERS: dict[str, callable] = {
     "extract_ocr": lazy_extract_ocr,
     "ocr_pdf": lazy_ocr_pdf,
     "batch_ocr": lazy_batch_ocr,
+    "render_pdf_page": render_pdf_page,
+    "get_pdf_page_count": get_pdf_page_count,
     "extract_video_metadata": extract_video_metadata,
 }
 

@@ -90,6 +90,44 @@ Det närmaste att göra är att peka Neuron mot Aurora på riktigt, vilket är v
 
 ---
 
+## 2026-04-02 (Session 7)
+
+### Vad hände idag?
+
+Idag gick systemet från "du kan indexera webbartiklar" till "du kan indexera typ allt" — YouTube-klipp, PDFer med tabeller och grafer, bilder. Och morgonbriefingen via Telegram är igång.
+
+**1. Morgonbriefing fungerar**
+
+Kl 08:00 varje morgon skickar Hermes en sammanfattning via Telegram: nya noder i kunskapsgrafen, stale-noder som behöver uppdateras, och tre frågor den vill att du svarar på. Du behöver inte öppna Obsidian — briefingen kommer till dig.
+
+**2. YouTube-klipp indexeras med talaridentifiering**
+
+Du kan skicka en YouTube-länk i Telegram. Hermes laddar ner videon, transkriberar den med Whisper, identifierar vilka som pratar (pyannote diarization med Apple GPU), chunkar, embeddar och kopplar ihop allt i kunskapsgrafen. Testat: Gangnam Style → 4 talare identifierade på 41 sekunder.
+
+**3. PDFer med tabeller och grafer**
+
+Inte bara text-PDFer — nu analyseras varje sida med en vision-modell (qwen3-vl) som kan _se_ tabeller, grafer och diagram och beskriva vad de visar. OCR-text + AI-förståelse av visuellt innehåll. Det är asynkt som video-ingest, så du får ett jobb-ID och kan kolla status medan det kör.
+
+**4. Obsidian visar nu käll-URL**
+
+Förut saknades URL:en i Obsidian-egenskaperna. Nu ligger den som "källa" i frontmatter.
+
+### Vad bestämdes?
+
+| Beslut                        | Varför                                                       |
+| ----------------------------- | ------------------------------------------------------------ |
+| Roadmapen behöver skrivas om  | Skrevs före Hermes/OpenCode/Telegram — mycket har förändrats |
+| Vision + OCR hybrid för PDFer | OCR ger text men förstår inte grafer — vision-modell behövs  |
+| Pyannote via Anaconda Python  | Beroenden krävde numpy <2, Homebrew Python 3.14 funkade inte |
+
+### Nästa steg
+
+1. Testa hybrid PDF-pipeline end-to-end (OCR + vision, kö → Aurora-nod)
+2. Testa morgonbriefing-leverans i Telegram kl 08:00
+3. Roadmap-omskrivning — inventera vad som fortfarande är relevant
+
+---
+
 ## 2026-04-01 (Session 5)
 
 ### Vad hände idag?

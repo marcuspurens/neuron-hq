@@ -311,6 +311,75 @@ Full handoff: `docs/handoffs/HANDOFF-2026-04-01-opencode-session4-hermes-telegra
 
 ---
 
+## 2026-04-02 (session 7)
+
+### State
+
+```
+test_suite:     3963+ passing (no regressions, 1 pre-existing timeout)
+aurora_nodes:   ~90 (ingested yt-jNQXAC9IVRw, yt-9bZkp7q19f0 this session)
+mcp_tools:      20 (was 16 — added 8 media tools, removed 4 overlap)
+hermes_scopes:  aurora-search,aurora-memory,aurora-ingest-text,aurora-insights,aurora-ingest-media,aurora-media
+cron_jobs:      morning_briefing @ 08:00 → telegram:8426706690
+python_env:     /opt/anaconda3/bin/python3 (pyannote.audio + PaddleOCR 3.4.0 + whisper)
+```
+
+### Changes
+
+**External config (NOT in repo):**
+
+- `~/.hermes/config.yaml` — added `aurora-insights,aurora-ingest-media,aurora-media` scopes + cron job
+- `~/.hermes/aurora-mcp.sh` — added `/opt/anaconda3/bin` to PATH (pyannote/PaddleOCR)
+- Hermes venv — installed `croniter`
+- Anaconda env — installed `pyannote.audio`, downgraded numpy to 1.26.4
+
+**Code changes:**
+
+| File                                 | Change                                                                       |
+| ------------------------------------ | ---------------------------------------------------------------------------- |
+| `src/commands/obsidian-export.ts`    | `source_url` column → `källa:` in frontmatter                                |
+| `src/aurora/ocr.ts`                  | New `ingestPdfRich()` — 6-step hybrid OCR+vision pipeline                    |
+| `src/aurora/job-runner.ts`           | New `startPdfIngestJob()` — async PDF job queue                              |
+| `src/aurora/job-worker.ts`           | Generalized — dispatches `video_ingest` vs `pdf_ingest` by `job.type`        |
+| `src/aurora/worker-bridge.ts`        | Added `render_pdf_page`, `get_pdf_page_count` actions; relaxed metadata type |
+| `src/mcp/tools/aurora-ingest-pdf.ts` | **NEW** — MCP tool for async PDF ingest                                      |
+| `src/mcp/scopes.ts`                  | Registered `aurora_ingest_pdf` in `aurora-ingest-media` scope                |
+| `aurora-workers/ocr_pdf.py`          | `render_pdf_page()`, `get_pdf_page_count()`, PaddleOCR 3.x API migration     |
+| `aurora-workers/__main__.py`         | Registered new Python handlers                                               |
+
+### Decisions
+
+| Decision                                             | Why                                                                               |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Hybrid OCR+vision per page (not just OCR)            | OCR extracts text but cannot understand tables/charts/diagrams                    |
+| Vision prompt returns TEXT_ONLY for plain text pages | Avoids wasting Ollama calls on pages with no visual content                       |
+| PDF ingest reuses existing job queue (not new table) | `aurora_jobs.type` discriminator + shared `processQueue()` is simpler             |
+| `job-worker.ts` dispatches by job.type               | One worker entry point, multiple job types — avoids fork() path complexity        |
+| numpy <2 in Anaconda                                 | pyannote.audio required numpy 2.x but pyarrow/sklearn/pandas compiled against 1.x |
+
+### Active Context
+
+- `src/aurora/ocr.ts` — `ingestPdfRich()` complete but NOT tested end-to-end (needs Ollama running + real PDF)
+- `aurora-workers/ocr_pdf.py` — PaddleOCR 3.x API migrated, tested manually (single page)
+- Telegram morning briefing — cron set, delivery format corrected, NOT verified at 08:00
+- Consolidator PPR (brief 3.2b) — already fully implemented (discovered this session)
+
+### Next Actions
+
+1. **Test hybrid PDF pipeline E2E** — queue a real PDF with tables/charts, verify vision descriptions in Aurora node
+2. **Verify morning briefing delivery** — check 08:00 Telegram delivery works
+3. **Roadmap rewrite** — current roadmap predates Hermes/OpenCode/Telegram, needs fresh inventory
+
+### Known Issues
+
+- Telegram delivery of cron results had connection errors (LiteLLM proxy); `telegram:8426706690` format is corrected
+- PaddleOCR model loading takes ~30s per process start; 16-page PDF OCR takes ~5 min
+- `aurora_jobs` table reuses `video_url` column for PDF file path (pragmatic but impure)
+
+Full handoff: `docs/handoffs/HANDOFF-2026-04-02T0830-opencode-session7-hermes-briefing-media-ingest-hybrid-pdf.md`
+
+---
+
 ## 2026-04-01 (session 6)
 
 ### State

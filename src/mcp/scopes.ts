@@ -18,10 +18,7 @@ import { registerAuroraLearnConversationTool } from './tools/aurora-learn-conver
 import { registerAuroraGapsTool } from './tools/aurora-gaps.js';
 
 /* ---- aurora-ingest-text ---- */
-import {
-  registerAuroraIngestUrlTool,
-  registerAuroraIngestDocTool,
-} from './tools/aurora-ingest.js';
+import { registerAuroraIngestUrlTool, registerAuroraIngestDocTool } from './tools/aurora-ingest.js';
 
 /* ---- aurora-ingest-media ---- */
 import { registerAuroraIngestVideoTool } from './tools/aurora-ingest-video.js';
@@ -29,6 +26,7 @@ import { registerAuroraIngestImageTool } from './tools/aurora-ingest-image.js';
 import { registerAuroraIngestBookTool } from './tools/aurora-ingest-book.js';
 import { registerAuroraOcrPdfTool } from './tools/aurora-ocr-pdf.js';
 import { registerAuroraDescribeImageTool } from './tools/aurora-describe-image.js';
+import { registerAuroraIngestPdfTool } from './tools/aurora-ingest-pdf.js';
 
 /* ---- aurora-media (consolidated speakers + jobs) ---- */
 import { registerAuroraSpeakersTool } from './tools/aurora-speakers.js';
@@ -109,8 +107,8 @@ export const SCOPES: Record<string, ServerScope> = {
         { topic: z.string().describe('Ämne att söka efter') },
         (args) =>
           userPrompt(
-            `Sök i Aurora efter "${args.topic}" med aurora_search, och ge mig sedan ett syntetiserat svar med aurora_ask. Inkludera källor och confidence-nivåer.`,
-          ),
+            `Sök i Aurora efter "${args.topic}" med aurora_search, och ge mig sedan ett syntetiserat svar med aurora_ask. Inkludera källor och confidence-nivåer.`
+          )
       );
 
       server.prompt(
@@ -119,16 +117,15 @@ export const SCOPES: Record<string, ServerScope> = {
         { topic: z.string().describe('Ämne att undersöka') },
         (args) =>
           userPrompt(
-            `Börja med att visa Aurora-status med aurora_status. Sök sedan efter "${args.topic}" med aurora_search och sammanfatta vad vi vet. Ange eventuella kunskapsluckor.`,
-          ),
+            `Börja med att visa Aurora-status med aurora_status. Sök sedan efter "${args.topic}" med aurora_search och sammanfatta vad vi vet. Ange eventuella kunskapsluckor.`
+          )
       );
     },
   },
 
   'aurora-insights': {
     name: 'aurora-insights',
-    description:
-      'Timeline analysis, daily briefings, and research suggestions from Aurora data.',
+    description: 'Timeline analysis, daily briefings, and research suggestions from Aurora data.',
     registerTools(server: McpServer): void {
       registerAuroraTimelineTool(server);
       registerAuroraBriefingTool(server);
@@ -141,8 +138,8 @@ export const SCOPES: Record<string, ServerScope> = {
         { topic: z.string().describe('Ämne för briefing') },
         (args) =>
           userPrompt(
-            `Skapa en tidslinje för "${args.topic}" med aurora_timeline, generera en briefing med aurora_briefing, och föreslå vidare forskning med aurora_suggest_research.`,
-          ),
+            `Skapa en tidslinje för "${args.topic}" med aurora_timeline, generera en briefing med aurora_briefing, och föreslå vidare forskning med aurora_suggest_research.`
+          )
       );
 
       server.prompt(
@@ -151,8 +148,8 @@ export const SCOPES: Record<string, ServerScope> = {
         { topic: z.string().describe('Ämne att analysera') },
         (args) =>
           userPrompt(
-            `Analysera kunskapsluckor kring "${args.topic}" och generera forskningsförslag med aurora_suggest_research. Inkludera prioritering och motivering.`,
-          ),
+            `Analysera kunskapsluckor kring "${args.topic}" och generera forskningsförslag med aurora_suggest_research. Inkludera prioritering och motivering.`
+          )
       );
     },
   },
@@ -172,8 +169,8 @@ export const SCOPES: Record<string, ServerScope> = {
         { topic: z.string().describe('Ämne att minnas') },
         (args) =>
           userPrompt(
-            `Hämta relevanta minnen om "${args.topic}" med aurora_memory (action: recall). Lista sedan eventuella kunskapsluckor med aurora_gaps.`,
-          ),
+            `Hämta relevanta minnen om "${args.topic}" med aurora_memory (action: recall). Lista sedan eventuella kunskapsluckor med aurora_gaps.`
+          )
       );
 
       server.prompt(
@@ -182,16 +179,15 @@ export const SCOPES: Record<string, ServerScope> = {
         { conversation: z.string().describe('Konversationstext att lära från') },
         (args) =>
           userPrompt(
-            `Extrahera fakta och preferenser från följande konversation och spara till minnet med aurora_learn_conversation:\n\n${args.conversation}`,
-          ),
+            `Extrahera fakta och preferenser från följande konversation och spara till minnet med aurora_learn_conversation:\n\n${args.conversation}`
+          )
       );
     },
   },
 
   'aurora-ingest-text': {
     name: 'aurora-ingest-text',
-    description:
-      'Ingest text content into Aurora — URLs and documents.',
+    description: 'Ingest text content into Aurora — URLs and documents.',
     registerTools(server: McpServer): void {
       registerAuroraIngestUrlTool(server);
       registerAuroraIngestDocTool(server);
@@ -202,22 +198,22 @@ export const SCOPES: Record<string, ServerScope> = {
         { url: z.string().describe('URL att indexera') },
         (args) =>
           userPrompt(
-            `Indexera innehållet från ${args.url} i Aurora med aurora_ingest_url. Visa vad som extraherades och bekräfta att det sparades korrekt.`,
-          ),
+            `Indexera innehållet från ${args.url} i Aurora med aurora_ingest_url. Visa vad som extraherades och bekräfta att det sparades korrekt.`
+          )
       );
     },
   },
 
   'aurora-ingest-media': {
     name: 'aurora-ingest-media',
-    description:
-      'Ingest rich media into Aurora — videos, images, books, and OCR for PDFs.',
+    description: 'Ingest rich media into Aurora — videos, images, books, and OCR for PDFs.',
     registerTools(server: McpServer): void {
       registerAuroraIngestVideoTool(server);
       registerAuroraIngestImageTool(server);
       registerAuroraIngestBookTool(server);
       registerAuroraOcrPdfTool(server);
       registerAuroraDescribeImageTool(server);
+      registerAuroraIngestPdfTool(server);
 
       server.prompt(
         'indexera-video',
@@ -225,8 +221,8 @@ export const SCOPES: Record<string, ServerScope> = {
         { url: z.string().describe('Video-URL att indexera') },
         (args) =>
           userPrompt(
-            `Köa ${args.url} för videoindexering med aurora_ingest_video. Förklara vad som kommer att hända: nedladdning, transkription, chunkning och korsreferering.`,
-          ),
+            `Köa ${args.url} för videoindexering med aurora_ingest_video. Förklara vad som kommer att hända: nedladdning, transkription, chunkning och korsreferering.`
+          )
       );
 
       server.prompt(
@@ -235,16 +231,15 @@ export const SCOPES: Record<string, ServerScope> = {
         { path: z.string().describe('Sökväg till bild(er)') },
         (args) =>
           userPrompt(
-            `Indexera bild(er) från ${args.path} med aurora_ingest_image. Använd OCR om tillämpligt och beskriv vad som extraherades.`,
-          ),
+            `Indexera bild(er) från ${args.path} med aurora_ingest_image. Använd OCR om tillämpligt och beskriv vad som extraherades.`
+          )
       );
     },
   },
 
   'aurora-media': {
     name: 'aurora-media',
-    description:
-      'Speaker management, job management, and EBUCore metadata for media assets.',
+    description: 'Speaker management, job management, and EBUCore metadata for media assets.',
     registerTools(server: McpServer): void {
       registerAuroraSpeakersTool(server);
       registerAuroraJobsConsolidatedTool(server);
@@ -255,25 +250,21 @@ export const SCOPES: Record<string, ServerScope> = {
         'Lista röstavtryck och föreslå matchningar mellan speakers',
         () =>
           userPrompt(
-            'Lista alla röstavtryck med aurora_speakers (action: list). Föreslå matchningar mellan speakers och visa vilka som behöver bekräftelse.',
-          ),
+            'Lista alla röstavtryck med aurora_speakers (action: list). Föreslå matchningar mellan speakers och visa vilka som behöver bekräftelse.'
+          )
       );
 
-      server.prompt(
-        'jobb-oversikt',
-        'Visa alla senaste jobb med status och statistik',
-        () =>
-          userPrompt(
-            'Visa alla senaste jobb med aurora_jobs (action: list). Inkludera status, statistik och eventuella färdiga notifikationer.',
-          ),
+      server.prompt('jobb-oversikt', 'Visa alla senaste jobb med status och statistik', () =>
+        userPrompt(
+          'Visa alla senaste jobb med aurora_jobs (action: list). Inkludera status, statistik och eventuella färdiga notifikationer.'
+        )
       );
     },
   },
 
   'aurora-library': {
     name: 'aurora-library',
-    description:
-      'Knowledge library browsing and knowledge-manager chain operations.',
+    description: 'Knowledge library browsing and knowledge-manager chain operations.',
     registerTools(server: McpServer): void {
       registerKnowledgeLibraryTool(server);
       registerKnowledgeManagerTool(server);
@@ -284,8 +275,8 @@ export const SCOPES: Record<string, ServerScope> = {
         { topic: z.string().describe('Ämne för artikeln') },
         (args) =>
           userPrompt(
-            `Syntetisera en ny artikel om "${args.topic}" från Aurora-kunskapsbasen med knowledge_manager (action: create). Basera på befintlig kunskap och ange källor.`,
-          ),
+            `Syntetisera en ny artikel om "${args.topic}" från Aurora-kunskapsbasen med knowledge_manager (action: create). Basera på befintlig kunskap och ange källor.`
+          )
       );
 
       server.prompt(
@@ -293,8 +284,8 @@ export const SCOPES: Record<string, ServerScope> = {
         'Lista alla artiklar med ontologi-statistik och föreslå sammanslagningar',
         () =>
           userPrompt(
-            'Lista alla artiklar med knowledge_library (action: list). Visa ontologi-statistik och föreslå eventuella konceptsammanslagningar.',
-          ),
+            'Lista alla artiklar med knowledge_library (action: list). Visa ontologi-statistik och föreslå eventuella konceptsammanslagningar.'
+          )
       );
     },
   },
@@ -314,8 +305,8 @@ export const SCOPES: Record<string, ServerScope> = {
         'Kör färskhetsrapport, kontrollera korsreferenser och visa låg-confidence-noder',
         () =>
           userPrompt(
-            'Kör en färskhetsrapport med aurora_freshness (action: report). Kontrollera korsreferensintegritet med aurora_cross_ref (action: check). Visa noder med låg confidence via aurora_confidence.',
-          ),
+            'Kör en färskhetsrapport med aurora_freshness (action: report). Kontrollera korsreferensintegritet med aurora_cross_ref (action: check). Visa noder med låg confidence via aurora_confidence.'
+          )
       );
 
       server.prompt(
@@ -324,16 +315,15 @@ export const SCOPES: Record<string, ServerScope> = {
         { topic: z.string().describe('Ämne att verifiera') },
         (args) =>
           userPrompt(
-            `Hitta källor om "${args.topic}" med aurora_freshness (action: check). Kontrollera deras färskhetsstatus och rapportera eventuella problem.`,
-          ),
+            `Hitta källor om "${args.topic}" med aurora_freshness (action: check). Kontrollera deras färskhetsstatus och rapportera eventuella problem.`
+          )
       );
     },
   },
 
   'aurora-obsidian': {
     name: 'aurora-obsidian',
-    description:
-      'Obsidian vault integration — export Aurora nodes and import annotations.',
+    description: 'Obsidian vault integration — export Aurora nodes and import annotations.',
     registerTools(server: McpServer): void {
       registerAuroraObsidianTools(server);
     },
@@ -341,8 +331,7 @@ export const SCOPES: Record<string, ServerScope> = {
 
   'neuron-runs': {
     name: 'neuron-runs',
-    description:
-      'Manage Neuron agent runs — list, start, and track costs.',
+    description: 'Manage Neuron agent runs — list, start, and track costs.',
     registerTools(server: McpServer): void {
       registerRunsTool(server);
       registerStartTool(server);
@@ -354,8 +343,8 @@ export const SCOPES: Record<string, ServerScope> = {
         { count: z.number().default(5).describe('Antal körningar att visa') },
         (args) =>
           userPrompt(
-            `Visa de senaste ${args.count} körningarna med neuron_runs. Inkludera status, kostnader och testresultat. Sammanfatta med neuron_costs.`,
-          ),
+            `Visa de senaste ${args.count} körningarna med neuron_runs. Inkludera status, kostnader och testresultat. Sammanfatta med neuron_costs.`
+          )
       );
 
       server.prompt(
@@ -367,8 +356,8 @@ export const SCOPES: Record<string, ServerScope> = {
         },
         (args) =>
           userPrompt(
-            `Förbered att starta en körning för ${args.target} med briefen: "${args.brief}". Visa en kostnadsuppskattning med neuron_costs innan start med neuron_start.`,
-          ),
+            `Förbered att starta en körning för ${args.target} med briefen: "${args.brief}". Visa en kostnadsuppskattning med neuron_costs innan start med neuron_start.`
+          )
       );
     },
   },
@@ -391,8 +380,8 @@ export const SCOPES: Record<string, ServerScope> = {
         'Generera fullständig dashboard med beliefs, körningsstatistik och kunskapsöversikt',
         () =>
           userPrompt(
-            'Generera den fullständiga dashboarden med neuron_dashboard. Inkludera beliefs, körningsstatistik och kunskapsöversikt via neuron_run_statistics och neuron_knowledge.',
-          ),
+            'Generera den fullständiga dashboarden med neuron_dashboard. Inkludera beliefs, körningsstatistik och kunskapsöversikt via neuron_run_statistics och neuron_knowledge.'
+          )
       );
 
       server.prompt(
@@ -401,8 +390,8 @@ export const SCOPES: Record<string, ServerScope> = {
         { topic: z.string().describe('Ämne för beliefs') },
         (args) =>
           userPrompt(
-            `Visa Bayesianska beliefs och statistik relaterade till "${args.topic}" med neuron_knowledge. Inkludera confidence-nivåer och eventuella motsägelser.`,
-          ),
+            `Visa Bayesianska beliefs och statistik relaterade till "${args.topic}" med neuron_knowledge. Inkludera confidence-nivåer och eventuella motsägelser.`
+          )
       );
     },
   },
