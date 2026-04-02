@@ -118,28 +118,52 @@ describe('type exports', () => {
 
   it('exports AuroraJob interface shape', () => {
     const job: AuroraJob = {
-      id: '1', type: 'video_ingest', status: 'queued', step: null,
-      progress: 0, input: {}, result: null, error: null,
-      videoTitle: null, videoDurationSec: null, videoUrl: 'https://x.com/v',
-      backend: null, stepTimings: null, tempBytesCleaned: 0, pid: null,
-      notified: false, startedAt: null, completedAt: null, createdAt: '2025-01-01',
+      id: '1',
+      type: 'video_ingest',
+      status: 'queued',
+      step: null,
+      progress: 0,
+      input: {},
+      result: null,
+      error: null,
+      videoTitle: null,
+      videoDurationSec: null,
+      videoUrl: 'https://x.com/v',
+      backend: null,
+      stepTimings: null,
+      tempBytesCleaned: 0,
+      pid: null,
+      notified: false,
+      startedAt: null,
+      completedAt: null,
+      createdAt: '2025-01-01',
     };
     expect(job.status).toBe('queued');
   });
 
   it('exports StartJobResult interface', () => {
     const r: StartJobResult = {
-      jobId: '1', status: 'queued', videoTitle: null,
-      videoDurationSec: null, estimatedTimeMs: null, queuePosition: null,
+      jobId: '1',
+      status: 'queued',
+      videoTitle: null,
+      videoDurationSec: null,
+      estimatedTimeMs: null,
+      queuePosition: null,
     };
     expect(r.status).toBe('queued');
   });
 
   it('exports JobStats interface', () => {
     const s: JobStats = {
-      totalVideos: 0, totalVideoHours: 0, totalComputeMs: 0,
-      avgRealtimeFactor: 0, backendDistribution: {}, successRate: 0,
-      errorRate: 0, cancelRate: 0, avgDurationByStep: {},
+      totalVideos: 0,
+      totalVideoHours: 0,
+      totalComputeMs: 0,
+      avgRealtimeFactor: 0,
+      backendDistribution: {},
+      successRate: 0,
+      errorRate: 0,
+      cancelRate: 0,
+      avgDurationByStep: {},
       totalTempBytesCleaned: 0,
     };
     expect(s.totalVideos).toBe(0);
@@ -166,17 +190,19 @@ describe('startVideoIngestJob', () => {
   it('returns already_ingested when video node exists in graph', async () => {
     const url = 'https://youtube.com/watch?v=abc12345';
     mockLoadGraph.mockResolvedValueOnce({
-      nodes: [{
-        id: 'vid-abc12345',
-        type: 'transcript',
-        title: 'Test Video',
-        properties: { duration: 120 },
-        confidence: 0.9,
-        scope: 'personal',
-        sourceUrl: url,
-        created: '2025-01-01',
-        updated: '2025-01-01',
-      }],
+      nodes: [
+        {
+          id: 'vid-abc12345',
+          type: 'transcript',
+          title: 'Test Video',
+          properties: { duration: 120 },
+          confidence: 0.9,
+          scope: 'personal',
+          sourceUrl: url,
+          created: '2025-01-01',
+          updated: '2025-01-01',
+        },
+      ],
       edges: [],
       lastUpdated: '',
     });
@@ -189,9 +215,9 @@ describe('startVideoIngestJob', () => {
   it('inserts a new job when URL is fresh', async () => {
     // Use sequential mocks for the specific calls in order
     mockQuery
-      .mockResolvedValueOnce({ rows: [] })               // dedup check
+      .mockResolvedValueOnce({ rows: [] }) // dedup check
       .mockResolvedValueOnce({ rows: [{ id: 'new-1' }] }) // INSERT
-      .mockResolvedValue({ rows: [], rowCount: 0 });       // everything else
+      .mockResolvedValue({ rows: [], rowCount: 0 }); // everything else
 
     const result = await startVideoIngestJob('https://youtube.com/watch?v=xyz');
     expect(result.jobId).toBe('new-1');
@@ -212,21 +238,23 @@ describe('getJob', () => {
 
   it('maps DB row to AuroraJob with camelCase', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [makeDbRow({
-        id: 'j1',
-        status: 'done',
-        step: 'embedding',
-        progress: 100,
-        result: { ok: true },
-        video_title: 'My Video',
-        video_duration_sec: 300,
-        backend: 'cpu',
-        step_timings: { transcribing: 5000 },
-        temp_bytes_cleaned: 1024,
-        pid: 42,
-        started_at: new Date('2025-01-01'),
-        completed_at: new Date('2025-01-02'),
-      })],
+      rows: [
+        makeDbRow({
+          id: 'j1',
+          status: 'done',
+          step: 'embedding',
+          progress: 100,
+          result: { ok: true },
+          video_title: 'My Video',
+          video_duration_sec: 300,
+          backend: 'cpu',
+          step_timings: { transcribing: 5000 },
+          temp_bytes_cleaned: 1024,
+          pid: 42,
+          started_at: new Date('2025-01-01'),
+          completed_at: new Date('2025-01-02'),
+        }),
+      ],
     });
 
     const job = await getJob('j1');
@@ -259,19 +287,16 @@ describe('getJobs', () => {
   it('uses status filter when provided', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     await getJobs({ status: 'running' });
-    expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE status = $1'),
-      ['running', 20],
-    );
+    expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('WHERE status = $1'), [
+      'running',
+      20,
+    ]);
   });
 
   it('uses default limit of 20', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     await getJobs();
-    expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining('LIMIT $1'),
-      [20],
-    );
+    expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('LIMIT $1'), [20]);
   });
 });
 
@@ -283,10 +308,11 @@ describe('updateJobProgress', () => {
   it('updates step and progress', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     await updateJobProgress('j1', 'transcribing', 50);
-    expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining('step = $2'),
-      ['j1', 'transcribing', 50],
-    );
+    expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('step = $2'), [
+      'j1',
+      'transcribing',
+      50,
+    ]);
   });
 
   it('includes extras in update', async () => {
@@ -294,7 +320,7 @@ describe('updateJobProgress', () => {
     await updateJobProgress('j1', 'downloading', 10, { backend: 'gpu' });
     expect(mockQuery).toHaveBeenCalledWith(
       expect.stringContaining('backend'),
-      expect.arrayContaining(['gpu']),
+      expect.arrayContaining(['gpu'])
     );
   });
 });
@@ -345,20 +371,23 @@ describe('cancelJob', () => {
 describe('processQueue', () => {
   it('does nothing if a job is already running', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 'running-1' }] })
+      .mockResolvedValueOnce({ rows: [] }) // recoverStaleJobs: no stale
+      .mockResolvedValueOnce({ rows: [{ id: 'running-1' }] }) // running check: found one
       .mockResolvedValue({ rows: [], rowCount: 0 });
     await processQueue();
-    // Only one query (the running check)
-    expect(mockQuery).toHaveBeenCalledTimes(1);
+    // recoverStaleJobs SELECT + running check = 2 queries
+    expect(mockQuery).toHaveBeenCalledTimes(2);
   });
 
   it('does nothing if no queued jobs', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [] })  // no running
-      .mockResolvedValueOnce({ rows: [] })  // no queued
+      .mockResolvedValueOnce({ rows: [] }) // recoverStaleJobs: no stale
+      .mockResolvedValueOnce({ rows: [] }) // no running
+      .mockResolvedValueOnce({ rows: [] }) // no queued
       .mockResolvedValue({ rows: [], rowCount: 0 });
     await processQueue();
-    expect(mockQuery).toHaveBeenCalledTimes(2);
+    // recoverStaleJobs SELECT + running check + queued check = 3 queries
+    expect(mockQuery).toHaveBeenCalledTimes(3);
   });
 });
 
@@ -373,19 +402,19 @@ describe('checkCompletedJobs', () => {
     expect(jobs).toEqual([]);
   });
 
-  it("does not mark jobs as notified (caller uses markJobNotified)", async () => {
+  it('does not mark jobs as notified (caller uses markJobNotified)', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [makeDbRow({ id: "j1", status: "done", notified: false })],
+      rows: [makeDbRow({ id: 'j1', status: 'done', notified: false })],
     });
 
     const jobs = await checkCompletedJobs();
     expect(jobs).toHaveLength(1);
-    expect(jobs[0].id).toBe("j1");
+    expect(jobs[0].id).toBe('j1');
     // Should only call SELECT, not UPDATE
     expect(mockQuery).toHaveBeenCalledTimes(1);
     const sql = mockQuery.mock.calls[0][0] as string;
-    expect(sql).toContain("SELECT");
-    expect(sql).not.toContain("UPDATE");
+    expect(sql).toContain('SELECT');
+    expect(sql).not.toContain('UPDATE');
   });
 
   it('does not update when no completed jobs', async () => {
@@ -399,20 +428,20 @@ describe('checkCompletedJobs', () => {
 /*  markJobNotified                                                    */
 /* ------------------------------------------------------------------ */
 
-describe("markJobNotified", () => {
-  it("calls UPDATE with notified = true for the given jobId", async () => {
+describe('markJobNotified', () => {
+  it('calls UPDATE with notified = true for the given jobId', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
-    await markJobNotified("j42");
+    await markJobNotified('j42');
     expect(mockQuery).toHaveBeenCalledTimes(1);
     const sql = mockQuery.mock.calls[0][0] as string;
-    expect(sql).toContain("UPDATE aurora_jobs");
-    expect(sql).toContain("notified = true");
-    expect(mockQuery.mock.calls[0][1]).toEqual(["j42"]);
+    expect(sql).toContain('UPDATE aurora_jobs');
+    expect(sql).toContain('notified = true');
+    expect(mockQuery.mock.calls[0][1]).toEqual(['j42']);
   });
 
-  it("does not throw on DB error", async () => {
-    mockQuery.mockRejectedValueOnce(new Error("db down"));
-    await expect(markJobNotified("j1")).resolves.toBeUndefined();
+  it('does not throw on DB error', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('db down'));
+    await expect(markJobNotified('j1')).resolves.toBeUndefined();
   });
 });
 
@@ -436,10 +465,7 @@ describe('cleanupOldJobs', () => {
   it('uses default of 7 days', async () => {
     mockQuery.mockResolvedValueOnce({ rowCount: 0 });
     await cleanupOldJobs();
-    expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining('make_interval'),
-      [7],
-    );
+    expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('make_interval'), [7]);
   });
 });
 
@@ -493,14 +519,23 @@ describe('getJobStats', () => {
   it('calculates stats from DB', async () => {
     mockQuery
       .mockResolvedValueOnce({
-        rows: [{
-          total: 10, done: 7, errors: 2, cancelled: 1,
-          total_duration_sec: 3600, total_compute_ms: 7200000,
-          total_temp_bytes_cleaned: 5242880,
-        }],
+        rows: [
+          {
+            total: 10,
+            done: 7,
+            errors: 2,
+            cancelled: 1,
+            total_duration_sec: 3600,
+            total_compute_ms: 7200000,
+            total_temp_bytes_cleaned: 5242880,
+          },
+        ],
       })
       .mockResolvedValueOnce({
-        rows: [{ backend: 'cpu', cnt: 8 }, { backend: 'gpu', cnt: 2 }],
+        rows: [
+          { backend: 'cpu', cnt: 8 },
+          { backend: 'gpu', cnt: 2 },
+        ],
       })
       .mockResolvedValueOnce({
         rows: [

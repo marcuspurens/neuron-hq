@@ -19,7 +19,13 @@ const logger = createLogger('aurora:job-runner');
 /* ------------------------------------------------------------------ */
 
 export type JobStatus = 'queued' | 'running' | 'done' | 'error' | 'cancelled';
-export type JobStep = 'metadata' | 'downloading' | 'transcribing' | 'diarizing' | 'chunking' | 'embedding';
+export type JobStep =
+  | 'metadata'
+  | 'downloading'
+  | 'transcribing'
+  | 'diarizing'
+  | 'chunking'
+  | 'embedding';
 
 export interface AuroraJob {
   id: string;
@@ -123,7 +129,7 @@ function mapRow(row: Record<string, unknown>): AuroraJob {
  */
 export async function startVideoIngestJob(
   url: string,
-  options?: StartJobOptions,
+  options?: StartJobOptions
 ): Promise<StartJobResult> {
   const pool = getPool();
 
@@ -134,7 +140,7 @@ export async function startVideoIngestJob(
        FROM aurora_jobs
        WHERE video_url = $1 AND status IN ('queued', 'running')
        LIMIT 1`,
-      [url],
+      [url]
     );
     if (existing.length > 0) {
       const row = existing[0] as Record<string, unknown>;
@@ -163,18 +169,20 @@ export async function startVideoIngestJob(
         `SELECT id, result FROM aurora_jobs
          WHERE video_url = $1 AND status = 'done'
          ORDER BY completed_at DESC LIMIT 1`,
-        [url],
+        [url]
       );
       return {
-        jobId: doneJobs.length > 0 ? (doneJobs[0] as Record<string, unknown>).id as string : nodeId,
+        jobId:
+          doneJobs.length > 0 ? ((doneJobs[0] as Record<string, unknown>).id as string) : nodeId,
         status: 'already_ingested',
         videoTitle: node.title,
         videoDurationSec: (node.properties.duration as number) ?? null,
         estimatedTimeMs: null,
         queuePosition: null,
-        existingResult: doneJobs.length > 0
-          ? (doneJobs[0] as Record<string, unknown>).result as Record<string, unknown>
-          : undefined,
+        existingResult:
+          doneJobs.length > 0
+            ? ((doneJobs[0] as Record<string, unknown>).result as Record<string, unknown>)
+            : undefined,
       };
     }
   } catch (err) {
@@ -187,7 +195,7 @@ export async function startVideoIngestJob(
   try {
     const metaResult = await runWorker(
       { action: 'extract_video_metadata', source: url },
-      { timeout: 10_000 },
+      { timeout: 10_000 }
     );
     if (metaResult.ok) {
       videoTitle = metaResult.title ?? null;
@@ -203,7 +211,7 @@ export async function startVideoIngestJob(
     `INSERT INTO aurora_jobs (type, status, video_url, video_title, video_duration_sec, input)
      VALUES ('video_ingest', 'queued', $1, $2, $3, $4)
      RETURNING id`,
-    [url, videoTitle, videoDurationSec, JSON.stringify(options ?? {})],
+    [url, videoTitle, videoDurationSec, JSON.stringify(options ?? {})]
   );
   const jobId = (inserted[0] as Record<string, unknown>).id as string;
 
@@ -218,7 +226,7 @@ export async function startVideoIngestJob(
        WHERE status = 'queued' AND created_at <= (
          SELECT created_at FROM aurora_jobs WHERE id = $1
        )`,
-      [jobId],
+      [jobId]
     );
     queuePosition = (posRows[0] as Record<string, unknown>).pos as number;
   } catch (err) {
@@ -239,6 +247,76 @@ export async function startVideoIngestJob(
 }
 
 /* ------------------------------------------------------------------ */
+/*  startPdfIngestJob                                                  */
+/* ------------------------------------------------------------------ */
+
+export interface StartPdfJobResult {
+  jobId: string;
+  status: 'queued';
+  title: string;
+  pageCount: number | null;
+  queuePosition: number | null;
+}
+
+export async function startPdfIngestJob(
+  filePath: string,
+  options?: { scope?: 'personal' | 'shared' | 'project'; language?: string }
+): Promise<StartPdfJobResult> {
+  const pool = getPool();
+
+  const title =
+    filePath
+      .split('/')
+      .pop()
+      ?.replace(/\.pdf$/i, '') ?? 'Unknown';
+
+  let pageCount: number | null = null;
+  try {
+    const metaResult = await runWorker(
+      { action: 'get_pdf_page_count', source: filePath },
+      { timeout: 10_000 }
+    );
+    if (metaResult.ok) {
+      pageCount = (metaResult.metadata as Record<string, unknown>).page_count as number;
+    }
+  } catch {
+    // best-effort
+  }
+
+  const { rows: inserted } = await pool.query(
+    `INSERT INTO aurora_jobs (type, status, video_url, video_title, video_duration_sec, input)
+     VALUES ('pdf_ingest', 'queued', $1, $2, $3, $4)
+     RETURNING id`,
+    [filePath, title, pageCount, JSON.stringify({ filePath, ...options })]
+  );
+  const jobId = (inserted[0] as Record<string, unknown>).id as string;
+
+  void processQueue();
+
+  let queuePosition: number | null = null;
+  try {
+    const { rows: posRows } = await pool.query(
+      `SELECT COUNT(*)::int AS pos FROM aurora_jobs
+       WHERE status = 'queued' AND created_at <= (
+         SELECT created_at FROM aurora_jobs WHERE id = $1
+       )`,
+      [jobId]
+    );
+    queuePosition = (posRows[0] as Record<string, unknown>).pos as number;
+  } catch {
+    // best-effort
+  }
+
+  return {
+    jobId,
+    status: 'queued',
+    title,
+    pageCount,
+    queuePosition,
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /*  getJob                                                             */
 /* ------------------------------------------------------------------ */
 
@@ -246,10 +324,7 @@ export async function startVideoIngestJob(
 export async function getJob(jobId: string): Promise<AuroraJob | null> {
   try {
     const pool = getPool();
-    const { rows } = await pool.query(
-      'SELECT * FROM aurora_jobs WHERE id = $1',
-      [jobId],
-    );
+    const { rows } = await pool.query('SELECT * FROM aurora_jobs WHERE id = $1', [jobId]);
     if (rows.length === 0) return null;
     return mapRow(rows[0] as Record<string, unknown>);
   } catch (err) {
@@ -263,22 +338,20 @@ export async function getJob(jobId: string): Promise<AuroraJob | null> {
 /* ------------------------------------------------------------------ */
 
 /** Fetch jobs with optional status filter. */
-export async function getJobs(
-  options?: { status?: string; limit?: number },
-): Promise<AuroraJob[]> {
+export async function getJobs(options?: { status?: string; limit?: number }): Promise<AuroraJob[]> {
   try {
     const pool = getPool();
     const limit = options?.limit ?? 20;
     if (options?.status) {
       const { rows } = await pool.query(
         'SELECT * FROM aurora_jobs WHERE status = $1 ORDER BY created_at DESC LIMIT $2',
-        [options.status, limit],
+        [options.status, limit]
       );
       return (rows as Record<string, unknown>[]).map(mapRow);
     }
     const { rows } = await pool.query(
       'SELECT * FROM aurora_jobs ORDER BY created_at DESC LIMIT $1',
-      [limit],
+      [limit]
     );
     return (rows as Record<string, unknown>[]).map(mapRow);
   } catch (err) {
@@ -296,7 +369,7 @@ export async function updateJobProgress(
   jobId: string,
   step: JobStep,
   progress: number,
-  extras?: Partial<Pick<AuroraJob, 'backend' | 'videoTitle' | 'videoDurationSec'>>,
+  extras?: Partial<Pick<AuroraJob, 'backend' | 'videoTitle' | 'videoDurationSec'>>
 ): Promise<void> {
   try {
     const pool = getPool();
@@ -320,10 +393,7 @@ export async function updateJobProgress(
       idx++;
     }
 
-    await pool.query(
-      `UPDATE aurora_jobs SET ${setClauses.join(', ')} WHERE id = $1`,
-      params,
-    );
+    await pool.query(`UPDATE aurora_jobs SET ${setClauses.join(', ')} WHERE id = $1`, params);
   } catch (err) {
     logger.error('Failed to update job progress', { error: String(err) });
   }
@@ -334,15 +404,10 @@ export async function updateJobProgress(
 /* ------------------------------------------------------------------ */
 
 /** Cancel a job. Kills the worker process if running. */
-export async function cancelJob(
-  jobId: string,
-): Promise<{ success: boolean; message: string }> {
+export async function cancelJob(jobId: string): Promise<{ success: boolean; message: string }> {
   try {
     const pool = getPool();
-    const { rows } = await pool.query(
-      'SELECT status, pid FROM aurora_jobs WHERE id = $1',
-      [jobId],
-    );
+    const { rows } = await pool.query('SELECT status, pid FROM aurora_jobs WHERE id = $1', [jobId]);
     if (rows.length === 0) {
       return { success: false, message: 'Job not found' };
     }
@@ -358,14 +423,15 @@ export async function cancelJob(
     if (status === 'running' && pid) {
       try {
         process.kill(pid);
-      } catch {  /* intentional: best-effort progress update */
+      } catch {
+        /* intentional: best-effort progress update */
         // Process may have already exited
       }
     }
 
     await pool.query(
       `UPDATE aurora_jobs SET status = 'cancelled', completed_at = NOW() WHERE id = $1`,
-      [jobId],
+      [jobId]
     );
     return { success: true, message: 'Job cancelled' };
   } catch (err) {
@@ -378,20 +444,71 @@ export async function cancelJob(
 /*  processQueue                                                       */
 /* ------------------------------------------------------------------ */
 
+/** Maximum job runtime in ms before the worker is killed (30 min). */
+const JOB_TIMEOUT_MS = 30 * 60 * 1000;
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Recover jobs stuck in 'running' state — either the worker process died
+ * (crash, restart) or the job exceeded the timeout without being killed.
+ */
+async function recoverStaleJobs(): Promise<void> {
+  try {
+    const pool = getPool();
+    const { rows } = await pool.query(
+      `SELECT id, pid, started_at FROM aurora_jobs WHERE status = 'running'`
+    );
+
+    for (const row of rows as Record<string, unknown>[]) {
+      const id = row.id as string;
+      const pid = row.pid as number | null;
+      const startedAt = row.started_at as Date | null;
+
+      const pidDead = pid != null && !isProcessAlive(pid);
+      const exceededTimeout =
+        startedAt != null && Date.now() - new Date(startedAt).getTime() > JOB_TIMEOUT_MS;
+
+      if (pidDead || exceededTimeout) {
+        const reason = pidDead
+          ? `Worker process (PID ${pid}) no longer running`
+          : `Job exceeded ${JOB_TIMEOUT_MS / 60_000} min timeout`;
+
+        logger.error('Recovering stale job', { id, reason });
+        await pool.query(
+          `UPDATE aurora_jobs SET status = 'error', error = $2, completed_at = NOW() WHERE id = $1`,
+          [id, `Stale job recovered: ${reason}`]
+        );
+      }
+    }
+  } catch (err) {
+    logger.error('Failed to recover stale jobs', { error: String(err) });
+  }
+}
+
 /** Process the next queued job if no job is currently running. */
 export async function processQueue(): Promise<void> {
   try {
     const pool = getPool();
 
+    await recoverStaleJobs();
+
     // Check if any job is already running
     const { rows: running } = await pool.query(
-      `SELECT id FROM aurora_jobs WHERE status = 'running' LIMIT 1`,
+      `SELECT id FROM aurora_jobs WHERE status = 'running' LIMIT 1`
     );
     if (running.length > 0) return;
 
     // Find oldest queued job
     const { rows: queued } = await pool.query(
-      `SELECT id FROM aurora_jobs WHERE status = 'queued' ORDER BY created_at ASC LIMIT 1`,
+      `SELECT id FROM aurora_jobs WHERE status = 'queued' ORDER BY created_at ASC LIMIT 1`
     );
     if (queued.length === 0) return;
 
@@ -408,15 +525,41 @@ export async function processQueue(): Promise<void> {
     // Update job status to running
     await pool.query(
       `UPDATE aurora_jobs SET status = 'running', started_at = NOW(), pid = $2 WHERE id = $1`,
-      [jobId, pid],
+      [jobId, pid]
     );
 
-    // When the worker exits, process the next job in queue
+    let exited = false;
+    const killTimer = setTimeout(async () => {
+      if (exited) return;
+      logger.error('Job exceeded timeout, killing worker', {
+        jobId,
+        pid,
+        timeoutMs: JOB_TIMEOUT_MS,
+      });
+      try {
+        child.kill('SIGKILL');
+      } catch {
+        // Process may have already exited
+      }
+      try {
+        await pool.query(
+          `UPDATE aurora_jobs SET status = 'error', error = $2, completed_at = NOW() WHERE id = $1 AND status = 'running'`,
+          [jobId, `Job timed out after ${JOB_TIMEOUT_MS / 60_000} minutes`]
+        );
+      } catch (err) {
+        logger.error('Failed to mark timed-out job as error', { jobId, error: String(err) });
+      }
+    }, JOB_TIMEOUT_MS);
+
     child.on('exit', () => {
+      exited = true;
+      clearTimeout(killTimer);
       void processQueue();
     });
 
     child.on('error', (err) => {
+      exited = true;
+      clearTimeout(killTimer);
       logger.error('Job worker error', { jobId, error: String(err) });
       void processQueue();
     });
@@ -436,7 +579,7 @@ export async function checkCompletedJobs(): Promise<AuroraJob[]> {
     const { rows } = await pool.query(
       `SELECT * FROM aurora_jobs
        WHERE status = 'done' AND notified = false
-         AND completed_at > NOW() - INTERVAL '5 minutes'`,
+         AND completed_at > NOW() - INTERVAL '5 minutes'`
     );
     const jobs = (rows as Record<string, unknown>[]).map(mapRow);
 
@@ -447,7 +590,6 @@ export async function checkCompletedJobs(): Promise<AuroraJob[]> {
   }
 }
 
-
 /* ------------------------------------------------------------------ */
 /*  markJobNotified                                                    */
 /* ------------------------------------------------------------------ */
@@ -456,10 +598,7 @@ export async function checkCompletedJobs(): Promise<AuroraJob[]> {
 export async function markJobNotified(jobId: string): Promise<void> {
   try {
     const pool = getPool();
-    await pool.query(
-      'UPDATE aurora_jobs SET notified = true WHERE id = $1',
-      [jobId],
-    );
+    await pool.query('UPDATE aurora_jobs SET notified = true WHERE id = $1', [jobId]);
   } catch (err) {
     logger.error('Failed to mark job notified', { error: String(err) });
   }
@@ -477,7 +616,7 @@ export async function cleanupOldJobs(days: number = 7): Promise<number> {
       `DELETE FROM aurora_jobs
        WHERE created_at < NOW() - make_interval(days => $1)
          AND status IN ('done', 'error', 'cancelled')`,
-      [days],
+      [days]
     );
     return rowCount ?? 0;
   } catch (err) {
@@ -564,9 +703,7 @@ export async function getJobStats(): Promise<JobStats> {
     }
 
     // Realtime factor: total_compute_ms / (total_duration_sec * 1000)
-    const avgRealtimeFactor = totalDurationSec > 0
-      ? totalComputeMs / (totalDurationSec * 1000)
-      : 0;
+    const avgRealtimeFactor = totalDurationSec > 0 ? totalComputeMs / (totalDurationSec * 1000) : 0;
 
     return {
       totalVideos: total,
@@ -596,7 +733,7 @@ export async function getJobStats(): Promise<JobStats> {
  */
 export async function estimateTime(
   videoDurationSec: number | null,
-  backend?: string,
+  backend?: string
 ): Promise<number | null> {
   if (videoDurationSec == null) return null;
 

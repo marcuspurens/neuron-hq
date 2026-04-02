@@ -41,7 +41,7 @@ Be factual and precise — do not speculate or hallucinate.`;
  */
 export async function analyzeImage(
   imagePath: string,
-  options?: { prompt?: string; model?: string },
+  options?: { prompt?: string; model?: string }
 ): Promise<{ description: string; modelUsed: string }> {
   const absolutePath = resolve(imagePath);
   const ext = extname(absolutePath).toLowerCase();
@@ -67,6 +67,7 @@ export async function analyzeImage(
       images: [base64Image],
       stream: false,
     }),
+    signal: AbortSignal.timeout(120_000),
   });
 
   if (!resp.ok) {
@@ -91,7 +92,7 @@ export async function isVisionAvailable(model?: string): Promise<boolean> {
  */
 export async function ingestImage(
   imagePath: string,
-  options?: VisionOptions,
+  options?: VisionOptions
 ): Promise<VisionResult> {
   const { description, modelUsed } = await analyzeImage(imagePath, {
     prompt: options?.prompt,
@@ -111,7 +112,7 @@ export async function ingestImage(
       model_used: modelUsed,
       image_path: resolve(imagePath),
     },
-    options ?? {},
+    options ?? {}
   );
 
   return {
