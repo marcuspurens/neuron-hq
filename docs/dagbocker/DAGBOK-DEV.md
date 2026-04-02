@@ -8,6 +8,69 @@
 
 **Historik:** S1–S150 + körningar #1–#183 → `docs/DAGBOK.md`. Handoffs → `docs/handoffs/`. ADR → `docs/adr/`.
 
+## 2026-04-02 (session 8) — PDF timeout-hantering + Hermes git-tracking + Metadata-schema
+
+### PDF ingest timeout-kaskadskydd
+
+Tre fixes i `src/aurora/job-runner.ts` + `src/aurora/vision.ts`:
+
+1. **Job-level timeout** — `JOB_TIMEOUT_MS = 30 * 60 * 1000`. `processQueue()` sätter `setTimeout` → SIGKILL på forked child → markerar jobb som `error` med meddelande.
+2. **Stale job recovery** — `recoverStaleJobs()` körs vid varje `processQueue()`-anrop. SELECT alla `status='running'`, kolla `isProcessAlive(pid)` (signal 0) + ålderscheck. Döda/gamla jobb → `error`.
+3. **Vision fetch timeout** — `AbortSignal.timeout(120_000)` på Ollama `fetch()` i `analyzeImage()`. 2 min per sida.
+
+Kaskadordning: Ollama hänger → vision abort 2min → om det inte räcker → job killed 30min → om server kraschar → stale recovery vid nästa queue-anrop.
+
+**Bugfix**: `tests/mcp/scopes.test.ts` — session 7 registrerade `aurora_ingest_pdf` i scopes men glömde uppdatera testets `fakeServer` mock (saknade `.tool` metod).
+
+### Hermes git-tracking
+
+`git init ~/.hermes/` med `.gitignore` som skyddar secrets:
+
+**Trackat**: `memories/`, `SOUL.md`, `config.yaml`, `context/security.md`, `cron/`, `gateway_state.json`, `channel_directory.json`, `aurora-mcp.sh`  
+**Ignorerat**: `.env`, `auth.json`, `sessions/`, `skills/`, `cache/`, `hermes-agent/`, `logs/`, `pairing/`
+
+### Metadata-schema analys
+
+Djupanalys: EBUCore vs Schema.org vs A-MEM vs HippoRAG vs Anthropic KG cookbook.
+
+**Rekommendation**: Schema.org (bas) + Provenance-lager (nytt) + A-MEM-attribut (keywords/tags) + EBUCore (media-noder).
+
+Nyckelidé: **Provenance** — varje nod spårar `agent` (VoicePrint|Person|LLM|System), `method` (transcription|ocr|manual|...), `model` (whisper|qwen3-vl|...). Ger VoicePrint-taggning + modellspårbarhet + HippoRAG-kompatibel graf-semantik.
+
+### Implementeringsplan
+
+5 arbetspaket dokumenterade i `docs/plans/PLAN-obsidian-twoway-metadata-2026-04-02.md`:
+
+| WP  | Vad                                               | Uppskattad tid |
+| --- | ------------------------------------------------- | -------------- |
+| WP1 | Tag-bugg fix (mellanslag → quotes i Obsidian)     | ~10 min        |
+| WP2 | Tags round-trip (import tillbaka)                 | ~30 min        |
+| WP3 | Speaker title/organization i frontmatter + import | ~45 min        |
+| WP4 | Provenance-lager vid ingest + export              | ~30 min        |
+| WP5 | Segment-korrektioner (flytta text mellan talare)  | ~60 min        |
+
+| Tid   | Typ     | Vad                                                        |
+| ----- | ------- | ---------------------------------------------------------- |
+| 09:00 | SESSION | Session 8 start, läste session 7 handoff                   |
+| 09:15 | FIX     | Job-level timeout + stale recovery + vision timeout        |
+| 09:30 | FIX     | scopes.test.ts fakeServer bugg (session 7 gap)             |
+| 09:40 | BUILD   | typecheck clean, 3964 tester, 0 failures                   |
+| 09:45 | CONFIG  | git init ~/.hermes/, .gitignore, initial commit            |
+| 10:00 | BESLUT  | Metadata-schema: Schema.org + Provenance + A-MEM + EBUCore |
+| 11:00 | PLAN    | 5 WP:er dokumenterade i PLAN-obsidian-twoway-metadata      |
+| 11:30 | DOCS    | Handoff + dagböcker                                        |
+
+### Baseline
+
+```
+typecheck: clean
+tests: 294 files, 3964 tests, 0 failures
+commits: 24cdffe (S7), 5a9664d (S8 timeout), e02ed32 (S8 handoff+plan)
+hermes git: initial commit 7be7864 (13 files tracked)
+```
+
+---
+
 ## 2026-04-02 (session 7) — Hermes briefing + Media ingest pipeline + Hybrid PDF
 
 ### Morgonbriefing via Hermes

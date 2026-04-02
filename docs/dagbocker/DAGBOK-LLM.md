@@ -311,6 +311,60 @@ Full handoff: `docs/handoffs/HANDOFF-2026-04-01-opencode-session4-hermes-telegra
 
 ---
 
+## 2026-04-02 (session 8)
+
+### State
+
+```
+test_suite:     3964 passing (294 files, 0 failures)
+aurora_nodes:   ~90 (unchanged this session)
+mcp_tools:      20
+hermes_git:     ~/.hermes/ tracked (13 files, secrets excluded)
+commits:        24cdffe (S7), 5a9664d (S8 timeout), e02ed32 (S8 docs)
+```
+
+### Changes
+
+**PDF ingest timeout cascade (3 fixes):**
+
+| File                              | Change                                                                                                                           |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `src/aurora/job-runner.ts`        | `JOB_TIMEOUT_MS` (30min), `isProcessAlive()` (signal 0), `recoverStaleJobs()` (dead PID + age check), kill timer on forked child |
+| `src/aurora/vision.ts`            | `AbortSignal.timeout(120_000)` on Ollama `fetch()`                                                                               |
+| `tests/aurora/job-runner.test.ts` | Updated 2 processQueue tests for recoverStaleJobs DB call                                                                        |
+| `tests/mcp/scopes.test.ts`        | Fixed session 7 gap: added `tool: vi.fn()` to fakeServer mock                                                                    |
+
+**Hermes git-tracking:**
+
+- `git init ~/.hermes/` with `.gitignore` (secrets excluded)
+- Tracked: `memories/`, `SOUL.md`, `config.yaml`, `context/security.md`, `cron/`, `gateway_state.json`, `channel_directory.json`, `aurora-mcp.sh`
+
+**No code changes for metadata schema** — analysis + plan only. Implementation deferred to session 9.
+
+### Decisions
+
+| Decision                                  | Why                                                                                                                                                                                      |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema.org + Provenance + A-MEM + EBUCore | Schema.org is the universal standard (Google/MS/Apple/Yahoo), Provenance solves VoicePrint attribution, A-MEM keywords/tags enable dynamic indexing, EBUCore stays for media-only fields |
+| Provenance is read-only in Obsidian       | Provenance shows _where content came from_ — editing it would break audit trail                                                                                                          |
+| Git-track ~/.hermes/ (not just MEMORY.md) | Full diffable history of config + memory + cron output, not just flat text                                                                                                               |
+| 5-WP plan for session 9                   | Too much scope for one session — plan first, implement next                                                                                                                              |
+
+### Active Context
+
+- `docs/plans/PLAN-obsidian-twoway-metadata-2026-04-02.md` — detailed implementation plan (5 WPs)
+- `docs/handoffs/HANDOFF-2026-04-02T1200-opencode-session8-pdf-timeout-metadata-plan.md`
+
+### Next Actions (Session 9)
+
+1. Read handoff + plan
+2. Implement WP1-WP5 in order (tag bug → tags roundtrip → speaker enrichment → provenance → segment corrections)
+3. Verify: typecheck + tests + manual Obsidian round-trip
+
+Full handoff: `docs/handoffs/HANDOFF-2026-04-02T1200-opencode-session8-pdf-timeout-metadata-plan.md`
+
+---
+
 ## 2026-04-02 (session 7)
 
 ### State

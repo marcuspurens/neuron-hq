@@ -90,6 +90,46 @@ Det närmaste att göra är att peka Neuron mot Aurora på riktigt, vilket är v
 
 ---
 
+## 2026-04-02 (Session 8)
+
+### Vad hände idag?
+
+Tre saker:
+
+**1. PDF-pipelinen kan inte hänga längre**
+
+Session 7 byggde PDF-ingest men det fanns en risk: om OCR eller vision-modellen hängde sig kunde hela jobbkön låsa sig permanent. Nu finns tre skyddsnivåer: vision-anropet avbryts efter 2 minuter, jobbet dödas efter 30 minuter, och om servern kraschar städas döda jobb upp automatiskt vid omstart.
+
+**2. Hermes minne spåras med Git**
+
+`~/.hermes/` är nu ett git-repo. Varje gång Hermes lär sig något nytt om dig (eller ändrar sin konfiguration) kan du se exakt vad som ändrades med `git diff`. Secrets (lösenord, API-nycklar) ignoreras.
+
+**3. Plan för tvåvägs-metadata i Obsidian**
+
+En detaljerad plan för session 9 — fem arbetspaket:
+
+- Fixa buggen med överstrukna tags
+- Tags du ändrar i Obsidian speglas tillbaka till Aurora
+- Talare får titel och organisation (typ "Anders Andersson, PhD ML på KTH")
+- Varje kunskapsbit spårar _vem_ som producerade den (VoicePrint, person, AI-modell)
+- Du kan flytta text mellan talare i Obsidian-tidslinjen
+
+Metadata-schemat bygger på Schema.org (samma standard som Google/Apple/Microsoft använder) plus ett "provenance-lager" som spårar varifrån varje bit kunskap kom. Inget hemmasnickrat — beprövade delar sammansatta.
+
+### Vad bestämdes?
+
+| Beslut                          | Varför                                                                            |
+| ------------------------------- | --------------------------------------------------------------------------------- |
+| Schema.org som bas för metadata | Världsstandard, alla stora tech-bolag använder den                                |
+| Provenance-lager (nytt)         | Spårar vem/vad som producerade varje kunskapsbit — ger VoicePrint-taggning gratis |
+| Git-tracking av Hermes          | Diffbar historik istället för att bara se "nuläget"                               |
+
+### Nästa steg
+
+Session 9: implementera planen. Fem arbetspaket, börjar med det enklaste (tag-buggen) och slutar med det mest komplexa (flytta text mellan talare).
+
+---
+
 ## 2026-04-02 (Session 7)
 
 ### Vad hände idag?
