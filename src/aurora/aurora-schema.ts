@@ -46,10 +46,13 @@ export const AuroraEdgeSchema = z.object({
   from: z.string().min(1),
   to: z.string().min(1),
   type: AuroraEdgeTypeSchema,
-  metadata: z.object({
-    createdBy: z.string().optional(),
-    timestamp: z.string().optional(),
-  }).passthrough().default({}),
+  metadata: z
+    .object({
+      createdBy: z.string().optional(),
+      timestamp: z.string().optional(),
+    })
+    .passthrough()
+    .default({}),
 });
 export type AuroraEdge = z.infer<typeof AuroraEdgeSchema>;
 
@@ -59,3 +62,19 @@ export const AuroraGraphSchema = z.object({
   lastUpdated: z.string().datetime(),
 });
 export type AuroraGraph = z.infer<typeof AuroraGraphSchema>;
+
+export interface Provenance {
+  agent: 'VoicePrint' | 'Person' | 'LLM' | 'System';
+  agentId: string | null;
+  method:
+    | 'transcription'
+    | 'ocr'
+    | 'vision'
+    | 'manual'
+    | 'llm_extraction'
+    | 'web_scrape'
+    | 'conversation';
+  model: string | null;
+  sourceId: string | null;
+  timestamp: string;
+}

@@ -220,6 +220,8 @@ describe('obsidian-export', () => {
     expect(content).toContain('speakers:');
     expect(content).toContain('SPEAKER_00:');
     expect(content).toContain('name: ""');
+    expect(content).toContain('title: ""');
+    expect(content).toContain('organization: ""');
     expect(content).toContain('confidence: 0.85');
     expect(content).toContain('role: ""');
   });
@@ -719,6 +721,69 @@ describe('obsidian-export', () => {
 
     expect(result).toEqual({ exported: 3 });
     expect(writtenFiles.size).toBe(3);
+  });
+
+  it('exports provenance fields in non-video frontmatter', async () => {
+    const docNode = makeNode({
+      id: 'prov-1',
+      title: 'Provenance Test',
+      type: 'document',
+      properties: {
+        text: 'Content',
+        provenance: {
+          agent: 'System',
+          method: 'web_scrape',
+          model: null,
+        },
+      },
+    });
+
+    mockQuery.mockResolvedValueOnce({ rows: [docNode] }).mockResolvedValueOnce({ rows: [] });
+
+    await obsidianExportCommand({ vault: '/tmp/vault' });
+
+    const content = [...writtenFiles.values()][0];
+    expect(content).toContain('källa_typ: web_scrape');
+    expect(content).toContain('källa_agent: System');
+    expect(content).not.toContain('källa_modell');
+  });
+
+  it('does not export provenance when not present', async () => {
+    const docNode = makeNode({
+      id: 'no-prov-1',
+      title: 'No Provenance Test',
+      type: 'document',
+      properties: { text: 'Content' },
+    });
+
+    mockQuery.mockResolvedValueOnce({ rows: [docNode] }).mockResolvedValueOnce({ rows: [] });
+
+    await obsidianExportCommand({ vault: '/tmp/vault' });
+
+    const content = [...writtenFiles.values()][0];
+    expect(content).not.toContain('källa_typ');
+    expect(content).not.toContain('källa_agent');
+    expect(content).not.toContain('källa_modell');
+  });
+
+  it('quotes tags containing spaces in frontmatter YAML', async () => {
+    const docNode = makeNode({
+      id: 'tag-space-1',
+      title: 'Tag Space Test',
+      type: 'document',
+      properties: {
+        text: 'Content here',
+        tags: ['simple', 'job displacement', 'AI', 'multi word tag'],
+      },
+    });
+
+    mockQuery.mockResolvedValueOnce({ rows: [docNode] }).mockResolvedValueOnce({ rows: [] });
+
+    await obsidianExportCommand({ vault: '/tmp/vault' });
+
+    const content = [...writtenFiles.values()][0];
+
+    expect(content).toContain('tags: [simple, "job displacement", AI, "multi word tag"]');
   });
 
   describe('AC4-AC6: exported_at frontmatter and stale cleanup', () => {

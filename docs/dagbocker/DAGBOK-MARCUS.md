@@ -219,3 +219,36 @@ Tre steg som gör systemet levande istället för ett passivt arkiv:
 Det coola: _ingen annan_ har detta. HippoRAG (Stanford) och A-MEM (Rutgers) är de bästa forskningssystemen — men de saknar en proaktiv agent som Hermes. Ditt system kan faktiskt _berätta_ för dig vad det har lärt sig.
 
 ---
+
+## 2026-04-03 — Session 9: Obsidian pratar tillbaka
+
+### Vad hände?
+
+Förut var Obsidian-exporten envägskommunikation — systemet skickade ut information som du kunde läsa men inte ändra på ett meningsfullt sätt. Nu funkar det åt båda hållen.
+
+**1. Tags du ändrar i Obsidian sparas tillbaka**
+
+Om du lägger till eller tar bort en tagg i Obsidian-filen och kör import, uppdateras kunskapsgrafen. Lade också till att tags med mellanslag (som "job displacement") hanteras korrekt — förut bröts YAML-formatet.
+
+**2. Talare kan berikas med titel och organisation**
+
+Varje talare i en videotranskription visar nu `title:` och `organization:` i Obsidian. Du kan fylla i "Professor" och "Stockholms universitet" — vid import uppdateras talar-identiteten i Aurora.
+
+**3. Varje kunskapsbit vet var den kommer ifrån**
+
+Nytt "provenance"-lager: varje nod i kunskapsgrafen spårar _hur_ den skapades. En transkription vet att den gjordes med Whisper. En artikel vet att den scrapades från webben. En bild vet att den tolkades med qwen3-vl. Detta syns i Obsidian som `källa_typ`, `källa_agent`, `källa_modell`.
+
+**4. Segment-korrektioner för videor**
+
+Om du lyssnar på en video i Obsidian och märker att tidslinjen säger "SPEAKER_01" men det egentligen är "SPEAKER_00" som pratar — ändra talaren i headern, kör import, och diariseringsdatan uppdateras. Segmentet flyttas från en talare till en annan.
+
+### Vad är planen framöver?
+
+Nästa session handlar om PDF-kvalitet. Du ville testa hur systemet hanterar Ungdomsbarometern-tabellen (sid 30). Istället för ett engångs-test bygger vi in steg-för-steg-spårning i PDF-pipelinen:
+
+- **PageDigest** — varje sida i en PDF sparar exakt vad text-extraktorn, OCR, och vision-modellen producerade
+- **`neuron aurora pdf-diagnose`** — nytt kommando som kör pipelinen på en enda sida och visar allt
+
+Det ger dig möjligheten att alltid gå tillbaka och se: "sida 30 — pypdfium2 extraherade 1847 tecken, OCR triggades inte, vision-modellen tolkade tabellen som..."
+
+---

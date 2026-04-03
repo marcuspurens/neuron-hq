@@ -37,13 +37,19 @@ export async function ingestImage(
     throw new Error(result.error);
   }
 
-  return processExtractedText(
-    result.title,
-    result.text,
-    null,
-    result.metadata as Record<string, unknown>,
-    options ?? {}
-  );
+  const ocrMetadata = {
+    ...(result.metadata as Record<string, unknown>),
+    provenance: {
+      agent: 'System',
+      agentId: null,
+      method: 'ocr',
+      model: 'paddleocr-3.x',
+      sourceId: null,
+      timestamp: new Date().toISOString(),
+    },
+  };
+
+  return processExtractedText(result.title, result.text, null, ocrMetadata, options ?? {});
 }
 
 /**

@@ -98,7 +98,7 @@ describe('enrichWithEbucore', () => {
     expect(enriched).not.toBe(node);
     expect(enriched.properties).toEqual({ text: 'hello' });
     // No ebucore keys added
-    const ebucoreKeys = Object.keys(enriched.properties).filter(k => k.startsWith('ebucore:'));
+    const ebucoreKeys = Object.keys(enriched.properties).filter((k) => k.startsWith('ebucore:'));
     expect(ebucoreKeys).toHaveLength(0);
   });
 
@@ -290,7 +290,7 @@ describe('validateEbucoreCompleteness', () => {
     const node = makeNode({
       type: 'speaker_identity',
       title: 'Alice',
-      properties: { name: 'Alice', role: 'host' },
+      properties: { name: 'Alice', role: 'host', title: 'PhD', organization: 'KTH' },
     });
 
     const result = validateEbucoreCompleteness(node);
@@ -308,7 +308,12 @@ describe('validateEbucoreCompleteness', () => {
     const node = makeNode({
       type: 'speaker_identity',
       title: 'Alice',
-      properties: { 'ebucore:personName': 'Alice', 'ebucore:role': 'host' },
+      properties: {
+        'ebucore:personName': 'Alice',
+        'ebucore:role': 'host',
+        'ebucore:personTitle': 'PhD',
+        'ebucore:organisationName': 'KTH',
+      },
     });
 
     const result = validateEbucoreCompleteness(node);
@@ -348,8 +353,12 @@ describe('metadataCoverageReport', () => {
         type: 'transcript',
         title: 'Full',
         properties: {
-          duration: 120, publishedDate: '2025-01-01', language: 'en',
-          videoUrl: 'url', platform: 'yt', segmentCount: 5,
+          duration: 120,
+          publishedDate: '2025-01-01',
+          language: 'en',
+          videoUrl: 'url',
+          platform: 'yt',
+          segmentCount: 5,
         },
       }),
       makeNode({
@@ -387,8 +396,12 @@ describe('metadataCoverageReport', () => {
         type: 'transcript',
         title: 'Full',
         properties: {
-          duration: 120, publishedDate: '2025-01-01', language: 'en',
-          videoUrl: 'url', platform: 'yt', segmentCount: 5,
+          duration: 120,
+          publishedDate: '2025-01-01',
+          language: 'en',
+          videoUrl: 'url',
+          platform: 'yt',
+          segmentCount: 5,
         },
       }),
       // Complete voice_print

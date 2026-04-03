@@ -97,15 +97,9 @@ function generateTitle(text: string): string {
 }
 
 /** Find the edge type connecting two nodes. */
-function findEdgeType(
-  graph: AuroraGraph,
-  nodeIdA: string,
-  nodeIdB: string,
-): string {
+function findEdgeType(graph: AuroraGraph, nodeIdA: string, nodeIdB: string): string {
   const edge = graph.edges.find(
-    (e) =>
-      (e.from === nodeIdA && e.to === nodeIdB) ||
-      (e.from === nodeIdB && e.to === nodeIdA),
+    (e) => (e.from === nodeIdA && e.to === nodeIdB) || (e.from === nodeIdB && e.to === nodeIdA)
   );
   return edge?.type ?? 'related_to';
 }
@@ -114,7 +108,7 @@ function findEdgeType(
 function nodeToMemory(
   node: AuroraNode,
   graph: AuroraGraph,
-  similarity: number | null,
+  similarity: number | null
 ): Memory | null {
   if (node.type !== 'fact' && node.type !== 'preference') return null;
 
@@ -125,14 +119,9 @@ function nodeToMemory(
     edgeType: findEdgeType(graph, node.id, n.id),
   }));
 
-  const tags = Array.isArray(node.properties.tags)
-    ? (node.properties.tags as string[])
-    : [];
+  const tags = Array.isArray(node.properties.tags) ? (node.properties.tags as string[]) : [];
 
-  const text =
-    typeof node.properties.text === 'string'
-      ? node.properties.text
-      : node.title;
+  const text = typeof node.properties.text === 'string' ? node.properties.text : node.title;
 
   return {
     id: node.id,
@@ -170,7 +159,7 @@ function getContradictionModelConfig(): ModelConfig {
 async function checkContradictions(
   text: string,
   candidates: { id: string; similarity: number; title: string }[],
-  graph: AuroraGraph,
+  graph: AuroraGraph
 ): Promise<Contradiction[]> {
   const config = getContradictionModelConfig();
   const { client, model } = createAgentClient(config);
@@ -181,9 +170,8 @@ async function checkContradictions(
     const node = graph.nodes.find((n) => n.id === candidate.id);
     if (!node) continue;
 
-    const existingText = typeof node.properties.text === 'string'
-      ? node.properties.text
-      : node.title;
+    const existingText =
+      typeof node.properties.text === 'string' ? node.properties.text : node.title;
 
     try {
       const response = await client.messages.create({
@@ -203,9 +191,7 @@ Svara med JSON: { "contradicts": true/false, "reason": "kort förklaring" }`,
       });
 
       const responseText = response.content
-        .filter(
-          (block): block is Anthropic.TextBlock => block.type === 'text',
-        )
+        .filter((block): block is Anthropic.TextBlock => block.type === 'text')
         .map((block) => block.text)
         .join('');
 
@@ -222,7 +208,8 @@ Svara med JSON: { "contradicts": true/false, "reason": "kort förklaring" }`,
           });
         }
       }
-    } catch {  /* intentional: parse may fail */
+    } catch {
+      /* intentional: parse may fail */
       // Individual candidate check failed — skip silently
     }
   }
@@ -238,10 +225,7 @@ Svara med JSON: { "contradicts": true/false, "reason": "kort förklaring" }`,
  * matches are updated with boosted confidence, otherwise a new
  * node is created.
  */
-export async function remember(
-  text: string,
-  options?: RememberOptions,
-): Promise<RememberResult> {
+export async function remember(text: string, options?: RememberOptions): Promise<RememberResult> {
   const type = options?.type ?? 'fact';
   const scope = options?.scope ?? 'personal';
   const dedupThreshold = options?.dedupThreshold ?? 0.85;
@@ -317,6 +301,14 @@ export async function remember(
       text,
       tags: options?.tags ?? [],
       source: options?.source ?? null,
+      provenance: {
+        agent: 'Person',
+        agentId: null,
+        method: 'manual',
+        model: null,
+        sourceId: null,
+        timestamp: now,
+      },
     },
     confidence: 0.7,
     scope,
@@ -328,10 +320,7 @@ export async function remember(
 
   // Step 4: Check for contradictions and create edges
   const relatedCandidates = candidates.filter(
-    (c) =>
-      c.similarity !== null &&
-      c.similarity >= 0.5 &&
-      c.similarity < dedupThreshold,
+    (c) => c.similarity !== null && c.similarity >= 0.5 && c.similarity < dedupThreshold
   );
 
   let contradictions: Contradiction[] | undefined;
@@ -350,7 +339,8 @@ export async function remember(
     // Check for contradictions (non-fatal)
     try {
       contradictions = await checkContradictions(text, candidateInfo, graph);
-    } catch {  /* intentional: memory file may not exist */
+    } catch {
+      /* intentional: memory file may not exist */
       // Contradiction check failed — fall back to related_to edges
     }
 
@@ -387,10 +377,7 @@ export async function remember(
  * Recall memories from the Aurora knowledge graph matching a query.
  * Uses semantic search with enrichment from graph traversal.
  */
-export async function recall(
-  query: string,
-  options?: RecallOptions,
-): Promise<RecallResult> {
+export async function recall(query: string, options?: RecallOptions): Promise<RecallResult> {
   const limit = options?.limit ?? 10;
   const minSimilarity = options?.minSimilarity ?? 0.3;
 
@@ -424,18 +411,14 @@ export async function recall(
 export async function memoryStats(): Promise<MemoryStats> {
   const graph = await loadAuroraGraph();
 
-  const memoryNodes = graph.nodes.filter(
-    (n) => n.type === 'fact' || n.type === 'preference',
-  );
+  const memoryNodes = graph.nodes.filter((n) => n.type === 'fact' || n.type === 'preference');
 
   const facts = memoryNodes.filter((n) => n.type === 'fact').length;
   const preferences = memoryNodes.filter((n) => n.type === 'preference').length;
   const total = memoryNodes.length;
 
   const avgConfidence =
-    total > 0
-      ? memoryNodes.reduce((sum, n) => sum + n.confidence, 0) / total
-      : 0;
+    total > 0 ? memoryNodes.reduce((sum, n) => sum + n.confidence, 0) / total : 0;
 
   const byScope: Record<string, number> = {};
   for (const node of memoryNodes) {

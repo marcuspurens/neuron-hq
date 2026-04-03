@@ -13,6 +13,8 @@ const logger = createLogger('obsidian:parser');
 export interface ParsedSpeaker {
   label: string;
   name: string;
+  title: string;
+  organization: string;
   confidence: number;
   role: string;
 }
@@ -27,11 +29,19 @@ export interface Comment {
   text: string;
 }
 
+export interface ParsedTimelineBlock {
+  timecode_ms: number;
+  speaker: string;
+  text: string;
+}
+
 export interface ParsedObsidianFile {
   id: string;
   speakers: ParsedSpeaker[];
   highlights: Highlight[];
   comments: Comment[];
+  tags: string[] | null;
+  timelineBlocks: ParsedTimelineBlock[] | null;
   title: string | null;
   confidence: number | null;
   textContent: string | null;
@@ -100,21 +110,19 @@ export function parseTimecodeToMs(timecode: string): number {
  *     role: "host"
  * ```
  */
-export function extractSpeakers(
-  frontmatter: Record<string, unknown>,
-): ParsedSpeaker[] {
+export function extractSpeakers(frontmatter: Record<string, unknown>): ParsedSpeaker[] {
   const speakersObj = frontmatter.speakers;
   if (!speakersObj || typeof speakersObj !== 'object') return [];
 
   const result: ParsedSpeaker[] = [];
-  for (const [label, value] of Object.entries(
-    speakersObj as Record<string, unknown>,
-  )) {
+  for (const [label, value] of Object.entries(speakersObj as Record<string, unknown>)) {
     if (!value || typeof value !== 'object') continue;
     const v = value as Record<string, unknown>;
     result.push({
       label,
       name: typeof v.name === 'string' ? v.name : '',
+      title: typeof v.title === 'string' ? v.title : '',
+      organization: typeof v.organization === 'string' ? v.organization : '',
       confidence: typeof v.confidence === 'number' ? v.confidence : 0,
       role: typeof v.role === 'string' ? v.role : '',
     });
@@ -130,7 +138,7 @@ export function extractSpeakers(
  * Only known tags (highlight, key-insight, quote, follow-up) are extracted.
  */
 export function extractHighlights(
-  markdownBody: string,
+  markdownBody: string
 ): Array<{ timecode_ms: number; tag: string }> {
   const results: Array<{ timecode_ms: number; tag: string }> = [];
   const lines = markdownBody.split('\n');
@@ -161,7 +169,7 @@ export function extractHighlights(
  * each with the nearest preceding `### HH:MM:SS` header.
  */
 export function extractComments(
-  markdownBody: string,
+  markdownBody: string
 ): Array<{ timecode_ms: number; text: string }> {
   const results: Array<{ timecode_ms: number; text: string }> = [];
   const lines = markdownBody.split('\n');
@@ -201,7 +209,7 @@ export function extractComments(
  */
 export function matchSegmentTime(
   timecodeMs: number,
-  rawSegments: Array<{ start_ms: number }>,
+  rawSegments: Array<{ start_ms: number }>
 ): number | null {
   if (rawSegments.length === 0) return null;
 
@@ -235,9 +243,7 @@ const VALID_CATEGORIES = new Set(['gap', 'stale', 'idea']);
  * - Starts with 'nej' or 'no' (case-insensitive) → 'negative'
  * - Otherwise → 'neutral'
  */
-export function parseSentiment(
-  text: string,
-): 'positive' | 'negative' | 'neutral' {
+export function parseSentiment(text: string): 'positive' | 'negative' | 'neutral' {
   if (text.includes('\u{1F44D}')) return 'positive';
   if (/^(ja|yes)\b/i.test(text.trim())) return 'positive';
   if (text.includes('\u{1F44E}')) return 'negative';
@@ -252,9 +258,7 @@ export function parseSentiment(
  * (question_node_id, question_category) and the `<!-- svar: ... -->` answer.
  * Empty answers are skipped.
  */
-export function extractBriefingAnswers(
-  markdownBody: string,
-): BriefingAnswer[] {
+export function extractBriefingAnswers(markdownBody: string): BriefingAnswer[] {
   const results: BriefingAnswer[] = [];
   const lines = markdownBody.split('\n');
 
@@ -286,9 +290,7 @@ export function extractBriefingAnswers(
     const categoryMatch = QUESTION_CATEGORY_RE.exec(line);
     if (categoryMatch && currentIndex !== null) {
       const cat = categoryMatch[1].trim();
-      currentCategory = VALID_CATEGORIES.has(cat)
-        ? (cat as 'gap' | 'stale' | 'idea')
-        : null;
+      currentCategory = VALID_CATEGORIES.has(cat) ? (cat as 'gap' | 'stale' | 'idea') : null;
       continue;
     }
 
@@ -308,6 +310,47 @@ export function extractBriefingAnswers(
       });
     }
   }
+
+  return results;
+}
+
+export function extractTimelineBlocks(markdownBody: string): ParsedTimelineBlock[] {
+  const results: ParsedTimelineBlock[] = [];
+  const lines = markdownBody.split('\n');
+
+  let currentTimecodeMs: number | null = null;
+  let currentSpeaker = '';
+  let currentTextLines: string[] = [];
+
+  const flush = () => {
+    if (currentTimecodeMs !== null) {
+      const text = currentTextLines.join('\n').trim();
+      if (text.length > 0) {
+        results.push({ timecode_ms: currentTimecodeMs, speaker: currentSpeaker, text });
+      }
+    }
+  };
+
+  for (const line of lines) {
+    const headerMatch = TIMECODE_HEADER_RE.exec(line);
+    if (headerMatch) {
+      flush();
+      currentTimecodeMs = parseTimecodeToMs(headerMatch[1]);
+      const rest = headerMatch[2];
+      currentSpeaker = rest.replace(/#[\w-]+/g, '').trim();
+      currentTextLines = [];
+      continue;
+    }
+
+    if (currentTimecodeMs !== null) {
+      if (!COMMENT_RE.test(line)) {
+        COMMENT_RE.lastIndex = 0;
+        currentTextLines.push(line);
+      }
+      COMMENT_RE.lastIndex = 0;
+    }
+  }
+  flush();
 
   return results;
 }
@@ -337,9 +380,10 @@ export function extractContentSection(markdownBody: string): string | null {
 
   // Find the next "## " section at start of line
   const nextSectionMatch = afterHeading.match(/^## /m);
-  const section = nextSectionMatch?.index !== undefined
-    ? afterHeading.slice(0, nextSectionMatch.index)
-    : afterHeading;
+  const section =
+    nextSectionMatch?.index !== undefined
+      ? afterHeading.slice(0, nextSectionMatch.index)
+      : afterHeading;
 
   const trimmed = section.trim();
   return trimmed.length > 0 ? trimmed : null;
@@ -349,9 +393,7 @@ export function extractContentSection(markdownBody: string): string | null {
  * Main entry point. Parse an Obsidian markdown file with YAML frontmatter.
  * Returns null if no `id` in frontmatter or if the file is corrupt.
  */
-export function parseObsidianFile(
-  content: string,
-): ParsedObsidianFile | null {
+export function parseObsidianFile(content: string): ParsedObsidianFile | null {
   try {
     const parsed = matter(content);
     const frontmatter = parsed.data as Record<string, unknown>;
@@ -376,18 +418,26 @@ export function parseObsidianFile(
       text: c.text,
     }));
 
-    // New fields
+    const rawTags = frontmatter.tags;
+    const tags = Array.isArray(rawTags) ? rawTags.map(String).filter((t) => t.length > 0) : null;
+
     const title = extractTitle(parsed.content);
     const rawConfidence = frontmatter['confidence'];
     const confidence = typeof rawConfidence === 'number' ? rawConfidence : null;
     const textContent = extractContentSection(parsed.content);
-    const exportedAt = typeof frontmatter['exported_at'] === 'string' ? frontmatter['exported_at'] : null;
+    const exportedAt =
+      typeof frontmatter['exported_at'] === 'string' ? frontmatter['exported_at'] : null;
+
+    const rawTimelineBlocks = extractTimelineBlocks(parsed.content);
+    const timelineBlocks = rawTimelineBlocks.length > 0 ? rawTimelineBlocks : null;
 
     return {
       id: idStr,
       speakers,
       highlights,
       comments,
+      tags,
+      timelineBlocks,
       title,
       confidence,
       textContent,

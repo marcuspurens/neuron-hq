@@ -25,10 +25,11 @@ interface AuroraEdge {
   type: string;
 }
 
-/** Info gathered from voice_print nodes for a given transcript. */
 interface SpeakerInfo {
   label: string;
   name: string;
+  title: string;
+  organization: string;
   confidence: number;
   role: string;
   segments: Array<{ start_ms: number; end_ms: number }>;
@@ -70,7 +71,19 @@ function formatFrontmatter(node: AuroraNode): string {
   if (props.duration) lines.push(`längd: ${props.duration}`);
 
   const tags = Array.isArray(props.tags) ? (props.tags as string[]) : [];
-  if (tags.length > 0) lines.push(`tags: [${tags.join(', ')}]`);
+  if (tags.length > 0) {
+    const quoted = tags.map((t) => (t.includes(' ') ? `"${t}"` : t));
+    lines.push(`tags: [${quoted.join(', ')}]`);
+  }
+
+  const provenance = props.provenance as
+    | { agent?: string; method?: string; model?: string }
+    | undefined;
+  if (provenance) {
+    if (provenance.method) lines.push(`källa_typ: ${provenance.method}`);
+    if (provenance.agent) lines.push(`källa_agent: ${provenance.agent}`);
+    if (provenance.model) lines.push(`källa_modell: ${provenance.model}`);
+  }
 
   const summary = props.summary as string | undefined;
   if (summary) lines.push(`tldr: "${summary.replace(/"/g, '\\"')}"`);
@@ -92,8 +105,19 @@ function formatVideoFrontmatter(node: AuroraNode, speakers: Map<string, SpeakerI
   for (const [label, info] of speakers) {
     lines.push(`  ${label}:`);
     lines.push(`    name: "${info.name}"`);
+    lines.push(`    title: "${info.title}"`);
+    lines.push(`    organization: "${info.organization}"`);
     lines.push(`    confidence: ${info.confidence}`);
     lines.push(`    role: "${info.role}"`);
+  }
+
+  const provenance = props.provenance as
+    | { agent?: string; method?: string; model?: string }
+    | undefined;
+  if (provenance) {
+    if (provenance.method) lines.push(`källa_typ: ${provenance.method}`);
+    if (provenance.agent) lines.push(`källa_agent: ${provenance.agent}`);
+    if (provenance.model) lines.push(`källa_modell: ${provenance.model}`);
   }
 
   lines.push(`exported_at: "${new Date().toISOString()}"`);
@@ -101,7 +125,6 @@ function formatVideoFrontmatter(node: AuroraNode, speakers: Map<string, SpeakerI
   return lines.join('\n');
 }
 
-/** Build speaker table markdown. */
 function buildSpeakerTable(speakers: Map<string, SpeakerInfo>): string[] {
   const lines: string[] = [
     '## Talare',
@@ -242,19 +265,42 @@ function findVoicePrints(nodes: AuroraNode[], transcriptId: string): AuroraNode[
   return nodes.filter((n) => n.type === 'voice_print' && n.properties.videoNodeId === transcriptId);
 }
 
-/** Build speaker info map from voice_print nodes. */
-function buildSpeakerMap(voicePrints: AuroraNode[]): Map<string, SpeakerInfo> {
+function buildSpeakerMap(
+  voicePrints: AuroraNode[],
+  allNodes: AuroraNode[],
+  edges: AuroraEdge[]
+): Map<string, SpeakerInfo> {
   const map = new Map<string, SpeakerInfo>();
   for (const vp of voicePrints) {
     const label = (vp.properties.speakerLabel as string) || 'UNKNOWN';
     const segments = Array.isArray(vp.properties.segments)
       ? (vp.properties.segments as Array<{ start_ms: number; end_ms: number }>)
       : [];
+
+    let title = '';
+    let organization = '';
+    let role = '';
+    const identityEdge = edges.find(
+      (e) =>
+        e.to_id === vp.id &&
+        allNodes.some((n) => n.id === e.from_id && n.type === 'speaker_identity')
+    );
+    if (identityEdge) {
+      const identityNode = allNodes.find((n) => n.id === identityEdge.from_id);
+      if (identityNode) {
+        title = (identityNode.properties.title as string) || '';
+        organization = (identityNode.properties.organization as string) || '';
+        role = (identityNode.properties.role as string) || '';
+      }
+    }
+
     map.set(label, {
       label,
       name: label.startsWith('SPEAKER_') ? '' : label,
+      title,
+      organization,
       confidence: vp.confidence ?? 0,
-      role: '',
+      role,
       segments,
     });
   }
@@ -339,7 +385,7 @@ export async function obsidianExportCommand(cmdOptions: {
       if (isVideoTranscript(node)) {
         // --- Video transcript with timeline ---
         const voicePrints = findVoicePrints(nodes, node.id);
-        const speakerMap = buildSpeakerMap(voicePrints);
+        const speakerMap = buildSpeakerMap(voicePrints, nodes, edges);
 
         // Collect all diarization segments from voice_prints
         const allDiarizationSegments: Array<{
@@ -506,7 +552,8 @@ export async function exportRunNarrative(options: {
       const frontmatter = content.slice(0, endIdx);
       const body = content.slice(endIdx);
       // Add tags line before closing ---
-      content = frontmatter + `tags: [korning, ${stoplight}]\n` + body;
+      const runTags = ['korning', stoplight].map((t) => (t.includes(' ') ? `"${t}"` : t));
+      content = frontmatter + `tags: [${runTags.join(', ')}]\n` + body;
     }
   }
 

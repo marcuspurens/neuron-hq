@@ -33,7 +33,16 @@ const logger = createLogger('aurora:video');
 
 /** Progress update emitted at the start and end of each pipeline step. */
 export interface ProgressUpdate {
-  step: 'downloading' | 'transcribing' | 'diarizing' | 'chunking' | 'embedding' | 'crossreferencing' | 'saving' | 'polishing' | 'identifying';
+  step:
+    | 'downloading'
+    | 'transcribing'
+    | 'diarizing'
+    | 'chunking'
+    | 'embedding'
+    | 'crossreferencing'
+    | 'saving'
+    | 'polishing'
+    | 'identifying';
   progress: number; // 0.0 to 1.0
   stepElapsedMs: number;
   backend?: string;
@@ -211,7 +220,7 @@ function markRemainingSkipped(report: PipelineReport, fromStep: string): void {
  */
 export async function ingestVideo(
   url: string,
-  options?: VideoIngestOptions,
+  options?: VideoIngestOptions
 ): Promise<VideoIngestResult> {
   // 1. Generate node ID & dedup
   const transcriptNodeId = videoNodeId(url);
@@ -255,7 +264,7 @@ export async function ingestVideo(
           action: 'extract_video',
           source: url,
         },
-        { timeout: 600_000 },
+        { timeout: 600_000 }
       );
       if (!result.ok) throw new Error(result.error);
       return result;
@@ -266,7 +275,9 @@ export async function ingestVideo(
     report.details.download = {
       status: 'ok',
       duration_s: Math.round((Date.now() - stepStart) / 1000),
-      size_mb: extractMeta.fileSize ? Math.round((extractMeta.fileSize as number) / (1024 * 1024)) : undefined,
+      size_mb: extractMeta.fileSize
+        ? Math.round((extractMeta.fileSize as number) / (1024 * 1024))
+        : undefined,
     };
     report.steps_completed++;
 
@@ -298,7 +309,7 @@ export async function ingestVideo(
           source: extractMeta.audioPath as string,
           ...(Object.keys(transcribeOptions).length > 0 ? { options: transcribeOptions } : {}),
         },
-        { timeout: 1_800_000 },
+        { timeout: 1_800_000 }
       );
       if (!result.ok) throw new Error(result.error);
       return result;
@@ -339,7 +350,7 @@ export async function ingestVideo(
             action: 'diarize_audio',
             source: extractMeta.audioPath as string,
           },
-          { timeout: 1_200_000 },
+          { timeout: 1_200_000 }
         );
         if (!result.ok) throw new Error(result.error);
         return result;
@@ -382,8 +393,20 @@ export async function ingestVideo(
         duration: extractMeta.duration as number,
         language: transcribeMeta.language as string,
         segmentCount: transcribeMeta.segment_count as number,
-        rawSegments: transcribeMeta.segments as Array<{ start_ms: number; end_ms: number; text: string }>,
+        rawSegments: transcribeMeta.segments as Array<{
+          start_ms: number;
+          end_ms: number;
+          text: string;
+        }>,
         publishedDate: (extractMeta.publishedDate as string) ?? null,
+        provenance: {
+          agent: 'System',
+          agentId: null,
+          method: 'transcription',
+          model: 'whisper-large-v3',
+          sourceId: null,
+          timestamp: now,
+        },
       },
       confidence: 0.9,
       scope: options?.scope ?? 'personal',
@@ -419,8 +442,12 @@ export async function ingestVideo(
           totalChunks: chunks.length,
           wordCount: chunk.wordCount,
           parentId: transcriptNodeId,
-          'ebucore:start': duration ? Math.round((chunk.startOffset / fullTextLength) * duration * 1000) : null,
-          'ebucore:end': duration ? Math.round((chunk.endOffset / fullTextLength) * duration * 1000) : null,
+          'ebucore:start': duration
+            ? Math.round((chunk.startOffset / fullTextLength) * duration * 1000)
+            : null,
+          'ebucore:end': duration
+            ? Math.round((chunk.endOffset / fullTextLength) * duration * 1000)
+            : null,
           'ebucore:partNumber': chunk.index,
         },
         confidence: 0.9,
@@ -444,7 +471,10 @@ export async function ingestVideo(
       status: 'ok',
       duration_s: Math.round((Date.now() - stepStart) / 1000),
       chunks: chunks.length,
-      avg_words: chunks.length > 0 ? Math.round(chunks.reduce((s, c) => s + c.wordCount, 0) / chunks.length) : 0,
+      avg_words:
+        chunks.length > 0
+          ? Math.round(chunks.reduce((s, c) => s + c.wordCount, 0) / chunks.length)
+          : 0,
     };
     report.steps_completed++;
 
@@ -465,7 +495,7 @@ export async function ingestVideo(
         const speakerSegments = speakers.filter((s) => s.speaker === speakerLabel);
         const totalDurationMs = speakerSegments.reduce(
           (sum, s) => sum + (s.end_ms - s.start_ms),
-          0,
+          0
         );
         const vpId = `vp-${transcriptNodeId}-${speakerLabel}`;
         const vpNode: AuroraNode = {
@@ -478,7 +508,7 @@ export async function ingestVideo(
             videoNodeId: transcriptNodeId,
             segmentCount: speakerSegments.length,
             totalDurationMs,
-            segments: speakerSegments.map(s => ({ start_ms: s.start_ms, end_ms: s.end_ms })),
+            segments: speakerSegments.map((s) => ({ start_ms: s.start_ms, end_ms: s.end_ms })),
           },
           confidence: 0.7,
           scope: 'personal',
@@ -532,9 +562,15 @@ export async function ingestVideo(
         for (const result of autoTagResults) {
           if (result.action === 'auto_tagged') {
             await renameSpeaker(result.voicePrintId, result.identityName);
-            logger.error('Auto-tagged speaker', { name: result.identityName, confidence: result.confidence.toFixed(2) });
+            logger.error('Auto-tagged speaker', {
+              name: result.identityName,
+              confidence: result.confidence.toFixed(2),
+            });
           } else if (result.action === 'suggestion') {
-            logger.error('Speaker suggestion', { name: result.identityName, confidence: result.confidence.toFixed(2) });
+            logger.error('Speaker suggestion', {
+              name: result.identityName,
+              confidence: result.confidence.toFixed(2),
+            });
           }
         }
       } catch (err) {
@@ -562,7 +598,7 @@ export async function ingestVideo(
             'enriches',
             match.similarity,
             { createdBy: 'auto-ingest', source: url },
-            'auto-ingest-video',
+            'auto-ingest-video'
           );
           crossRefsCreated++;
           crossRefMatches.push({
@@ -605,9 +641,15 @@ export async function ingestVideo(
           polished = true;
         }
       } catch (err) {
-        logger.error('[polish] Skipping', { error: String(err instanceof Error ? err.message : err) });
+        logger.error('[polish] Skipping', {
+          error: String(err instanceof Error ? err.message : err),
+        });
       }
-      options?.onProgress?.({ step: 'polishing', progress: 1.0, stepElapsedMs: Date.now() - stepStart });
+      options?.onProgress?.({
+        step: 'polishing',
+        progress: 1.0,
+        stepElapsedMs: Date.now() - stepStart,
+      });
     }
 
     // 12. Optional: Identify speakers via LLM
@@ -624,9 +666,15 @@ export async function ingestVideo(
           speakerGuesses = guessResult.guesses;
         }
       } catch (err) {
-        logger.error('[identify-speakers] Skipping', { error: String(err instanceof Error ? err.message : err) });
+        logger.error('[identify-speakers] Skipping', {
+          error: String(err instanceof Error ? err.message : err),
+        });
       }
-      options?.onProgress?.({ step: 'identifying', progress: 1.0, stepElapsedMs: Date.now() - stepStart });
+      options?.onProgress?.({
+        step: 'identifying',
+        progress: 1.0,
+        stepElapsedMs: Date.now() - stepStart,
+      });
     }
 
     return {

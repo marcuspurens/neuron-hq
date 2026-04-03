@@ -111,6 +111,14 @@ export async function ingestImage(
       word_count: words.length,
       model_used: modelUsed,
       image_path: resolve(imagePath),
+      provenance: {
+        agent: 'System',
+        agentId: null,
+        method: 'vision',
+        model: modelUsed,
+        sourceId: null,
+        timestamp: new Date().toISOString(),
+      },
     },
     options ?? {}
   );

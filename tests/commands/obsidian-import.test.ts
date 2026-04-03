@@ -51,7 +51,7 @@ vi.mock('../../src/aurora/voiceprint.js', () => ({
 // Mock obsidian-parser (selective — use real parseObsidianFile for integration-like tests)
 vi.mock('../../src/aurora/obsidian-parser.js', async () => {
   const actual = await vi.importActual<typeof import('../../src/aurora/obsidian-parser.js')>(
-    '../../src/aurora/obsidian-parser.js',
+    '../../src/aurora/obsidian-parser.js'
   );
   return {
     ...actual,
@@ -59,10 +59,12 @@ vi.mock('../../src/aurora/obsidian-parser.js', async () => {
 });
 vi.mock('../../src/commands/obsidian-export.js', () => ({
   isVideoTranscript: (node: { type?: string; properties?: { rawSegments?: unknown } }) => {
-    return node.type === 'transcript' && Array.isArray((node.properties as Record<string, unknown>)?.rawSegments);
+    return (
+      node.type === 'transcript' &&
+      Array.isArray((node.properties as Record<string, unknown>)?.rawSegments)
+    );
   },
 }));
-
 
 import { obsidianImportCommand } from '../../src/commands/obsidian-import.js';
 
@@ -109,9 +111,7 @@ describe('obsidian-import', () => {
 
     await obsidianImportCommand({ vault: '/test-vault' });
 
-    expect(console.log).toHaveBeenCalledWith(
-      expect.stringContaining('No .md files'),
-    );
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('No .md files'));
     expect(mockLoadAuroraGraph).not.toHaveBeenCalled();
   });
 
@@ -191,13 +191,7 @@ describe('obsidian-import', () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
     mockReaddir.mockResolvedValue(['test.md']);
 
-    const mdContent = [
-      '---',
-      'id: nonexistent-node',
-      '---',
-      '',
-      'Some body text',
-    ].join('\n');
+    const mdContent = ['---', 'id: nonexistent-node', '---', '', 'Some body text'].join('\n');
 
     mockReadFile.mockResolvedValue(mdContent);
     mockLoadAuroraGraph.mockResolvedValue(makeGraph([]));
@@ -495,9 +489,7 @@ describe('obsidian-import', () => {
       'Text B',
     ].join('\n');
 
-    mockReadFile
-      .mockResolvedValueOnce(mdContentA)
-      .mockResolvedValueOnce(mdContentB);
+    mockReadFile.mockResolvedValueOnce(mdContentA).mockResolvedValueOnce(mdContentB);
 
     const graph = makeGraph([
       {
@@ -692,6 +684,149 @@ describe('obsidian-import', () => {
     // Import should still succeed (non-blocking)
     expect(mockUpdateAuroraNode).toHaveBeenCalledOnce();
     expect(result.conflictWarnings).toBe(1);
+  });
+
+  it('imports tags from frontmatter back to node properties', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue(['tagged.md']);
+
+    const mdContent = [
+      '---',
+      'id: doc-tags',
+      'tags:',
+      '  - AI',
+      '  - job displacement',
+      '  - ethics',
+      '---',
+      '',
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(mdContent);
+
+    const graph = makeGraph([
+      {
+        id: 'doc-tags',
+        type: 'document',
+        title: 'Tagged Doc',
+        updated: '2025-12-01T00:00:00.000Z',
+        properties: { tags: ['AI', 'old-tag'] },
+      },
+    ]);
+
+    mockLoadAuroraGraph.mockResolvedValue(graph);
+    mockUpdateAuroraNode.mockReturnValue(graph);
+
+    const result = await obsidianImportCommand({ vault: '/test-vault' });
+
+    expect(mockUpdateAuroraNode).toHaveBeenCalledOnce();
+    const updateCall = mockUpdateAuroraNode.mock.calls[0];
+    expect(updateCall[2].properties.tags).toEqual(['AI', 'job displacement', 'ethics']);
+    expect(result.tagsUpdated).toBe(1);
+  });
+
+  it('does not count tagsUpdated when tags are unchanged', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue(['same-tags.md']);
+
+    const mdContent = ['---', 'id: doc-same-tags', 'tags:', '  - AI', '  - ethics', '---', ''].join(
+      '\n'
+    );
+
+    mockReadFile.mockResolvedValue(mdContent);
+
+    const graph = makeGraph([
+      {
+        id: 'doc-same-tags',
+        type: 'document',
+        title: 'Same Tags Doc',
+        updated: '2025-12-01T00:00:00.000Z',
+        properties: { tags: ['AI', 'ethics'] },
+      },
+    ]);
+
+    mockLoadAuroraGraph.mockResolvedValue(graph);
+    mockUpdateAuroraNode.mockReturnValue(graph);
+
+    const result = await obsidianImportCommand({ vault: '/test-vault' });
+
+    expect(result.tagsUpdated).toBe(0);
+  });
+
+  it('reassigns segments when timeline speaker header is changed', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue(['video.md']);
+
+    const mdContent = [
+      '---',
+      'id: yt-seg-test',
+      'type: transcript',
+      'speakers:',
+      '  SPEAKER_00:',
+      '    name: ""',
+      '    title: ""',
+      '    organization: ""',
+      '    confidence: 0.9',
+      '    role: ""',
+      '  SPEAKER_01:',
+      '    name: ""',
+      '    title: ""',
+      '    organization: ""',
+      '    confidence: 0.8',
+      '    role: ""',
+      '---',
+      '',
+      '## Tidslinje',
+      '',
+      '### 00:00:00 \u2014 SPEAKER_00',
+      'Hello from speaker zero',
+      '',
+      '### 00:01:00 \u2014 SPEAKER_00',
+      'This was reassigned from SPEAKER_01 to SPEAKER_00',
+      '',
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(mdContent);
+
+    const graph = makeGraph([
+      {
+        id: 'yt-seg-test',
+        type: 'transcript',
+        properties: {
+          rawSegments: [
+            { start_ms: 0, end_ms: 5000, text: 'Hello' },
+            { start_ms: 60000, end_ms: 65000, text: 'Reassigned text' },
+          ],
+        },
+      },
+      {
+        id: 'vp-seg-s00',
+        type: 'voice_print',
+        properties: {
+          videoNodeId: 'yt-seg-test',
+          speakerLabel: 'SPEAKER_00',
+          segments: [{ start_ms: 0, end_ms: 5000 }],
+        },
+      },
+      {
+        id: 'vp-seg-s01',
+        type: 'voice_print',
+        properties: {
+          videoNodeId: 'yt-seg-test',
+          speakerLabel: 'SPEAKER_01',
+          segments: [{ start_ms: 60000, end_ms: 65000 }],
+        },
+      },
+    ]);
+
+    mockLoadAuroraGraph.mockResolvedValue(graph);
+    mockUpdateAuroraNode.mockImplementation((g) => g);
+
+    const result = await obsidianImportCommand({ vault: '/test-vault' });
+
+    expect(result.segmentReassignments).toBe(1);
+
+    const updateCalls = mockUpdateAuroraNode.mock.calls;
+    expect(updateCalls.length).toBeGreaterThanOrEqual(3);
   });
 
   it('AC11: result includes contentUpdates and conflictWarnings counts', async () => {

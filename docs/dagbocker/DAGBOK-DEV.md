@@ -263,6 +263,70 @@ Prioriterade briefs som väntar:
 
 ---
 
+## 2026-04-03 (Session 9)
+
+### Obsidian tvåvägs-metadata — 5 WP implementerade
+
+Alla 5 arbetspaket från session 8:s plan levererade i en session. Handlar om att göra Obsidian-exporten redigerbar och importera ändringar tillbaka till Aurora.
+
+**WP1 — Tag quoting**: `formatFrontmatter()` och `exportRunNarrative()` quotar nu YAML-tags med mellanslag: `tags: [simple, "job displacement", AI]`. Trivialt men bröt YAML-parsern vid import.
+
+**WP2 — Tags round-trip**: `ParsedObsidianFile` har nu `tags: string[] | null`. Parsern extraherar tags från frontmatter, importen diffar mot befintliga tags och uppdaterar noden om de ändrats. `ObsidianImportResult.tagsUpdated` counter.
+
+**WP3 — Speaker enrichment**: Största WP:t. Datflöde:
+
+```
+speaker_identity node (Aurora)
+  → edge → voice_print
+    → buildSpeakerMap() traverserar edges
+      → SpeakerInfo.title, .organization
+        → formatVideoFrontmatter() exporterar
+          → Obsidian: användaren redigerar
+            → obsidian-import läser tillbaka
+              → updateSpeakerMetadata() / createSpeakerIdentity()
+```
+
+EBUCore utökad med `ebucore:personTitle` och `ebucore:organisationName`.
+
+**WP4 — Provenance-lager**: `Provenance` interface i `aurora-schema.ts`. Sätts vid node-skapande:
+
+- `video.ts`: `{agent:'System', method:'transcription', model:'whisper-large-v3'}`
+- `intake.ts`: default `web_scrape`/`manual`, respekterar caller-override via metadata
+- `ocr.ts`: `{method:'ocr', model:'paddleocr-3.x'}`
+- `vision.ts`: `{method:'vision', model:modelUsed}`
+- `memory.ts`: `{agent:'Person', method:'manual'}`
+
+Exporteras till Obsidian som `källa_typ`, `källa_agent`, `källa_modell`. Read-only (importeras inte).
+
+**WP5 — Segment corrections**: Ny `extractTimelineBlocks()` parser som läser `### HH:MM:SS — Speaker`-headers. Import detekterar om en speaker-header ändrats (t.ex. SPEAKER_01 → SPEAKER_00), hittar matchande diarization-segment via 5s-tolerans, och flyttar segmentet mellan voice_prints.
+
+### Arkitekturbeslut
+
+- **Provenance i `properties`**, inte i Zod-schema — opt-in, ingen migration behövs
+- **`buildSpeakerMap()` tar `allNodes` + `edges`** — måste traversera graf för speaker_identity-lookup
+- **5 sekunders tolerans** för segment-timecode matching — hanterar avrundning utan falska positiver
+
+| Tid   | Typ     | Vad                                                    |
+| ----- | ------- | ------------------------------------------------------ |
+| 18:00 | SESSION | Session 9 start, läser handoff + plan                  |
+| 18:05 | FIX     | WP1: Tag quoting fix + test                            |
+| 18:10 | FEATURE | WP2: Tags round-trip parser + import + 2 tester        |
+| 18:20 | FEATURE | WP3: Speaker title/org — 6 filer, 5 tester uppdaterade |
+| 18:35 | FEATURE | WP4: Provenance — 7 ingest-filer + export + 2 tester   |
+| 18:45 | FEATURE | WP5: Timeline blocks + segment reassignment + 5 tester |
+| 18:50 | VERIFY  | Typecheck clean, 142/142 tester, full suite 3967 pass  |
+| 19:00 | PLAN    | Session 10 plan: PageDigest i PDF-pipeline             |
+
+### Baseline
+
+```
+typecheck: clean
+tests: 3967/3967 (1 pre-existing flaky timeout: auto-cross-ref.test.ts)
+commits: ej committat (awaiting review)
+```
+
+---
+
 ## 2026-04-01 (Session 5)
 
 ### Ingest-pipeline: regex-tags → LLM-enriched metadata

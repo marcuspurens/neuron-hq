@@ -24,6 +24,8 @@ export const EBUCORE_MAPPINGS: Record<string, Record<string, string>> = {
   speaker_identity: {
     'ebucore:personName': 'name',
     'ebucore:role': 'role',
+    'ebucore:personTitle': 'title',
+    'ebucore:organisationName': 'organization',
   },
 };
 
@@ -92,9 +94,10 @@ export function getEbucoreMetadata(node: AuroraNode): Record<string, unknown> {
  * Check which EBUCore fields are missing for this node type.
  * Returns complete=true if all fields have values, otherwise lists the missing ebucore field names.
  */
-export function validateEbucoreCompleteness(
-  node: AuroraNode,
-): { complete: boolean; missing: string[] } {
+export function validateEbucoreCompleteness(node: AuroraNode): {
+  complete: boolean;
+  missing: string[];
+} {
   const mapping = EBUCORE_MAPPINGS[node.type];
   if (!mapping) return { complete: true, missing: [] };
 
@@ -182,9 +185,7 @@ export function metadataCoverageReport(nodes: AuroraNode[]): CoverageReport {
   }
 
   const totalNodes = nodes.length;
-  const coveragePercent = totalNodes > 0
-    ? Math.round((coveredNodes / totalNodes) * 100)
-    : 0;
+  const coveragePercent = totalNodes > 0 ? Math.round((coveredNodes / totalNodes) * 100) : 0;
 
   return { totalNodes, coveredNodes, coveragePercent, byType };
 }

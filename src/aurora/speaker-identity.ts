@@ -28,7 +28,7 @@ function nodeToIdentity(node: AuroraNode): SpeakerIdentity {
     name: (node.properties.name as string) || node.title,
     confirmations: (node.properties.confirmations as number) || 0,
     confidence: node.confidence,
-    autoTagThreshold: (node.properties.autoTagThreshold as number) || 0.90,
+    autoTagThreshold: (node.properties.autoTagThreshold as number) || 0.9,
     confirmedVoicePrints: (node.properties.confirmedVoicePrints as string[]) || [],
     metadata: (node.properties.metadata as Record<string, unknown>) || {},
     created: node.created,
@@ -44,7 +44,7 @@ function nodeToIdentity(node: AuroraNode): SpeakerIdentity {
  */
 export async function createSpeakerIdentity(
   name: string,
-  voicePrintId: string,
+  voicePrintId: string
 ): Promise<SpeakerIdentity> {
   const id = `speaker-${name.toLowerCase().replace(/\s+/g, '-')}`;
   const now = new Date().toISOString();
@@ -58,7 +58,7 @@ export async function createSpeakerIdentity(
       role: 'unknown',
       confirmations: 1,
       confirmedVoicePrints: [voicePrintId],
-      autoTagThreshold: 0.90,
+      autoTagThreshold: 0.9,
       metadata: {},
     },
     confidence: 0.5,
@@ -90,7 +90,7 @@ export async function createSpeakerIdentity(
  */
 export async function confirmSpeaker(
   identityId: string,
-  voicePrintId: string,
+  voicePrintId: string
 ): Promise<{ identity: SpeakerIdentity; newConfidence: number }> {
   let graph = await loadAuroraGraph();
   const node = graph.nodes.find((n) => n.id === identityId);
@@ -140,7 +140,7 @@ export async function confirmSpeaker(
  */
 export async function rejectSpeakerSuggestion(
   identityId: string,
-  voicePrintId: string,
+  voicePrintId: string
 ): Promise<void> {
   let graph = await loadAuroraGraph();
   const node = graph.nodes.find((n) => n.id === identityId);
@@ -168,9 +168,7 @@ export async function rejectSpeakerSuggestion(
 export async function listSpeakerIdentities(): Promise<SpeakerIdentity[]> {
   const graph = await loadAuroraGraph();
   const nodes = findAuroraNodes(graph, { type: 'speaker_identity' });
-  return nodes
-    .map(nodeToIdentity)
-    .sort((a, b) => b.confidence - a.confidence);
+  return nodes.map(nodeToIdentity).sort((a, b) => b.confidence - a.confidence);
 }
 
 /** Suggestion result from suggestIdentity. */
@@ -187,9 +185,7 @@ export interface IdentitySuggestion {
  * @param voicePrintId - The voice print to find identity suggestions for
  * @returns Array of suggestions sorted by confidence descending
  */
-export async function suggestIdentity(
-  voicePrintId: string,
-): Promise<IdentitySuggestion[]> {
+export async function suggestIdentity(voicePrintId: string): Promise<IdentitySuggestion[]> {
   const graph = await loadAuroraGraph();
   const vpNode = graph.nodes.find((n) => n.id === voicePrintId);
   if (!vpNode || vpNode.type !== 'voice_print') {
@@ -258,9 +254,26 @@ export interface AutoTagResult {
  * @param voicePrintIds - Array of voice print IDs to process
  * @returns Array of results indicating what action was taken for each voice print
  */
-export async function autoTagSpeakers(
-  voicePrintIds: string[],
-): Promise<AutoTagResult[]> {
+export async function updateSpeakerMetadata(
+  identityId: string,
+  metadata: { title?: string; organization?: string; role?: string }
+): Promise<void> {
+  let graph = await loadAuroraGraph();
+  const node = graph.nodes.find((n) => n.id === identityId);
+  if (!node || node.type !== 'speaker_identity') {
+    throw new Error(`Speaker identity not found: ${identityId}`);
+  }
+
+  const updates: Record<string, unknown> = { ...node.properties };
+  if (metadata.title !== undefined) updates.title = metadata.title;
+  if (metadata.organization !== undefined) updates.organization = metadata.organization;
+  if (metadata.role !== undefined) updates.role = metadata.role;
+
+  graph = updateAuroraNode(graph, identityId, { properties: updates });
+  await saveAuroraGraph(graph);
+}
+
+export async function autoTagSpeakers(voicePrintIds: string[]): Promise<AutoTagResult[]> {
   const results: AutoTagResult[] = [];
 
   for (const vpId of voicePrintIds) {

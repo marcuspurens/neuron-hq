@@ -311,6 +311,66 @@ Full handoff: `docs/handoffs/HANDOFF-2026-04-01-opencode-session4-hermes-telegra
 
 ---
 
+## 2026-04-03 (session 9)
+
+### State
+
+```
+test_suite:     3967 passing (142 in changed files, 1 pre-existing flaky timeout)
+aurora_nodes:   ~90 (unchanged — no new content ingested)
+mcp_tools:      20
+commits:        none (uncommitted — awaiting Marcus review)
+```
+
+### Changes
+
+**Obsidian two-way metadata — 5 WPs implemented:**
+
+| WP  | Feature                       | Files changed                                                                                                  |
+| --- | ----------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| WP1 | Tag quoting (spaces)          | `obsidian-export.ts`                                                                                           |
+| WP2 | Tags round-trip (import back) | `obsidian-parser.ts`, `obsidian-import.ts`                                                                     |
+| WP3 | Speaker title/organization    | `obsidian-parser.ts`, `obsidian-export.ts`, `obsidian-import.ts`, `speaker-identity.ts`, `ebucore-metadata.ts` |
+| WP4 | Provenance layer              | `aurora-schema.ts`, `video.ts`, `intake.ts`, `ocr.ts`, `vision.ts`, `memory.ts`, `obsidian-export.ts`          |
+| WP5 | Segment corrections           | `obsidian-parser.ts`, `obsidian-import.ts`                                                                     |
+
+New interfaces: `Provenance` (aurora-schema), `ParsedTimelineBlock` (obsidian-parser)
+New functions: `updateSpeakerMetadata()` (speaker-identity), `extractTimelineBlocks()` (obsidian-parser)
+New EBUCore mappings: `ebucore:personTitle`, `ebucore:organisationName`
+New result fields: `tagsUpdated`, `segmentReassignments` (ObsidianImportResult)
+New frontmatter fields: `källa_typ`, `källa_agent`, `källa_modell`, `title`, `organization` per speaker
+
+Tests added: +10 (1 export tag, 2 export provenance, 2 import tags, 1 import segments, 4 parser timeline)
+Tests updated: 5 (parser + ebucore fixtures for new title/organization fields)
+
+### Decisions
+
+| Decision                                   | Why                                                           |
+| ------------------------------------------ | ------------------------------------------------------------- |
+| Provenance in `properties` not schema      | Opt-in, backward compatible, no migration needed              |
+| `buildSpeakerMap()` takes allNodes + edges | Needs edge traversal to find speaker_identity for title/org   |
+| 5s tolerance for segment timecode matching | Handles rounding without false positives                      |
+| `PageDigest[]` deferred to session 10      | Better as dedicated feature than tacked onto metadata session |
+
+### Active Context
+
+- All 5 WPs from `docs/plans/PLAN-obsidian-twoway-metadata-2026-04-02.md` complete
+- `docs/plans/PLAN-page-digest-pdf-pipeline-2026-04-03.md` ready for session 10
+- PDF to test: `/Users/mpmac/Downloads/© Ungdomsbarometern - Arbetsliv 2025 - SVT.pdf` (sid 30, tabell)
+
+### Next Actions (Session 10)
+
+1. Read handoff: `docs/handoffs/HANDOFF-2026-04-03T1900-opencode-session9-obsidian-twoway-metadata.md`
+2. Read plan: `docs/plans/PLAN-page-digest-pdf-pipeline-2026-04-03.md`
+3. WP1: `PageDigest` interface + `ingestPdfRich()` refaktor
+4. WP3: CLI `aurora pdf-diagnose <path> --page N`
+5. WP4: Test med Ungdomsbarometern sid 30
+6. WP2: Obsidian-export av PageDigest (stretch)
+
+Full handoff: `docs/handoffs/HANDOFF-2026-04-03T1900-opencode-session9-obsidian-twoway-metadata.md`
+
+---
+
 ## 2026-04-02 (session 8)
 
 ### State

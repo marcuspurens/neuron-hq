@@ -75,6 +75,7 @@ import {
   extractBriefingAnswers,
   extractTitle,
   extractContentSection,
+  extractTimelineBlocks,
 } from '../../src/aurora/obsidian-parser.js';
 
 // Mock the logger to suppress output during tests
@@ -124,8 +125,15 @@ describe('extractSpeakers', () => {
     };
     const result = extractSpeakers(frontmatter);
     expect(result).toEqual([
-      { label: 'SPEAKER_00', name: 'Marcus', confidence: 0.85, role: 'host' },
-      { label: 'SPEAKER_01', name: '', confidence: 0.72, role: '' },
+      {
+        label: 'SPEAKER_00',
+        name: 'Marcus',
+        title: '',
+        organization: '',
+        confidence: 0.85,
+        role: 'host',
+      },
+      { label: 'SPEAKER_01', name: '', title: '', organization: '', confidence: 0.72, role: '' },
     ]);
   });
 
@@ -150,7 +158,7 @@ describe('extractSpeakers', () => {
     };
     const result = extractSpeakers(frontmatter);
     expect(result).toEqual([
-      { label: 'SPEAKER_00', name: '', confidence: 0, role: '' },
+      { label: 'SPEAKER_00', name: '', title: '', organization: '', confidence: 0, role: '' },
     ]);
   });
 
@@ -242,9 +250,7 @@ describe('extractComments', () => {
     ].join('\n');
 
     const result = extractComments(body);
-    expect(result).toEqual([
-      { timecode_ms: 60000, text: 'This is important' },
-    ]);
+    expect(result).toEqual([{ timecode_ms: 60000, text: 'This is important' }]);
   });
 
   it('skips comments before any timecode header (orphan comment)', () => {
@@ -376,12 +382,16 @@ describe('parseObsidianFile', () => {
     expect(result!.speakers[0]).toEqual({
       label: 'SPEAKER_00',
       name: 'Marcus',
+      title: '',
+      organization: '',
       confidence: 0.85,
       role: 'host',
     });
     expect(result!.speakers[1]).toEqual({
       label: 'SPEAKER_01',
       name: '',
+      title: '',
+      organization: '',
       confidence: 0.72,
       role: '',
     });
@@ -396,12 +406,7 @@ describe('parseObsidianFile', () => {
   });
 
   it('returns null when no id in frontmatter', () => {
-    const content = [
-      '---',
-      'type: transcript',
-      '---',
-      'Some content',
-    ].join('\n');
+    const content = ['---', 'type: transcript', '---', 'Some content'].join('\n');
     expect(parseObsidianFile(content)).toBeNull();
   });
 
@@ -412,12 +417,7 @@ describe('parseObsidianFile', () => {
   });
 
   it('handles file with id but no speakers or highlights', () => {
-    const content = [
-      '---',
-      'id: minimal-file',
-      '---',
-      'Just some text, no headers.',
-    ].join('\n');
+    const content = ['---', 'id: minimal-file', '---', 'Just some text, no headers.'].join('\n');
     const result = parseObsidianFile(content);
     expect(result).not.toBeNull();
     expect(result!.id).toBe('minimal-file');
@@ -427,12 +427,7 @@ describe('parseObsidianFile', () => {
   });
 
   it('converts numeric id to string', () => {
-    const content = [
-      '---',
-      'id: 12345',
-      '---',
-      'Content',
-    ].join('\n');
+    const content = ['---', 'id: 12345', '---', 'Content'].join('\n');
     const result = parseObsidianFile(content);
     expect(result).not.toBeNull();
     expect(result!.id).toBe('12345');
@@ -534,7 +529,9 @@ describe('extractTitle', () => {
 
 describe('extractContentSection', () => {
   it('extracts content under ## Innehåll heading', () => {
-    expect(extractContentSection('## Innehåll\n\nHello world\n\n## Kopplingar')).toBe('Hello world');
+    expect(extractContentSection('## Innehåll\n\nHello world\n\n## Kopplingar')).toBe(
+      'Hello world'
+    );
   });
   it('returns null when no ## Innehåll section', () => {
     expect(extractContentSection('Inget innehåll')).toBeNull();
@@ -593,5 +590,58 @@ describe('parseObsidianFile new fields', () => {
     expect(result!.confidence).toBeNull();
     expect(result!.textContent).toBeNull();
     expect(result!.exportedAt).toBeNull();
+    expect(result!.tags).toBeNull();
+    expect(result!.timelineBlocks).toBeNull();
+  });
+});
+
+describe('extractTimelineBlocks', () => {
+  it('extracts speaker and text from timeline headers', () => {
+    const body = [
+      '### 00:00:00 \u2014 SPEAKER_00',
+      'Hello from speaker zero',
+      '',
+      '### 00:01:00 \u2014 SPEAKER_01',
+      'Now speaker one talks',
+    ].join('\n');
+
+    const blocks = extractTimelineBlocks(body);
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0]).toEqual({
+      timecode_ms: 0,
+      speaker: 'SPEAKER_00',
+      text: 'Hello from speaker zero',
+    });
+    expect(blocks[1]).toEqual({
+      timecode_ms: 60000,
+      speaker: 'SPEAKER_01',
+      text: 'Now speaker one talks',
+    });
+  });
+
+  it('strips hash-tags from speaker name', () => {
+    const body = '### 00:01:00 \u2014 Marcus #highlight #key-insight\nSome text';
+    const blocks = extractTimelineBlocks(body);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].speaker).toBe('Marcus');
+  });
+
+  it('skips HTML comment lines from block text', () => {
+    const body = [
+      '### 00:00:00 \u2014 SPEAKER_00',
+      'Text before comment',
+      '<!-- kommentar: some note -->',
+      'Text after comment',
+    ].join('\n');
+
+    const blocks = extractTimelineBlocks(body);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].text).not.toContain('kommentar');
+    expect(blocks[0].text).toContain('Text before comment');
+    expect(blocks[0].text).toContain('Text after comment');
+  });
+
+  it('returns empty array for body without timeline headers', () => {
+    expect(extractTimelineBlocks('Just plain text')).toEqual([]);
   });
 });
