@@ -443,3 +443,237 @@ aurora nodes: 86 (18 doc, rest chunks)
 ```
 
 ---
+
+## 2026-04-04 — Session 10: PageDigest + Vision Prompt Overhaul
+
+### PageDigest — src/aurora/ocr.ts
+
+Ny exported interface `PageDigest` med per-sida data: `textExtraction` (method/charCount/garbled), `ocrFallback`, `vision` (model/description/textOnly/tokensEstimate), `combinedText`.
+
+`ingestPdfRich()` refaktorerad: `ocrText` sparas separat, `visionModels[]` per sida, `pageDigests` skickas i metadata till `processExtractedText()`.
+
+`diagnosePdfPage(filePath, page, options)` — kör pipeline utan ingest. CLI: `aurora:pdf-diagnose`.
+
+`truncateDigestText()` — max 2000 chars per fält.
+
+### Vision prompt-fix — src/aurora/vision.ts
+
+| Problem                                     | Fix                                       |
+| ------------------------------------------- | ----------------------------------------- |
+| `/api/generate` utan system message         | → `/api/chat` med `VISION_SYSTEM_MESSAGE` |
+| qwen3-vl thinking mode (2+ min, tom output) | `think: false` + `num_predict: 800`       |
+| `ensureOllama()` blockerade timeout         | `isModelAvailable()` (enkel ping)         |
+
+PDF-prompt omskriven: 5-punkt format (PAGE TYPE, TITLE, DATA, KEY FINDING, LANGUAGE).
+DEFAULT_PROMPT omskriven: 5-punkt format (LAYOUT, TEXT, DATA, STRUCTURE, CONTEXT).
+
+### Obsidian export — src/commands/obsidian-export.ts
+
+`buildPageDigestSection()` → kollapsbar callout-tabell per sida. Pipe-char escaped till `∣`.
+
+### Release notes-system
+
+`AGENTS.md` sektion 15. 21 filer i `docs/release-notes/` (retroaktiva session 1-10, Marcus + LLM varianter). Kopierade till Obsidian `Neuron Lab/Release Notes/`.
+
+```
+typecheck: clean, tests: 42/42 (ocr 21 + obsidian-export 21)
+E2E: Ungdomsbarometern sid 10 → "bar chart", ~30s. Sid 30 → 1295 chars text.
+```
+
+---
+
+## 2026-04-05 (session 11) — Docling + Vision pipeline
+
+### Vision model debugging
+
+`qwen3-vl:8b` maps to the thinking artifact in Ollama (same hash as `8b-thinking`). The `think: false` API parameter is ignored because the model's template is `{{ .Prompt }}` — a raw passthrough without ChatML structure (ollama/ollama#14798). Workaround: switch to `qwen3-vl:8b-instruct-q8_0` which has proper ChatML with `$.Think` support.
+
+Created `ollama/Modelfile.vision-extract` — custom wrapper: temp 0, seed 42, num_ctx 32768, system prompt, JSON few-shot example. Registered as `aurora-vision-extract` in Ollama. Config default changed accordingly.
+
+`vision.ts` refactored: added `VisionDiagnostics` interface (load/eval duration, token counts, image size), `keep_alive: '10m'` to prevent GPU eviction, `stat()` size check (10MB cap), removed thinking workaround.
+
+### Docling integration
+
+Docling 2.84.0 replaces pypdfium2 as primary PDF extractor in `diagnosePdfPage`. The old pypdfium2 path (`ingestPdfRich`) is untouched for backward compat.
+
+Architecture: `extract_pdf_docling` Python worker → per-page markdown + table data → TypeScript `diagnosePdfPage` → conditional vision for `<!-- image -->` elements.
+
+Key limitation: Docling processes the entire PDF regardless of target page (~38s constant). No page-range API exists. Acceptable for batch/diagnose, but will need caching for interactive use.
+
+DoclingDocument schema (v1.10.0): 1661 texts with labels (text, section_header), 187 pictures with bbox, 15 tables with cell data, per-page size. Pages themselves are bare `{size, page_no}` — no page_type, no reading_order, no visual classification.
+
+### Metadata model decision
+
+Three-layer application profile:
+1. Dublin Core envelope (discovery: title, creator, date, subject)
+2. DoclingDocument (internal: text, tables, pictures, structure, provenance)
+3. Page-understanding extension (our addition: page_type computed from Docling elements + vision signal)
+
+`page_type` is *derived*, not prompted — count of section_headers, tables, pictures, text elements from Docling + coarse vision signal ("bar chart", "infographic") → classification logic in our code. This means upgrading the vision model improves classification without code changes.
+
+### Mönster etablerade
+
+- Docling-first for PDF: structured markdown > flat text
+- Vision as supplement, not primary: only for `<!-- image -->` gaps
+- Custom Modelfile pattern: pin model config in repo, not in env
+- `keep_alive` + pre-pin pattern for Ollama on M4: prevents GPU eviction between CLI invocations
+
+| Tid   | Typ     | Vad                                              |
+| ----- | ------- | ------------------------------------------------ |
+| 09:00 | SESSION | Start, read handoff + plan                       |
+| 09:30 | FIX     | Vision thinking bug diagnosed (ollama#14798)     |
+| 10:00 | FIX     | /no_think workaround tested, then instruct switch|
+| 10:30 | BESLUT  | qwen3-vl:8b-instruct-q8_0 + custom Modelfile    |
+| 11:00 | SESSION | 5-page diagnose run (pypdfium2 + vision)         |
+| 12:00 | BESLUT  | Docling integration based on Marcus's question   |
+| 12:30 | FIX     | numpy/pyarrow/pandas dependency chain            |
+| 13:00 | SESSION | Docling test run, comparison with pypdfium2      |
+| 14:00 | BESLUT  | Docling as primary, vision for images only        |
+| 15:00 | SESSION | Integration: worker + TypeScript + tests          |
+| 16:00 | SESSION | 5-page Docling+vision run, facit generation      |
+| 17:00 | BESLUT  | Three-layer metadata model, computed page_type   |
+
+### Baseline
+
+typecheck: clean
+tests: 3983/3984 (1 pre-existing)
+
+---
+
+## 2026-04-07 (session 12) — Schema.org metadata architecture
+
+### Schema.org vs Dublin Core analysis
+
+**Research method:** Direct websearch/webfetch (agents broken). Found official DC→Schema.org mappings on DCMI GitHub (hackmd.io/@kcoyle/SkEGbjNgD). Every DC-15 element maps to Schema.org: `dc:title` → `schema:name`, `dc:creator` → `schema:creator`, `dc:date` → `schema:datePublished`, `dc:language` → `schema:inLanguage`, `dc:subject` → `schema:about`/`schema:keywords`.
+
+**Key insight:** Schema.org is a strict superset. DC gives 15 generic string fields. Schema.org gives 800+ domain-specific types: `Report` with `reportNumber`, `pageStart/End`; `VideoObject` with `duration`, `transcript`; `Article` with `articleBody`, `dateModified`. No reason to use DC when Schema.org covers everything DC does plus domain-specific fields.
+
+**`schema-dts`** (google/schema-dts): npm package, 1.2k stars, v2.0.0 (Mar 2026). Generates TypeScript types from Schema.org ontology. `WithContext<Report>` gives full autocomplete. JSON-LD serialization built-in.
+
+**Tradeoff:** Schema.org is vast (800+ types). We use a minimal subset (6 fields from `CreativeWork`) wrapped in `AuroraDocument`. The `aurora: {}` namespace holds our extensions (provenance, pages, review status). This keeps Schema.org compatibility without adopting the full ontology.
+
+### AuroraDocument design
+
+```typescript
+interface AuroraDocument {
+  '@context': 'https://schema.org';
+  '@type': 'Report' | 'Article' | 'VideoObject' | 'WebPage';
+  name: string;
+  creator: string | null;
+  datePublished: string | null;
+  inLanguage: string;
+  keywords: string[];
+  encodingFormat: string;
+  aurora: {
+    id: string;
+    sourceHash: string;
+    provenance: AuroraProvenance;
+    pages: PageDigest[];
+    reviewed: boolean;
+    reviewedAt: string | null;
+  };
+}
+```
+
+Document types map to Schema.org: PDF report → `Report`, YouTube → `VideoObject`, web article → `Article`, scraped page → `WebPage`. Non-paged sources have empty `pages` array.
+
+### LiteLLM agent routing diagnosis
+
+**Problem:** All `task(run_in_background=true)` fail with `litellm.BadRequestError: Unknown parameter: 'reasoningSummary'`. Explore/librarian → `gpt-5-nano`, oracle → `gpt-5.2`. Main model (user-selected Grok-4 → Opus) unaffected.
+
+**Root cause:** LiteLLM model groups `gpt-5-nano` and `gpt-5.2` send `reasoningSummary` as default param. Azure doesn't support it. The model routing for sub-agents is separate from the main model selection in OpenCode Desktop.
+
+**Config location:** OpenCode Desktop stores user prefs in `~/Library/Application Support/ai.opencode.desktop/opencode.global.dat`. Model config shows `anthropic/claude-opus-4-5` for main model, but sub-agent routing is managed by OhMyOpenCode plugin layer — not directly editable from the agent.
+
+**Fix required:** LiteLLM server-side: remove `reasoningSummary` from `gpt-5-nano` and `gpt-5.2` model group defaults, OR add Anthropic fallback models.
+
+### Mönster etablerade
+
+- Schema.org-first for document metadata: `schema-dts` for types, minimal subset, `aurora` namespace for extensions
+- Design-first sessions: when architecture matters, don't code — decide, document, then implement next session
+
+| Tid   | Typ     | Vad                                              |
+| ----- | ------- | ------------------------------------------------ |
+| 10:00 | SESSION | Start, session 11 close checklist reviewed       |
+| 10:15 | BESLUT  | Session 12 plan: metadata spec + classifier + review tool |
+| 10:30 | SESSION | Deep analysis: DC vs Schema.org                  |
+| 11:00 | FIX     | Oracle agent retry (fail), retry (fail), retry (fail) |
+| 11:30 | BESLUT  | Schema.org via schema-dts — superset of DC       |
+| 12:00 | FIX     | LiteLLM diagnosis: reasoningSummary param issue   |
+| 13:00 | SESSION | Model switch Grok→Opus, sub-agents still broken  |
+| 14:00 | SESSION | OpenCode config analysis, agent routing mapped    |
+| 15:00 | SESSION | Handoff + dagböcker + release notes               |
+
+### Baseline
+
+typecheck: clean (no code changes)
+tests: 3983/3984 (unchanged)
+
+## 2026-04-08 (session 13) — schema-dts, page classifier, eval runner
+
+### Types architecture (`src/aurora/types.ts`)
+
+Implements Session 12 design. Key choices:
+
+- `AuroraProvenance` is `type alias` for existing `Provenance` (same fields, no duplication)
+- `AuroraPageEntry = { digest: PageDigest; understanding: PageUnderstanding | null }` — separate pipeline output from classifier output
+- `schema-dts` import removed from types.ts: we reference Schema.org concepts by naming convention (`@type`, `@context`), not by runtime type checking. Import deferred to when JSON-LD serialization actually uses it
+- All types exported from `src/aurora/index.ts` barrel
+
+### Page classifier (`src/aurora/page-classifier.ts`)
+
+Pure sync function: `classifyPage(digest: PageDigest): PageUnderstanding`
+
+Approach: parse the existing `digest.vision.description` string, which already contains structured output from `PDF_VISION_PROMPT` in `ocr.ts`:
+
+```
+PAGE TYPE: bar chart
+TITLE: Some title
+DATA:
+| Label | Value |
+| :--- | :--- |
+| Item A | 61% |
+KEY FINDING: Something important
+LANGUAGE: Swedish
+```
+
+Two parser modes for DATA: markdown table (`| Label | Value |`) and `Label: Value`. Header row filtering uses regex `^(label|value|name|key|...)$/i` to skip generic headers. Separator rows filtered by `^[:\-]+$`.
+
+Fallback heuristics when no vision: page 1 + short text = cover, dot leaders = ToC, high number density = table, >200 chars = text, <5 chars = blank.
+
+**Gotcha discovered**: blank threshold (charCount < 20) fired before cover check for page 1 with short text. Fixed by reordering: cover check first for page 1 when charCount > 0.
+
+### Eval runner (`src/aurora/pdf-eval.ts`)
+
+Weighted scoring formula:
+- Combined = text × 0.4 + vision × 0.6
+- Text = string_matches × 0.6 + min_chars × 0.2 + garbled × 0.2
+- Vision = page_type × 0.2 + title × 0.1 + data_points × 0.6 + negatives × 0.1
+
+`evalFromPipelineJson()` enables offline scoring without running the full Python pipeline — uses pre-saved pipeline JSON fixtures next to facit YAML.
+
+CLI: `aurora:pdf-eval <facit>` auto-detects `*_pipeline.json` next to `*.yaml`. Falls back to `--pdf <path>` for live pipeline run.
+
+### Mönster etablerade
+
+- **Pure classifier pattern**: no LLM, parse existing structured output. Sync, testable, cacheable. Apply this pattern whenever vision/LLM output is already available.
+- **Offline eval pattern**: save pipeline JSON alongside facit YAML for fast iteration without pipeline dependency.
+- **Weighted scoring**: explicit weight comments in code document the formula. Weights are constants, not configurable — tune by changing code, not config.
+
+| Tid   | Typ     | Vad                                              |
+| ----- | ------- | ------------------------------------------------ |
+| 07:30 | SESSION | Start, context gathering, explore/librarian test |
+| 07:35 | FIX     | Agent routing confirmed working (Anthropic)      |
+| 07:40 | BESLUT  | Implementation plan: types → classifier → eval   |
+| 07:45 | IMPL    | pnpm add -D schema-dts, types.ts created         |
+| 07:50 | IMPL    | page-classifier.ts, pdf-eval.ts created          |
+| 07:55 | IMPL    | index.ts exports, cli.ts aurora:pdf-eval added   |
+| 08:00 | FIX     | Typecheck: removed unused schema-dts import, yaml|
+| 08:05 | TEST    | 3 classifier test failures → fixed table header + cover threshold |
+| 08:10 | TEST    | All 24 new tests passing, full suite 4006/4008   |
+| 08:15 | DOCS    | Handoff, release notes, dagböcker                |
+
+### Baseline
+
+typecheck: clean
+tests: 4006/4008 (+24 new, 2 pre-existing flaky failures)

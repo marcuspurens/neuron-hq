@@ -8,7 +8,7 @@ Scope: entire repository. Last updated: 2026-02-26.
 ## 1) Project Snapshot (Read First)
 
 Neuron HQ is a **control plane** for autonomous agent swarms that develop other repositories.
-It does not ship software directly — it ships *capability*: the ability to reliably delegate
+It does not ship software directly — it ships _capability_: the ability to reliably delegate
 software development to a coordinated team of AI agents.
 
 Core properties the system must maintain:
@@ -67,6 +67,7 @@ These principles are mandatory, not aspirational.
 Clever code is a handoff liability.
 
 Required:
+
 - Prefer explicit conditional logic over abstract meta-programming
 - Keep functions under 40 lines; split if longer
 - Error paths must be obvious: throw with context, or return explicit Result types
@@ -77,6 +78,7 @@ Required:
 before modifying anything.
 
 Required:
+
 - Do not add config keys, feature flags, or optional parameters without a concrete caller
 - Do not create helper functions for operations done once
 - Do not design for hypothetical future requirements — design for the current brief
@@ -86,6 +88,7 @@ Required:
 **Why here:** Premature abstraction creates hidden coupling between otherwise independent modules.
 
 Required:
+
 - Duplicate small, local logic when it preserves clarity
 - Extract shared utilities only after three independent callers exist
 - When extracting, respect module boundaries: `src/policy/`, `src/agents/`, `src/core/` are separate domains
@@ -96,6 +99,7 @@ Required:
 causes a mysterious failure in iteration 40 that costs 30 more iterations to debug.
 
 Required:
+
 - Throw with context: `throw new Error('PolicyValidator: allowlist not loaded — call init() first')`
 - Never silently broaden permissions or swallow policy blocks
 - Never return `undefined` where the caller expects a value — use `| undefined` in the type and force the caller to handle it
@@ -106,6 +110,7 @@ Required:
 a test failure — it is data loss or credential exposure.
 
 Required:
+
 - Deny-by-default: commands not on the allowlist are blocked, not warned
 - No secrets in artifacts, logs, commit messages, or knowledge.md
 - File writes restricted to `workspaces/<runid>/` and `runs/<runid>/` — enforce at the boundary, not at call sites
@@ -116,6 +121,7 @@ Required:
 understandable in isolation and reversible without heroics.
 
 Required:
+
 - Small commits: one logical change, under 150 lines of diff
 - Before any destructive or high-risk operation, define the rollback path in `knowledge.md`
 - For HIGH-risk changes (policy, core orchestrator), Reviewer must give explicit PASS before merge
@@ -126,6 +132,7 @@ Required:
 check what already exists. This is the most common source of wasted iterations.
 
 Required:
+
 - Before implementing: search for existing implementations with grep/glob
 - Before adding a dependency: check if the functionality exists in the stdlib or already in `package.json`
 - Before modifying a module: read the full module, not just the target function
@@ -172,11 +179,11 @@ Changes to these paths require extra care:
 
 Use these tiers to calibrate validation depth and review rigor.
 
-| Tier | Paths | Required validation |
-|------|-------|---------------------|
-| **Low** | `docs/`, `briefs/`, test-only changes | Typecheck + lint |
-| **Medium** | `src/agents/`, `prompts/`, `src/audit/` | Full test suite + typecheck + lint |
-| **High** | `src/policy/`, `src/core/orchestrator.ts`, `policy/*.txt`, `policy/*.md` | Full test suite + new tests for changed behavior + explicit Reviewer PASS |
+| Tier       | Paths                                                                    | Required validation                                                       |
+| ---------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| **Low**    | `docs/`, `briefs/`, test-only changes                                    | Typecheck + lint                                                          |
+| **Medium** | `src/agents/`, `prompts/`, `src/audit/`                                  | Full test suite + typecheck + lint                                        |
+| **High**   | `src/policy/`, `src/core/orchestrator.ts`, `policy/*.txt`, `policy/*.md` | Full test suite + new tests for changed behavior + explicit Reviewer PASS |
 
 When uncertain, classify as higher risk.
 
@@ -185,6 +192,7 @@ When uncertain, classify as higher risk.
 ## 6) Agent Roles and Responsibilities
 
 ### Manager
+
 - Owns the plan and iteration budget (70 iterations max)
 - Delegates to other agents — does not implement directly
 - Reads Researcher output, then delegates to Implementer with a scoped task
@@ -192,6 +200,7 @@ When uncertain, classify as higher risk.
 - Hard rule: delegate to Implementer by iteration 30, even with incomplete information
 
 ### Implementer
+
 - Writes code, runs verifications, commits
 - Max 150 lines diff per iteration; split if larger
 - Writes `implementer_handoff.md` in the run artifacts dir when complete (see section 11)
@@ -199,24 +208,28 @@ When uncertain, classify as higher risk.
 - Commits even when brief does not explicitly request it — Merger handles final merge
 
 ### Reviewer
+
 - Gatekeeps before merge — checks for security, correctness, artifact completeness
 - Risk assessment: LOW / MED / HIGH
 - HIGH risk requires two-phase commit (Reviewer PASS → Manager APPROVED)
 - Writes `report.md` with STOPLIGHT (GREEN/YELLOW/RED)
 
 ### Researcher
+
 - External research agent — searches arxiv and Anthropic docs for recent AI research
 - Writes structured entries to `memory/techniques.md`
 - Triggered via `delegate_to_researcher` in the Manager
 - Does NOT read the target codebase — that is the Librarian's job
 
 ### Librarian
+
 - Per-run research agent — reads the target codebase and memory
 - Delivers `ideas.md` (impact/effort/risk) and `research/sources.md` (code references)
 - Does NOT implement — hands off to Implementer via Manager
 - Must complete before Implementer so findings inform implementation
 
 ### Historian
+
 - Runs at end of every completed run
 - Updates `memory/runs.md`, `memory/errors.md`, `memory/patterns.md`
 - Summarizes learnings for future agents
@@ -229,11 +242,13 @@ When uncertain, classify as higher risk.
 - Explicit priority order when iterations are limited: summary > errors > patterns > skeptic > metrics
 
 ### Tester
+
 - Focused test coverage agent
 - Writes tests for untested behavior, runs full test suite, reports gaps
 - Does not implement features — only tests
 
 ### Consolidator
+
 - Knowledge graph curator — refines, verifies, and improves graph quality
 - Never creates new knowledge nodes — only merges, connects, archives, and reports
 - Three-Gate Test before any merge: same problem, same context, compatible properties
@@ -244,6 +259,7 @@ When uncertain, classify as higher risk.
 - Precondition check: exits early if no new nodes since last consolidation
 
 ### Knowledge Manager
+
 - Knowledge maintenance agent — maintains Aurora graph by researching gaps and refreshing stale sources
 - Currently a deterministic TypeScript pipeline; hybrid LLM upgrade planned for quality assessment
 - **Honesty over completeness** — reports `unverified` or `partially_resolved` rather than false `resolved`
@@ -257,6 +273,7 @@ When uncertain, classify as higher risk.
 - Defined consumers: Manager (orient step), Historian (verification tasks), self (next run), Marcus (health check)
 
 ### Merger
+
 - Final safety gate before changes land in the target repo
 - Two-phase operation: PLAN (produce merge_plan.md) → EXECUTE (after Manager approves)
 - Reads `report.md`, verifies Reviewer gave GREEN stoplight — if not, returns MERGER_BLOCKED
@@ -270,6 +287,7 @@ When uncertain, classify as higher risk.
 ## 7) Agent Workflow (Required)
 
 ### Step 1: Orient (≤ 10 iterations)
+
 - Read `brief.md` from the run artifacts dir
 - Run baseline verification (tests, typecheck, lint)
 - Search memory files for relevant prior patterns: `search_memory(query=...)`
@@ -278,16 +296,19 @@ When uncertain, classify as higher risk.
 - Read existing code in affected modules
 
 ### Step 2: Plan (≤ 10 iterations)
+
 - Define scope: what will change, what will NOT change
 - Identify risk tier for the change
 - Write initial plan to `knowledge.md`
 
 ### Step 3: Execute
+
 - Implement in small increments (<150 lines per commit)
 - Verify after each change: `pnpm typecheck && pnpm lint && pnpm test`
 - Update `knowledge.md` with decisions and learnings
 
 ### Step 4: Complete
+
 - Write `implementer_handoff.md` (Implementer only — see section 11)
 - Ensure all required artifacts exist in `runs/<runid>/`
 - Signal completion to Manager
@@ -357,19 +378,19 @@ Run all three before marking any implementation task complete.
 
 Every run **must** create these files in `runs/<runid>/` before Reviewer signs off:
 
-| File | Content |
-|------|---------|
-| `brief.md` | Snapshot of the input brief |
-| `baseline.md` | Pre-run verification results (tests, lint, typecheck) |
-| `report.md` | STOPLIGHT (GREEN/YELLOW/RED) + how to run/test + risk + rollback |
-| `questions.md` | Max 3 blockers, or "No blockers" |
-| `ideas.md` | Research-driven suggestions with impact/effort/risk |
-| `knowledge.md` | Learnings, decisions, assumptions, open questions |
-| `research/sources.md` | Links and summaries (if Researcher was used) |
-| `audit.jsonl` | Append-only log of every tool call |
-| `manifest.json` | Checksums of all artifacts |
-| `usage.json` | Token tracking |
-| `redaction_report.md` | What was redacted from artifacts |
+| File                  | Content                                                          |
+| --------------------- | ---------------------------------------------------------------- |
+| `brief.md`            | Snapshot of the input brief                                      |
+| `baseline.md`         | Pre-run verification results (tests, lint, typecheck)            |
+| `report.md`           | STOPLIGHT (GREEN/YELLOW/RED) + how to run/test + risk + rollback |
+| `questions.md`        | Max 3 blockers, or "No blockers"                                 |
+| `ideas.md`            | Research-driven suggestions with impact/effort/risk              |
+| `knowledge.md`        | Learnings, decisions, assumptions, open questions                |
+| `research/sources.md` | Links and summaries (if Researcher was used)                     |
+| `audit.jsonl`         | Append-only log of every tool call                               |
+| `manifest.json`       | Checksums of all artifacts                                       |
+| `usage.json`          | Token tracking                                                   |
+| `redaction_report.md` | What was redacted from artifacts                                 |
 
 Reviewer blocks merge if any required artifact is missing or empty.
 
@@ -401,24 +422,30 @@ each delegation. This is how Manager understands what happened and why.
 # Implementer Handoff
 
 ## What changed
+
 - <file>:<lines> — <what and why>
 - <file>:<lines> — <what and why>
 
 ## What did NOT change (and why)
+
 - <area> — <reason it was left alone>
 
 ## Validation run
+
 - pnpm typecheck: PASS / FAIL (error summary)
 - pnpm lint: PASS / FAIL
 - pnpm test: PASS (N tests) / FAIL (N failures, summary)
 
 ## Commit(s)
+
 - <hash> <conventional-commit message>
 
 ## Remaining risks / unknowns
+
 - <risk or unknown, if any>
 
 ## Recommended next action
+
 - <what Manager should do next>
 ```
 
@@ -430,14 +457,15 @@ Manager must read this file before delegating to Reviewer or starting the next i
 
 Agents have access to persistent memory files in `memory/`:
 
-| File | Contents | When to use |
-|------|---------|-------------|
-| `runs.md` | Summary of every completed run | Check before starting — has this been tried before? |
-| `patterns.md` | Recurring successful patterns | Read before designing an approach |
-| `errors.md` | Known failure modes and fixes | Read when stuck on a repeating problem |
-| `techniques.md` | Synthesized best practices (Librarian) | Read for high-quality, proven approaches |
+| File            | Contents                               | When to use                                         |
+| --------------- | -------------------------------------- | --------------------------------------------------- |
+| `runs.md`       | Summary of every completed run         | Check before starting — has this been tried before? |
+| `patterns.md`   | Recurring successful patterns          | Read before designing an approach                   |
+| `errors.md`     | Known failure modes and fixes          | Read when stuck on a repeating problem              |
+| `techniques.md` | Synthesized best practices (Librarian) | Read for high-quality, proven approaches            |
 
 **Rules:**
+
 - Always `search_memory(query=...)` before researching an approach — it may already be documented
 - Do not write raw session notes to memory files — Historian synthesizes these
 - Do not contradict an existing memory entry without understanding why it was written
@@ -449,6 +477,7 @@ Agents have access to persistent memory files in `memory/`:
 The Observer agent passively monitors each run by listening to eventBus events. It does not modify anything during the run — it only observes and reports.
 
 After each run completes, Observer:
+
 1. Scans all agent prompts for anti-patterns that contradict the LLM Operating Awareness preamble
 2. Tracks token usage and costs per agent
 3. Checks tool usage against prompt claims (tool-alignment)
@@ -460,6 +489,7 @@ After each run completes, Observer:
 ### Retro Conversations
 
 After a run, Observer conducts short conversations with each agent:
+
 - Three standard questions: "Hur gick det?", "Vad funkade bäst?", "Vad funkade sämst?"
 - If observations were recorded for an agent, specific follow-up questions with evidence
 - "Allt gick bra" and "inget att anmärka" are valid answers — honesty over performativity
@@ -468,6 +498,7 @@ After a run, Observer conducts short conversations with each agent:
 ### Deep Prompt-Code Alignment
 
 Observer loads agent TypeScript source files and checks whether implementations are substantive (DEEP) or placeholder (SHALLOW):
+
 - SHALLOW: only sets flags, returns hardcoded values, or has empty body
 - DEEP: makes external calls, reads/compares data, or calls substantive logic
 - NOT_FOUND: expected function doesn't exist in the source file
@@ -493,11 +524,14 @@ When working under time pressure:
 ## 14) Documentation Conventions
 
 ### Versioned documents — never overwrite
+
 Important documents (architecture, roadmaps, analyses) use date-stamped filenames:
 `DOCUMENT-YYYY-MM-DD.md`. New versions are new files. Old versions are never deleted.
 
 ### Three-audience pattern
+
 Complex documents (like architecture) may exist in three versions:
+
 - `-LLM-`: Dense, parseable, module maps, file references — for AI agents
 - `-MARCUS-`: Swedish prose, decision rationale — for the project owner
 - `-DEV-`: Setup, conventions, cookbook, troubleshooting — for new developers
@@ -506,5 +540,307 @@ An index file (e.g. `ARKITEKTUR-AURORA.md`) links to the latest version of each 
 
 ---
 
-*This protocol is a living document. Update it when a new pattern proves stable across
-multiple runs. Do not update it speculatively.*
+## 15) Release Notes
+
+Every OpenCode session that produces code changes **must** generate release notes in
+`docs/release-notes/`. This is how Marcus (the project owner) understands what changed.
+
+### File naming
+
+```
+docs/release-notes/
+  SESSION-{NR}-{YYYY-MM-DD}-{slug}.md        ← Marcus variant (Swedish, no code refs)
+  SESSION-{NR}-{YYYY-MM-DD}-{slug}-LLM.md    ← LLM variant (English, interfaces, files, test delta)
+  SESSION-{NR}-{YYYY-MM-DD}-{slug}-DEV.md    ← Dev variant (files, decisions, risks)
+```
+
+The Marcus variant is also copied to the Obsidian vault at
+`Neuron Lab/Release Notes/Session {NR} — {Title}.md`.
+The LLM variant is also copied to
+`Neuron Lab/Release Notes/Session {NR} — {Title} (LLM).md`.
+
+### Marcus variant format
+
+```markdown
+---
+session: { NR }
+datum: { YYYY-MM-DD }
+tags: [release-note, { topic tags }]
+---
+
+# Session {NR} — {Title}
+
+## Vad är nytt?
+
+{1-3 bullet points. Each bullet explains WHAT changed, WHY it matters, and HOW it works.
+Write for a smart non-coder. If a tool/model/library is mentioned, explain what it is
+on first mention. Be concrete: numbers, model names, specific behavior.
+"En bugg fixades" is NOT acceptable — explain WHAT bug, WHAT it caused, HOW it was fixed.}
+
+## Hur använder jag det?
+
+{Concrete commands or steps. Terminal commands or Obsidian instructions.}
+
+## Vad saknas fortfarande?
+
+{Known limitations, deferred items. Be honest.}
+```
+
+Max ~30 lines.
+
+### Dev variant format
+
+```markdown
+---
+session: { NR }
+datum: { YYYY-MM-DD }
+---
+
+# Session {NR} — Dev Notes
+
+## Ändringar
+
+| Fil | Ändring |
+{table of all changed files}
+
+## Beslut och tradeoffs
+
+{Non-trivial design decisions with rationale.}
+
+## Testdelta
+
+{New/changed test counts per module.}
+
+## Kända risker
+
+{Things that might break, untested edge cases.}
+```
+
+### LLM variant format
+
+```markdown
+---
+session: { NR }
+date: { YYYY-MM-DD }
+variant: llm
+---
+
+# Session {NR} — {Title}
+
+## Changes
+
+| File | Change |
+{table of all changed files with concise descriptions}
+
+## New/Changed Interfaces
+
+{TypeScript interface definitions in code blocks. Only if something was added/changed.}
+
+## Design Decisions
+
+| Decision | Rationale |
+{each non-trivial design decision with why}
+
+## Test Delta
+
+{before→after test counts per module, new test descriptions}
+
+## Known Issues
+
+{bugs, limitations, tech debt introduced or discovered}
+
+## Verification
+
+{typecheck status, test results, E2E verification done}
+```
+
+---
+
+## 16) Dagböcker (Session Diaries)
+
+Three diaries in `docs/dagbocker/` are updated at the end of every session that produces
+changes. They capture what release notes and handoffs do NOT: the reasoning, surprises,
+failed attempts, and open questions that shaped the session.
+
+**Key principle: A diary entry that repeats the release note is wasted words.**
+Release notes answer "what can I do now?". Diaries answer "what happened and why did
+we choose this path?".
+
+### When to write
+
+- End of every session with code changes, config changes, or significant research
+- Sessions that are pure discussion/planning: write only if decisions were made
+- Never skip the diary to save time — a two-line entry is better than nothing
+
+### Three variants
+
+All three must be updated each session. They live in the same files (append-only).
+
+### Honesty rule (applies to ALL variants)
+
+The most valuable thing a diary can do is be honest about what was hard, uncertain,
+or half-finished. AI agents tend to write "everything went well." Fight that instinct.
+
+- If something took 45 minutes to debug, SAY SO and explain why
+- If a solution feels fragile or temporary, SAY SO
+- If you're unsure whether the approach is right, SAY SO
+- "Allt gick bra" is acceptable ONLY if it's genuinely true
+
+A diary that only reports successes is useless. A diary that captures the struggle
+is the most valuable document in the project.
+
+#### DAGBOK-MARCUS.md — For Marcus (project owner)
+
+**Language:** Swedish. **Tone:** Conversational, honest, no jargon.
+**Purpose:** Marcus reads this to understand what happened and why, without opening code.
+
+Format per entry:
+
+```markdown
+## {YYYY-MM-DD} — Session {NR}: {Title that captures the essence}
+
+### Vad hände?
+
+{Narrative paragraphs. Not a feature list — explain the JOURNEY of the session.
+What did we try? What surprised us? What didn't work before we found what did?
+Use numbered bold points for distinct topics. Explain technical concepts inline
+in plain language, e.g. "PPR (en algoritm som sprider sökningen genom grafens
+kopplingar istället för att bara matcha ord)".}
+
+### Vad funkade inte?
+
+{What we tried that failed, what took longer than expected, what felt wrong.
+THIS IS THE MOST IMPORTANT SECTION. If nothing failed, skip it — but think hard
+before skipping. Example: "Vision-modellen tog 2+ minuter per sida och gav tomt
+svar. Vi jagade problemet i 45 minuter innan vi hittade att 'thinking mode' var
+påslagen och åt upp all output-budget."}
+
+### Vad bestämdes?
+
+{Table or bullets of decisions made. Include the WHY — what alternative was rejected.
+Skip this section if no decisions were made.}
+
+| Beslut | Varför |
+| ------ | ------ |
+
+### Vad är planen framöver?
+
+{1-3 concrete next steps. Written so Marcus knows what to expect.
+Skip if covered in the previous session's plan and nothing changed.}
+```
+
+**Anti-patterns:**
+
+- Listing features without explaining why they matter
+- Using function names or file paths (that's for DEV)
+- "En bugg fixades" without saying what bug, what it caused, how it was fixed
+- Skipping "Vad funkade inte?" when there clearly were struggles
+
+#### DAGBOK-DEV.md — For senior developers
+
+**Language:** Swedish/English mix. **Tone:** Technical, precise, opinionated.
+**Purpose:** A developer joining the project reads this to understand architecture
+decisions, code patterns, and the reasoning behind non-obvious design choices.
+
+Format per entry:
+
+```markdown
+## {YYYY-MM-DD} (session {NR}) — {Technical summary}
+
+### {Topic 1}
+
+{Explain the technical approach. Include file paths, function names, interface
+changes. Code blocks for key patterns. Describe the TRADEOFF — what we gained
+and what we gave up.}
+
+### {Topic 2}
+
+...
+
+### Mönster etablerade
+
+{New patterns that future developers should follow. Not interfaces — patterns.
+Example: "Use isModelAvailable() for quick checks, ensureOllama() only at startup.
+The Promise-gate in ensureOllama caches results and can block timeout budgets."}
+
+| Tid   | Typ                         | Vad                    |
+| ----- | --------------------------- | ---------------------- |
+| HH:MM | SESSION/FIX/BESLUT/REFACTOR | {one-line description} |
+
+### Baseline
+
+typecheck: clean/N errors
+tests: N/N (+ new)
+```
+
+**What belongs here that doesn't belong in release notes:**
+
+- Why we chose approach A over approach B
+- Performance characteristics discovered during implementation
+- Gotchas future developers should know about
+- Patterns established that should be followed
+- Dead ends: what we tried that didn't work and why
+
+#### DAGBOK-LLM.md — For AI agents
+
+**Language:** English. **Tone:** Dense, parseable, no prose filler.
+**Purpose:** An agent starting a new session reads this entry to orient. Every word
+must earn its place.
+
+Format per entry:
+
+```markdown
+## {YYYY-MM-DD} — Session {NR}
+
+**Changes**: {file}: {what changed}; {file}: {what changed}; ...
+
+**New interfaces**: `InterfaceName` in `file.ts` — {fields}
+
+**Decisions**: {decision}: {rationale}; ...
+
+**Gotchas**: {non-obvious thing that will bite the next agent}
+
+**Dead ends**: {what was tried and abandoned, so you don't repeat it}
+
+**Tests**: {N}/{N} ({+new}). typecheck: {status}.
+
+**Next**: {what session N+1 should do}
+
+Handoff: `docs/handoffs/{filename}`
+```
+
+**The LLM diary is NOT a handoff.** The handoff is comprehensive and structured for
+resuming work. The diary entry is a 10-line orient snapshot — just enough to decide
+whether to read the full handoff.
+
+### Relationship between documents
+
+```
+Session N produces:
+  ├── Handoff     — "here's everything the next session needs" (comprehensive)
+  ├── Release note (Marcus) — "what's new for the user" (result-focused)
+  ├── Release note (LLM) — "what changed technically" (reference)
+  └── Diary entries (×3) — "what happened and why" (narrative/process)
+```
+
+Each document has a distinct purpose. If you find yourself copy-pasting between them,
+you're writing the wrong thing in the wrong place.
+
+### Session close checklist
+
+Before ending any session that produced changes, verify ALL of these exist:
+
+- [ ] **Handoff** written to `docs/handoffs/HANDOFF-{date}-opencode-session{NR}-{slug}.md`
+- [ ] **Release note (Marcus)** written + copied to Obsidian `Neuron Lab/Release Notes/`
+- [ ] **Release note (LLM)** written + copied to Obsidian `Neuron Lab/Release Notes/`
+- [ ] **DAGBOK-MARCUS.md** — entry appended
+- [ ] **DAGBOK-DEV.md** — entry appended
+- [ ] **DAGBOK-LLM.md** — entry appended
+- [ ] **Plan for next session** (if applicable) written to `docs/plans/`
+
+Do NOT ask Marcus "should I write the diary?" — just write it. It's mandatory.
+
+---
+
+_This protocol is a living document. Update it when a new pattern proves stable across
+multiple runs. Do not update it speculatively._

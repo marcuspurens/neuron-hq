@@ -46,7 +46,7 @@ describe('config', () => {
     const config = getConfig();
     expect(config.OLLAMA_URL).toBe('http://localhost:11434');
     expect(config.OLLAMA_MODEL_EMBED).toBe('snowflake-arctic-embed');
-    expect(config.OLLAMA_MODEL_VISION).toBe('qwen3-vl:8b');
+    expect(config.OLLAMA_MODEL_VISION).toBe('aurora-vision-extract');
     expect(config.OLLAMA_MODEL_POLISH).toBe('gemma3');
     expect(config.AURORA_PYTHON_PATH).toBe('python3');
     expect(config.LANGFUSE_BASE_URL).toBe('http://localhost:3000');

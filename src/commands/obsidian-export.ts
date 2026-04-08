@@ -222,6 +222,38 @@ function buildTimelineSectionWithAnnotations(
   return lines;
 }
 
+interface PageDigestData {
+  page: number;
+  textExtraction: { method: string; charCount: number; garbled: boolean };
+  ocrFallback: { triggered: boolean; charCount: number | null } | null;
+  vision: { model: string; description: string; textOnly: boolean } | null;
+  combinedCharCount: number;
+}
+
+function buildPageDigestSection(digests: PageDigestData[]): string[] {
+  if (digests.length === 0) return [];
+  const lines: string[] = [];
+  lines.push('> [!info]- Pipeline-detaljer per sida');
+  lines.push('> | Sida | Text-metod | Tecken | Garbled | OCR | Vision-modell | Vision |');
+  lines.push('> |------|-----------|--------|---------|-----|--------------|--------|');
+  for (const d of digests) {
+    const ocr = d.ocrFallback?.triggered ? `${d.ocrFallback.charCount ?? '?'} tkn` : '—';
+    const vModel = d.vision ? d.vision.model : '—';
+    const vDesc = d.vision
+      ? d.vision.textOnly
+        ? 'TEXT_ONLY'
+        : d.vision.description.slice(0, 60).replace(/\|/g, '∣') +
+          (d.vision.description.length > 60 ? '…' : '')
+      : '—';
+    const garbled = d.textExtraction.garbled ? 'ja' : 'nej';
+    lines.push(
+      `> | ${d.page} | ${d.textExtraction.method} | ${d.textExtraction.charCount} | ${garbled} | ${ocr} | ${vModel} | ${vDesc} |`
+    );
+  }
+  lines.push('');
+  return lines;
+}
+
 function buildNodeFilenameMap(nodes: AuroraNode[]): Map<string, string> {
   const map = new Map<string, string>();
   // Count chunks per parent node ID (not title, since different videos can share titles)
@@ -482,6 +514,11 @@ export async function obsidianExportCommand(cmdOptions: {
             lines.push(text);
             lines.push('');
           }
+        }
+
+        const pageDigests = props.pageDigests as PageDigestData[] | undefined;
+        if (Array.isArray(pageDigests) && pageDigests.length > 0) {
+          lines.push(...buildPageDigestSection(pageDigests));
         }
       }
 

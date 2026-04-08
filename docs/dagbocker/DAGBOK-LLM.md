@@ -544,36 +544,118 @@ Full handoff: `docs/handoffs/HANDOFF-2026-04-01T2130-opencode-session6-ppr-searc
 
 ---
 
+## 2026-04-04 — Session 10
+
+**PageDigest**: New exported interface in `src/aurora/ocr.ts`. Per-page diagnostic data: textExtraction (method/charCount/garbled), ocrFallback (triggered/text/charCount), vision (model/description/textOnly/tokensEstimate), combinedText/combinedCharCount. `ingestPdfRich()` builds `PageDigest[]`, passes in metadata to `processExtractedText()`. `RichPdfResult.pageDigests` added.
+
+**diagnosePdfPage()**: Single-page pipeline without ingest. CLI: `aurora:pdf-diagnose <path> --page <N>`.
+
+**Vision prompt overhaul**: `/api/generate` → `/api/chat` with `VISION_SYSTEM_MESSAGE`. `think: false` + `num_predict: 800` (qwen3-vl thinking mode caused 2+ min timeout with empty output). `isVisionAvailable()` changed from `ensureOllama()` to `isModelAvailable()` (simple ping vs blocking pull). PDF prompt: 5-point structured format. DEFAULT_PROMPT: 5-point structured format.
+
+**Obsidian export**: `buildPageDigestSection()` — collapsible callout table per page. Pipe char escaped to `∣`.
+
+**Release notes system**: `AGENTS.md` section 15. 21 files in `docs/release-notes/` (retroactive sessions 1-10, Marcus + LLM variants). Copied to Obsidian vault.
+
+**E2E verified**: Ungdomsbarometern page 10 → "bar chart" ~30s. Page 30 → 1295 chars text extraction.
+
+Tests: 42/42 (ocr 21 + obsidian-export 21). typecheck clean.
+
+Handoff: `docs/handoffs/HANDOFF-2026-04-04T1000-opencode-session10-page-digest-vision-prompts.md`
+Plan S11: `docs/plans/PLAN-pdf-eval-loop-2026-04-04.md`
+
+---
+
 ### Orient Checklist (for new agent)
 
 Before touching any code, verify:
 
 ```bash
 pnpm typecheck   # must be zero errors
-pnpm test        # must be 3949 passing
+pnpm test        # should be ~3967+ passing
 pnpm lint        # must be zero warnings on changed files
 ```
 
 Key files to read before implementing anything:
 
-- `AGENTS.md` — engineering protocol (mandatory)
-- `.claude/rules/*.md` — **ALL rules files** (naming conventions, handoff format, etc.) — MANDATORY, scan every file
+- `AGENTS.md` — engineering protocol (mandatory, includes section 15: Release Notes)
 - `docs/dagbocker/DAGBOK-LLM.md` — THIS FILE, current state (mandatory)
-- `HANDOFF.md` — handoff index, naming convention: `HANDOFF-YYYY-MM-DDT<HHMM>-<beskrivning>.md`
+- Latest handoff in `docs/handoffs/` — session context
 - `docs/ROADMAP.md` — current phase and task status
-- `docs/RAPPORT-KODANALYS-2026-03-26.md` — full codebase analysis
 - `memory/patterns.md` — proven patterns from previous runs
 - `memory/errors.md` — known failure modes to avoid
 
 Architecture entrypoints:
 
-- `src/cli.ts` — CLI entrypoint
-- `src/aurora/` — Aurora knowledge graph (38 files, the focus area)
+- `src/cli.ts` — CLI entrypoint (includes `aurora:pdf-diagnose`)
+- `src/aurora/` — Aurora knowledge graph (38+ files, the focus area)
+- `src/aurora/ocr.ts` — PDF pipeline: `ingestPdfRich()`, `diagnosePdfPage()`, `PageDigest`
+- `src/aurora/vision.ts` — Ollama vision: `analyzeImage()`, `VISION_SYSTEM_MESSAGE`
+- `src/aurora/search.ts` — Search with PPR expansion
+- `src/aurora/intake.ts` — Ingest pipeline with memory evolution + provenance
 - `src/core/agents/` — agent implementations (13 agents)
-- `src/mcp/server.ts` — MCP server (44 tools)
-- `src/core/ppr.ts` — HippoRAG PPR algorithm
-- `src/core/graph-merge.ts` — A-MEM abstraction/dedup
-- `src/core/knowledge-graph.ts` — Neuron KG (1095 lines)
-- `prompts/` — agent role definitions
+- `src/mcp/server.ts` — MCP server (20+ tools)
+- `src/commands/obsidian-export.ts` — Obsidian export with PageDigest table
+
+Known issues:
+
+- Vision cold start >120s after Ollama restart (model loading)
+- `isTextGarbled()` runs per-document not per-page
+- Text splitting via `\n{2,}` doesn't map 1:1 to PDF pages
 
 ---
+
+## 2026-04-05 — Session 11
+
+**Changes**: `aurora-workers/docling_extract.py`: NEW Docling worker; `aurora-workers/__main__.py`: register action; `src/aurora/worker-bridge.ts`: add action type; `src/aurora/ocr.ts`: diagnosePdfPage uses Docling primary + vision for images, PageDigest.method += 'docling'; `src/aurora/vision.ts`: full rewrite with VisionDiagnostics, keep_alive, stat check; `src/core/config.ts`: default → aurora-vision-extract; `ollama/Modelfile.vision-extract`: NEW custom instruct wrapper; `tests/aurora/vision.test.ts`: full rewrite; `tests/aurora/ocr.test.ts`: updated mocks; `tests/fixtures/pdf-eval/`: 5 pipeline.json + 5 facit.yaml
+
+**New interfaces**: `VisionDiagnostics` in `vision.ts` — loadDurationMs, evalDurationMs, totalDurationMs, promptTokens, evalTokens, imageSizeBytes. `PageDigest.textExtraction.method` extended with `'docling'`. `WorkerRequest.action` extended with `'extract_pdf_docling'`.
+
+**Decisions**: Docling 2.84.0 as primary PDF extractor: structured markdown + tables > flat pypdfium2; Vision only for `<!-- image -->` pages: saves 15-25s/page; Custom Modelfile (aurora-vision-extract): instruct-q8_0, temp 0, seed 42; Three-layer metadata model: Dublin Core + DoclingDocument + page-understanding extension; page_type computed from Docling elements + vision signal, not prompted
+
+**Gotchas**: `qwen3-vl:8b` = thinking variant, `think:false` ignored (ollama#14798) — must use instruct tag; Docling processes entire PDF even for single page (~38s constant); Docling 2.84.0 pulls numpy 2.4.4 breaking pyarrow/pandas — needs upgrade chain; Ollama evicts model from GPU after idle — use `keep_alive: '10m'` or pre-pin; Vision `key_finding` hallucinates (page 30: reversed most/least popular)
+
+**Dead ends**: `/no_think` + `raw:true` workaround for thinking variant — worked for text but unreliable for images; CLI-based diagnose timeouts were caused by Ollama GPU eviction between process spawns, not by the vision call itself
+
+**Tests**: 3983/3984 (+0 new test files, 3 rewritten). typecheck: clean.
+
+**Next**: Session 12: v1 metadata spec (YAML), page_type classifier (Docling elements + vision → computed type), data review workflow for Marcus
+
+Handoff: `docs/handoffs/HANDOFF-2026-04-05T1800-opencode-session11-docling-vision-pipeline.md`
+
+---
+
+## 2026-04-07 — Session 12
+
+**Changes:** Documentation only. No code changes.
+
+**New interfaces:** `AuroraDocument` designed (not implemented): Schema.org `Report`/`Article`/`VideoObject` + `aurora: { id, sourceHash, provenance, pages: PageDigest[], reviewed }`. `PageUnderstanding` designed: `pageType` enum, `chartType`, `dataPoints`, `keyFinding`, `signals`.
+
+**Decisions:** Schema.org via `schema-dts` over Dublin Core: superset, TypeScript types (google/schema-dts 1.2k stars), domain-specific (`Report` vs generic DC string), JSON-LD export-ready; Minimal subset (6 fields: name, creator, datePublished, inLanguage, keywords, encodingFormat); `aurora` namespace for extensions
+
+**Gotchas:** LiteLLM sub-agent routing broken entire session: explore/librarian → `gpt-5-nano`, oracle → `gpt-5.2`, all fail with `reasoningSummary` param error. Main model (user-selected) unaffected. Sub-agent routing is separate from main model selection in OpenCode Desktop. OpenCode config at `~/Library/Application Support/ai.opencode.desktop/opencode.global.dat`.
+
+**Dead ends:** DC as document envelope — too generic, no TypeScript types, reinvents what Schema.org provides; Multiple LiteLLM fix attempts from agent side — can't reach server config; Wrote 4 LiteLLM guide files (can be deleted after fix)
+
+**Tests:** Unchanged (3983/3984). typecheck: clean.
+
+**Next:** Session 13: Fix LiteLLM agent routing (remove `reasoningSummary` from gpt-5-nano/gpt-5.2 OR switch to Anthropic), `pnpm add -D schema-dts`, implement `AuroraDocument`, build page classifier.
+
+Handoff: `docs/handoffs/HANDOFF-2026-04-07T1200-opencode-session12-schema-org-metadata-architecture.md`
+
+## 2026-04-08 — Session 13
+
+**Changes:** `src/aurora/types.ts`: NEW — AuroraDocument, AuroraProvenance (=Provenance alias), AuroraPageEntry, PageUnderstanding, PageType (14 variants), ChartType (11 variants), DataPoint, PageTypeSignals, Facit, EvalResult; `src/aurora/page-classifier.ts`: NEW — `classifyPage()` sync pure function, parses vision description PAGE TYPE/TITLE/DATA/KEY FINDING, markdown table + Label:Value parsers, text heuristic fallback; `src/aurora/pdf-eval.ts`: NEW — `parseFacit()`, `evalPdfPage()`, `evalFromPipelineJson()`, `evalDirectory()`, `formatEvalSummary()`; `src/aurora/index.ts`: added all new exports; `src/cli.ts`: `aurora:pdf-eval <facit>` command; `package.json`: +schema-dts@2.0.0 devDep; tests: +15 classifier, +9 eval.
+
+**New interfaces:** `AuroraDocument` in `types.ts` — `@context`, `@type`, `name`, `creator`, `datePublished`, `inLanguage`, `keywords`, `encodingFormat`, `aurora: { id, sourceHash, provenance, pages: AuroraPageEntry[], reviewed, reviewedAt }`. `AuroraPageEntry` = `{ digest: PageDigest, understanding: PageUnderstanding | null }`. `PageUnderstanding` = `{ pageType, pageTypeConfidence, chartType, title, dataPoints, keyFinding, imageDescription, signals }`.
+
+**Decisions:** schema-dts import removed from types.ts (YAGNI — unused, add at serialization); AuroraProvenance = type alias for Provenance (same fields); classifier is pure sync (no LLM); scoring weights text 40% vision 60%; vision weights: type 20% title 10% data 60% negatives 10%.
+
+**Gotchas:** Markdown table header row `| Label | Value |` passed through as data point — needed regex filter for generic header words. Blank page threshold (charCount < 20) fires before cover check on page 1 — reorder to check cover first when page === 1 && charCount > 0. First explore agent (pre-routing-fix) timed out after 30min.
+
+**Dead ends:** None significant. Three test failures caught and fixed in first iteration.
+
+**Tests:** 4006/4008 (+24 new). typecheck: clean. 2 pre-existing flaky (auto-cross-ref, tester).
+
+**Next:** Wire classifyPage into ingestPdfRich pipeline. MCP tool for eval. Prompt comparison CLI (WP4).
+
+Handoff: `docs/handoffs/HANDOFF-2026-04-08T0800-opencode-session13-schema-dts-classifier-eval.md`

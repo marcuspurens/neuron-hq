@@ -786,6 +786,63 @@ describe('obsidian-export', () => {
     expect(content).toContain('tags: [simple, "job displacement", AI, "multi word tag"]');
   });
 
+  it('exports PageDigest as collapsible pipeline details table', async () => {
+    const docNode = makeNode({
+      id: 'pdf-digest-1',
+      title: 'PDF With Digests',
+      type: 'document',
+      properties: {
+        text: 'Page content here',
+        source_type: 'pdf_rich',
+        pageDigests: [
+          {
+            page: 1,
+            textExtraction: { method: 'pypdfium2', charCount: 1847, garbled: false },
+            ocrFallback: null,
+            vision: {
+              model: 'qwen3-vl:8b',
+              description: 'Table with 3 columns: Rank, Employer, Score',
+              textOnly: false,
+            },
+            combinedCharCount: 2100,
+          },
+          {
+            page: 2,
+            textExtraction: { method: 'pypdfium2', charCount: 2103, garbled: false },
+            ocrFallback: null,
+            vision: { model: 'qwen3-vl:8b', description: 'TEXT_ONLY', textOnly: true },
+            combinedCharCount: 2103,
+          },
+        ],
+      },
+    });
+
+    mockQuery.mockResolvedValueOnce({ rows: [docNode] }).mockResolvedValueOnce({ rows: [] });
+
+    await obsidianExportCommand({ vault: '/tmp/vault' });
+
+    const content = [...writtenFiles.values()][0];
+    expect(content).toContain('> [!info]- Pipeline-detaljer per sida');
+    expect(content).toContain('| 1 | pypdfium2 | 1847 | nej | — | qwen3-vl:8b |');
+    expect(content).toContain('| 2 | pypdfium2 | 2103 | nej | — | qwen3-vl:8b | TEXT_ONLY |');
+  });
+
+  it('omits pipeline details when no pageDigests', async () => {
+    const docNode = makeNode({
+      id: 'pdf-no-digest',
+      title: 'PDF Without Digests',
+      type: 'document',
+      properties: { text: 'Content', source_type: 'pdf' },
+    });
+
+    mockQuery.mockResolvedValueOnce({ rows: [docNode] }).mockResolvedValueOnce({ rows: [] });
+
+    await obsidianExportCommand({ vault: '/tmp/vault' });
+
+    const content = [...writtenFiles.values()][0];
+    expect(content).not.toContain('Pipeline-detaljer');
+  });
+
   describe('AC4-AC6: exported_at frontmatter and stale cleanup', () => {
     it('AC4: exported file contains frontmatter with typ field', async () => {
       const docNode = makeNode({

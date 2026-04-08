@@ -252,3 +252,134 @@ Nästa session handlar om PDF-kvalitet. Du ville testa hur systemet hanterar Ung
 Det ger dig möjligheten att alltid gå tillbaka och se: "sida 30 — pypdfium2 extraherade 1847 tecken, OCR triggades inte, vision-modellen tolkade tabellen som..."
 
 ---
+
+## 2026-04-01 — Session 6: Sökningen hittar nu sammanhang, inte bara enskilda träffar
+
+### Vad hände?
+
+Två stora förbättringar av hur Aurora tänker:
+
+**1. Smartare sökning (PPR — Personalized PageRank).** Förut hittade Aurora bara artiklar vars text liknade din fråga. Nu sprids sökningen genom grafens kopplingar. Om du frågar "Vad vet jag om AI-kodning?" hittar du inte bara den enda artikeln som nämner det — utan också YouTube-transkript, anteckningar och relaterade koncept som hänger ihop via grafen. Det är som skillnaden mellan att söka på ett ord och att följa en tankekarta.
+
+**2. Grafen lär sig av ny kunskap (Memory Evolution).** När du indexerar en ny artikel uppdateras nu befintliga relaterade noder automatiskt. De får veta att det finns en ny relevant källa. Kunskapsluckor som den nya artikeln besvarar markeras som lösta. Grafen "växer" istället för att bara lägga till isolerade noder.
+
+---
+
+---
+
+## 2026-04-04 — Session 10: Du kan se vad PDF-pipelinen gör + vision-promptarna fixade
+
+### Vad hände?
+
+**1. PageDigest — full spårning per sida.** Varje PDF-sida sparar nu exakt vad som hände: textextraktion (metod, antal tecken, om texten var trasig), OCR-fallback (triggades den? vad hittade den?), vision-analys (vilken modell, vad beskrevs, var det bara text?). Allt visas i en kollapsbar tabell i Obsidian.
+
+**2. Diagnostik-kommando.** `aurora:pdf-diagnose "fil.pdf" --page 30` kör alla tre pipeline-steg på en enda sida utan att indexera. Bra för felsökning.
+
+**3. Vision-modellen svarar nu på ~30 sekunder istället för timeout.** Tre problem fixades: (a) qwen3-vl:8b hade "thinking mode" som producerade enorma resonemang under 2+ minuter — avslaget med `think: false`. (b) Modellen fick en system message med regler: exakta siffror, inget gissande, markera oklara delar. (c) PDF-prompten kräver nu strukturerade svar: PAGE TYPE, TITLE, DATA, KEY FINDING, LANGUAGE.
+
+**4. Release notes-system.** Retroaktiva release notes för alla 10 sessioner — i Obsidian under `Release Notes/`. Två varianter: en för dig (svensk, utan kod) och en för AI-agenter (teknisk, engelsk).
+
+### Testat med Ungdomsbarometern
+
+Sida 10 (stapeldiagram om orosmoment) identifierades korrekt som "bar chart" med titeln på svenska. Sida 30 (skalfråga om arbetsinnehåll) extraherade 1295 tecken ren text.
+
+### Vad är planen framöver?
+
+Du hade en bra idé: skapa facit för PDF-sidor (vad borde pipelinen ha hittat?) och låta systemet utvärdera sig självt. Då kan promptarna förbättras systematiskt istället för att gissa. Plan skriven i `docs/plans/PLAN-pdf-eval-loop-2026-04-04.md`.
+
+---
+
+## 2026-04-05 — Session 11: Docling + Vision — Pipelinen tar form
+
+### Vad hände?
+
+1. **Vi hittade en bugg som förklarade varför vision-modellen gav tomma svar.** Det visade sig att `qwen3-vl:8b` i Ollama egentligen är "thinking-varianten" — modellen tänker i det tysta, äter upp alla tokens på sitt inre resonemang, och det blir inget svar kvar. Lösningen var att byta till `qwen3-vl:8b-instruct-q8_0`, en annan variant av samma modell som faktiskt svarar direkt. Vi skapade en egen modellprofil (en "Modelfile") med temperatur 0 och fasta inställningar för att få reproducerbara resultat.
+
+2. **Docling ersatte pypdfium2 som PDF-motor.** Du frågade: "Används inte Docling? Det finns ju installerat." Rätt — det fanns installerat men användes inte. Docling (IBM) ger strukturerad markdown med rubriker, tabeller och layout, inte bara platt text. Uppgraderades från 2.70.0 till 2.84.0 och integrerades som primär extractor.
+
+3. **Kombinerad pipeline: Docling + Vision.** Docling hanterar text och tabeller. Vision-modellen triggas bara för sidor med diagram och bilder som Docling inte kan läsa. Sida 30 i Ungdomsbarometern: vision extraherade 20 rader × 4 kolumner med procentsatser ur ett stapeldiagram — imponerande.
+
+4. **Du gjorde djup research om metadata-standarder.** Dublin Core, Schema.org, JATS, TEI, DataCite, DoclingDocument — och landade i en trelagsmodell: Dublin Core för bibliografisk metadata, DoclingDocument som intern representation, och en egen "page-understanding"-extension för det som standarderna saknar (sidtyper, diagramdata, bildbeskrivningar).
+
+5. **Viktig designinsikt:** `page_type` ska vara en *beräknad* signal, inte hårdkodad i prompten. Docling vet vilka element en sida har (rubriker, tabeller, bilder). Vision ger en grov signal ("bar chart", "infographic"). Vår kod kombinerar dessa. Det betyder att en bättre vision-modell automatiskt ger bättre klassificering — utan kodändring.
+
+### Vad funkade inte?
+
+Explore-agenterna kraschade hela sessionen (modellfel i bakgrunden), så all forskning fick göras manuellt. Vision-anropet via CLI timade ut konsekvent trots att det fungerade från direkta tsx-skript — det tog tid att förstå att Ollama laddar ur modellen ur GPU-minne efter idle-tid. Lösningen (`keep_alive: 10m` + pinning) fungerade, men det var ~45 minuter av felsökning innan vi kom dit.
+
+Docling-uppgraderingen bröt numpy/pyarrow/pandas-kedjan. Tog en extra runda att fixa beroendekedjan.
+
+### Vad bestämdes?
+
+| Beslut | Varför |
+| ------ | ------ |
+| Docling som primär PDF-extractor | Ger tabeller + struktur som pypdfium2 missar helt |
+| Vision bara för `<!-- image -->`-sidor | Sparar ~15-25s per sida, vision behövs inte för ren text |
+| Trelagsmetadatamodell | Inget enskilt standardschema täcker survey-rapporter |
+| page_type beräknas, inte promptas | Framtidssäkert — bättre modell = bättre resultat automatiskt |
+
+### Vad är planen framöver?
+
+1. **Session 12:** Landa v1-specen för metadata-modellen i YAML
+2. **Session 12:** Bygg page_type-klassificeraren (Docling-element + vision-signal → sidtyp)
+3. **Session 12:** Bygg ett granskningsverktyg så du kan se och rätta pipeline-output per sida
+
+---
+
+## 2026-04-07 — Session 12: Schema.org — rätt metadata-standard för Aurora
+
+### Vad hände?
+
+1. **Du utmanade Dublin Core-förslaget.** Sessionen började med att jag föreslog Dublin Core (en 30 år gammal biblioteksstandard med 15 generiska fält) som metadata-modell för Aurora. Du frågade: "Google, Microsoft och OpenAI använder Schema.org — varför ska inte vi det?" Det var rätt fråga. Schema.org är en modern superset av Dublin Core med typsäkra varianter för varje dokumenttyp: `Report` för PDF-rapporter, `VideoObject` för YouTube, `Article` för webbartiklar. Googles npm-paket `schema-dts` ger TypeScript-autocomplete direkt.
+
+2. **Vi landade på Schema.org via `schema-dts`.** Designade en `AuroraDocument`-interface som kombinerar Schema.org-metadata (titel, författare, datum, språk, ämne, format) med Aurora-specifika fält (provenance, sidarray, review-status). Schema.org-fälten ger bibliografisk identitet — "bibliotekskortet". Aurora-fälten ger extraktions- och analysdata.
+
+3. **LiteLLM-agentproblem tog upp stor del av sessionen.** Alla sub-agenter (Oracle, Librarian, Explore) kraschade med samma fel — de route:as till Azure-modeller som inte stödjer en parameter. Vi försökte byta modell för mig (Grok-4 → Opus), men det påverkade bara huvudagenten, inte sub-agenterna. Det tog tid att förstå att sub-agent-routingen är en separat LiteLLM-konfiguration.
+
+### Vad funkade inte?
+
+Sub-agenterna. Hela sessionen. Varje försök att köra Oracle, Librarian eller Explore misslyckades med `reasoningSummary`-felet. Det innebar att all research (Schema.org vs DC, `schema-dts`-analys) fick göras manuellt via direktverktyg (websearch, webfetch). Mycket tid gick åt till att diagnostisera och försöka fixa routingen — utan framgång, eftersom problemet sitter i LiteLLM-serverns konfiguration.
+
+### Vad bestämdes?
+
+| Beslut | Varför |
+| ------ | ------ |
+| Schema.org via `schema-dts` istället för Dublin Core | Modern standard, TypeScript-typer, domänspecifika dokumenttyper, JSON-LD-kompatibel |
+| Minimal fältuppsättning (6 fält) | Bara det vi behöver nu — lägg till mer när första konsumenten behöver det |
+| `aurora`-namespace för egna tillägg | Ren separation: Schema.org-fält på toppnivå, Aurora-specifikt under `aurora: {}` |
+
+### Vad är planen framöver?
+
+1. Fixa LiteLLM-routingen (ta bort `reasoningSummary` eller byt sub-agents till Anthropic)
+2. Installera `schema-dts`, implementera `AuroraDocument`
+3. Bygg page_type-klassificerare och granskningsverktyg
+
+## 2026-04-08 — Session 13: Schema.org-typer, Klassificerare & Utvärdering
+
+### Vad hände?
+
+**1. LiteLLM-routingen fixad.** Marcus bytte manuellt till Anthropic för alla sub-agenter före sessionen. Explore och Librarian svarade på 4–5 sekunder — äntligen fungerar parallella agenter igen efter att hela session 12 gick utan dem.
+
+**2. Tre nya filer byggda.** Session 12 designade arkitekturen — session 13 implementerade den. `types.ts` definierar hur ett PDF-dokument beskrivs med Schema.org-metadata (titel, författare, datum, språk, nyckelord). `page-classifier.ts` är en ren funktion som automatiskt bestämmer vad varje sida innehåller (stapeldiagram, tabell, text, omslag) utan att göra nya AI-anrop — den läser av det som visionsmodellen redan producerat. `pdf-eval.ts` poängsätter pipeline-output mot de facit-filer Marcus skapade i session 11.
+
+**3. CLI-kommando för utvärdering.** `pnpm neuron aurora:pdf-eval tests/fixtures/pdf-eval/` visar hur bra pipelinen presterar per sida — textscore, visionsscore och detaljerade resultat. Kan köras mot sparade resultat (snabbt) eller live mot en PDF (kräver Python-pipelinen).
+
+### Vad funkade inte?
+
+Den första explore-agenten (startad innan Marcus fixade routingen) hängde sig i 30 minuter och timmade ut. Ingen skada, men bortkastad bakgrundstid.
+
+Klassificeraren hade två buggar vid första testkörningen: den parsade tabellhuvudrader (`| Label | Value |`) som datapunkter, och tröskelvärdet för "blank sida" triggrade innan "omslagssida". Båda fixade snabbt via testdriven iteration — tre tester failade, fixade logiken, alla 24 gröna.
+
+### Vad bestämdes?
+
+| Beslut | Varför |
+| ------ | ------ |
+| `schema-dts`-import borttagen från types.ts | Importerade typer användes inte — YAGNI. Läggs till när serialisering behövs |
+| Sidklassificerare utan LLM | Tolkar befintligt visions-output istället. Bättre modell = bättre input automatiskt |
+| Poängvikter: text 40%, vision 60% | Vision är den primära signalen för diagram/data. Text verifierar textextraktion |
+
+### Vad är planen framöver?
+
+1. Koppla in klassificeraren i pipeline-flödet (`ingestPdfRich`)
+2. MCP-verktyg för eval (inte bara CLI)
+3. Promptjämförelseverktyg (`aurora:pdf-eval-compare`)

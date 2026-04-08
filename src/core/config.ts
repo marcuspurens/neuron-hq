@@ -7,7 +7,7 @@ const ConfigSchema = z.object({
   // Ollama
   OLLAMA_URL: z.string().default('http://localhost:11434'),
   OLLAMA_MODEL_EMBED: z.string().default('snowflake-arctic-embed'),
-  OLLAMA_MODEL_VISION: z.string().default('qwen3-vl:8b'),
+  OLLAMA_MODEL_VISION: z.string().default('aurora-vision-extract'),
   OLLAMA_MODEL_POLISH: z.string().default('gemma3'),
   // Aurora
   AURORA_PYTHON_PATH: z.string().default('python3'),
