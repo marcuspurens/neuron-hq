@@ -93,17 +93,20 @@ Marcus + LLM variants copied to `Neuron Lab/Release Notes/Session 13 — Schema.
 
 ## Next session priorities
 
-### P0: Wire classification into processExtractedText metadata
-Currently `processExtractedText` receives `pageDigests` in metadata but not `pages` (with understanding). Consider passing `AuroraPageEntry[]` instead.
+### P0: CHANGELOG.md i AGENTS.md
+Lägg till CHANGELOG.md som krav i §15 så att framtida sessioner vet att de ska uppdatera den. 2 minuter.
 
-### P1: Schema.org JSON-LD export
-`AuroraDocument` type exists but no serialization to actual JSON-LD. Implement `documentToJsonLd()` using the existing `jsonld-export.ts` patterns.
+### P1: Wire classification into processExtractedText metadata
+Currently `processExtractedText` receives `pageDigests` in metadata but not `pages` (with understanding). Consider passing `AuroraPageEntry[]` instead. Klassificeringen försvinner efter pipeline-körningen — bör persisteras.
 
-### P2: Vision prompt tuning
-Now that `aurora:pdf-eval-compare` exists, actually create an improved vision prompt (v2) and test it against the existing facit set.
+### P2: Eval scoring refinements
+The current scoring is basic substring matching. Consider fuzzy matching for data points, handling number format variations ("67%" vs "67 %"), and language-aware comparison. **Must be done before prompt tuning** — no point measuring prompt improvements with a scorer that can't distinguish real signal from noise.
 
-### P3: Eval scoring refinements
-The current scoring is basic substring matching. Consider fuzzy matching for data points, handling number format variations ("67%" vs "67 %"), and language-aware comparison.
+### P3: Vision prompt tuning
+Create an improved vision prompt (v2) and test it against the existing facit set using `aurora:pdf-eval-compare`. Depends on P2 for reliable measurements.
+
+### Deferred: Schema.org JSON-LD export
+`AuroraDocument` type exists but no serialization to actual JSON-LD. Implement `documentToJsonLd()` using the existing `jsonld-export.ts` patterns. Lower priority than eval loop maturity.
 
 ---
 
