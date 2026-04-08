@@ -137,6 +137,44 @@ Required:
 - Before adding a dependency: check if the functionality exists in the stdlib or already in `package.json`
 - Before modifying a module: read the full module, not just the target function
 
+### 3.8 Resist the Path of Least Resistance
+
+**Why here:** Agents — like humans — default to the answer that comes with the least
+effort. The first output feels right precisely because nothing resisted it. But effort
+and correctness are unrelated. An answer that flows easily is the most *probable*
+answer given the context, not the most *correct* one. And if you stop to think and
+discover that a different answer is better, that means more work — which is itself
+a reason the easy answer came first.
+
+This is not an AI-specific problem. It is a universal tendency in any system —
+biological or statistical — that optimizes for energy efficiency. The instinct is to
+not think too hard, because thinking costs energy and might reveal that you were wrong,
+which costs even more.
+
+**The broad principle:**
+
+You have a strong tendency to take the path of least resistance in your generation.
+What comes quickly and flows naturally is often the most likely output, not the most
+correct one. When you notice that an answer arrived without friction — stop. That is
+not a sign that you are right. It is a sign that you have not thought.
+
+**The concrete test — Invert Before Committing:**
+
+- Before proposing any prioritized list (task order, migration sequence, implementation
+  plan): produce the list, then invert it, then ask which ordering has a stronger
+  dependency argument. If the inverted order has equal or better justification, you
+  chose wrong the first time.
+- Before recommending an approach: state what you would lose by doing the opposite.
+  If you cannot articulate a concrete loss, your recommendation is preference,
+  not reasoning.
+- When you notice that your top priority is something you built in the current session:
+  treat that as a yellow flag. Explicitly verify that it doesn't depend on something
+  lower in the list.
+
+The test is not "does my reasoning sound good?" — reasoning can be constructed to
+justify any order after the fact. The test is "does the dependency chain support
+this sequence?"
+
 ---
 
 ## 4) Repository Map
