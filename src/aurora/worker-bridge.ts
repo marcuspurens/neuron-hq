@@ -32,7 +32,8 @@ export interface WorkerRequest {
     | 'batch_ocr'
     | 'extract_video_metadata'
     | 'render_pdf_page'
-    | 'get_pdf_page_count';
+    | 'get_pdf_page_count'
+    | 'extract_pdf_docling';
   source: string;
   /** Optional key-value options forwarded to the Python handler. */
   options?: Record<string, unknown>;

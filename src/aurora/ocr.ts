@@ -8,6 +8,8 @@ import { writeFile, unlink } from 'fs/promises';
 import { runWorker } from './worker-bridge.js';
 import { processExtractedText, type IngestOptions, type IngestResult } from './intake.js';
 import { analyzeImage, isVisionAvailable } from './vision.js';
+import { classifyPage } from './page-classifier.js';
+import type { AuroraPageEntry } from './types.js';
 import { createLogger } from '../core/logger.js';
 
 const logger = createLogger('aurora:ocr');
@@ -187,13 +189,52 @@ export async function ingestImageBatch(
 /*  Rich PDF Ingest (OCR + Vision)                                     */
 /* ------------------------------------------------------------------ */
 
-const PDF_VISION_PROMPT =
-  'Describe this PDF page. If it contains tables, describe the table structure and key data. ' +
-  'If it contains charts, graphs or diagrams, describe what they show and the key data points. ' +
-  'If it only contains plain text, respond with exactly: TEXT_ONLY';
+export const PDF_VISION_PROMPT = `Analyze this PDF page.
+
+If the page contains ONLY plain text with no visual elements, respond with exactly: TEXT_ONLY
+
+Otherwise, describe the visual content:
+
+1. PAGE TYPE: table / bar chart / line chart / pie chart / diagram / infographic / mixed
+2. TITLE: The heading or title of this page, exactly as shown.
+3. DATA: List ALL numbers, percentages, and labels visible. Preserve exact values.
+   Format tables as: | Column1 | Column2 | ... |
+   Format chart data as: Label: Value
+4. KEY FINDING: One sentence summarizing the main takeaway of this page.
+5. LANGUAGE: The language used in the document (e.g. Swedish, English).
+
+Be precise with numbers. "67%" means 67%, not "about two-thirds".`;
+
+/** Per-page diagnostic data from the PDF ingest pipeline. */
+export interface PageDigest {
+  /** 1-indexed page number. */
+  page: number;
+  textExtraction: {
+    method: 'pypdfium2' | 'ocr' | 'docling' | 'none';
+    text: string;
+    charCount: number;
+    garbled: boolean;
+  };
+  ocrFallback: {
+    triggered: boolean;
+    text: string | null;
+    charCount: number | null;
+  } | null;
+  vision: {
+    model: string;
+    description: string;
+    textOnly: boolean;
+    tokensEstimate: number;
+  } | null;
+  combinedText: string;
+  combinedCharCount: number;
+}
 
 export interface RichPdfResult extends IngestResult {
   pageDescriptions: string[];
+  pageDigests: PageDigest[];
+  /** Per-page digest + classifier understanding. */
+  pages: AuroraPageEntry[];
   visionUsed: boolean;
   pageCount: number;
 }
@@ -228,6 +269,7 @@ export async function ingestPdfRich(
   const garbled = isTextGarbled(extractedText);
 
   // Step 3: If garbled, fall back to OCR
+  let ocrText: string | null = null;
   if (garbled || !extractedText.trim()) {
     onProgress?.('ocr', 10);
     try {
@@ -243,7 +285,8 @@ export async function ingestPdfRich(
         { timeout: 600_000 }
       );
       if (ocrResult.ok) {
-        extractedText = ocrResult.text as string;
+        ocrText = ocrResult.text as string;
+        extractedText = ocrText;
       }
     } catch (err) {
       logger.warn('OCR fallback failed, using garbled text', { error: String(err) });
@@ -252,9 +295,13 @@ export async function ingestPdfRich(
 
   onProgress?.('analyzing', 30);
 
+  const textPages = extractedText.split(/\n{2,}/);
+  const ocrPages = ocrText ? ocrText.split(/\n{2,}/) : null;
+
   // Step 4: Vision analysis per page (if Ollama available)
   const pageDescriptions: string[] = [];
   let visionUsed = false;
+  const visionModels: (string | null)[] = [];
 
   const visionAvailable = await isVisionAvailable().catch(() => false);
 
@@ -276,7 +323,7 @@ export async function ingestPdfRich(
         }
         tempImagePath = renderResult.metadata.output_path as string;
 
-        const { description } = await analyzeImage(tempImagePath, {
+        const { description, modelUsed } = await analyzeImage(tempImagePath, {
           prompt: PDF_VISION_PROMPT,
         });
 
@@ -285,9 +332,11 @@ export async function ingestPdfRich(
         } else {
           pageDescriptions.push('');
         }
+        visionModels.push(modelUsed);
       } catch (err) {
         logger.warn(`Vision analysis failed for page ${i}`, { error: String(err) });
         pageDescriptions.push('');
+        visionModels.push(null);
       } finally {
         if (tempImagePath) {
           await unlink(tempImagePath).catch(() => {});
@@ -298,22 +347,62 @@ export async function ingestPdfRich(
 
   onProgress?.('chunking', 85);
 
-  // Step 5: Combine text + vision into rich document
+  // Step 5: Build PageDigest[] and combine text + vision
+  const pageDigests: PageDigest[] = [];
   const richParts: string[] = [];
-  const textPages = extractedText.split(/\n{2,}/);
 
   for (let i = 0; i < pageCount; i++) {
     const pageText = textPages[i] ?? '';
     const visionDesc = pageDescriptions[i] ?? '';
+    const visionModel = visionModels[i] ?? null;
 
+    let section = '';
     if (pageText.trim() || visionDesc) {
-      let section = `[Page ${i + 1}]\n${pageText.trim()}`;
+      section = `[Page ${i + 1}]\n${pageText.trim()}`;
       if (visionDesc) {
         section += `\n\n[Visual content: ${visionDesc}]`;
       }
       richParts.push(section);
     }
+
+    const ocrTriggered = ocrText !== null;
+    const ocrPageText = ocrPages?.[i] ?? null;
+
+    const digest: PageDigest = {
+      page: i + 1,
+      textExtraction: {
+        method: extractedText.trim() ? (ocrTriggered ? 'ocr' : 'pypdfium2') : 'none',
+        text: truncateDigestText(pageText),
+        charCount: pageText.length,
+        garbled,
+      },
+      ocrFallback: ocrTriggered
+        ? {
+            triggered: true,
+            text: ocrPageText ? truncateDigestText(ocrPageText) : null,
+            charCount: ocrPageText?.length ?? null,
+          }
+        : null,
+      vision:
+        visionModel !== null
+          ? {
+              model: visionModel,
+              description: truncateDigestText(visionDesc || 'TEXT_ONLY'),
+              textOnly: !visionDesc,
+              tokensEstimate: Math.ceil((visionDesc || '').length / 4),
+            }
+          : null,
+      combinedText: truncateDigestText(section),
+      combinedCharCount: section.length,
+    };
+    pageDigests.push(digest);
   }
+
+  // Classify each page from its digest (sync, no LLM calls)
+  const pages: AuroraPageEntry[] = pageDigests.map((d) => ({
+    digest: d,
+    understanding: classifyPage(d),
+  }));
 
   const combinedText = richParts.length > 0 ? richParts.join('\n\n') : extractedText;
 
@@ -331,6 +420,7 @@ export async function ingestPdfRich(
       language: options?.language ?? 'unknown',
       word_count: combinedText.split(/\s+/).length,
       vision_pages: pageDescriptions.filter((d) => d.length > 0).length,
+      pageDigests,
     },
     options ?? {}
   );
@@ -340,7 +430,135 @@ export async function ingestPdfRich(
   return {
     ...ingestResult,
     pageDescriptions,
+    pageDigests,
+    pages,
     visionUsed,
     pageCount,
+  };
+}
+
+const MAX_DIGEST_TEXT_LENGTH = 2000;
+
+function truncateDigestText(text: string): string {
+  if (text.length <= MAX_DIGEST_TEXT_LENGTH) return text;
+  return text.slice(0, MAX_DIGEST_TEXT_LENGTH - 3) + '...';
+}
+
+/* ------------------------------------------------------------------ */
+/*  Single-page PDF Diagnostics                                        */
+/* ------------------------------------------------------------------ */
+
+export async function diagnosePdfPage(
+  filePath: string,
+  page: number,
+  options?: { language?: string; dpi?: number; visionPrompt?: string }
+): Promise<PageDigest> {
+  const absolutePath = resolve(filePath);
+  const dpi = options?.dpi ?? 150;
+
+  // Step 1: Docling extracts structured markdown + tables for the target page.
+  // This processes the whole PDF (~38s) but gives rich per-page output.
+  const doclingResult = await runWorker(
+    {
+      action: 'extract_pdf_docling',
+      source: absolutePath,
+      options: { page },
+    },
+    { timeout: 300_000 }
+  );
+
+  if (!doclingResult.ok) {
+    throw new Error(`Docling extraction failed: ${doclingResult.error}`);
+  }
+
+  const doclingMeta = doclingResult.metadata as Record<string, unknown>;
+  const totalPages = doclingMeta.total_pages as number;
+  if (page < 1 || page > totalPages) {
+    throw new Error(`Page ${page} out of range (PDF has ${totalPages} pages)`);
+  }
+
+  const pagesArr = doclingMeta.pages as Array<{
+    page_no: number;
+    markdown: string;
+    char_count: number;
+    tables: Array<{
+      columns: string[];
+      rows: unknown[][];
+      row_count: number;
+      col_count: number;
+      markdown: string;
+    }>;
+    table_count: number;
+    image_count: number;
+  }>;
+  const pageData = pagesArr[0];
+  if (!pageData) {
+    throw new Error(`No data returned for page ${page}`);
+  }
+
+  const pageText = pageData.markdown;
+  const hasImages = pageData.image_count > 0;
+
+  // Step 2: Vision analysis — only for pages with images/diagrams that Docling
+  // cannot parse (they show up as <!-- image --> in the markdown).
+  let visionDesc = '';
+  let visionModel: string | null = null;
+
+  if (hasImages) {
+    const visionAvailable = await isVisionAvailable().catch(() => false);
+    if (visionAvailable) {
+      let tempImagePath: string | undefined;
+      try {
+        const pageIndex = page - 1;
+        const renderResult = await runWorker({
+          action: 'render_pdf_page',
+          source: absolutePath,
+          options: { page: pageIndex, dpi },
+        });
+        if (renderResult.ok) {
+          tempImagePath = renderResult.metadata.output_path as string;
+          const { description, modelUsed } = await analyzeImage(tempImagePath, {
+            prompt: options?.visionPrompt ?? PDF_VISION_PROMPT,
+          });
+          visionModel = modelUsed;
+          if (description && !description.includes('TEXT_ONLY')) {
+            visionDesc = description;
+          }
+        }
+      } catch (err) {
+        logger.warn(`Vision analysis failed for page ${page}`, { error: String(err) });
+      } finally {
+        if (tempImagePath) {
+          await unlink(tempImagePath).catch(() => {});
+        }
+      }
+    }
+  }
+
+  let combinedText = `[Page ${page}]\n${pageText.trim()}`;
+  if (visionDesc) {
+    combinedText += `\n\n[Visual content: ${visionDesc}]`;
+  }
+
+  return {
+    page,
+    textExtraction: {
+      method: pageText.trim() ? 'docling' : 'none',
+      text: pageText,
+      charCount: pageText.length,
+      garbled: false,
+    },
+    ocrFallback: null,
+    vision:
+      visionModel !== null
+        ? {
+            model: visionModel,
+            description: visionDesc || 'TEXT_ONLY',
+            textOnly: !visionDesc,
+            tokensEstimate: Math.ceil(visionDesc.length / 4),
+          }
+        : null,
+    combinedText,
+    combinedCharCount: combinedText.length,
   };
 }

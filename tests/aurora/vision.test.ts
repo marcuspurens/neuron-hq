@@ -6,29 +6,49 @@ import { resetConfig } from '../../src/core/config.js';
 /* ------------------------------------------------------------------ */
 
 const mockReadFile = vi.fn();
+const mockStat = vi.fn();
 vi.mock('fs/promises', () => ({
   readFile: (...args: unknown[]) => mockReadFile(...args),
+  stat: (...args: unknown[]) => mockStat(...args),
 }));
 
 const mockProcessExtractedText = vi.fn();
 vi.mock('../../src/aurora/intake.js', () => ({
-  processExtractedText: (...args: unknown[]) =>
-    mockProcessExtractedText(...args),
+  processExtractedText: (...args: unknown[]) => mockProcessExtractedText(...args),
 }));
 
-// Mock global fetch
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
-// Mock ollama module — skip auto-start in tests
+const mockIsModelAvailable = vi.fn();
 vi.mock('../../src/core/ollama.js', () => ({
-  ensureOllama: vi.fn().mockResolvedValue(true),
-  getOllamaUrl: vi.fn().mockImplementation(() => process.env.OLLAMA_URL || 'http://localhost:11434'),
+  isModelAvailable: (...args: unknown[]) => mockIsModelAvailable(...args),
+  getOllamaUrl: vi
+    .fn()
+    .mockImplementation(() => process.env.OLLAMA_URL || 'http://localhost:11434'),
 }));
 
 /* ------------------------------------------------------------------ */
 /*  Setup                                                              */
 /* ------------------------------------------------------------------ */
+
+const DEFAULT_MODEL = 'aurora-vision-extract';
+
+function mockChatResponse(content: string, extras: Record<string, unknown> = {}) {
+  return {
+    ok: true,
+    json: async () => ({
+      message: { role: 'assistant', content },
+      done: true,
+      load_duration: 100_000_000,
+      prompt_eval_count: 50,
+      eval_count: 30,
+      eval_duration: 500_000_000,
+      total_duration: 800_000_000,
+      ...extras,
+    }),
+  };
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -37,6 +57,7 @@ beforeEach(() => {
   resetConfig();
 
   mockReadFile.mockResolvedValue(Buffer.from('fake-image-data'));
+  mockStat.mockResolvedValue({ size: 1024 });
 
   mockProcessExtractedText.mockResolvedValue({
     documentNodeId: 'doc_abc123',
@@ -53,49 +74,57 @@ beforeEach(() => {
 /*  Import after mocks                                                 */
 /* ------------------------------------------------------------------ */
 
-const { analyzeImage, isVisionAvailable, ingestImage } = await import(
-  '../../src/aurora/vision.js'
-);
+const { analyzeImage, isVisionAvailable, ingestImage } = await import('../../src/aurora/vision.js');
 
 /* ------------------------------------------------------------------ */
 /*  analyzeImage                                                       */
 /* ------------------------------------------------------------------ */
 
 describe('analyzeImage', () => {
-  it('sends base64-encoded image to Ollama /api/generate', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ response: 'A cat sitting on a mat', done: true }),
-    });
+  it('sends base64-encoded image to Ollama /api/chat', async () => {
+    mockFetch.mockResolvedValue(mockChatResponse('A cat sitting on a mat'));
 
     const result = await analyzeImage('photo.png');
 
     expect(mockReadFile).toHaveBeenCalled();
+    expect(mockStat).toHaveBeenCalled();
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:11434/api/generate',
+      'http://localhost:11434/api/chat',
       expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-      }),
+      })
     );
 
-    // Verify the body contains model, prompt, images, and stream: false
     const callArgs = mockFetch.mock.calls[0];
     const body = JSON.parse(callArgs[1].body);
-    expect(body.model).toBe('qwen3-vl:8b');
+    expect(body.model).toBe(DEFAULT_MODEL);
     expect(body.stream).toBe(false);
-    expect(body.images).toHaveLength(1);
-    expect(body.prompt).toContain('Describe this image');
+    expect(body.messages).toHaveLength(2);
+    expect(body.messages[0].role).toBe('system');
+    expect(body.messages[1].images).toHaveLength(1);
+    expect(body.messages[1].content).toContain('Describe this image');
+    expect(body.options.temperature).toBe(0);
 
     expect(result.description).toBe('A cat sitting on a mat');
-    expect(result.modelUsed).toBe('qwen3-vl:8b');
+    expect(result.modelUsed).toBe(DEFAULT_MODEL);
+  });
+
+  it('returns diagnostics from Ollama response', async () => {
+    mockFetch.mockResolvedValue(mockChatResponse('description'));
+
+    const result = await analyzeImage('photo.png');
+
+    expect(result.diagnostics).toBeDefined();
+    expect(result.diagnostics!.model).toBe(DEFAULT_MODEL);
+    expect(result.diagnostics!.loadDurationMs).toBe(100);
+    expect(result.diagnostics!.evalTokens).toBe(30);
+    expect(result.diagnostics!.promptTokens).toBe(50);
+    expect(result.diagnostics!.imageSizeBytes).toBe(1024);
   });
 
   it('uses custom model and prompt from options', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ response: 'Custom description', done: true }),
-    });
+    mockFetch.mockResolvedValue(mockChatResponse('Custom description'));
 
     const result = await analyzeImage('photo.jpg', {
       model: 'llava:13b',
@@ -105,33 +134,24 @@ describe('analyzeImage', () => {
     const callArgs = mockFetch.mock.calls[0];
     const body = JSON.parse(callArgs[1].body);
     expect(body.model).toBe('llava:13b');
-    expect(body.prompt).toBe('What is this?');
+    expect(body.messages[1].content).toBe('What is this?');
     expect(result.modelUsed).toBe('llava:13b');
   });
 
   it('uses OLLAMA_URL env var when set', async () => {
     process.env.OLLAMA_URL = 'http://custom:9999';
     resetConfig();
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ response: 'desc', done: true }),
-    });
+    mockFetch.mockResolvedValue(mockChatResponse('desc'));
 
     await analyzeImage('photo.png');
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://custom:9999/api/generate',
-      expect.anything(),
-    );
+    expect(mockFetch).toHaveBeenCalledWith('http://custom:9999/api/chat', expect.anything());
   });
 
   it('uses OLLAMA_MODEL_VISION env var when set', async () => {
     process.env.OLLAMA_MODEL_VISION = 'llava:7b';
     resetConfig();
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ response: 'desc', done: true }),
-    });
+    mockFetch.mockResolvedValue(mockChatResponse('desc'));
 
     const result = await analyzeImage('photo.png');
 
@@ -142,19 +162,18 @@ describe('analyzeImage', () => {
   });
 
   it('rejects unsupported image types', async () => {
-    await expect(analyzeImage('document.pdf')).rejects.toThrow(
-      'Unsupported image type',
-    );
-    await expect(analyzeImage('archive.zip')).rejects.toThrow(
-      'Unsupported image type',
-    );
+    await expect(analyzeImage('document.pdf')).rejects.toThrow('Unsupported image type');
+    await expect(analyzeImage('archive.zip')).rejects.toThrow('Unsupported image type');
+  });
+
+  it('rejects images exceeding size limit', async () => {
+    mockStat.mockResolvedValue({ size: 11 * 1024 * 1024 });
+
+    await expect(analyzeImage('huge.png')).rejects.toThrow('Image too large');
   });
 
   it('supports all declared image extensions', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ response: 'desc', done: true }),
-    });
+    mockFetch.mockResolvedValue(mockChatResponse('desc'));
 
     const extensions = ['.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp', '.gif'];
     for (const ext of extensions) {
@@ -171,8 +190,18 @@ describe('analyzeImage', () => {
     });
 
     await expect(analyzeImage('photo.png')).rejects.toThrow(
-      'Ollama vision failed (500): model not found',
+      'Ollama vision failed (500): model not found'
     );
+  });
+
+  it('sends keep_alive in request', async () => {
+    mockFetch.mockResolvedValue(mockChatResponse('desc'));
+
+    await analyzeImage('photo.png');
+
+    const callArgs = mockFetch.mock.calls[0];
+    const body = JSON.parse(callArgs[1].body);
+    expect(body.keep_alive).toBe('10m');
   });
 });
 
@@ -181,29 +210,26 @@ describe('analyzeImage', () => {
 /* ------------------------------------------------------------------ */
 
 describe('isVisionAvailable', () => {
-  it('returns true when ensureOllama succeeds', async () => {
-    const { ensureOllama } = await import('../../src/core/ollama.js');
-    vi.mocked(ensureOllama).mockResolvedValueOnce(true);
+  it('returns true when model is available', async () => {
+    mockIsModelAvailable.mockResolvedValueOnce(true);
 
     const result = await isVisionAvailable();
     expect(result).toBe(true);
-    expect(ensureOllama).toHaveBeenCalledWith('qwen3-vl:8b');
+    expect(mockIsModelAvailable).toHaveBeenCalledWith(DEFAULT_MODEL);
   });
 
-  it('returns false when ensureOllama fails', async () => {
-    const { ensureOllama } = await import('../../src/core/ollama.js');
-    vi.mocked(ensureOllama).mockResolvedValueOnce(false);
+  it('returns false when model is not available', async () => {
+    mockIsModelAvailable.mockResolvedValueOnce(false);
 
     const result = await isVisionAvailable();
     expect(result).toBe(false);
   });
 
   it('uses custom model parameter', async () => {
-    const { ensureOllama } = await import('../../src/core/ollama.js');
-    vi.mocked(ensureOllama).mockResolvedValueOnce(true);
+    mockIsModelAvailable.mockResolvedValueOnce(true);
 
     await isVisionAvailable('llava:13b');
-    expect(ensureOllama).toHaveBeenCalledWith('llava:13b');
+    expect(mockIsModelAvailable).toHaveBeenCalledWith('llava:13b');
   });
 });
 
@@ -213,32 +239,27 @@ describe('isVisionAvailable', () => {
 
 describe('ingestImage', () => {
   beforeEach(() => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ response: 'A detailed description', done: true }),
-    });
+    mockFetch.mockResolvedValue(mockChatResponse('A detailed description'));
   });
 
   it('calls analyzeImage then processExtractedText', async () => {
     const result = await ingestImage('photo.png');
 
-    // Should have called fetch for analyzeImage
     expect(mockFetch).toHaveBeenCalledTimes(1);
 
-    // Should have called processExtractedText
     expect(mockProcessExtractedText).toHaveBeenCalledWith(
       'photo.png',
       'A detailed description',
       null,
       expect.objectContaining({
         source_type: 'vision',
-        model_used: 'qwen3-vl:8b',
+        model_used: DEFAULT_MODEL,
       }),
-      {},
+      {}
     );
 
     expect(result.description).toBe('A detailed description');
-    expect(result.modelUsed).toBe('qwen3-vl:8b');
+    expect(result.modelUsed).toBe(DEFAULT_MODEL);
     expect(result.documentNodeId).toBe('doc_abc123');
   });
 
@@ -250,7 +271,7 @@ describe('ingestImage', () => {
       expect.any(String),
       null,
       expect.anything(),
-      expect.objectContaining({ title: 'My Custom Title' }),
+      expect.objectContaining({ title: 'My Custom Title' })
     );
   });
 
@@ -262,7 +283,7 @@ describe('ingestImage', () => {
       expect.any(String),
       null,
       expect.anything(),
-      expect.objectContaining({ scope: 'shared', type: 'document' }),
+      expect.objectContaining({ scope: 'shared', type: 'document' })
     );
   });
 

@@ -16,6 +16,7 @@ from transcribe_audio import transcribe_audio
 from diarize_audio import diarize_audio
 from check_deps import check_deps
 from ocr_pdf import render_pdf_page, get_pdf_page_count
+from docling_extract import extract_pdf_docling
 
 # Lazy imports for OCR — PaddleOCR has heavy dependencies (paddlepaddle,
 # numpy, pandas, sklearn) that may conflict with the base Anaconda env.
@@ -103,6 +104,7 @@ HANDLERS: dict[str, callable] = {
     "batch_ocr": lazy_batch_ocr,
     "render_pdf_page": render_pdf_page,
     "get_pdf_page_count": get_pdf_page_count,
+    "extract_pdf_docling": extract_pdf_docling,
     "extract_video_metadata": extract_video_metadata,
 }
 
