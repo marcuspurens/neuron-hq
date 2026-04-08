@@ -182,6 +182,14 @@ export const TOOL_CATALOG: ToolEntry[] = [
     exampleMcp: '{ "path": "/path/to/image.png" }',
     exampleCli: 'npx tsx src/cli.ts aurora:describe-image /path/to/image.png',
   },
+  {
+    name: 'aurora_pdf_eval',
+    description: 'Utvärderar PDF-pipelinens output mot facit-YAML och poängsätter text- och visionskvalitet',
+    category: 'ingest-media',
+    keywords: ['pdf', 'eval', 'utvärdera', 'evaluate', 'facit', 'kvalitet', 'poäng', 'score'],
+    exampleMcp: '{ "facit_path": "tests/fixtures/pdf-eval/", "format": "summary" }',
+    exampleCli: 'npx tsx src/cli.ts aurora:pdf-eval tests/fixtures/pdf-eval/',
+  },
 
   // ── media ────────────────────────────────────────────────────────
   {

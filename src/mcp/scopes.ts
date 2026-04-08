@@ -27,6 +27,7 @@ import { registerAuroraIngestBookTool } from './tools/aurora-ingest-book.js';
 import { registerAuroraOcrPdfTool } from './tools/aurora-ocr-pdf.js';
 import { registerAuroraDescribeImageTool } from './tools/aurora-describe-image.js';
 import { registerAuroraIngestPdfTool } from './tools/aurora-ingest-pdf.js';
+import { registerAuroraPdfEvalTool } from './tools/aurora-pdf-eval.js';
 
 /* ---- aurora-media (consolidated speakers + jobs) ---- */
 import { registerAuroraSpeakersTool } from './tools/aurora-speakers.js';
@@ -214,6 +215,7 @@ export const SCOPES: Record<string, ServerScope> = {
       registerAuroraOcrPdfTool(server);
       registerAuroraDescribeImageTool(server);
       registerAuroraIngestPdfTool(server);
+      registerAuroraPdfEvalTool(server);
 
       server.prompt(
         'indexera-video',

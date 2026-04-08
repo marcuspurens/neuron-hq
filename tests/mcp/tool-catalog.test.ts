@@ -16,13 +16,13 @@ describe('VALID_CATEGORIES', () => {
 });
 
 describe('TOOL_CATALOG', () => {
-  it('contains exactly 44 entries (38 MCP + 6 CLI-only)', () => {
-    expect(TOOL_CATALOG).toHaveLength(44);
+  it('contains exactly 45 entries (39 MCP + 6 CLI-only)', () => {
+    expect(TOOL_CATALOG).toHaveLength(45);
   });
 
-  it('has 38 MCP tools (with exampleMcp)', () => {
+  it('has 39 MCP tools (with exampleMcp)', () => {
     const mcpTools = TOOL_CATALOG.filter(t => t.exampleMcp !== undefined);
-    expect(mcpTools).toHaveLength(38);
+    expect(mcpTools).toHaveLength(39);
   });
 
   it('has 6 CLI-only tools (without exampleMcp)', () => {
