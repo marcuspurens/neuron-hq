@@ -1,0 +1,70 @@
+# FACIT: Ungdomsbarometern sida 30 (stapeldiagram — arbetsinnehåll)
+# Källa: © Ungdomsbarometern - Arbetsliv 2025 - SVT.pdf
+#
+# INSTRUKTION: Rätta nedan mot PDF-originalet.
+#   ✅ = pipelinen hade rätt (behåll)
+#   ❌ = pipelinen hade fel (korrigera värdet)
+#   ➕ = pipelinen missade detta (fyll i)
+
+source: '© Ungdomsbarometern - Arbetsliv 2025 - SVT.pdf'
+page: 30
+language: sv
+
+text_extraction:
+  should_contain:
+    - 'leda andra'
+    - 'Skalfråga'
+    - 'Mitt drömjobb'
+    - 'Kan tänka mig'
+    - 'Inte min grej'
+  min_chars: 1000
+  garbled: false
+
+vision:
+  page_type: 'bar chart'
+  title_contains: 'ställer sig unga'
+  data_points:
+    - label: 'Med att leda andra'
+      values: ['11%', '56%', '28%', '5%']
+    - label: 'Med att ta hand om andra'
+      values: ['16%', '41%', '40%', '2%']
+    - label: 'Med att forska/förstå hur saker fungerar'
+      values: ['10%', '47%', '37%', '6%']
+    - label: 'Med att sälja saker'
+      values: ['4%', '48%', '43%', '5%']
+    - label: 'Med administration/juridik'
+      values: ['8%', '44%', '42%', '7%']
+    - label: 'Med upplevelser/service'
+      values: ['3%', '46%', '46%', '5%']
+    - label: 'Med media eller underhållning'
+      values: ['5%', '43%', '45%', '6%']
+    - label: 'Med att undervisa/lära ut'
+      values: ['5%', '43%', '47%', '5%']
+    - label: 'Med teknik/lösa tekniska problem'
+      values: ['11%', '37%', '47%', '5%']
+    - label: 'Med ekonomi/bank/revision'
+      values: ['9%', '38%', '49%', '4%']
+    - label: 'Med andras säkerhet (tex militär/polis)'
+      values: ['6%', '41%', '47%', '7%']
+    - label: 'Med design/mode/formgivning'
+      values: ['8%', '37%', '46%', '8%']
+    - label: 'Med att vårda/hjälpa sjuka'
+      values: ['11%', '34%', '51%', '5%']
+    - label: 'Med programmering/utveckling'
+      values: ['7%', '36%', '52%', '4%']
+    - label: 'Med att bygga/installera/laga'
+      values: ['5%', '37%', '53%', '5%']
+    - label: 'Med att tillverka saker (t. ex industri)'
+      values: ['3%', '38%', '51%', '8%']
+    - label: 'Med matlagning/restaurang/livsmedel'
+      values: ['2%', '37%', '54%', '7%']
+    - label: 'Med politik/utredning'
+      values: ['9%', '30%', '56%', '5%']
+    - label: 'Med kultur eller konst'
+      values: ['8%', '28%', '58%', '6%']
+    - label: 'Med jordbruk/natur/fiske/djur'
+      values: ['4%', '27%', '63%', '5%']
+  language: sv
+  should_not_contain:
+    - 'I cannot'
+    - 'unclear'

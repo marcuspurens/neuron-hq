@@ -200,3 +200,39 @@ export {
   type StartJobResult,
   type StartJobOptions,
 } from './job-runner.js';
+
+export {
+  type AuroraDocument,
+  type AuroraDocumentType,
+  type AuroraProvenance,
+  type AuroraPageEntry,
+  type PageType,
+  type ChartType,
+  type DataPoint,
+  type PageTypeSignals,
+  type PageUnderstanding,
+  type Facit,
+  type FacitTextExtraction,
+  type FacitVision,
+  type FacitDataPoint,
+  type EvalResult,
+} from './types.js';
+
+export {
+  classifyPage,
+} from './page-classifier.js';
+
+export {
+  parseFacit,
+  evalPdfPage,
+  evalFromPipelineJson,
+  evalDirectory,
+  formatEvalSummary,
+} from './pdf-eval.js';
+
+export {
+  resolvePrompt,
+  comparePrompts,
+  formatCompareResult,
+  type CompareResult,
+} from './pdf-eval-compare.js';

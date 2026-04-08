@@ -1,0 +1,35 @@
+# FACIT: Ungdomsbarometern sida 1 (omslag)
+# Källa: © Ungdomsbarometern - Arbetsliv 2025 - SVT.pdf
+#
+# INSTRUKTION: Rätta nedan mot PDF-originalet.
+#   ✅ = pipelinen hade rätt (behåll)
+#   ❌ = pipelinen hade fel (korrigera värdet)
+#   ➕ = pipelinen missade detta (fyll i)
+# Ta bort dessa kommentarer när du är klar.
+
+source: '© Ungdomsbarometern - Arbetsliv 2025 - SVT.pdf'
+page: 1
+language: sv
+
+text_extraction:
+  should_contain:
+    - 'UNGDOMSBAROMETERN 2025'
+    - 'ARBETSLIVSRAPPORTEN'
+    - 'SVT'
+  missing_text:
+    - 'UB'
+  min_chars: 50
+  garbled: false
+
+vision:
+  page_type: 'cover page'
+  title_contains: 'UNGDOMSBAROMETERN 2025'
+  image_description: 'Ung kille i bygghjälm med skyddsglasögon och skyddsväst, sitter med svarta jeans på ett tak, suddiga byggställningar i bakgrunden'
+  data_points: []
+  visual_elements:
+    - 'UB logo'
+  language: sv
+  should_not_contain:
+    - 'I cannot'
+    - 'unclear'
+    - 'TEXT_ONLY'

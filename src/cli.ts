@@ -78,10 +78,7 @@ target
   .option('--verify <commands...>', 'Verification commands')
   .action(targetAddCommand);
 
-target
-  .command('list')
-  .description('List all target repositories')
-  .action(targetListCommand);
+target.command('list').description('List all target repositories').action(targetListCommand);
 
 // Run commands
 program
@@ -101,10 +98,7 @@ program
   .option('--model <model>', 'Override default model for all agents')
   .action(resumeCommand);
 
-program
-  .command('status')
-  .description('Show status of all runs')
-  .action(statusCommand);
+program.command('status').description('Show status of all runs').action(statusCommand);
 
 program
   .command('replay <runid>')
@@ -116,10 +110,7 @@ program
   .description('Show logs and artifact paths for a run')
   .action(logsCommand);
 
-program
-  .command('report <runid>')
-  .description('Show report for a run')
-  .action(reportCommand);
+program.command('report <runid>').description('Show report for a run').action(reportCommand);
 
 // Brief agent command
 program
@@ -134,18 +125,22 @@ program
   .description('Review a brief file using Brief Reviewer (non-interactive, multi-turn)')
   .option('--reply <text>', 'Author response to continue the review dialogue')
   .option('--conversation <path>', 'Path to existing conversation file for multi-turn')
-  .action(async (target: string, briefFile: string, opts: { reply?: string; conversation?: string }) => {
-    await runBriefReview(target, briefFile, opts);
-  });
+  .action(
+    async (target: string, briefFile: string, opts: { reply?: string; conversation?: string }) => {
+      await runBriefReview(target, briefFile, opts);
+    }
+  );
 
 program
   .command('brief-verify <target> <briefFile>')
   .description('Verify code references in a brief against actual codebase (Code Anchor agent)')
   .option('--reply <text>', 'Author response to continue the verification dialogue')
   .option('--conversation <path>', 'Path to existing conversation file for multi-turn')
-  .action(async (target: string, briefFile: string, opts: { reply?: string; conversation?: string }) => {
-    await runBriefVerify(target, briefFile, opts);
-  });
+  .action(
+    async (target: string, briefFile: string, opts: { reply?: string; conversation?: string }) => {
+      await runBriefVerify(target, briefFile, opts);
+    }
+  );
 
 // Monitor command
 program
@@ -171,10 +166,7 @@ program
   .action(costsCommand);
 
 // Database commands
-program
-  .command('db-migrate')
-  .description('Run database migrations')
-  .action(dbMigrateCommand);
+program.command('db-migrate').description('Run database migrations').action(dbMigrateCommand);
 
 program
   .command('db-import')
@@ -189,7 +181,10 @@ program
 program
   .command('mcp-server')
   .description('Start Neuron HQ as an MCP server (stdio transport)')
-  .option('--scope <name>', 'Server scope: aurora-search, aurora-insights, aurora-memory, aurora-ingest-text, aurora-ingest-media, aurora-media, aurora-library, aurora-quality, neuron-runs, neuron-analytics, or all')
+  .option(
+    '--scope <name>',
+    'Server scope: aurora-search, aurora-insights, aurora-memory, aurora-ingest-text, aurora-ingest-media, aurora-media, aurora-library, aurora-quality, neuron-runs, neuron-analytics, or all'
+  )
   .action(async (options: { scope?: string }) => {
     await mcpServerCommand(options.scope);
   });
@@ -253,12 +248,14 @@ program
   .option('--max-chunks <N>', 'Max chunks')
   .option('--whisper-model <model>', 'Whisper model: tiny|small|medium|large', 'small')
   .option('--language <lang>', 'Language code (e.g. sv, en) — skip auto-detection')
-  .option('--no-keep-audio', 'Do not save audio file (audio is saved by default to Neuron Lab/audio/)')
+  .option(
+    '--no-keep-audio',
+    'Do not save audio file (audio is saved by default to Neuron Lab/audio/)'
+  )
   .option('--no-polish', 'Skip LLM transcript polishing')
   .option('--no-identify-speakers', 'Skip AI speaker identification')
   .option('--polish-model <model>', 'Model for polish/identify: ollama or claude')
   .action(auroraIngestVideoCommand);
-
 
 program
   .command('aurora:polish <nodeId>')
@@ -298,6 +295,192 @@ program
   .option('--dpi <dpi>', 'Render resolution (default: 200)', '200')
   .option('--scope <scope>', 'personal | shared | project', 'personal')
   .action(auroraOcrPdfCommand);
+
+program
+  .command('aurora:pdf-diagnose <path>')
+  .description('Diagnose PDF pipeline output for a single page')
+  .requiredOption('--page <n>', 'Page number (1-indexed)')
+  .option('--language <lang>', 'Language hint for OCR (en, sv, etc.)', 'en')
+  .option('--dpi <dpi>', 'Render resolution (default: 150)', '150')
+  .action(async (pdfPath: string, opts: { page: string; language?: string; dpi?: string }) => {
+    const { diagnosePdfPage } = await import('./aurora/ocr.js');
+    const page = parseInt(opts.page, 10);
+    if (isNaN(page) || page < 1) {
+      console.error('❌ --page must be a positive integer');
+      process.exit(1);
+    }
+    try {
+      const digest = await diagnosePdfPage(pdfPath, page, {
+        language: opts.language,
+        dpi: opts.dpi ? parseInt(opts.dpi, 10) : undefined,
+      });
+
+      console.log(`\n📄 Page ${digest.page}`);
+      console.log('');
+
+      console.log(`📝 Text extraction (${digest.textExtraction.method}):`);
+      console.log(
+        `   ${digest.textExtraction.charCount} chars, garbled: ${digest.textExtraction.garbled}`
+      );
+      if (digest.textExtraction.text) {
+        console.log('   ────────────────────────────');
+        const preview = digest.textExtraction.text.slice(0, 500);
+        for (const line of preview.split('\n').slice(0, 10)) {
+          console.log(`   ${line}`);
+        }
+        if (digest.textExtraction.text.length > 500) console.log('   ...');
+        console.log('   ────────────────────────────');
+      }
+      console.log('');
+
+      if (digest.ocrFallback) {
+        console.log(`🔍 OCR fallback: triggered`);
+        if (digest.ocrFallback.charCount !== null) {
+          console.log(`   ${digest.ocrFallback.charCount} chars`);
+        }
+      } else {
+        console.log('🔍 OCR fallback: not triggered');
+      }
+      console.log('');
+
+      if (digest.vision) {
+        const label = digest.vision.textOnly
+          ? 'TEXT_ONLY'
+          : digest.vision.description.slice(0, 200);
+        console.log(`👁️  Vision (${digest.vision.model}):`);
+        console.log(`   "${label}"`);
+      } else {
+        console.log('👁️  Vision: skipped (Ollama unavailable)');
+      }
+      console.log('');
+
+      console.log(`📦 Combined (${digest.combinedCharCount} chars)`);
+    } catch (err) {
+      console.error(`❌ ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('aurora:pdf-eval <facit>')
+  .description('Evaluate PDF pipeline output against facit YAML')
+  .option('--pdf <path>', 'PDF file to evaluate (if not running from pre-existing pipeline JSON)')
+  .option('--json', 'Output raw JSON instead of summary')
+  .action(async (facitPath: string, opts: { pdf?: string; json?: boolean }) => {
+    const { readFile, readdir, stat } = await import('fs/promises');
+    const { extname, join, resolve } = await import('path');
+    const { parseFacit, evalPdfPage, evalFromPipelineJson, formatEvalSummary } = await import('./aurora/pdf-eval.js');
+
+    try {
+      const facitStat = await stat(facitPath);
+
+      let results;
+      if (facitStat.isDirectory()) {
+        const entries = await readdir(facitPath);
+        const yamlFiles = entries.filter((e: string) => extname(e) === '.yaml').sort();
+
+        if (yamlFiles.length === 0) {
+          console.error('❌ No .yaml facit files found in directory');
+          process.exit(1);
+        }
+
+        results = [];
+        for (const yamlFile of yamlFiles) {
+          const fullPath = join(facitPath, yamlFile);
+          const content = await readFile(fullPath, 'utf-8');
+          const facit = parseFacit(content);
+
+          const pipelineJsonPath = fullPath.replace('.yaml', '_pipeline.json');
+          try {
+            const pipelineRaw = await readFile(pipelineJsonPath, 'utf-8');
+            const pipelineJson = JSON.parse(pipelineRaw) as Record<string, unknown>;
+            const { evalFromPipelineJson: evalJson } = await import('./aurora/pdf-eval.js');
+            results.push(evalJson(pipelineJson, facit));
+          } catch {
+            if (opts.pdf) {
+              const result = await evalPdfPage(resolve(opts.pdf), fullPath);
+              results.push(result);
+            } else {
+              console.error(`⚠️  No pipeline JSON for ${yamlFile} and no --pdf specified, skipping`);
+            }
+          }
+        }
+      } else {
+        const content = await readFile(facitPath, 'utf-8');
+        const facit = parseFacit(content);
+
+        const pipelineJsonPath = facitPath.replace('.yaml', '_pipeline.json');
+        try {
+          const pipelineRaw = await readFile(pipelineJsonPath, 'utf-8');
+          const pipelineJson = JSON.parse(pipelineRaw) as Record<string, unknown>;
+          results = [evalFromPipelineJson(pipelineJson, facit)];
+        } catch {
+          if (opts.pdf) {
+            results = [await evalPdfPage(resolve(opts.pdf), facitPath)];
+          } else {
+            console.error('❌ No pipeline JSON found and no --pdf specified');
+            process.exit(1);
+          }
+        }
+      }
+
+      if (opts.json) {
+        console.log(JSON.stringify(results, null, 2));
+      } else {
+        console.log('');
+        console.log(formatEvalSummary(results));
+      }
+    } catch (err) {
+      console.error(`❌ ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('aurora:pdf-eval-compare')
+  .description('Compare two vision prompts against facit YAML files')
+  .requiredOption('--facit <dir>', 'Directory containing facit YAML files')
+  .requiredOption('--pdf <path>', 'PDF file to evaluate')
+  .requiredOption('--prompt-a <prompt>', '"current" for built-in prompt, or path to prompt text file')
+  .requiredOption('--prompt-b <prompt>', '"current" for built-in prompt, or path to prompt text file')
+  .option('--json', 'Output raw JSON instead of summary')
+  .action(
+    async (opts: {
+      facit: string;
+      pdf: string;
+      promptA: string;
+      promptB: string;
+      json?: boolean;
+    }) => {
+      const { resolvePrompt, comparePrompts, formatCompareResult } = await import(
+        './aurora/pdf-eval-compare.js'
+      );
+
+      try {
+        const promptAText = await resolvePrompt(opts.promptA);
+        const promptBText = await resolvePrompt(opts.promptB);
+
+        const result = await comparePrompts(
+          opts.pdf,
+          opts.facit,
+          promptAText,
+          promptBText,
+          opts.promptA,
+          opts.promptB,
+        );
+
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else {
+          console.log('');
+          console.log(formatCompareResult(result));
+        }
+      } catch (err) {
+        console.error(`❌ ${err instanceof Error ? err.message : String(err)}`);
+        process.exit(1);
+      }
+    },
+  );
 
 program
   .command('aurora:ingest-book <folder>')
@@ -395,17 +578,16 @@ program
     await auroraIntegrityCommand(options);
   });
 
-
 // aurora:learn-conversation
 program
   .command('aurora:learn-conversation <file>')
   .description('Learn facts and preferences from a conversation JSON file')
   .option('--dry-run', 'Show what would be learned without storing')
   .action(async (file, options) => {
-    const { auroraLearnConversationCommand } = await import('./commands/aurora-learn-conversation.js');
+    const { auroraLearnConversationCommand } =
+      await import('./commands/aurora-learn-conversation.js');
     await auroraLearnConversationCommand(file, options);
   });
-
 
 // aurora:check-deps
 program
@@ -416,7 +598,6 @@ program
     const { auroraCheckDepsCommand } = await import('./commands/aurora-check-deps.js');
     await auroraCheckDepsCommand(options);
   });
-
 
 // aurora:rename-speaker
 program
@@ -469,10 +650,10 @@ program
   .command('aurora:speaker-identities')
   .description('List all known speaker identities with confidence')
   .action(async () => {
-    const { auroraSpeakerIdentitiesCommand } = await import('./commands/aurora-speaker-identities.js');
+    const { auroraSpeakerIdentitiesCommand } =
+      await import('./commands/aurora-speaker-identities.js');
     await auroraSpeakerIdentitiesCommand();
   });
-
 
 // aurora:confidence
 program
@@ -506,7 +687,6 @@ program
     const { neuronStatisticsCommand } = await import('./commands/neuron-statistics.js');
     await neuronStatisticsCommand(options as any);
   });
-
 
 // Knowledge Library
 const library = program.command('library').description('Knowledge Library — synthesized articles');
@@ -627,7 +807,6 @@ library
     await libraryBackfillIdsCommand(options);
   });
 
-
 library
   .command('lookup-doi <doi>')
   .description('Look up metadata for a DOI via CrossRef')
@@ -643,7 +822,10 @@ library
   .option('--limit <n>', 'Max results (default: 5)', '5')
   .action(async (query: string, options: { author?: string; limit?: string }) => {
     const { searchPapersCommand } = await import('./commands/crossref-commands.js');
-    await searchPapersCommand(query, { author: options.author, limit: parseInt(options.limit ?? '5', 10) });
+    await searchPapersCommand(query, {
+      author: options.author,
+      limit: parseInt(options.limit ?? '5', 10),
+    });
   });
 
 library
@@ -654,17 +836,21 @@ library
     await ingestDoiCommand(doi);
   });
 
-
 library
   .command('export [nodeId]')
   .description('Export as JSON-LD')
   .option('--format <format>', 'Output format', 'jsonld')
   .option('--file <path>', 'Write to file instead of stdout')
   .option('--scope <scope>', 'Export scope: ontology, articles, concepts, all', 'ontology')
-  .action(async (nodeId: string | undefined, options: { format?: string; file?: string; scope?: string }) => {
-    const { libraryExportCommand } = await import('./commands/knowledge-library.js');
-    await libraryExportCommand(nodeId, options);
-  });
+  .action(
+    async (
+      nodeId: string | undefined,
+      options: { format?: string; file?: string; scope?: string }
+    ) => {
+      const { libraryExportCommand } = await import('./commands/knowledge-library.js');
+      await libraryExportCommand(nodeId, options);
+    }
+  );
 
 // km (knowledge maintenance)
 program
@@ -697,7 +883,9 @@ program
     for (const entry of history) {
       const date = new Date(entry.createdAt).toISOString().slice(0, 19);
       const duration = entry.durationMs ? `${(entry.durationMs / 1000).toFixed(1)}s` : '-';
-      console.log(`  ${date}  [${entry.trigger.padEnd(10)}]  topic=${entry.topic ?? '-'}  gaps=${entry.gapsFound}→${entry.gapsResearched}→${entry.gapsResolved}  urls=${entry.urlsIngested}  facts=${entry.factsLearned}  ${duration}`);
+      console.log(
+        `  ${date}  [${entry.trigger.padEnd(10)}]  topic=${entry.topic ?? '-'}  gaps=${entry.gapsFound}→${entry.gapsResearched}→${entry.gapsResolved}  urls=${entry.urlsIngested}  facts=${entry.factsLearned}  ${duration}`
+      );
       if (entry.runId) console.log(`    run: ${entry.runId}`);
     }
     console.log('');
@@ -789,7 +977,6 @@ program
     });
   });
 
-
 // graph:health command
 program
   .command('graph:health')
@@ -810,8 +997,7 @@ program
 
 // Only parse when run directly (not when imported by tests)
 const isDirectRun =
-  process.argv[1] &&
-  (process.argv[1].includes('cli') || process.argv[1].includes('tsx'));
+  process.argv[1] && (process.argv[1].includes('cli') || process.argv[1].includes('tsx'));
 
 if (isDirectRun) {
   program.parse();

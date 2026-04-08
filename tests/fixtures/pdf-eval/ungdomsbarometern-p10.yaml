@@ -1,0 +1,63 @@
+# FACIT: Ungdomsbarometern sida 10 (stapeldiagram — orosmoment)
+# Källa: © Ungdomsbarometern - Arbetsliv 2025 - SVT.pdf
+#
+# INSTRUKTION: Rätta nedan mot PDF-originalet.
+#   ✅ = pipelinen hade rätt (behåll)
+#   ❌ = pipelinen hade fel (korrigera värdet)
+#   ➕ = pipelinen missade detta (fyll i)
+
+source: '© Ungdomsbarometern - Arbetsliv 2025 - SVT.pdf'
+page: 10
+language: sv
+
+text_extraction:
+  should_contain:
+    - 'orosmoment'
+    - 'dålig chef'
+    - '61%'
+    - '58%'
+    - '55%'
+    - 'Flervalsfråga'
+  min_chars: 1000
+  garbled: false
+
+vision:
+  page_type: 'bar chart'
+  title_contains: 'orosmoment'
+  data_points:
+    - label: 'Få en dålig chef/dåligt ledarskap'
+      values: ['61%']
+    - label: 'Inte trivas med kollegorna'
+      values: ['58%']
+    - label: 'Få för låg lön'
+      values: ['55%']
+    - label: 'Jobbet är tråkigt och ointressant'
+      values: ['50%']
+    - label: 'Få otydliga direktiv'
+      values: ['43%']
+    - label: 'Vara tvungen att jobba för mycket'
+      values: ['39%']
+    - label: 'Tvingas göra saker jag inte är bekväm med'
+      values: ['38%']
+    - label: 'Förlora jobbet'
+      values: ['36%']
+    - label: 'Inte få någon uppskattning för mitt arbete'
+      values: ['35%']
+    - label: 'Inte få ett jobb som matchar min utbildning'
+      values: ['35%']
+    - label: 'Inte få möjlighet att utnyttja min potential'
+      values: ['33%']
+    - label: 'Inte bli tillfrågad/lyssnad på'
+      values: ['32%']
+    - label: 'Inte utvecklas tillräckligt'
+      values: ['31%']
+    - label: 'Inte veta hur det går för mig'
+      values: ['30%']
+    - label: 'Inte kunna påverka min arbetssituation'
+      values: ['29%']
+    - label: 'Det ställs för höga krav på mig'
+      values: ['26%']
+  language: sv
+  should_not_contain:
+    - 'I cannot'
+    - 'unclear'

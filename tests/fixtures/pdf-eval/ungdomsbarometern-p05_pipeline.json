@@ -1,0 +1,18 @@
+{
+  "page": 5,
+  "textExtraction": {
+    "method": "docling",
+    "text": "## DEL 1: HUR UNGA VILL JOBBA\n\n<!-- image -->\n\nFem punkter som definierar unga i arbetslivet\n\n<!-- image -->\n\nFem aktuella diskussioner just nu\n\nViktigt i yrkeslivet och avgörande på arbetsplatsen",
+    "charCount": 196,
+    "garbled": false
+  },
+  "ocrFallback": null,
+  "vision": {
+    "model": "aurora-vision-extract",
+    "description": "1. PAGE TYPE: infographic\n2. TITLE: DEL 1: HUR UNGA VILL JOBBA\n3. DATA:\n   - Page number: 5\n   - Text under first icon: Viktigt i yrkeslivet och avgörande på arbetsplatsen\n   - Text under second icon: Fem punkter som definierar unga i arbetslivet\n   - Text under third icon: Fem aktuella diskussioner just nu\n   - Logo: UB ungdomsbarometern © 2024\n4. KEY FINDING: This infographic introduces Part 1 of a report on how young people want to work, highlighting three key sections: what is important in professional life, five defining points for young people in the workforce, and five current discussions.\n5. LANGUAGE: Swedish",
+    "textOnly": false,
+    "tokensEstimate": 156
+  },
+  "combinedText": "[Page 5]\n## DEL 1: HUR UNGA VILL JOBBA\n\n<!-- image -->\n\nFem punkter som definierar unga i arbetslivet\n\n<!-- image -->\n\nFem aktuella diskussioner just nu\n\nViktigt i yrkeslivet och avgörande på arbetsplatsen\n\n[Visual content: 1. PAGE TYPE: infographic\n2. TITLE: DEL 1: HUR UNGA VILL JOBBA\n3. DATA:\n   - Page number: 5\n   - Text under first icon: Viktigt i yrkeslivet och avgörande på arbetsplatsen\n   - Text under second icon: Fem punkter som definierar unga i arbetslivet\n   - Text under third icon: Fem aktuella diskussioner just nu\n   - Logo: UB ungdomsbarometern © 2024\n4. KEY FINDING: This infographic introduces Part 1 of a report on how young people want to work, highlighting three key sections: what is important in professional life, five defining points for young people in the workforce, and five current discussions.\n5. LANGUAGE: Swedish]",
+  "combinedCharCount": 849
+}

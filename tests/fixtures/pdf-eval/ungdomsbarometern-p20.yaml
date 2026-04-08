@@ -1,0 +1,39 @@
+# FACIT: Ungdomsbarometern sida 20 (text + trendgraf — pengar/ekonomi)
+# Källa: © Ungdomsbarometern - Arbetsliv 2025 - SVT.pdf
+#
+# INSTRUKTION: Rätta nedan mot PDF-originalet.
+#   ✅ = pipelinen hade rätt (behåll)
+#   ❌ = pipelinen hade fel (korrigera värdet)
+#   ➕ = pipelinen missade detta (fyll i)
+
+source: '© Ungdomsbarometern - Arbetsliv 2025 - SVT.pdf'
+page: 20
+language: sv
+
+text_extraction:
+  should_contain:
+    - 'Ekonomi och pengar'
+    - 'Tjäna pengar'
+    - '36%'
+    - '47%'
+    - '49%'
+    - '15%'
+  min_chars: 1500
+  garbled: false
+
+vision:
+  page_type: 'infographic' # Pipelinen sa infographic. Kanske "mixed" (text + linjediagram)?
+  title_contains: 'pengar'
+  data_points:
+    - label: 'Tjäna pengar 2020'
+      values: ['36%']
+    - label: 'Tjäna pengar 2022'
+      values: ['47%']
+    - label: 'Tjäna pengar 2024'
+      values: ['49%']
+    - label: 'Vill bli uppfattad som Rik'
+      values: ['15%']
+  language: sv
+  should_not_contain:
+    - 'I cannot'
+    - 'unclear'

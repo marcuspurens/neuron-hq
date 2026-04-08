@@ -1,0 +1,18 @@
+{
+  "page": 1,
+  "textExtraction": {
+    "method": "docling",
+    "text": "TILL: SVT\n\n## UNGDOMSBAROMETERN 2025: ARBETSLIVSRAPPORTEN\n\n<!-- image -->",
+    "charCount": 73,
+    "garbled": false
+  },
+  "ocrFallback": null,
+  "vision": {
+    "model": "aurora-vision-extract",
+    "description": "PAGE TYPE: infographic\n\nTITLE: UNGDOMSBAROMETERN 2025: ARBETSLIVSRAPPORTEN\n\nDATA: None\n\nKEY FINDING: This is the cover page of the \"Ungdomsbarometern 2025: Arbetslivsrapporten\" report, addressed to SVT, featuring a young person in work attire.\n\nLANGUAGE: Swedish",
+    "textOnly": false,
+    "tokensEstimate": 66
+  },
+  "combinedText": "[Page 1]\nTILL: SVT\n\n## UNGDOMSBAROMETERN 2025: ARBETSLIVSRAPPORTEN\n\n<!-- image -->\n\n[Visual content: PAGE TYPE: infographic\n\nTITLE: UNGDOMSBAROMETERN 2025: ARBETSLIVSRAPPORTEN\n\nDATA: None\n\nKEY FINDING: This is the cover page of the \"Ungdomsbarometern 2025: Arbetslivsrapporten\" report, addressed to SVT, featuring a young person in work attire.\n\nLANGUAGE: Swedish]",
+  "combinedCharCount": 364
+}

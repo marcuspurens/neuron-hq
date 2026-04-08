@@ -1,0 +1,18 @@
+{
+  "page": 30,
+  "textExtraction": {
+    "method": "docling",
+    "text": "<!-- image -->\n\n## Hur ställer sig unga till olika typer av jobb?\n\n<!-- image -->\n\n<!-- image -->\n\n<!-- image -->",
+    "charCount": 113,
+    "garbled": false
+  },
+  "ocrFallback": null,
+  "vision": {
+    "model": "aurora-vision-extract",
+    "description": "PAGE TYPE: bar chart\nTITLE: Hur ställer sig unga till olika typer av jobb?\nDATA:\n| Label | Mitt drömmjobb | Kan tänka mig | Inte min grej | Vet inte / osäker |\n| :--- | :--- | :--- | :--- | :--- |\n| Med att leda andra | 11% | 56% | 28% | 5% |\n| Med att ta hand om andra | 16% | 41% | 40% | 2% |\n| Med att forska/förstå hur saker fungerar | 10% | 47% | 37% | 6% |\n| Med att sälja saker | 4% | 48% | 43% | 5% |\n| Med administration/juridik | 8% | 44% | 42% | 7% |\n| Med upplevelser/service | 3% | 46% | 46% | 5% |\n| Med media eller underhållning | 5% | 43% | 45% | 6% |\n| Med att undervisa/lära ut | 5% | 43% | 47% | 5% |\n| Med teknik/lösa tekniska problem | 11% | 37% | 47% | 5% |\n| Med ekonomi/bank/revisjon | 9% | 38% | 49% | 4% |\n| Med andras säkerhet (tex militär/polis) | 6% | 41% | 47% | 7% |\n| Med design/mode/formgivning | 8% | 37% | 46% | 8% |\n| Med att vårda/hjälpa sjuka | 11% | 34% | 51% | 5% |\n| Med programmering/utveckling | 7% | 36% | 52% | 4% |\n| Med att bygga/installera/laga | 5% | 37% | 53% | 5% |\n| Med att tillverka saker (t. ex industri) | 3% | 38% | 51% | 8% |\n| Med matlagning/restaurang/livsmedel | 2% | 37% | 54% | 7% |\n| Med politik/utredning | 9% | 30% | 56% | 5% |\n| Med kultur eller konst | 8% | 28% | 58% | 6% |\n| Med jordbruk/natur/fiske/djur | 4% | 27% | 63% | 5% |\nKEY FINDING: The most popular job type among young people is \"Med jordbruk/natur/fiske/djur\" (agriculture/nature/fishing/animals), with 63% of respondents saying it is not their thing, while only 4% consider it their dream job.\nLANGUAGE: Swedish",
+    "textOnly": false,
+    "tokensEstimate": 386
+  },
+  "combinedText": "[Page 30]\n<!-- image -->\n\n## Hur ställer sig unga till olika typer av jobb?\n\n<!-- image -->\n\n<!-- image -->\n\n<!-- image -->\n\n[Visual content: PAGE TYPE: bar chart\nTITLE: Hur ställer sig unga till olika typer av jobb?\nDATA:\n| Label | Mitt drömmjobb | Kan tänka mig | Inte min grej | Vet inte / osäker |\n| :--- | :--- | :--- | :--- | :--- |\n| Med att leda andra | 11% | 56% | 28% | 5% |\n| Med att ta hand om andra | 16% | 41% | 40% | 2% |\n| Med att forska/förstå hur saker fungerar | 10% | 47% | 37% | 6% |\n| Med att sälja saker | 4% | 48% | 43% | 5% |\n| Med administration/juridik | 8% | 44% | 42% | 7% |\n| Med upplevelser/service | 3% | 46% | 46% | 5% |\n| Med media eller underhållning | 5% | 43% | 45% | 6% |\n| Med att undervisa/lära ut | 5% | 43% | 47% | 5% |\n| Med teknik/lösa tekniska problem | 11% | 37% | 47% | 5% |\n| Med ekonomi/bank/revisjon | 9% | 38% | 49% | 4% |\n| Med andras säkerhet (tex militär/polis) | 6% | 41% | 47% | 7% |\n| Med design/mode/formgivning | 8% | 37% | 46% | 8% |\n| Med att vårda/hjälpa sjuka | 11% | 34% | 51% | 5% |\n| Med programmering/utveckling | 7% | 36% | 52% | 4% |\n| Med att bygga/installera/laga | 5% | 37% | 53% | 5% |\n| Med att tillverka saker (t. ex industri) | 3% | 38% | 51% | 8% |\n| Med matlagning/restaurang/livsmedel | 2% | 37% | 54% | 7% |\n| Med politik/utredning | 9% | 30% | 56% | 5% |\n| Med kultur eller konst | 8% | 28% | 58% | 6% |\n| Med jordbruk/natur/fiske/djur | 4% | 27% | 63% | 5% |\nKEY FINDING: The most popular job type among young people is \"Med jordbruk/natur/fiske/djur\" (agriculture/nature/fishing/animals), with 63% of respondents saying it is not their thing, while only 4% consider it their dream job.\nLANGUAGE: Swedish]",
+  "combinedCharCount": 1687
+}

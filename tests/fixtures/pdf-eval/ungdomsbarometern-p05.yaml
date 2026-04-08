@@ -1,0 +1,31 @@
+# FACIT: Ungdomsbarometern sida 5 (del-rubrik)
+# Källa: © Ungdomsbarometern - Arbetsliv 2025 - SVT.pdf
+#
+# INSTRUKTION: Rätta nedan mot PDF-originalet.
+#   ✅ = pipelinen hade rätt (behåll)
+#   ❌ = pipelinen hade fel (korrigera värdet)
+#   ➕ = pipelinen missade detta (fyll i)
+
+source: '© Ungdomsbarometern - Arbetsliv 2025 - SVT.pdf'
+page: 5
+language: sv
+
+text_extraction:
+  should_contain:
+    - 'DEL 1'
+    - 'HUR UNGA VILL JOBBA'
+    - 'Fem punkter som definierar'
+  min_chars: 100
+  garbled: false
+
+vision:
+  page_type: 'infographic' # Pipelinen sa: infographic
+  title_contains: 'DEL 1'
+  data_points:
+    - label: 'Viktigt i yrkeslivet och avgörande på arbetsplatsen'
+    - label: 'Fem punkter som definierar unga i arbetslivet'
+    - label: 'Fem aktuella diskussioner just nu'
+  language: sv
+  should_not_contain:
+    - 'I cannot'
+    - 'unclear'
