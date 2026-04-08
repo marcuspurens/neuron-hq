@@ -677,3 +677,75 @@ CLI: `aurora:pdf-eval <facit>` auto-detects `*_pipeline.json` next to `*.yaml`. 
 
 typecheck: clean
 tests: 4006/4008 (+24 new, 2 pre-existing flaky failures)
+
+## 2026-04-08 (session 14) — Pipeline wiring + MCP eval + prompt comparison
+
+### classifyPage() wired into ingestPdfRich
+
+Three changes to `ocr.ts`:
+1. Import `classifyPage` + `AuroraPageEntry` 
+2. Post-loop classification pass after line 394 (digest-building loop):
+```typescript
+const pages: AuroraPageEntry[] = pageDigests.map((d) => ({
+  digest: d,
+  understanding: classifyPage(d),
+}));
+```
+3. `RichPdfResult` extended with `pages: AuroraPageEntry[]`
+
+Design choice: post-loop pass over inline classification. The digest-building loop already handles text extraction, OCR, vision — mixing in classification would complicate the loop body. A separate `map()` is cleaner, testable, and can be toggled independently.
+
+### Vision prompt passthrough for A/B comparison
+
+`PDF_VISION_PROMPT` changed from `const` to `export const` — needed by the compare tool. `diagnosePdfPage` takes new `visionPrompt?: string` option, propagated to `analyzeImage({ prompt })`. `evalPdfPage` forwards same option. Chain: `comparePrompts` → `evalPdfPage` → `diagnosePdfPage` → `analyzeImage`.
+
+### Prompt comparison module (`pdf-eval-compare.ts`)
+
+`resolvePrompt(arg)`: `"current"` → built-in prompt, otherwise reads file. `comparePrompts()` runs each facit through both prompts sequentially (GPU-bound, parallel would just queue). `formatCompareResult()` shows per-page delta with emoji indicators (📈📉➡️).
+
+`CompareResult` tracks: `promptAAvg`, `promptBAvg`, `delta`, per-page breakdown, improved/degraded/unchanged counts. Threshold for "changed": ±2 percentage points.
+
+### MCP tool pattern
+
+Followed exact pattern from `aurora-ingest-pdf.ts`: `McpServer.tool()` with Zod schema, `type: 'text' as const`, `isError: true` on error paths. Registration in `scopes.ts` under `aurora-ingest-media`. Dynamic import of `pdf-eval.ts` inside handler (lazy loading).
+
+Tool-catalog test had hardcoded count — updated 44→45. This is a known pattern: TOOL_CATALOG tests are count-based, so every new tool needs a test update.
+
+### 45 files committed from sessions 10–14
+
+Major accumulated debt: sessions 10–13 had no commits pushed. All changes mixed in same files (ocr.ts, cli.ts, etc.). Solved by grouping commits per feature boundary:
+1. Types + classifier (foundation)
+2. PDF pipeline (ocr, vision, worker, tests)
+3. Eval runner + compare (business logic + CLI)
+4. MCP tool (registration layer)
+5. Docs + config (infra)
+6. Release notes
+
+Could not split by session since changes to the same files came from multiple sessions. This is a workflow smell — should commit at end of each session.
+
+### Mönster etablerade
+
+- **Option threading pattern**: when adding an optional param that needs to reach deep into a call chain, add `options?: { key?: value }` at each level and propagate via `options?.key`. Preserves backward compat.
+- **Export const for test/tool access**: if a module-level constant needs to be referenced by tests or tools, make it `export const` rather than creating a getter function. Simpler, treeshakeable.
+- **Post-processing pass over pipeline results**: prefer `results.map(fn)` after the main loop rather than mixing in classification/enrichment inside the loop. Separation of concerns.
+
+| Tid   | Typ     | Vad                                            |
+| ----- | ------- | ---------------------------------------------- |
+| 09:50 | SESSION | Start, read handoff, fire 3 explore agents     |
+| 09:52 | VERIFY  | Baseline: typecheck clean, 4007/4008           |
+| 09:54 | P0      | Copy Session 13 release notes to Obsidian      |
+| 09:55 | P3      | Wire classifyPage into ingestPdfRich            |
+| 09:58 | VERIFY  | typecheck clean, 21/21 ocr tests pass          |
+| 09:59 | P1      | Create aurora-pdf-eval.ts MCP tool              |
+| 10:01 | FIX     | MCP test: vi.resetAllMocks killed mock impl     |
+| 10:01 | VERIFY  | 27/27 MCP tests pass                            |
+| 10:02 | P2      | Create pdf-eval-compare.ts + CLI command        |
+| 10:04 | FIX     | Unused parseFacit import in compare module      |
+| 10:04 | VERIFY  | 5/5 compare tests pass, full suite 4014/4015    |
+| 10:05 | GIT     | 6 commits, push to origin                       |
+| 10:10 | DOCS    | Handoff, release notes, dagböcker               |
+
+### Baseline
+
+typecheck: clean
+tests: 4014/4015 (+7 new from session 14, 1 pre-existing flaky)

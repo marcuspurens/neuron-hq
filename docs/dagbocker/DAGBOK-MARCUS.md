@@ -383,3 +383,31 @@ Klassificeraren hade två buggar vid första testkörningen: den parsade tabellh
 1. Koppla in klassificeraren i pipeline-flödet (`ingestPdfRich`)
 2. MCP-verktyg för eval (inte bara CLI)
 3. Promptjämförelseverktyg (`aurora:pdf-eval-compare`)
+
+## 2026-04-08 — Session 14: Allt ihopkopplat
+
+### Vad hände?
+
+**1. Session 13:s alla fyra prioriteter klara på en session.** Det är första gången allt från en handoff-lista slutförs utan att behöva skjuta vidare. Sidklassificeraren (som session 13 byggde som fristående funktion) sitter nu ihop med det riktiga pipeline-flödet. Det betyder att varje PDF som processas automatiskt får sidtyp, diagramtyp och datapunkter — utan manuella steg.
+
+**2. MCP-verktyg för utvärdering.** Eval-funktionen (som tidigare bara fungerade via terminalen) är nu tillgänglig som MCP-verktyg. Det innebär att AI-agenter kan köra eval direkt i en konversation — ge den facit-filer och den returnerar poäng. Praktiskt för att snabbt testa pipeline-kvalitet utan att växla till terminalen.
+
+**3. Promptjämförare — det viktigaste nya verktyget.** `aurora:pdf-eval-compare` tar två vision-promptar och kör samma testdata genom båda. Outputen visar per sida: blev det bättre eller sämre? Med hur mycket? Det här är nyckeln till att systematiskt förbättra hur pipelinen "ser" PDF-sidor. Istället för att gissa om en ny prompt är bättre, kan du nu mäta det.
+
+### Vad funkade inte?
+
+Ärligt talat — ingenting fastnade den här gången. `pnpm` var inte på PATH i början (löstes med explicit sökväg). Alla tester gick gröna direkt. Den enda komplicerade biten var att planera commit-ordningen: 45 ändrade/nya filer från sessioner 10–14 som aldrig committats, med ändringar i samma filer från olika sessioner. Löstes genom att gruppera per feature-gräns snarare än per session.
+
+### Vad bestämdes?
+
+| Beslut | Varför |
+| ------ | ------ |
+| Klassificeraren körs som post-loop pass (inte inline i loopen) | Ren separation: digesloopen bygger rå data, klassificeringen är ett separat steg |
+| MCP-verktyg i "ingest-media" scope | Eval hör ihop med PDF-pipelinen, inte med kvalitetsverktyg |
+| Promptjämförelse kör sekventiellt, inte parallellt | Vision-modellen är GPU-bunden, parallellism hjälper inte |
+
+### Vad är planen framöver?
+
+1. Skapa en förbättrad vision-prompt (v2) och testa den med compare-verktyget
+2. JSON-LD-export av AuroraDocument (typer finns, serialisering saknas)
+3. Lagra klassificeringsresultat i databasen (inte bara i pipeline-output)

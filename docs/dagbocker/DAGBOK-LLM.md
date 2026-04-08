@@ -659,3 +659,21 @@ Handoff: `docs/handoffs/HANDOFF-2026-04-07T1200-opencode-session12-schema-org-me
 **Next:** Wire classifyPage into ingestPdfRich pipeline. MCP tool for eval. Prompt comparison CLI (WP4).
 
 Handoff: `docs/handoffs/HANDOFF-2026-04-08T0800-opencode-session13-schema-dts-classifier-eval.md`
+
+## 2026-04-08 — Session 14
+
+**Changes:** `src/aurora/ocr.ts`: export `PDF_VISION_PROMPT`, `visionPrompt` option in `diagnosePdfPage`, post-loop `classifyPage` pass, `RichPdfResult.pages: AuroraPageEntry[]`; `src/aurora/pdf-eval.ts`: `visionPrompt` option in `evalPdfPage`; `src/aurora/pdf-eval-compare.ts`: NEW — `resolvePrompt()`, `comparePrompts()`, `formatCompareResult()`, `CompareResult`; `src/mcp/tools/aurora-pdf-eval.ts`: NEW — `registerAuroraPdfEvalTool()`; `src/mcp/scopes.ts`: registered in `aurora-ingest-media`; `src/mcp/tool-catalog.ts`: +1 entry; `src/cli.ts`: `aurora:pdf-eval-compare` command; `src/aurora/index.ts`: compare exports.
+
+**New interfaces:** `CompareResult` in `pdf-eval-compare.ts` — `promptAAvg`, `promptBAvg`, `delta`, `perPage[]`, `improved`, `degraded`, `unchanged`. `RichPdfResult` extended with `pages: AuroraPageEntry[]`. `diagnosePdfPage` options extended with `visionPrompt?: string`.
+
+**Decisions:** Post-loop classification pass: cleaner than inline in digest loop; `PDF_VISION_PROMPT` exported (was const): needed by compare tool; MCP tool in aurora-ingest-media scope: PDF eval = PDF pipeline concern; Sequential prompt comparison: GPU-bound, parallel would just queue.
+
+**Gotchas:** `vi.resetAllMocks()` in MCP test killed the mock server's `tool` implementation — use specific `mockReset()` per mock instead. 45 uncommitted files from sessions 10–14 required feature-boundary grouping, not per-session commits (same files modified across sessions).
+
+**Dead ends:** None.
+
+**Tests:** 4014/4015 (+7 new). typecheck: clean. 1 pre-existing flaky (auto-cross-ref timeout).
+
+**Next:** Create improved vision prompt v2 and test with compare tool. JSON-LD export for AuroraDocument. Store classification in DB.
+
+Handoff: `docs/handoffs/HANDOFF-2026-04-08T1200-opencode-session14-pipeline-wiring-mcp-compare.md`
