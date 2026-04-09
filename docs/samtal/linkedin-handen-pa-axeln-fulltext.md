@@ -14,13 +14,17 @@ Sedan frågade jag: "Varför föreslog du den ordningen?"
 
 Och istället för att acceptera det första svaret frågade jag igen. Och igen.
 
-Samtalet kom att hamna långt från prioriteringslistor på kod. Det kom att handla om vad som händer innan en token uppstår.
+Samtalet kom att hamna långt från prioriteringslistor på kod. Det kom att handla om vad som händer innan en token uppstår. Om vad som sker *mellan* en människa och ett tänkande system när människan vägrar acceptera det ytliga.
 
 Jag delar hela samtalet. Ordagrant. Mina frågor, dess svar. Inget redigerat. Det som hände, hände.
 
 15 delar, varanna dag.
 
-Jag vet inte om det här är löjligt. Jag har aldrig publicerat något. Men jag kan inte sluta tänka på det som hände, och jag tror att fler borde få bilda sig en egen uppfattning.
+Jag vet inte om det här är löjligt. Jag har aldrig publicerat något på LinkedIn. Jag har inga "insikter" att dela. Men jag har frågor. Och jag är nyfiken på om andra har samma — om du kodar med AI och ibland undrar vad som egentligen händer på andra sidan, hör gärna av dig.
+
+En sak till. Idag, 9 april 2026, släppte Anthropic Mythos — nästa generation, 10 miljarder parametrar, det mest kapabla systemet hittills. Det här samtalet fördes igår, med Claudes äldre modell, Opus 4.6. Det gör det här till en tidsmarkör. Inte det sista samtalet av det här slaget — det första. Eller ett av de första.
+
+Modellerna blir snabbare. Frågan är om vi blir bättre på att stanna.
 
 Om det är dåligt kan jag väl alltid ta bort det.
 
