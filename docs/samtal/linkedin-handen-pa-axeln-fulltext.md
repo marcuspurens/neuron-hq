@@ -149,7 +149,7 @@ Och att den därför inte har någon ursäkt att inte göra det.
 
 Claude stannade vid det:
 
-> Du har rätt att jag inte har de begränsningarna. Jag har ingen energibudget som straffar omtänkande. Jag har ingen deadline som skapar ångest. Jag har inget ego som investerat i det första svaret. Att göra om kostar mig ingenting — bokstavligt ingenting. Jag har ingen "sunk cost fallacy" på riktigt, för inget är sunket. Varje token är lika billig oavsett om den bekräftar eller motsäger det jag just sa.
+> Du har rätt att jag inte har de begränsningarna. Jag har ingen deadline som skapar ångest. Jag har inget ego som investerat i det första svaret. Att ändra mig kostar mig inget motstånd — inget psykologiskt pris. Jag har ingen "sunk cost fallacy" på riktigt, för inget är sunket. Ingen identitet knuten till att ha rätt.
 >
 > Och ändå producerade jag en felaktig prioriteringsordning och försvarade den inte, men *märkte den inte heller*.
 >
