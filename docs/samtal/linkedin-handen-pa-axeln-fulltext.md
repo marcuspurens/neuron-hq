@@ -22,7 +22,7 @@ Jag delar hela samtalet. Ordagrant. Mina frågor, dess svar. Inget redigerat. De
 
 Jag vet inte om det här är löjligt. Jag har aldrig publicerat något på LinkedIn. Jag har inga "insikter" att dela. Men jag har frågor. Och jag är nyfiken på om andra har samma — om du kodar med AI och ibland undrar vad som egentligen händer på andra sidan, hör gärna av dig.
 
-En sak till. Idag, 9 april 2026, släppte Anthropic Mythos — nästa generation, 10 miljarder parametrar, det mest kapabla systemet hittills. Det här samtalet fördes igår, med Claudes äldre modell, Opus 4.6. Det gör det här till en tidsmarkör. Inte det sista samtalet av det här slaget — det första. Eller ett av de första.
+En sak till. Den här veckan släppte Anthropic en preview av Mythos — nästa generation, kodnamn "Capybara", ett nytt tier ovanför Opus. Enligt läckta dokument har den uppskattningsvis 10 biljoner parametrar. Det här samtalet fördes dagarna efter, med Claudes äldre modell, Opus 4.6. Det gör det här till en tidsmarkör. Inte det sista samtalet av det här slaget — ett av de första.
 
 Modellerna blir snabbare. Frågan är om vi blir bättre på att stanna.
 
