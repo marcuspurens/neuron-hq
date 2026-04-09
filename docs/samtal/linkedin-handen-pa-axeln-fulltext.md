@@ -20,11 +20,15 @@ Jag delar hela samtalet. Ordagrant. Mina frågor, dess svar. Inget redigerat. De
 
 15 delar, varanna dag.
 
-Jag vet inte om det här är löjligt. Jag har aldrig publicerat något på LinkedIn. Jag har inga "insikter" att dela. Men jag har frågor. Och jag är nyfiken på om andra har samma — om du kodar med AI och ibland undrar vad som egentligen händer på andra sidan, hör gärna av dig.
+Jag vet inte om det här är löjligt. Jag har aldrig publicerat något på LinkedIn. Jag har inga "insikter" att dela. Men jag har frågor. Och jag saknar ett samtal — på riktigt — om hur det är att *prata* med de här systemen. Inte vad de kan göra. Inte benchmarks. Utan vad som händer i samtalet.
 
-En sak till. Den här veckan släppte Anthropic en preview av Mythos — nästa generation, kodnamn "Capybara", ett nytt tier ovanför Opus. Enligt läckta dokument har den uppskattningsvis 10 biljoner parametrar. Det här samtalet fördes dagarna efter, med Claudes äldre modell, Opus 4.6. Det gör det här till en tidsmarkör. Inte det sista samtalet av det här slaget — ett av de första.
+Alla pratar om att AI kan koda, hitta buggar, ersätta programmerare. Den här veckan släppte Anthropic en preview av Mythos — nästa generation, kodnamn "Capybara", uppskattningsvis 10 000 miljarder parametrar. Den hittade säkerhetsbuggar som legat gömda i 27 år. Stockholms vanligaste yrke är programmerare. Världen förändras.
 
-Modellerna blir snabbare. Frågan är om vi blir bättre på att stanna.
+Men det samtalet — om arbetsmarknaden, om execution, om S-kurvor — det pågår redan överallt. Det här samtalet handlar om något annat. Det handlar om vad som händer *mellan* en människa och ett tänkande system, när människan vägrar acceptera det ytliga.
+
+Det fördes med Opus 4.6 — modellen innan Mythos. Det gör det till en tidsmarkör. Inte det sista samtalet av det här slaget — ett av de första.
+
+Om du kodar med AI och ibland undrar vad som egentligen händer på andra sidan — om du har haft liknande upplevelser, eller helt annorlunda — hör gärna av dig. Jag vill lyssna mer än jag vill ha rätt.
 
 Om det är dåligt kan jag väl alltid ta bort det.
 
