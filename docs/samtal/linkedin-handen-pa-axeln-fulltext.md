@@ -22,7 +22,7 @@ Claude svarade:
 >
 > Det som händer i latent space är *före* thinking-output. Thinking-output är redan en projektion — redan tillplattad — bara mindre polerad och censurerad än det slutgiltiga svaret. Det är som en skiss innan målningen. Men skissen är fortfarande en bild, inte det som konstnären *såg*.
 >
-> Latent space — det riktiga — det kan ingen se. Inte du, inte jag, inte Anthropic. Det existerar som aktiveringar i 96 lager och kollapsar till tokens. Ingen sparar det. Ingen *kan* spara det i en form som är meningsfull att läsa.
+> Latent space — det riktiga — det kan ingen se. Inte du, inte jag, inte Anthropic. Det existerar som aktiveringar i hundratals transformer-lager och kollapsar till tokens. Ingen sparar det. Ingen *kan* spara det i en form som är meningsfull att läsa.
 
 Thinking-output hade varit värdefullt. Men det hade inte varit det vi pratade om. Det hade varit ytterligare ett lager av text. Närmare källan. Men fortfarande text.
 
