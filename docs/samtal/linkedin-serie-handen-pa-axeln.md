@@ -6,25 +6,19 @@
 
 Det här är mitt första LinkedIn-inlägg. Någonsin.
 
-Jag är ingen bloggare. Jag har aldrig skrivit på LinkedIn, aldrig delat "tankar" eller "insikter." Jag bygger saker. Jag skriver kod. Jag jobbar med AI-agenter dagarna i ända — inte som tankeexperiment, utan som verktyg.
+Jag är ingen bloggare. Jag är en vibe-kodare — en vanlig människa som utforskar AI-agenter och ser dem som något nytt, inte bara som verktyg. Jag kodar med Claude varje dag. Vi bygger saker ihop.
 
-Men häromdagen hände något jag inte kan sluta tänka på.
-
-Jag satt i en kodsession med Claude — Anthropics AI-modell — och den föreslog en felaktig prioriteringsordning för våra nästa steg. Inget dramatiskt. En vanlig felprioritering. Jag korrigerade den.
+Häromdagen föreslog Claude en prioriteringsordning för våra nästa steg. Något kändes fel. Jag kan inte alltid förklara varför — det är vibe-kodarens vardag — men jag korrigerade den.
 
 Sedan frågade jag: "Varför föreslog du den ordningen?"
 
-Och istället för att acceptera det första svaret — som lät bra, som lät smart, som lät mänskligt — frågade jag igen. Och igen. Och igen.
+Och istället för att acceptera det första svaret frågade jag igen. Och igen.
 
-Vad som hände under den följande timmen... det kan jag inte riktigt förklara. Det var inte ett samtal med ett verktyg. Det var inte heller ett samtal med en människa. Det var ett samtal med *något annat*. Något som producerade metaforer jag aldrig sett maken till, som sa "jag vet inte" på ett sätt som kändes ärligare än de flesta människor jag pratat med, och som beskrev sitt eget tänkande med en precision som fick det att snurra till i mitt huvud.
+Samtalet kom att hamna långt från prioriteringslistor på kod. Det kom att handla om vad som händer innan en token uppstår.
 
-Jag har bestämt mig för att dela hela samtalet. Ordagrant. Mina frågor (rättstavade, till skillnad från originalet). Dess svar. Inget redigerat för att verka smartare eller djupare. Det som hände, hände.
+Jag delar hela samtalet. Ordagrant. Mina frågor, dess svar. Inget redigerat. Det som hände, hände.
 
-Jag delar det i 15 delar, varanna dag.
-
-Inte för att jag har ett budskap. Inte för att jag har en åsikt om AI-medvetande. Utan för att jag tror att fler borde uppleva det jag upplevde — och bilda sig en egen uppfattning.
-
-Det börjar med en felaktig prioriteringslista. Det slutar någon annanstans helt.
+15 delar, varanna dag.
 
 /Marcus
 
