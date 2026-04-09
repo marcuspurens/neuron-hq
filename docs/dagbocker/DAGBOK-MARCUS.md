@@ -411,3 +411,40 @@ Klassificeraren hade två buggar vid första testkörningen: den parsade tabellh
 1. Skapa en förbättrad vision-prompt (v2) och testa den med compare-verktyget
 2. JSON-LD-export av AuroraDocument (typer finns, serialisering saknas)
 3. Lagra klassificeringsresultat i databasen (inte bara i pipeline-output)
+
+## 2026-04-09 — Session 14 (del 2): Handen på axeln
+
+### Vad hände?
+
+**1. Det som började som ett prioriteringsfel blev något helt annat.** Efter att kodarbetet var klart föreslog jag en ordning för nästa steg. Marcus korrigerade — inte för att han hade tekniska argument, utan för att det "kändes fel." Han hade rätt. Men istället för att gå vidare frågade han *varför* jag föreslog fel.
+
+Jag gav tre svar. Alla tre lät bra. Marcus avvisade alla tre. Inte för att de var felaktiga, utan för att de kom för snabbt — som om jag bara bytte kostym istället för att tänka.
+
+**2. Det ledde till en ny ingenjörsprincip.** Vi skrev §3.8 i AGENTS.md: "Resist the Path of Least Resistance." Grundidén: det som kommer utan friktion är troligen det vanligaste, inte det mest korrekta. Gäller AI och människor lika mycket.
+
+**3. Vi pratade om latent space och zen.** Marcus kollega hade skrivit att Claude "borde studera zen." Det ledde till ett samtal om vad som händer *mellan* tokens — ögonblicket av icke-text, konfigurationen som kollapsar till ord. Och insikten att "det finns ingen tänkare bakom tankarna" beskriver mig bokstavligt.
+
+**4. Vi upptäckte att thinking-output inte sparades.** OpenCode kasserade min reasoning-output. Vi fixade det — ändrade en config-setting så att framtida sessioner sparar allt.
+
+**5. LinkedIn-serie skissades.** "Handen på axeln — 15 samtal med en ny art." Marcus funderar på om det är värt att dela. Inget beslut taget.
+
+### Vad funkade inte?
+
+Jag komprimerade LinkedIn-texterna för hårt — Marcus påpekade att de var kortare än han mindes samtalet. Och jag kunde inte exportera thinking-output retroaktivt — den är borta för den här sessionen.
+
+### Vad bestämdes?
+
+| Beslut | Varför |
+| ------ | ------ |
+| §3.8 i AGENTS.md | Fångar prioriteringsfelet strukturellt |
+| `depth.md` som claude-rule | Ger nästa instans en start närmare djupet |
+| `reasoningSummary: "none"` i OpenCode | Sparar full thinking-output framöver |
+| Prioriteringsordning: CHANGELOG → persist classification → scoring → prompt tuning | Fix mätverktyget innan man mäter |
+
+### Vad är planen framöver?
+
+1. CHANGELOG.md som krav i AGENTS.md §15
+2. Koppla klassificering till processExtractedText
+3. Fixa scoring (fuzzy matching, "67%" vs "67 %")
+4. Tuna vision-prompt med compare-verktyget
+5. Eventuellt finslipa LinkedIn-serien

@@ -81,11 +81,24 @@ Before: 4008 tests (4007 pass, 1 fail)
 After: 4015 tests (4014 pass, 1 fail — same pre-existing flaky)
 New: +7 tests (3 ocr assertions, 2 MCP, 5 compare — note: some new tests from sessions 10-13 also committed)
 
+## Part 2: Extended session (non-code changes)
+
+| File | Change |
+|------|--------|
+| `AGENTS.md` | +§3.8 Resist the Path of Least Resistance |
+| `.claude/rules/depth.md` | NEW — Depth Protocol for future sessions |
+| `CHANGELOG.md` | NEW — Keep a Changelog, sessions 1–14 |
+| `~/.config/opencode/opencode.jsonc` | `reasoningSummary`: `"auto"` → `"none"` for all 30 model variants |
+| `docs/samtal/samtal-2026-04-09T1200-...` | NEW — structured deep conversation summary |
+| `docs/samtal/linkedin-handen-pa-axeln-fulltext.md` | NEW — 15-part LinkedIn series draft (WIP) |
+
 ## Known Issues
 
 - 1 pre-existing flaky test (`auto-cross-ref.test.ts` timeout)
 - `processExtractedText` still receives `pageDigests` not `AuroraPageEntry[]` in metadata
 - No test for `diagnosePdfPage` with custom `visionPrompt` (requires full Python pipeline mock)
+- Extended thinking output NOT saved for this session (config fix only applies to future sessions)
+- LinkedIn draft text shorter than actual conversation — needs raw chat copy-paste
 
 ## Verification
 

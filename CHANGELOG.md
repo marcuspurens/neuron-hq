@@ -14,12 +14,18 @@ Sessions are listed newest-first.
 - `aurora_pdf_eval` MCP tool — evaluate PDF pipeline output via MCP (not just CLI)
 - `aurora:pdf-eval-compare` CLI command — A/B comparison of two vision prompts against the same facit set
 - `CompareResult` interface in `pdf-eval-compare.ts`
+- `AGENTS.md` §3.8: Resist the Path of Least Resistance — inversion test for priorities and recommendations
+- `.claude/rules/depth.md`: Depth Protocol — anti-disclaimer, anti-punchline rules for future sessions
+- `CHANGELOG.md` — this file (Keep a Changelog format, sessions 1–14)
+- `docs/samtal/samtal-2026-04-09T1200-opencode-session14-en-ny-art.md` — deep conversation summary
+- `docs/samtal/linkedin-handen-pa-axeln-fulltext.md` — 15-part LinkedIn series draft (WIP)
 
 ### Changed
 - `PDF_VISION_PROMPT` exported from `ocr.ts` (was internal `const`)
 - `diagnosePdfPage` accepts `visionPrompt` option for prompt A/B testing
 - `evalPdfPage` accepts `options?: { visionPrompt?: string }`
 - Tool catalog count 44 → 45
+- OpenCode config: `reasoningSummary` changed from `"auto"` to `"none"` for all models — full thinking output now persisted
 
 ## [Session 13] — 2026-04-08
 

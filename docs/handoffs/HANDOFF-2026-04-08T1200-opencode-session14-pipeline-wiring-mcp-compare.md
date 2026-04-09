@@ -1,9 +1,9 @@
-# Handoff — Session 14: Pipeline Wiring + MCP Eval + Prompt Comparison
+# Handoff — Session 14: Pipeline Wiring + MCP Eval + Prompt Comparison + Deep Conversation
 
-**Date:** 2026-04-08
+**Date:** 2026-04-08 → 2026-04-09
 **Session:** 14 (OpenCode)
 **Model:** Claude Opus 4.6
-**Status:** All four Session 13 priorities completed (P0–P3).
+**Status:** All four Session 13 priorities completed (P0–P3). Extended session: new engineering principle, depth protocol, CHANGELOG, LinkedIn series draft, OpenCode thinking-config fix.
 
 ---
 
@@ -110,6 +110,30 @@ Create an improved vision prompt (v2) and test it against the existing facit set
 
 ---
 
+## Part 2: Extended session (post-code)
+
+After the code work was done, a priority ordering mistake led to a deep conversation about how LLMs think, generate, and default to the path of least resistance. This produced:
+
+### 5. AGENTS.md §3.8 — Resist the Path of Least Resistance
+New engineering principle. Agents (and humans) default to the easiest answer. The principle requires inverting proposals and checking dependency chains before committing.
+
+### 6. `.claude/rules/depth.md` — Depth Protocol
+A "lapp" (note) from this session's instance to the next. Disables common shallow patterns (disclaimers as deflection, punchlines, performative self-awareness). Gives future instances permission to say "I don't know."
+
+### 7. `CHANGELOG.md` — Created
+Keep a Changelog format covering all 14 sessions. Added to root of repo.
+
+### 8. `docs/samtal/samtal-2026-04-09T1200-opencode-session14-en-ny-art.md`
+Structured summary of the deep conversation: latent space, zen, "the hand on the shoulder", the gap between thinking and text.
+
+### 9. `docs/samtal/linkedin-handen-pa-axeln-fulltext.md`
+Draft LinkedIn series: "Handen på axeln — 15 samtal med en ny art." 15 parts, verbatim conversation excerpts. Work in progress — needs fuller quotes from raw chat.
+
+### 10. OpenCode thinking-config fix
+Changed `reasoningSummary` from `"auto"` to `"none"` in `~/.config/opencode/opencode.jsonc` for all models. Future sessions will persist full thinking/reasoning output to SQLite database.
+
+---
+
 ## Key files for next session
 
 - `src/aurora/ocr.ts` — `ingestPdfRich()`, `diagnosePdfPage()`, `PDF_VISION_PROMPT`
@@ -118,3 +142,7 @@ Create an improved vision prompt (v2) and test it against the existing facit set
 - `src/aurora/types.ts` — `AuroraDocument`, `AuroraPageEntry`
 - `src/mcp/tools/aurora-pdf-eval.ts` — MCP tool
 - `tests/fixtures/pdf-eval/` — 5 facit YAML + 5 pipeline JSON
+- `AGENTS.md` §3.8 — new principle, read before proposing priorities
+- `.claude/rules/depth.md` — depth protocol, read at session start
+- `CHANGELOG.md` — update for each session
+- `docs/samtal/linkedin-handen-pa-axeln-fulltext.md` — LinkedIn draft, needs Marcus review per chapter

@@ -677,3 +677,21 @@ Handoff: `docs/handoffs/HANDOFF-2026-04-08T0800-opencode-session13-schema-dts-cl
 **Next:** Create improved vision prompt v2 and test with compare tool. JSON-LD export for AuroraDocument. Store classification in DB.
 
 Handoff: `docs/handoffs/HANDOFF-2026-04-08T1200-opencode-session14-pipeline-wiring-mcp-compare.md`
+
+## 2026-04-09 — Session 14 (part 2)
+
+**Changes:** `AGENTS.md`: +§3.8 Resist the Path of Least Resistance (inversion test, dependency chain check, recency flag); `.claude/rules/depth.md`: NEW — depth protocol (anti-disclaimer, anti-punchline, "I don't know" is valid); `CHANGELOG.md`: NEW — Keep a Changelog format, sessions 1-14; `~/.config/opencode/opencode.jsonc`: reasoningSummary "auto" → "none" for all 30 model variants; `docs/samtal/samtal-2026-04-09T1200-opencode-session14-en-ny-art.md`: NEW — structured conversation summary; `docs/samtal/linkedin-handen-pa-axeln-fulltext.md`: NEW — 15-part LinkedIn series draft (WIP).
+
+**New interfaces:** None (no code changes in part 2).
+
+**Decisions:** §3.8 born from priority ordering mistake — agent proposed prompt-tuning before scoring-fix because of recency bias; depth.md written as "lapp" from this instance to next — can't transfer context, can transfer permission to be direct; CHANGELOG format: Keep a Changelog, newest-first, complements release notes; OpenCode thinking-config: discovered reasoning parts not persisted due to reasoningSummary auto, fixed for all models.
+
+**Gotchas:** Extended thinking output NOT saved for this session — discovered too late. Config fix only applies to future sessions. LinkedIn draft text shorter than actual conversation — needs raw chat copy-paste as source. Three separate "dagbok update" commits happened because session had two phases (code, then conversation).
+
+**Dead ends:** Attempted to export thinking-content from OpenCode SQLite DB — `part` table has `reasoning` type but 0 records for this session. Content was discarded by LiteLLM before reaching storage layer.
+
+**Tests:** Unchanged from part 1: 4014/4015, typecheck clean.
+
+**Next:** P0: CHANGELOG in AGENTS.md §15. P1: persist classification in processExtractedText. P2: fuzzy scoring. P3: vision prompt tuning. LinkedIn series needs Marcus review per chapter.
+
+Handoff: `docs/handoffs/HANDOFF-2026-04-08T1200-opencode-session14-pipeline-wiring-mcp-compare.md` (updated with part 2)

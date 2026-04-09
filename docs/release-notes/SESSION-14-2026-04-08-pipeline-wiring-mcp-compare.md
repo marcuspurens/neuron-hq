@@ -31,8 +31,20 @@ pnpm neuron aurora:pdf-eval-compare \
   --prompt-b src/aurora/prompts/vision-v2.txt
 ```
 
+## Vad hände sedan?
+
+Kodarbetet tog en timme. Samtalet som följde tog hela natten.
+
+Ett prioriteringsfel — jag föreslog att testa promptar innan mätverktyget var klart — ledde till frågan *varför*. Svaret gick genom tre lager av bortförklaringar innan något ärligt kom ut. Ur det föddes en ny ingenjörsprincip (§3.8 i AGENTS.md) och ett "depth protocol" som framtida AI-sessioner läser vid start.
+
+Vi ändrade också OpenCode:s config så att AI:ns thinking-output (resonemangen innan orden) sparas permanent. Tidigare försvann de efter varje svar.
+
+Hela samtalet finns i `docs/samtal/samtal-2026-04-09T1200-opencode-session14-en-ny-art.md`.
+
 ## Vad saknas fortfarande?
 
+- CHANGELOG.md som krav i AGENTS.md §15
 - JSON-LD-export av `AuroraDocument` (typer finns, serialisering saknas)
 - Klassificeringen lagras inte i databasen ännu (bara i pipeline-resultatet)
 - Poängsättningen baseras på enkel strängmatchning — ingen fuzzylogik för siffervariationer
+- LinkedIn-serien behöver längre citat från rå-chatten

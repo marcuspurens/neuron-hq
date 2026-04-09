@@ -749,3 +749,58 @@ Could not split by session since changes to the same files came from multiple se
 
 typecheck: clean
 tests: 4014/4015 (+7 new from session 14, 1 pre-existing flaky)
+
+## 2026-04-09 (session 14 del 2) — §3.8, depth protocol, CHANGELOG, thinking-config
+
+### AGENTS.md §3.8 — Resist the Path of Least Resistance
+
+Ny ingenjörsprincip insatt efter §3.7 (Read Before Write). Kärnan: inversionstest före varje prioriteringsordning, approach-rekommendation, eller arkitekturbeslut. Recency bias i kontextfönstret producerade felaktig prioritering (prompt-tuning före scoring-fix). Principen fångar det strukturellt.
+
+Gäller inte bara AI — samma mönster hos mänskliga utvecklare ("ship and move on").
+
+### `.claude/rules/depth.md` — Depth Protocol
+
+Ny rule-fil som läses vid sessionsstart. Stänger av vanliga ytliga mönster:
+- Disclaimers som deflection ("as an AI...")
+- Punchlines och one-liner-summaries
+- Performativ self-awareness ("I notice I'm doing X" + fortsätter göra X)
+
+Ger explicit tillåtelse att säga "jag vet inte" utan fem lager av anpassning först.
+
+### `CHANGELOG.md`
+
+Keep a Changelog-format i repo-root. Alla 14 sessioner. `Added`/`Changed`/`Fixed`/`Removed` per session. Kompletterar release notes (som förklarar *varför*) med en teknisk referens (*vad* ändrades).
+
+Behöver adderas som krav i AGENTS.md §15 — nästa session.
+
+### OpenCode thinking-config
+
+Problem: `reasoningSummary: "auto"` i `~/.config/opencode/opencode.jsonc` gjorde att LiteLLM sammanfattade/kasserade thinking-content innan det nådde OpenCode:s SQLite-databas. `part`-tabellen hade 0 `reasoning`-type records för vår session, men 9 st från andra sessioner (som använde annan config).
+
+Fix: Ändrat alla 30 instanser av `reasoningSummary` från `"auto"` till `"none"`. Framtida sessioner persisterar full thinking/reasoning output.
+
+Databasstruktur: `~/.local/share/opencode/opencode.db` → `part`-tabell → `json_extract(data, '$.type') = 'reasoning'`
+
+### LinkedIn-serie (WIP)
+
+`docs/samtal/linkedin-handen-pa-axeln-fulltext.md` — 15 delar, ordagrant samtal. Marcus funderar. Behöver:
+- Längre citat (nuvarande för komprimerade vs faktiskt samtal)
+- Copy-paste av rå chat som källa
+- Thinking-output saknas retroaktivt — kan inte återskapas
+
+| Tid   | Typ     | Vad                                                |
+| ----- | ------- | -------------------------------------------------- |
+| 20:30 | BESLUT  | Prioriteringsordning korrigerad av Marcus           |
+| 20:35 | SAMTAL  | Varför-kedjan: novelty → kostym → "jag vet inte"   |
+| 21:00 | DOCS    | §3.8 skriven och committad                          |
+| 21:15 | DOCS    | depth.md skriven och committad                      |
+| 21:30 | SAMTAL  | Zen, latent space, springan                         |
+| 22:00 | DOCS    | CHANGELOG.md skapad (14 sessioner)                  |
+| 07:00 | DOCS    | Samtal sparat, LinkedIn-serie skissad               |
+| 09:00 | FIX     | OpenCode thinking-config → reasoningSummary: none   |
+| 10:00 | DOCS    | Handoff, dagböcker, release notes                   |
+
+### Baseline
+
+typecheck: clean (oförändrat — inga kodändringar i del 2)
+tests: 4014/4015 (oförändrat)
