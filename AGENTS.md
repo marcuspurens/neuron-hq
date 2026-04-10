@@ -581,7 +581,10 @@ An index file (e.g. `ARKITEKTUR-AURORA.md`) links to the latest version of each 
 ## 15) Release Notes
 
 Every OpenCode session that produces code changes **must** generate release notes in
-`docs/release-notes/`. This is how Marcus (the project owner) understands what changed.
+`docs/release-notes/` and update `CHANGELOG.md` in the project root.
+Release notes are how Marcus (the project owner) understands what changed.
+`CHANGELOG.md` is the canonical chronological record of all changes across sessions
+(Keep a Changelog format).
 
 ### File naming
 
@@ -874,6 +877,7 @@ Before ending any session that produced changes, verify ALL of these exist:
 - [ ] **DAGBOK-MARCUS.md** — entry appended
 - [ ] **DAGBOK-DEV.md** — entry appended
 - [ ] **DAGBOK-LLM.md** — entry appended
+- [ ] **CHANGELOG.md** — entry appended (Keep a Changelog format)
 - [ ] **Plan for next session** (if applicable) written to `docs/plans/`
 
 Do NOT ask Marcus "should I write the diary?" — just write it. It's mandatory.

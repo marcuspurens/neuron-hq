@@ -9,6 +9,94 @@ import yaml from 'yaml';
 import type { Facit, EvalResult } from './types.js';
 import { diagnosePdfPage } from './ocr.js';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Scoring utilities — fuzzy matching + number normalization
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Extract a numeric value from a string like "61%", "61 %", "0.61", "61,0%".
+ * Returns null if no number can be extracted.
+ */
+function parseNumericValue(s: string): number | null {
+  const trimmed = s.trim();
+  // Strip % sign (with optional space before it)
+  const withoutPercent = trimmed.replace(/\s*%$/, '');
+  // Swedish decimal comma → dot
+  const normalized = withoutPercent.replace(',', '.');
+  const num = parseFloat(normalized);
+  if (isNaN(num)) return null;
+  // If original had % and value is > 1, it's already a percentage (e.g. "61%")
+  // If original had % and value is <= 1, it's a fraction (e.g. "0.61" written as "0.61%")
+  // If no %, check if it's a fraction that should be a percentage
+  if (!trimmed.includes('%') && num > 0 && num <= 1) {
+    // Likely a decimal fraction — convert to percentage for comparison
+    return num * 100;
+  }
+  return num;
+}
+
+/**
+ * Check if two value strings represent the same number within tolerance.
+ * Handles: "61%" vs "61 %" vs "61,0%" vs "0.61" vs "61"
+ */
+export function normalizedValueMatch(expected: string, actual: string, tolerance = 1.0): boolean {
+  // First try exact substring (fast path)
+  if (actual.toLowerCase().includes(expected.toLowerCase())) return true;
+  // Try numeric comparison
+  const expectedNum = parseNumericValue(expected);
+  const actualNum = parseNumericValue(actual);
+  if (expectedNum !== null && actualNum !== null) {
+    return Math.abs(expectedNum - actualNum) <= tolerance;
+  }
+  return false;
+}
+
+/**
+ * Normalize a string for fuzzy comparison: collapse whitespace, strip
+ * punctuation variations, normalize unicode.
+ */
+function normalizeForFuzzy(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFC')
+    .replace(/[\u2013\u2014]/g, '-')  // en-dash, em-dash → hyphen
+    .replace(/[\u2018\u2019\u201c\u201d]/g, "'")  // smart quotes → simple
+    .replace(/_/g, ' ')  // underscores → spaces (bar_chart → bar chart)
+    .replace(/\s+/g, ' ')  // collapse whitespace
+    .trim();
+}
+
+/**
+ * Fuzzy substring check — tolerant of whitespace, punctuation, and
+ * underscore/space variations. Not edit-distance based; designed for
+ * the specific patterns in PDF eval (page types, titles, labels).
+ */
+export function fuzzyContains(haystack: string, needle: string): boolean {
+  const h = normalizeForFuzzy(haystack);
+  const n = normalizeForFuzzy(needle);
+  return h.includes(n);
+}
+
+/**
+ * Check if a numeric value string appears anywhere in a text block.
+ * Scans the text for all number-like tokens and compares numerically.
+ */
+function valueFoundInText(text: string, expectedValue: string, tolerance = 1.0): boolean {
+  // Fast path: exact substring
+  if (text.toLowerCase().includes(expectedValue.toLowerCase())) return true;
+  // Extract all number-like tokens from text (e.g. "61%", "61 %", "0.61")
+  const expectedNum = parseNumericValue(expectedValue);
+  if (expectedNum === null) return false;
+  const tokens = text.match(/[\d]+[,.]?\d*\s*%?/g) ?? [];
+  for (const token of tokens) {
+    const tokenNum = parseNumericValue(token);
+    if (tokenNum !== null && Math.abs(expectedNum - tokenNum) <= tolerance) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Load and parse a facit YAML file.
  * Validates required fields — throws on malformed input.
@@ -64,7 +152,7 @@ function scoreText(
 
   const textContains = facit.should_contain.map((expected) => ({
     expected,
-    found: lowerText.includes(expected.toLowerCase()),
+    found: fuzzyContains(lowerText, expected),
   }));
 
   const textMinChars = {
@@ -110,18 +198,18 @@ function scoreVision(
   const visionType = {
     expected: facit.page_type,
     actual: extractPageTypeFromDesc(desc),
-    match: desc.includes(facit.page_type.toLowerCase()),
+    match: fuzzyContains(desc, facit.page_type),
   };
 
   const visionTitle = {
     expected: facit.title_contains,
-    found: facit.title_contains ? desc.includes(facit.title_contains.toLowerCase()) : true,
+    found: facit.title_contains ? fuzzyContains(desc, facit.title_contains) : true,
   };
 
   const dataPoints = facit.data_points.map((dp) => {
     const found: string[] = [];
     for (const val of dp.values) {
-      if (desc.includes(val.toLowerCase())) {
+      if (valueFoundInText(desc, val)) {
         found.push(val);
       }
     }

@@ -421,6 +421,7 @@ export async function ingestPdfRich(
       word_count: combinedText.split(/\s+/).length,
       vision_pages: pageDescriptions.filter((d) => d.length > 0).length,
       pageDigests,
+      pages,
     },
     options ?? {}
   );

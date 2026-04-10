@@ -326,6 +326,16 @@ describe('ingestPdfRich', () => {
           expect.objectContaining({ page: 1 }),
           expect.objectContaining({ page: 2 }),
         ]),
+        pages: expect.arrayContaining([
+          expect.objectContaining({
+            digest: expect.objectContaining({ page: 1 }),
+            understanding: expect.objectContaining({ pageType: expect.any(String) }),
+          }),
+          expect.objectContaining({
+            digest: expect.objectContaining({ page: 2 }),
+            understanding: expect.objectContaining({ pageType: expect.any(String) }),
+          }),
+        ]),
       }),
       expect.any(Object)
     );

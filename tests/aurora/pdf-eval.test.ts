@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { parseFacit, evalFromPipelineJson, formatEvalSummary } from '../../src/aurora/pdf-eval.js';
+import { parseFacit, evalFromPipelineJson, formatEvalSummary, normalizedValueMatch, fuzzyContains } from '../../src/aurora/pdf-eval.js';
 import type { Facit, EvalResult } from '../../src/aurora/types.js';
 
 const FIXTURES_DIR = join(__dirname, '..', 'fixtures', 'pdf-eval');
@@ -194,5 +194,154 @@ describe('formatEvalSummary', () => {
     const summary = formatEvalSummary(results);
     expect(summary).toContain('Average:');
     expect(summary).toContain('2 pages');
+  });
+});
+
+describe('normalizedValueMatch', () => {
+  it('matches identical strings', () => {
+    expect(normalizedValueMatch('61%', '61%')).toBe(true);
+  });
+
+  it('matches percentage with space before %', () => {
+    expect(normalizedValueMatch('61%', '61 %')).toBe(true);
+  });
+
+  it('matches Swedish decimal comma', () => {
+    expect(normalizedValueMatch('61%', '61,0%')).toBe(true);
+  });
+
+  it('matches decimal fraction to percentage', () => {
+    expect(normalizedValueMatch('61%', '0.61')).toBe(true);
+  });
+
+  it('matches percentage without % sign', () => {
+    expect(normalizedValueMatch('61%', '61')).toBe(true);
+  });
+
+  it('rejects values outside tolerance', () => {
+    expect(normalizedValueMatch('61%', '65%')).toBe(false);
+  });
+
+  it('matches within custom tolerance', () => {
+    expect(normalizedValueMatch('61%', '62%', 2.0)).toBe(true);
+  });
+
+  it('handles non-numeric strings gracefully', () => {
+    expect(normalizedValueMatch('foo', 'bar')).toBe(false);
+  });
+
+  it('matches exact substring as fast path', () => {
+    expect(normalizedValueMatch('bar chart', 'PAGE TYPE: bar chart')).toBe(true);
+  });
+});
+
+describe('fuzzyContains', () => {
+  it('matches exact substring', () => {
+    expect(fuzzyContains('this is a bar chart', 'bar chart')).toBe(true);
+  });
+
+  it('matches underscore vs space (bar_chart vs bar chart)', () => {
+    expect(fuzzyContains('type: bar chart with data', 'bar_chart')).toBe(true);
+  });
+
+  it('matches case-insensitive', () => {
+    expect(fuzzyContains('Bar Chart', 'bar chart')).toBe(true);
+  });
+
+  it('matches en-dash vs hyphen', () => {
+    expect(fuzzyContains('year 2020\u20132025', '2020-2025')).toBe(true);
+  });
+
+  it('matches smart quotes vs simple quotes', () => {
+    expect(fuzzyContains('the \u201ctest\u201d result', "'test'")).toBe(true);
+  });
+
+  it('collapses extra whitespace', () => {
+    expect(fuzzyContains('bar   chart  data', 'bar chart')).toBe(true);
+  });
+
+  it('rejects non-matching strings', () => {
+    expect(fuzzyContains('pie chart', 'bar chart')).toBe(false);
+  });
+});
+
+describe('evalFromPipelineJson with fuzzy scoring', () => {
+  it('matches data point values with space before %', () => {
+    const pipeline = {
+      combinedText: 'some text about work',
+      combinedCharCount: 20,
+      textExtraction: { method: 'pypdfium2', text: 'some text', charCount: 20, garbled: false },
+      vision: { description: 'PAGE TYPE: bar chart\nDATA:\n| Label | Value |\n| Work | 61 % |', model: 'test' },
+    };
+
+    const facit: Facit = {
+      source: 'test.pdf',
+      page: 1,
+      language: 'sv',
+      text_extraction: { should_contain: [], min_chars: 0, garbled: false },
+      vision: {
+        page_type: 'bar chart',
+        title_contains: '',
+        data_points: [{ label: 'Work', values: ['61%'] }],
+        language: 'sv',
+        should_not_contain: [],
+      },
+    };
+
+    const result = evalFromPipelineJson(pipeline, facit);
+    expect(result.details.dataPoints[0]?.accuracy).toBe(1.0);
+    expect(result.details.dataPoints[0]?.found).toContain('61%');
+  });
+
+  it('matches page_type with underscore variation', () => {
+    const pipeline = {
+      combinedText: '',
+      combinedCharCount: 0,
+      textExtraction: { method: 'none', text: '', charCount: 0, garbled: false },
+      vision: { description: 'PAGE TYPE: bar chart\nTitle: test', model: 'test' },
+    };
+
+    const facit: Facit = {
+      source: 'test.pdf',
+      page: 1,
+      language: 'en',
+      text_extraction: { should_contain: [], min_chars: 0, garbled: false },
+      vision: {
+        page_type: 'bar_chart',
+        title_contains: '',
+        data_points: [],
+        language: 'en',
+        should_not_contain: [],
+      },
+    };
+
+    const result = evalFromPipelineJson(pipeline, facit);
+    expect(result.details.visionType.match).toBe(true);
+  });
+
+  it('still penalizes should_not_contain with exact matching', () => {
+    const pipeline = {
+      combinedText: '',
+      combinedCharCount: 0,
+      textExtraction: { method: 'none', text: '', charCount: 0, garbled: false },
+      vision: { description: 'I cannot determine this. PAGE TYPE: unknown', model: 'test' },
+    };
+
+    const facit: Facit = {
+      source: 'test.pdf',
+      page: 1,
+      language: 'en',
+      text_extraction: { should_contain: [], min_chars: 0, garbled: false },
+      vision: {
+        page_type: 'unknown',
+        title_contains: '',
+        data_points: [],
+        language: 'en',
+        should_not_contain: ['I cannot'],
+      },
+    };
+
+    const result = evalFromPipelineJson(pipeline, facit);
+    expect(result.details.negativesClean[0]?.found).toBe(true);
   });
 });
