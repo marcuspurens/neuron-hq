@@ -695,3 +695,23 @@ Handoff: `docs/handoffs/HANDOFF-2026-04-08T1200-opencode-session14-pipeline-wiri
 **Next:** P0: CHANGELOG in AGENTS.md §15. P1: persist classification in processExtractedText. P2: fuzzy scoring. P3: vision prompt tuning. LinkedIn series needs Marcus review per chapter.
 
 Handoff: `docs/handoffs/HANDOFF-2026-04-08T1200-opencode-session14-pipeline-wiring-mcp-compare.md` (updated with part 2)
+
+---
+
+## 2026-04-10 — Session 15
+
+**Changes**: `AGENTS.md`: +CHANGELOG.md in §15+checklist; `ocr.ts`: +`pages` in processExtractedText metadata (1 line); `pdf-eval.ts`: +5 scoring utils (`parseNumericValue`, `normalizedValueMatch`, `normalizeForFuzzy`, `fuzzyContains`, `valueFoundInText`), 4 match sites updated; `tests/aurora/ocr.test.ts`: +pages assertion; `tests/aurora/pdf-eval.test.ts`: +17 tests; `ROADMAP-AURORA.md`: full rewrite; `docs/plans/PLAN-compiled-concept-articles-2026-04-10.md`: NEW.
+
+**New interfaces**: `normalizedValueMatch(expected, actual, tolerance?)` and `fuzzyContains(haystack, needle)` exported from `pdf-eval.ts`. No type changes.
+
+**Decisions**: Custom fuzzy over library (domain-specific patterns); `should_not_contain` stays exact (false negatives dangerous); `pages` persisted via existing `...metadata` spread (zero schema change); concept articles scoped as 5-WP plan not inline implementation.
+
+**Gotchas**: `normalizedValueMatch` is for pairwise value comparison, NOT text scanning — `valueFoundInText` does the scanning. Tests initially confused the two. `pages` stored as `unknown` on read-back — needs `as AuroraPageEntry[]` cast. Dedup path in `processExtractedText` returns early without saving pages for existing docs.
+
+**Dead ends**: None this session.
+
+**Tests**: 28/28 pdf-eval (+17 new), 21/21 ocr, 5/5 compare, 2/2 MCP. typecheck: clean.
+
+**Next**: P3 vision prompt tuning (interactive, needs Marcus). WP1-3 compiled concept articles (autonomous). Schema.org JSON-LD deferred.
+
+Handoff: `docs/handoffs/HANDOFF-2026-04-10T0930-opencode-session15-fuzzy-scoring-concept-plan.md`

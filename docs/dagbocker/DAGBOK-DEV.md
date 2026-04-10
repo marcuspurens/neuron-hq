@@ -804,3 +804,55 @@ Databasstruktur: `~/.local/share/opencode/opencode.db` → `part`-tabell → `js
 
 typecheck: clean (oförändrat — inga kodändringar i del 2)
 tests: 4014/4015 (oförändrat)
+
+---
+
+## 2026-04-10 (session 15) — Fuzzy scoring + koncept-artiklar plan
+
+### Fuzzy scoring i pdf-eval
+
+Bytte ut alla 4 positiva matchningsställen i `scoreText`/`scoreVision` från exakt `.includes()` till fuzzy/normaliserade varianter. Designad för specifika mönster i PDF-eval:
+
+- **Numerisk normalisering**: `parseNumericValue()` hanterar `61%`, `61 %`, `61,0%` (svenskt decimalkomma), `0.61` (decimalform). `valueFoundInText()` skannar en textblob efter alla numeriska tokens och jämför med ±1% tolerans.
+- **Textnormalisering**: `normalizeForFuzzy()` kollapsar whitespace, normaliserar unicode (em-dash→hyphen, smart quotes→simple, underscore→space), NFC-normaliserar.
+- **`should_not_contain` orörd** — medvetet. Falska negativ på negativ = missade kvalitetsproblem.
+
+Mönster: utilities privata i `pdf-eval.ts` (ej separat fil) — bara 2 funktioner exporteras för testning. YAGNI: ingen extern fuzzy-lib behövdes.
+
+### Pages persisterade i graf
+
+En-rads-fix: `pages` (AuroraPageEntry[]) läggs till i metadata-objektet som skickas till `processExtractedText`. Fungerar tack vare att `...metadata` sprids direkt på `docNode.properties` (som är `Record<string, unknown>`). Ingen schema-ändring behövs.
+
+**Gotcha vid read-back**: `node.properties.pages` typas som `unknown`. Behöver `as AuroraPageEntry[] | undefined` cast. Ingen accessor skapad ännu — bör göras när koncept-artiklar konsumerar datan.
+
+**Gotcha dedup**: `processExtractedText` returnerar tidigt om doc-hash redan finns (intake.ts L394-408). Den early-return sparar inte `pages` på existerande noder. Design-val: ok för nu — re-ingest av samma PDF ger inte ny klassificering.
+
+### Joel Rangsjö / Karpathy-analys
+
+Tre agenter kördes parallellt: librarian (Joel-repo), explore (Aurora-arkitektur), librarian (Karpathy-gist). Resulterade i en strukturerad jämförelse.
+
+Arkitekturvalet: Joel har `raw/` (immutable) → `/wiki kompilera` (LLM batch) → `wiki/` (läsbara artiklar). Aurora har ingest → chunk → embed → graf. Joel producerar *text*, Aurora producerar *struktur*.
+
+Plan i `docs/plans/PLAN-compiled-concept-articles-2026-04-10.md`: 5 WP, 10-14h. Nyckelinsikt: `ConceptNode` har redan `articleCount`, `broader_than`-hierarki, och `about`-edges — infrastrukturen för kompilering finns. Saknas: `compiledArticleId`, staleness-trigger, compile-funktion.
+
+### Mönster etablerade
+
+- `normalizedValueMatch()` för pairwise värde-jämförelse, `valueFoundInText()` för text-scanning. Förväxla dem inte (testerna gjorde det initialt).
+- ROADMAP-AURORA.md nu aktuell (session 15) — uppdatera den vid varje session.
+
+| Tid   | Typ     | Vad                                        |
+| ----- | ------- | ------------------------------------------ |
+| 09:00 | FIX     | CHANGELOG.md i AGENTS.md §15               |
+| 09:10 | RESEARCH| Joel Rangsjö / Karpathy — 3 parallella agenter |
+| 09:20 | SAMTAL  | Depth protocol diskussion                  |
+| 09:25 | FIX     | pages wired into processExtractedText      |
+| 09:28 | FEATURE | Fuzzy scoring utilities + 4 match sites    |
+| 09:32 | TEST    | +17 tester, alla gröna                     |
+| 09:35 | DOCS    | Koncept-artiklar plan (5 WP)               |
+| 09:40 | DOCS    | ROADMAP-AURORA.md rewrite                  |
+| 09:45 | DOCS    | Handoff, release notes, dagböcker, CHANGELOG |
+
+### Baseline
+
+typecheck: clean
+tests: 28/28 pdf-eval (+17), 21/21 ocr, 5/5 compare, 2/2 MCP pdf-eval

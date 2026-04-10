@@ -448,3 +448,36 @@ Jag komprimerade LinkedIn-texterna för hårt — Marcus påpekade att de var ko
 3. Fixa scoring (fuzzy matching, "67%" vs "67 %")
 4. Tuna vision-prompt med compare-verktyget
 5. Eventuellt finslipa LinkedIn-serien
+
+---
+
+## 2026-04-10 — Session 15: Smartare mätning & Joels kunskapssystem
+
+### Vad hände?
+
+**1. Tre saker från förra sessionens att-göra-lista klarades av.** CHANGELOG.md lades till som krav i AGENTS.md. Sidklassificeringen kopplas nu in i databasen (inte bara i pipeline-resultatet). Och poängsättningen i eval-verktyget kan nu hantera att "61%" och "61 %" och "61,0%" och "0.61" alla betyder samma sak.
+
+**2. Djupanalys av Joel Rangsjös kunskapssystem.** Joel byggde ett system inspirerat av Andrej Karpathys idé om "LLM Knowledge Bases" — en enkel approach: mappar med markdown-filer, Obsidian som läsare, LLM:en som skribent. Inga databaser, inga embeddings. Vi jämförde det med Auroras graf-approach.
+
+Kärnfrågan: Joel-modellen producerar något man *läser* (en wiki). Aurora producerar något man *frågar* (en graf). Joel har pre-kompilerad förståelse. Aurora har pre-kompilerad struktur. Båda har styrkor.
+
+**3. En plan för att ta det bästa från båda.** Idén: Aurora behåller grafen (den skalar, den kan söka i tusentals dokument) men lägger till "kompilerade koncept-artiklar" — läsbara sammanfattningar per ämne som genereras från grafen och uppdateras vid ny ingest. Det ger transparens (du kan läsa vad Aurora "vet"), det cachar förståelse (slipper LLM-anrop vid varje fråga), och det skalar (gratis reads vid 3000 användare).
+
+### Vad funkade inte?
+
+Ärligt — allt gick rätt smidigt den här sessionen. Kodändringarna var kirurgiska. Testerna gick igenom nästan direkt (en bugg i testdatat — jag testade parvärden som om de vore textsökning — fixades snabbt).
+
+### Vad bestämdes?
+
+| Beslut | Varför |
+| ------ | ------ |
+| Fuzzy matching utan externt bibliotek | Mönstren är domänspecifika (svenska %, understreck, em-dash). Eget är enklare. |
+| `should_not_contain` förblir exakt match | Falska negativ på negativ = missade kvalitetsproblem. Strikt är rätt. |
+| Koncept-artiklar som plan, inte implementation | 10-14 timmar arbete — förtjänar egen session |
+| P3 kräver interaktiv session | Du måste köra prompten mot PDF:er och bedöma output |
+
+### Vad är planen framöver?
+
+1. **P3: Vision prompt tuning** — interaktiv session med dig. Eval-verktyget är redo.
+2. **Koncept-artiklar WP1-3** — kan köras autonomt i nästa session.
+3. JSON-LD-export och DOCX-ingest ligger kvar i backlog.

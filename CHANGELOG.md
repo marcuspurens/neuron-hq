@@ -7,6 +7,29 @@ Sessions are listed newest-first.
 
 ---
 
+## [Session 15] — 2026-04-10
+
+### Added
+- Fuzzy scoring utilities in `pdf-eval.ts`: `normalizedValueMatch()`, `fuzzyContains()`, `valueFoundInText()` — handles "61%" vs "61 %" vs "61,0%" vs "0.61", underscore/space, en-dash/hyphen, smart quotes
+- 17 new tests for scoring utilities and integration
+- `docs/plans/PLAN-compiled-concept-articles-2026-04-10.md` — 5 WP plan for pre-compiled concept articles (inspired by Joel Rangsjö / Karpathy "LLM Knowledge Bases")
+- CHANGELOG.md requirement added to AGENTS.md §15 + session close checklist
+
+### Changed
+- `ingestPdfRich` now passes `pages: AuroraPageEntry[]` in metadata to `processExtractedText` — page classification persists on document graph nodes
+- `scoreText` uses `fuzzyContains()` instead of exact `.includes()` for `should_contain`
+- `scoreVision` uses `fuzzyContains()` for page_type and title_contains matching
+- `scoreVision` uses `valueFoundInText()` for data_point value matching (numeric-aware)
+- `should_not_contain` intentionally kept as exact match
+- `ROADMAP-AURORA.md` rewritten with session 15 status, P3 tracking, concept articles plan
+
+### Research
+- Joel Rangsjö's `llm-knowledge-base` repo analyzed — compilation model vs Aurora's graph retrieval model
+- Karpathy's "LLM Knowledge Bases" concept (April 2026 gist) documented
+- Key insight: Aurora has pre-computed structure but on-demand understanding; compilation approach pre-computes understanding
+
+---
+
 ## [Session 14] — 2026-04-08
 
 ### Added
