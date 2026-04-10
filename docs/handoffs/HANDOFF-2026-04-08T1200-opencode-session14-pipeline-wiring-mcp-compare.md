@@ -105,6 +105,9 @@ The current scoring is basic substring matching. Consider fuzzy matching for dat
 ### P3: Vision prompt tuning
 Create an improved vision prompt (v2) and test it against the existing facit set using `aurora:pdf-eval-compare`. Depends on P2 for reliable measurements.
 
+### Research: Joel Rangsjös kunskapssystem
+Marcus vill kolla Joel Rangsjös system (LinkedIn-inlägg) — liknande koncept som Aurora men med Karpathys "LLM Knowledge Bases"-approach: mappar + textfiler, Obsidian, Claude Code för parallel vetenskaplig sökning (OpenAlex, CrossRef, arXiv, Semantic Scholar, DIVA Portal), markitdown för PDF→markdown, Zotero för referenshantering, GitHub-sync. Jämför med Auroras graf-approach. Repo finns i kommentarerna till hans inlägg.
+
 ### Deferred: Schema.org JSON-LD export
 `AuroraDocument` type exists but no serialization to actual JSON-LD. Implement `documentToJsonLd()` using the existing `jsonld-export.ts` patterns. Lower priority than eval loop maturity.
 
