@@ -14,6 +14,7 @@ import { renameSpeaker } from '../aurora/voiceprint.js';
 import { createSpeakerIdentity, updateSpeakerMetadata } from '../aurora/speaker-identity.js';
 import { getPool } from '../core/db.js';
 import { isVideoTranscript } from './obsidian-export.js';
+import { cascadeDeleteAuroraNode } from '../aurora/cascade-delete.js';
 
 const logger = createLogger('obsidian:import');
 
@@ -42,6 +43,7 @@ export interface ObsidianImportResult {
   conflictWarnings: number;
   tagsUpdated: number;
   segmentReassignments: number;
+  nodesDeleted: number;
 }
 
 /**
@@ -63,6 +65,21 @@ function extractFrontmatter(content: string): Record<string, string> | null {
   return result;
 }
 
+async function collectMarkdownFiles(dir: string): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true });
+  const result: string[] = [];
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const nested = await collectMarkdownFiles(fullPath);
+      result.push(...nested);
+    } else if (entry.name.endsWith('.md')) {
+      result.push(fullPath);
+    }
+  }
+  return result;
+}
+
 /**
  * Import tagged/annotated Obsidian markdown files back into the Aurora
  * knowledge graph. Processes highlights, comments, speaker renames,
@@ -70,6 +87,7 @@ function extractFrontmatter(content: string): Record<string, string> | null {
  */
 export async function obsidianImportCommand(options: {
   vault?: string;
+  sync?: boolean;
 }): Promise<ObsidianImportResult> {
   const vaultPath = options.vault || process.env.AURORA_OBSIDIAN_VAULT || DEFAULT_VAULT;
   const auroraDir = join(vaultPath, 'Aurora');
@@ -89,6 +107,7 @@ export async function obsidianImportCommand(options: {
         conflictWarnings: 0,
         tagsUpdated: 0,
         segmentReassignments: 0,
+        nodesDeleted: 0,
       };
     }
   } catch {
@@ -103,16 +122,16 @@ export async function obsidianImportCommand(options: {
       conflictWarnings: 0,
       tagsUpdated: 0,
       segmentReassignments: 0,
+        nodesDeleted: 0,
     };
   }
 
   console.log(chalk.bold('\n📥 Obsidian Import\n'));
   console.log(`  Vault: ${vaultPath}`);
 
-  let files: string[];
+  let filePaths: string[];
   try {
-    const entries = await readdir(auroraDir);
-    files = entries.filter((f) => f.endsWith('.md'));
+    filePaths = await collectMarkdownFiles(auroraDir);
   } catch (err) {
     console.error(chalk.red(`Failed to read directory: ${auroraDir}`));
     logger.warn('readdir failed', { error: String(err) });
@@ -126,10 +145,11 @@ export async function obsidianImportCommand(options: {
       conflictWarnings: 0,
       tagsUpdated: 0,
       segmentReassignments: 0,
+        nodesDeleted: 0,
     };
   }
 
-  if (files.length === 0) {
+  if (filePaths.length === 0) {
     console.log(chalk.yellow('  No .md files found in Aurora directory.'));
     return {
       filesProcessed: 0,
@@ -141,6 +161,7 @@ export async function obsidianImportCommand(options: {
       conflictWarnings: 0,
       tagsUpdated: 0,
       segmentReassignments: 0,
+        nodesDeleted: 0,
     };
   }
 
@@ -158,14 +179,12 @@ export async function obsidianImportCommand(options: {
   const pendingMetadataUpdates: SpeakerMetadataUpdate[] = [];
 
   // 4. Process each file
-  for (const file of files) {
-    const filePath = join(auroraDir, file);
-
+  for (const filePath of filePaths) {
     let content: string;
     try {
       content = await readFile(filePath, 'utf-8');
     } catch (err) {
-      logger.warn('Failed to read file, skipping', { file, error: String(err) });
+      logger.warn('Failed to read file, skipping', { file: filePath, error: String(err) });
       continue;
     }
 
@@ -175,7 +194,7 @@ export async function obsidianImportCommand(options: {
     // Find transcript node by id
     const node = graph.nodes.find((n) => n.id === parsed.id);
     if (!node) {
-      logger.warn('Node not found in graph, skipping', { id: parsed.id, file });
+      logger.warn('Node not found in graph, skipping', { id: parsed.id, file: filePath });
       continue;
     }
 
@@ -191,7 +210,7 @@ export async function obsidianImportCommand(options: {
         matchedHighlights.push({ segment_start_ms: segMs, tag: hl.tag });
       } else {
         logger.warn('No matching segment for highlight', {
-          file,
+          file: filePath,
           timecode_ms: hl.segment_start_ms,
           tag: hl.tag,
         });
@@ -206,7 +225,7 @@ export async function obsidianImportCommand(options: {
         matchedComments.push({ segment_start_ms: segMs, text: cm.text });
       } else {
         logger.warn('No matching segment for comment', {
-          file,
+          file: filePath,
           timecode_ms: cm.segment_start_ms,
           text: cm.text,
         });
@@ -293,7 +312,7 @@ export async function obsidianImportCommand(options: {
 
       if (!vpNode) {
         logger.warn('Voice print not found for speaker rename', {
-          file,
+          file: filePath,
           label: speaker.label,
           transcriptId: parsed.id,
         });
@@ -570,7 +589,55 @@ export async function obsidianImportCommand(options: {
     }
   }
 
-  // 8. Print summary
+  // 8. Sync: delete nodes whose files were removed from Obsidian
+  let totalNodesDeleted = 0;
+  if (options.sync) {
+    const fileNodeIds = new Set<string>();
+    for (const fp of filePaths) {
+      try {
+        const raw = await readFile(fp, 'utf-8');
+        const parsed = parseObsidianFile(raw);
+        if (parsed?.id) fileNodeIds.add(parsed.id);
+      } catch {
+        // skip — file already handled in main loop
+      }
+    }
+
+    const EXPORTABLE_TYPES = new Set(['document', 'transcript', 'article', 'concept']);
+    const exportableNodes = graph.nodes.filter(
+      (n) => EXPORTABLE_TYPES.has(n.type) && !n.id.includes('_chunk_'),
+    );
+
+    const exportedAtTimestamps: string[] = [];
+    for (const fp of filePaths) {
+      try {
+        const raw = await readFile(fp, 'utf-8');
+        const p = parseObsidianFile(raw);
+        if (p?.exportedAt) exportedAtTimestamps.push(p.exportedAt);
+      } catch {
+        // skip
+      }
+    }
+    const latestExportedAt = exportedAtTimestamps.sort().pop() ?? '';
+
+    for (const node of exportableNodes) {
+      const neverExported = !latestExportedAt || node.created > latestExportedAt;
+      if (!fileNodeIds.has(node.id) && !neverExported) {
+        try {
+          const deleteResult = await cascadeDeleteAuroraNode(node.id);
+          if (deleteResult.deleted) {
+            totalNodesDeleted++;
+            console.log(chalk.red(`  🗑️  Raderad: "${node.title}" (${node.id})`));
+            graph = await loadAuroraGraph();
+          }
+        } catch (err) {
+          logger.warn('Failed to cascade delete node', { nodeId: node.id, error: String(err) });
+        }
+      }
+    }
+  }
+
+  // 9. Print summary
   console.log(chalk.green(`\n✅ Import complete`));
   console.log(`  Files processed : ${filesProcessed}`);
   console.log(`  Highlights      : ${totalHighlights}`);
@@ -581,6 +648,9 @@ export async function obsidianImportCommand(options: {
   console.log(`  Segment reassign: ${totalSegmentReassignments}`);
   console.log(`  Speakers renamed: ${speakersRenamed}`);
   console.log(`  Feedback nodes  : ${totalFeedback}`);
+  if (totalNodesDeleted > 0) {
+    console.log(chalk.red(`  Nodes deleted   : ${totalNodesDeleted}`));
+  }
 
   return {
     filesProcessed,
@@ -592,5 +662,6 @@ export async function obsidianImportCommand(options: {
     conflictWarnings: totalConflictWarnings,
     tagsUpdated: totalTagsUpdated,
     segmentReassignments: totalSegmentReassignments,
+    nodesDeleted: totalNodesDeleted,
   };
 }

@@ -18,10 +18,13 @@ vi.mock('gray-matter', async () => {
   };
 });
 
-// Mock fs/promises
 const mockReaddir = vi.fn();
 const mockReadFile = vi.fn();
 const mockStat = vi.fn();
+
+function makeDirent(name: string, isDir: boolean) {
+  return { name, isDirectory: () => isDir, isFile: () => !isDir };
+}
 
 vi.mock('fs/promises', () => ({
   readdir: (...args: unknown[]) => mockReaddir(...args),
@@ -117,7 +120,7 @@ describe('obsidian-import', () => {
 
   it('processes a file with highlights and comments', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
-    mockReaddir.mockResolvedValue(['test.md']);
+    mockReaddir.mockResolvedValue([makeDirent('test.md', false)]);
 
     const mdContent = [
       '---',
@@ -189,7 +192,7 @@ describe('obsidian-import', () => {
 
   it('skips file when node not found in graph', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
-    mockReaddir.mockResolvedValue(['test.md']);
+    mockReaddir.mockResolvedValue([makeDirent('test.md', false)]);
 
     const mdContent = ['---', 'id: nonexistent-node', '---', '', 'Some body text'].join('\n');
 
@@ -206,14 +209,14 @@ describe('obsidian-import', () => {
 
   it('is idempotent — running twice produces same result', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
-    mockReaddir.mockResolvedValue(['test.md']);
+    mockReaddir.mockResolvedValue([makeDirent('test.md', false)]);
 
     const mdContent = [
       '---',
       'id: trans-1',
       '---',
       '',
-      '### 00:00:30 \u2014 Speaker #key-insight',
+      '### 00:00:30 — Speaker #key-insight',
     ].join('\n');
 
     mockReadFile.mockResolvedValue(mdContent);
@@ -247,7 +250,7 @@ describe('obsidian-import', () => {
 
   it('imports tags and comments but skips speaker rename when no speakers block', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
-    mockReaddir.mockResolvedValue(['no-speakers.md']);
+    mockReaddir.mockResolvedValue([makeDirent('no-speakers.md', false)]);
 
     const mdContent = [
       '---',
@@ -292,7 +295,7 @@ describe('obsidian-import', () => {
 
   it('skips file with corrupt frontmatter without crashing', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
-    mockReaddir.mockResolvedValue(['corrupt.md']);
+    mockReaddir.mockResolvedValue([makeDirent('corrupt.md', false)]);
 
     const mdContent = '---\n{{invalid yaml\n---\nBody text';
     mockReadFile.mockResolvedValue(mdContent);
@@ -309,7 +312,7 @@ describe('obsidian-import', () => {
 
   it('silently ignores file without id in frontmatter', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
-    mockReaddir.mockResolvedValue(['no-id.md']);
+    mockReaddir.mockResolvedValue([makeDirent('no-id.md', false)]);
 
     const mdContent = [
       '---',
@@ -333,7 +336,7 @@ describe('obsidian-import', () => {
 
   it('does not add highlight when timecode is >5s from any segment', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
-    mockReaddir.mockResolvedValue(['far-timecode.md']);
+    mockReaddir.mockResolvedValue([makeDirent('far-timecode.md', false)]);
 
     const mdContent = [
       '---',
@@ -373,7 +376,7 @@ describe('obsidian-import', () => {
 
   it('does not rename speaker when name already matches speakerLabel', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
-    mockReaddir.mockResolvedValue(['already-renamed.md']);
+    mockReaddir.mockResolvedValue([makeDirent('already-renamed.md', false)]);
 
     const mdContent = [
       '---',
@@ -421,7 +424,7 @@ describe('obsidian-import', () => {
 
   it('does not rename speaker when name is empty string', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
-    mockReaddir.mockResolvedValue(['empty-name.md']);
+    mockReaddir.mockResolvedValue([makeDirent('empty-name.md', false)]);
 
     const mdContent = [
       '---',
@@ -469,7 +472,7 @@ describe('obsidian-import', () => {
 
   it('processes multiple files in vault and saves graph once', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
-    mockReaddir.mockResolvedValue(['file-a.md', 'file-b.md']);
+    mockReaddir.mockResolvedValue([makeDirent('file-a.md', false), makeDirent('file-b.md', false)]);
 
     const mdContentA = [
       '---',
@@ -534,7 +537,7 @@ describe('obsidian-import', () => {
 
   it('AC7: imports text changes for non-video document nodes', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
-    mockReaddir.mockResolvedValue(['doc.md']);
+    mockReaddir.mockResolvedValue([makeDirent('doc.md', false)]);
 
     const mdContent = [
       '---',
@@ -578,7 +581,7 @@ describe('obsidian-import', () => {
 
   it('AC8: imports title changes for non-video document nodes', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
-    mockReaddir.mockResolvedValue(['doc.md']);
+    mockReaddir.mockResolvedValue([makeDirent('doc.md', false)]);
 
     const mdContent = [
       '---',
@@ -615,7 +618,7 @@ describe('obsidian-import', () => {
 
   it('AC9: imports confidence changes for non-video document nodes', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
-    mockReaddir.mockResolvedValue(['doc.md']);
+    mockReaddir.mockResolvedValue([makeDirent('doc.md', false)]);
 
     const mdContent = [
       '---',
@@ -652,7 +655,7 @@ describe('obsidian-import', () => {
 
   it('AC10: logs conflict warning when node.updated > exported_at (non-blocking)', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
-    mockReaddir.mockResolvedValue(['doc.md']);
+    mockReaddir.mockResolvedValue([makeDirent('doc.md', false)]);
 
     const mdContent = [
       '---',
@@ -688,7 +691,7 @@ describe('obsidian-import', () => {
 
   it('imports tags from frontmatter back to node properties', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
-    mockReaddir.mockResolvedValue(['tagged.md']);
+    mockReaddir.mockResolvedValue([makeDirent('tagged.md', false)]);
 
     const mdContent = [
       '---',
@@ -726,7 +729,7 @@ describe('obsidian-import', () => {
 
   it('does not count tagsUpdated when tags are unchanged', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
-    mockReaddir.mockResolvedValue(['same-tags.md']);
+    mockReaddir.mockResolvedValue([makeDirent('same-tags.md', false)]);
 
     const mdContent = ['---', 'id: doc-same-tags', 'tags:', '  - AI', '  - ethics', '---', ''].join(
       '\n'
@@ -754,7 +757,7 @@ describe('obsidian-import', () => {
 
   it('reassigns segments when timeline speaker header is changed', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
-    mockReaddir.mockResolvedValue(['video.md']);
+    mockReaddir.mockResolvedValue([makeDirent('video.md', false)]);
 
     const mdContent = [
       '---',
@@ -837,10 +840,62 @@ describe('obsidian-import', () => {
 
     const result = await obsidianImportCommand({ vault: '/test-vault' });
 
-    // Even with no files, the result should include these fields
     expect(result).toHaveProperty('contentUpdates');
     expect(result).toHaveProperty('conflictWarnings');
     expect(typeof result.contentUpdates).toBe('number');
     expect(typeof result.conflictWarnings).toBe('number');
+  });
+
+  it('recursively scans subdirectories under Aurora/', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+
+    mockReaddir.mockImplementation((dir: string) => {
+      if (typeof dir === 'string' && dir.endsWith('/Aurora')) {
+        return Promise.resolve([
+          makeDirent('Video', true),
+          makeDirent('Dokument', true),
+          makeDirent('root-file.md', false),
+        ]);
+      }
+      if (typeof dir === 'string' && dir.endsWith('/Video')) {
+        return Promise.resolve([makeDirent('video-file.md', false)]);
+      }
+      if (typeof dir === 'string' && dir.endsWith('/Dokument')) {
+        return Promise.resolve([makeDirent('doc-file.md', false)]);
+      }
+      return Promise.resolve([]);
+    });
+
+    const videoMd = ['---', 'id: vid-sub', '---', ''].join('\n');
+    const docMd = ['---', 'id: doc-sub', '---', ''].join('\n');
+    const rootMd = ['---', 'id: root-sub', '---', ''].join('\n');
+
+    mockReadFile.mockImplementation((path: string) => {
+      if (typeof path === 'string' && path.includes('video-file')) return Promise.resolve(videoMd);
+      if (typeof path === 'string' && path.includes('doc-file')) return Promise.resolve(docMd);
+      if (typeof path === 'string' && path.includes('root-file')) return Promise.resolve(rootMd);
+      return Promise.reject(new Error('ENOENT'));
+    });
+
+    const graph = makeGraph([
+      { id: 'vid-sub', type: 'transcript', properties: {} },
+      { id: 'doc-sub', type: 'document', properties: {} },
+      { id: 'root-sub', type: 'fact', properties: {} },
+    ]);
+
+    mockLoadAuroraGraph.mockResolvedValue(graph);
+    mockUpdateAuroraNode.mockImplementation((g) => g);
+
+    const result = await obsidianImportCommand({ vault: '/test-vault' });
+
+    expect(result.filesProcessed).toBe(3);
+    expect(mockUpdateAuroraNode).toHaveBeenCalledTimes(3);
+
+    const updatedIds = mockUpdateAuroraNode.mock.calls.map(
+      (args: unknown[]) => args[1] as string
+    );
+    expect(updatedIds).toContain('vid-sub');
+    expect(updatedIds).toContain('doc-sub');
+    expect(updatedIds).toContain('root-sub');
   });
 });
