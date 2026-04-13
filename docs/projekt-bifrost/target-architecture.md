@@ -1,7 +1,9 @@
 # Projekt Bifrost — Target Architecture
 
 > AI-native Kubernetes-plattform för 3000+ anställda
-> Version: 5.0 | Datum: 2026-04-13 | Författare: Marcus Purens + Opus
+> Version: 7.0 | Datum: 2026-04-13 | Författare: Marcus Purens + Opus
+> v6.0→7.0: P4-backlog komplett — §16.4 compliance-signaler, §21.1 dependency risk (Qdrant/Neo4j/LiteLLM supply chain-attack 2026), §22.2 göra-ingenting-scenario, §22.3 organisatorisk beslutshierarki, statussida-design (§23.2), rate limit-transparens (§8.6), agent registry & discovery (§8.7), GraphRAG-källa korrigerad, llm-d fas 3+, gate-fixar (§20.6/§26.2, §5.9/SDK, §26.9 Kyverno Policy Reporter)
+> v5.0→6.0: TOC, modellval-guide (§8.5b), MCP/A2A-protokoll (§8.7), data freshness SLI (§23.3), §20.12 RACI security gate, §25 uppdaterad
 > v4.0→5.0: 4-pass review — fixat "fem/sex plan", Agent Sandbox alpha-flaggning, §20.12 Security Review Gate, Incident Notification SLA (DORA), §22.1 FinOps Governance, Continuous Compliance Evidence, SDK fördjupning (§8.6), rollout KPI:er (44 st)
 > v3.0→4.0: §26 Regulatory & Compliance Framework (CGI-specifikt: GDPR, AI Act, DORA, NIS2, säkerhetsskyddslagen, ISO 42001), kunddata-segregering i §12.4
 > v2.0→3.0: Fördjupning av §20 Security, §23 Operations (SLOs, DR/backup, dag-2 ops, ORR), §24 Change Management
@@ -81,7 +83,7 @@ Plattformen organiseras i sex plan som samverkar:
 │   INFERENCE PLANE    │              DATA PLANE                      │
 │  vLLM · KServe       │  Vector Store (Qdrant) · Knowledge Graph    │
 │  LiteLLM Gateway     │  Object Store (MinIO) · Cache (Redis)       │
-│  llm-d (fas 2-3)     │  Agent Memory (A-MEM) · Telemetry           │
+│  llm-d (fas 3+)      │  Agent Memory (A-MEM) · Telemetry           │
 │                      │  Model Registry (MLflow) · DBOM Store        │
 ├──────────────────────┼──────────────────────────────────────────────┤
 │   AGENT PLANE        │              BUILD PLANE                     │
@@ -236,7 +238,7 @@ Enterprise AI-system kräver multipla representationer parallellt — vektorer f
 | Skala | Miljarder noder/relationer |
 
 **Användning:**
-- GraphRAG: extrahera kunskapsgrafer ur text automatiskt, 80% accuracy vs 50% vanilla RAG
+- GraphRAG: extrahera kunskapsgrafer ur text automatiskt. Microsoft Research (arXiv:2404.16130) visar att GraphRAG föredras i 70-80% av parvisa jämförelser för *globala sammanfattningsfrågor* (comprehensiveness). För lokala faktafrågor presterar vanlig vektorsökning jämförbart. Fördelen är alltså starkast för "vad är de övergripande temana?"-frågor, inte enskilda faktauppslag
 - HippoRAG: multi-hop reasoning, 10-20x billigare än iterativ retrieval
 - Organisationskunskap: vem äger vad, hur hänger system ihop
 - Compliance: spåra dataflöden, beroenden, ansvar
@@ -419,6 +421,8 @@ Team väljer recept vid onboarding → plattformen provisionerar rätt pipeline.
 
 **Kostnad:** RAG-pipeline-användning mäts och allokeras till teamets budget (embedding-tokens + retrieval-queries + LLM-tokens).
 
+**SDK-mappning (§8.6):** Varje steg i flödet ovan har en motsvarande SDK-metod: `client.rag.create()` (steg 1-2), `client.rag.ingest()` (steg 3), `client.rag.query()` (steg 4), `client.rag.reindex()` (steg 5). Backstage-templates anropar SDK:t under huven. REST-endpoint: `POST /v1/rag/{pipeline-id}/query`. Funktionstestning av SDK ↔ REST-paritet ingår i CI-pipeline (§10).
+
 ---
 
 ## 6. LLM Gateway — LiteLLM
@@ -564,7 +568,7 @@ Client → Agent → [LLM ↔ Tool ↔ LLM ↔ Tool ↔ ... ] → Final
 └────────────────────────────────────────────────────┘
 ```
 
-### 7.6 llm-d — fas 2-3 uppgradering
+### 7.6 llm-d — fas 3+ uppgradering
 
 llm-d (CNCF sandbox) separerar prefill och decode i olika pods:
 - **Prefill-pods:** compute-bound, processar input parallellt
@@ -855,6 +859,40 @@ try {
 | **Auth-fel (401/403)** | Direkt `AuthError` — ingen retry |
 | **Server-fel (500)** | Retry 1 gång, sedan kasta |
 
+#### Rate Limit-transparens
+
+**Problem:** En utvecklare som får `RateLimitError` vet att kvoten är slut — men inte *varför*, hur nära gränsen de var, eller när den återställs. Det leder till frustration och felsöknings-ping till platform team.
+
+**SDK response headers (vidarebefordrade från LiteLLM):**
+
+| Header | Värde | Exempel |
+|--------|-------|---------|
+| `X-RateLimit-Limit-Requests` | Max requests per minut | `100` |
+| `X-RateLimit-Limit-Tokens` | Max tokens per minut | `100000` |
+| `X-RateLimit-Remaining-Requests` | Kvar denna minut | `23` |
+| `X-RateLimit-Remaining-Tokens` | Kvar denna minut | `45200` |
+| `X-RateLimit-Reset` | Sekunder tills reset | `34` |
+
+**SDK-exponering:**
+
+```typescript
+const response = await client.chat({ model: 'llama-70b', messages });
+console.log(response.rateLimit);
+// { limitRequests: 100, limitTokens: 100000,
+//   remainingRequests: 23, remainingTokens: 45200,
+//   resetSeconds: 34 }
+```
+
+**Dashboard (Backstage, fas 2):**
+
+Varje team ser sin kvot-status i AI Hub Portal:
+- **Realtidsvy:** Förbrukning vs kvot per modell (RPM, TPM)
+- **Historik:** 7-dagars trend — visar om teamet regelmässigt når taket
+- **Prognos:** "Vid nuvarande takt når ni kvotgränsen om ~2 timmar"
+- **Självbetjäning:** Knapp för att begära kvothöjning (ticket till platform team)
+
+**Princip:** Transparens minskar support-börda. Om utvecklaren kan se "jag har 23 requests kvar och reset om 34 sekunder" behöver hen inte öppna en ticket.
+
 #### Versioning & Backward Compatibility
 
 | Princip | Detalj |
@@ -1056,6 +1094,70 @@ A2A, ursprungligen från Google (2025), hanterar agent-till-agent-kommunikation:
 ```
 
 **Princip:** MCP och A2A är komplementära, inte konkurrerande. MCP ger agenter tillgång till plattformens data och verktyg. A2A ger agenter möjlighet att samarbeta. Bifrost levererar MCP-servrar från fas 2 (omedelbart användbart) och A2A-stöd från fas 3 (när multi-agent-mönster mognat).
+
+#### Agent Registry & Discovery (fas 3+)
+
+**Problem:** A2A kräver att agenter kan *hitta* varandra. Agent Cards (ovan) beskriver *vad* en agent kan — men det behövs infrastruktur för *var* de registreras, *hur* discovery fungerar och *vem* som underhåller registret.
+
+**Design:**
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  AGENT REGISTRY (Backstage-plugin)                        │
+│                                                            │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │  Agent Card Catalog                                   │  │
+│  │  ───────────────────────────────────────────────────  │  │
+│  │  agent-rag-helper    Team Alpha   active   fas 2     │  │
+│  │  agent-code-review   Team Beta    active   fas 3     │  │
+│  │  agent-data-pipeline Team Gamma   draft    —         │  │
+│  │  agent-customer-faq  Team Delta   active   fas 2     │  │
+│  └─────────────────────────────────────────────────────┘  │
+│                                                            │
+│  Discovery API: GET /v1/agents?capability=code-review      │
+│  Agent Card:    GET /v1/agents/{agent-id}/.well-known/agent│
+└──────────────────────────────────────────────────────────┘
+```
+
+**Registry-komponenter:**
+
+| Komponent | Teknik | Ansvar |
+|-----------|--------|--------|
+| **Catalog** | Backstage Entity (kind: Agent) | Listar alla registrerade agenter med metadata |
+| **Agent Card** | JSON-dokument per A2A-spec | Maskinläsbar: capabilities, endpoint, auth, kontakt |
+| **Discovery API** | REST-endpoint i gateway | `GET /v1/agents?capability=X` — returnerar matchande Agent Cards |
+| **Health monitor** | Prometheus probe | Kontrollerar att registrerade agenter svarar. Markerar "degraded" efter 3 missade probes |
+
+**Registreringsflöde:**
+
+1. Team bygger agent → skapar Agent Card (YAML i repo)
+2. PR till agent-catalog-repo → review av platform team
+3. Security review (§20.12) om agenten har extern access eller cross-tenant-capability
+4. Merge → Backstage synkar Agent Card → Discovery API uppdateras
+5. Andra agenter hittar den via `GET /v1/agents?capability=...`
+
+**Inter-agent kommunikationsinfrastruktur:**
+
+| Mönster | Användningsfall | Teknik | Fas |
+|---------|----------------|--------|-----|
+| **Request-response** | Agent A frågar Agent B om API-spec | A2A HTTP | Fas 3 |
+| **Delegering** | Agent A delegerar deluppgift till Agent B | A2A Task | Fas 3 |
+| **Pub/sub** | Agent publicerar händelse, intresserade agenter reagerar | NATS/Redis Streams | Fas 3+ |
+| **Shared state** | Agenter delar kunskap via gemensam vektor-/grafresurs | Qdrant/Neo4j (§5) | Fas 2 (redan) |
+
+**Governance:**
+- Varje A2A-anrop loggas i audit trail (§12.2) med: source-agent, target-agent, capability, timestamp, tenant
+- Cross-tenant A2A kräver explicit godkännande i governance-ramverket (§22.3)
+- Agent Cards kan inte registreras utan security review
+- Kill switch: platform team kan avregistrera en agent omedelbart
+
+**Fasning:**
+
+| Fas | Kapabilitet |
+|-----|------------|
+| **Fas 2** | Ingen agent-till-agent. Agenter kommunicerar via delade resurser (Qdrant, Neo4j). Agent catalog finns i Backstage (metadata, inte discovery) |
+| **Fas 3** | Intern A2A: agenter inom samma tenant kan hitta och delegera. Discovery API live. Agent Cards publicerade |
+| **Post 90d** | Cross-tenant A2A med governance. Pub/sub för asynkrona händelser. Partner-agenter med signerade Agent Cards |
 
 ---
 
@@ -1407,6 +1509,24 @@ Microsoft Agent Governance Toolkit (MIT-licens) adresserar alla 10 OWASP Agentic
 ### 16.3 AI-driven observability
 Låt AI analysera spans, felkedjor och regressionsmönster. Föreslå ändringar i autoscaling, promptstrategi och modellval.
 
+### 16.4 Compliance-signaler
+
+Utöver teknisk telemetri (§16.1) behöver observability-stacken mata compliance dashboard (§26.9) med regulatoriskt relevanta signaler:
+
+| Signal | Källa | Regelverk | Tröskel / SLI |
+|--------|-------|-----------|---------------|
+| **Audit trail completeness** | Gateway + OTel | GDPR, DORA, ISO 27001 | 100% requests med fullständig audit-tagg |
+| **PII-detektioner/block** | PII Gateway metrics | GDPR | Rate + per-team breakdown |
+| **Policy violation count** | Kyverno Policy Reporter | ISO 27001, NIS2 | 0 kritiska violations i produktion |
+| **Dataklass-routing-överträdelser** | LiteLLM routing logs | GDPR, Schrems II | 0 (konfidentiell data → extern modell = incident) |
+| **Human oversight actions** | Agent Governance logs | EU AI Act | Antal override/stop per högrisk-system |
+| **DBOM freshness** | MLflow + DBOM Store | EU AI Act | Alla modeller i drift har DBOM < 90 dagar |
+| **Cert/token-expiry** | Vault + cert-manager | ISO 27001 | Inga utgångna certifikat i produktion |
+| **Cross-tenant anomalier** | Anomali-detektor | GDPR, kundavtal | False positive rate + true positive rate |
+| **Incident notification SLA** | Incident log timestamps | DORA (4h), GDPR (72h) | 100% inom tidsgräns |
+
+**Integration:** Dessa signaler exponeras via Prometheus metrics med label `compliance_domain` (gdpr, dora, ai_act, etc.) och konsumeras av compliance dashboard (§26.9). Grafana-dashboarden (fas 1) visar tekniska metrics; Backstage-plugin (fas 2) aggregerar till regelverk × kontroll-vy.
+
 ---
 
 ## 17. GitOps — enda vägen till produktion
@@ -1593,6 +1713,8 @@ Denna sektion täcker *säkerhetsramverk* — standards och modeller för att id
 
 **Mapping:** Varje säkerhetskontroll i §20 ska kunna mappas till minst ett ramverk. Varje regulatorisk kontroll i §26 mappas till regelverk. Compliance dashboard (§26.9) visualiserar båda.
 
+**Avgränsning mot §26:** §20.6 täcker *säkerhetsramverk* (hur vi identifierar och bemöter hot). §26.2 täcker *regulatoriska krav* (vad lagen kräver). Ramverken i §20.6 *implementerar* kraven i §26.2. Mappningen är: NIST AI RMF → EU AI Act governance, MITRE ATLAS → DORA threat testing, OWASP → generell applikationssäkerhet, STRIDE → secure SDLC. Undvik dubblering — om en kontroll är regulatorisk, hör den hemma i §26.
+
 ### 20.7 Honeypots
 
 Proaktiv detektion — inte bara reaktiv:
@@ -1739,6 +1861,55 @@ Bygg → Intern test → Security review → Åtgärda fynd → Re-review → CI
 
 **När managed-only räcker:** < 50 AI-användare, ingen konfidentiell data, ingen lokal inferens behövs, redan all-in på en molnleverantör utan restriktioner.
 
+### 21.1 Third-party dependency risk
+
+**Problem:** Bifrost bygger på open source-komponenter. Varje komponent har sin egen licens, underhållssituation och riskprofil. Tre förtjänar explicit riskbedömning:
+
+#### Qdrant (Vector Database) — RISK: LÅG-MEDEL
+
+| Faktor | Bedömning |
+|--------|-----------|
+| **Licens** | Apache 2.0. Ingen förändring 2025-2026. Permissiv, ingen copyleft-risk |
+| **Finansiering** | VC-backed (Series A, $28M, Unusual Ventures + Spark Capital). Inte lönsamt ännu |
+| **Enterprise-adoption** | Växande. Disney, Deloitte. Managed cloud finns |
+| **Huvudrisk** | VC-finansiering → relicensiering möjlig (Elastic/Redis-mönstret). Rust-kodbasen gör det dock svårare — ingen "Commercial source" att skydda |
+| **Alternativ** | Weaviate (Apache 2.0, större community), pgvector (om redan på PostgreSQL — noll ny infra) |
+| **Mitigering** | Abstrahera bakom interface (redan designat i §5). Pinna version. Evaluera pgvector för enklare use cases |
+
+#### Neo4j (Graph Database) — RISK: HÖG
+
+| Faktor | Bedömning |
+|--------|-----------|
+| **Licens** | **Community: GPL v3 + Commons Clause-modifikation** (begränsar kommersiell användning). **Enterprise: kommersiell licens** (ej öppen källa sedan v3.5). AGPL med tillägg har dömts i domstol — PureThink fick $597K i skadestånd 2024 för att ha tagit bort Commons Clause. Rättstvisten pågår i överklagande |
+| **Finansiering** | Välfinansierat ($600M+ totalt). Stabil bolagsstruktur |
+| **Enterprise-adoption** | Mogen (10+ år). NASA, UBS, Walmart |
+| **Huvudrisk** | **Licenslåsning.** GPL/AGPL + Commons Clause gör Community Edition riskabel i kommersiell kontext. Cypher-frågespråk är proprietärt (GQL-standard under utveckling). Enterprise-licens = kostnad + leverantörsberoende |
+| **Alternativ** | Apache AGE (PostgreSQL-extension, Apache 2.0), FalkorDB (Redis-baserad, permissiv), Kuzu (embedded, MIT — lovande för GraphRAG) |
+| **Mitigering** | Använd Bolt-protokoll + tunn query-adapter. Undvik djupa Cypher-beroenden. Utvärdera om grafbehoven motiverar dedikerad DB eller om PostgreSQL + rekursiva CTEs räcker |
+
+#### LiteLLM (LLM Gateway) — RISK: HÖG
+
+| Faktor | Bedömning |
+|--------|-----------|
+| **Licens** | MIT. Permissiv, ingen licensrisk |
+| **Finansiering** | VC-backed (BerriAI, liten runda). Startup, inte foundation |
+| **Enterprise-adoption** | Bred användning men mestadels startups/mid-size. Få Fortune 500-case studies |
+| **Huvudrisk** | **Supply chain-attack mars 2026.** Komprometterade PyPI-versioner (1.82.7, 1.82.8) installerades av 40 000+ användare. Malware stal SSL/SSH-nycklar, cloud credentials, K8s-konfigurationer, API-nycklar. Angripare (TeamPCP) komprometterade LiteLLMs CI/CD via en trojaniserad Trivy GitHub Action. Dessutom: 800+ öppna issues, PostgreSQL-loggning degraderar vid 1M+ poster, OOM-problem i K8s rapporterade sept 2025 |
+| **Alternativ** | Portkey (kommersiell, mer enterprise-redo), Kong AI Gateway (enterprise-grade, API-fokus), Cloudflare AI Gateway (managed edge), egenbyggd tunn adapter (~500 rader för 2-3 providers) |
+| **Mitigering** | **Omedelbart:** Pinna versioner, verifiera signaturer, blockera automatiska PyPI-uppdateringar. **Långsiktigt:** Utvärdera Portkey eller Kong som alternativ. Designen i §6 abstraherar redan bakom OpenAI-kompatibelt API — providerbyte kräver inte SDK-ändring |
+
+#### Sammanfattande riskmatris
+
+| Komponent | Risknivå | Primär risk | Exit-kostnad |
+|-----------|----------|------------|-------------|
+| **Qdrant** | 🟡 Låg-medel | VC-relicensiering | Låg (interface abstraherat) |
+| **Neo4j** | 🔴 Hög | Licens-låsning + proprietärt frågespråk | Medel (Cypher-beroende) |
+| **LiteLLM** | 🔴 Hög | Supply chain-attack 2026 + bus factor | Låg (OpenAI-API-kompatibelt) |
+
+**Princip:** Varje OSS-komponent i §21.1 ska ha en namngiven alternativkandidat och en dokumenterad exit-plan. Abstract → interface → swap. Leverantörslåsning är acceptabel bara om exit-kostnaden är kvantifierad.
+
+**Rekommendation:** Neo4j och LiteLLM kräver aktiv bevakning. Neo4j: planera för Apache AGE-migration om rättsläget försämras. LiteLLM: utvärdera Portkey under fas 2. Supply chain-incidenten gör det svårt att motivera LiteLLM utan strikta pinning- och signaturkontroller.
+
 ---
 
 ## 22. Business Case
@@ -1810,6 +1981,60 @@ Bygg → Intern test → Security review → Åtgärda fynd → Re-review → CI
 | **Fas 3+** | Full chargeback | Kostnad debiteras teamets kostnadsställe. Kräver integration med ekonomisystem. |
 
 **Princip:** Kostnad som designrestriktion, inte efterhandsinformation. Varje arkitekturbeslut (ny modell, ny pipeline, ny agent-typ) ska inkludera en kostnadsbedömning *innan* det går live. GPU-tid är kapitalallokering — inte gratis infrastruktur.
+
+### 22.2 "Göra ingenting"-scenario
+
+**Varför denna sektion finns:** Varje investeringsbeslut behöver jämföras mot alternativet att inte investera. §22 ovan visar ROI — men vad händer *konkret* om vi väljer att inte bygga Bifrost?
+
+#### Status quo: 0-6 månader utan plattform
+
+| Område | Vad som händer | Konsekvens |
+|--------|---------------|------------|
+| **Team-AI** | Varje team köper egna API-nycklar (OpenAI, Azure) | Ingen kostnadsöversikt, ingen governance. Uppskattad spridning: 5-15 team inom 6 månader |
+| **Data** | Känslig data skickas till externa API:er utan PII-kontroll | GDPR-risk. Ingen vet vilken data som lämnat organisationen |
+| **Modeller** | Team väljer modell efter vad de hört talas om | Ingen eval, ingen red-teaming, ingen kvalitetssäkring |
+| **Kostnad** | Varje team betalar separat → ingen volymrabatt, ingen budget-kontroll | Uppskattad totalkostnad 2-3× högre än centraliserad plattform |
+| **Säkerhet** | Ingen gemensam threat model, ingen pentest-pipeline | Attackytan växer okontrollerat med varje nytt team |
+
+#### Kritisk tidslinje: 6-12 månader utan plattform
+
+| Händelse | Tidpunkt | Konsekvens av inaction |
+|----------|----------|----------------------|
+| **EU AI Act full enforcement** | Augusti 2026 | Utan centralt riskregister: potentiell sanktion upp till 7% global omsättning. Varje team med högrisk-AI behöver eget compliance-system |
+| **10+ team med egna AI-lösningar** | ~Q4 2026 | Konsolidering blir progressivt svårare. Varje team har byggt egna integrationer, egna datapipelines, egna vanor |
+| **Första incidenten** | Oförutsägbart | Utan centralt SOC/SIEM: ingen detektion, ingen playbook, ingen audit trail. Incident response = ad hoc |
+| **Extern audit (ISO 27001)** | Löpande | "Hur kontrollerar ni AI-användningen?" → Inget svar. Risk: avvikelse i befintlig certifiering |
+
+#### Kostnaden av "göra ingenting"
+
+| Kostnadstyp | Uppskattning (12 mån) | Kommentar |
+|-------------|----------------------|-----------|
+| Duplicerad GPU/API-kostnad | 600K-1.5M SEK | 10 team × egna resurser vs delad plattform |
+| Förlorad produktivitet | 3-5 FTE | Team bygger infra istället för domänvärde |
+| Compliance-arbete (ad hoc) | 200-500K SEK | Varje team hanterar AI Act separat |
+| Incidentkostnad (förväntat värde) | Svåruppskattad | En GDPR-incident kan kosta mångfalt mer |
+| **Total estimerad merkostnad** | **1-3M SEK/år** | Utöver vad Bifrost kostar att bygga |
+
+**Slutsats:** "Göra ingenting" är inte gratis — det är det dyraste alternativet. Skillnaden är att kostnaden är utspridd, osynlig och svår att spåra. Bifrost centraliserar kostnaden och gör den synlig.
+
+### 22.3 Organisatorisk beslutshierarki
+
+**Problem:** §22.1 täcker FinOps-beslut (GPU, budgetar). Men en AI-plattform kräver beslut i fler dimensioner: modeller, policy, agenter, compliance-profiler, onboarding. Utan tydlig ägare fastnar beslut i konsensus-loopar eller tas ad hoc.
+
+| Beslutskategori | Beslut | Beslutsfattare | Rådgivare | Process |
+|-----------------|--------|----------------|-----------|---------|
+| **Modeller** | Lägg till ny modell i katalogen | Platform team + ML Engineer | Security (red-team), FinOps | Eval-pipeline (§9) + kostnadsbedömning → godkännande |
+| **Modeller** | Ta bort / sunset modell | Tjänsteägare | Berörda team (30 dagars varsel) | Deprecation notice → migrationsguide → removal |
+| **Policy** | Ny Kyverno-policy (blockerar deploy) | Platform team | Security, berörda team | PR-review + test i staging + 7 dagars audit mode |
+| **Policy** | Policy-undantag för specifikt team | Tjänsteägare + Security | Compliance | Tidsbegränsat undantag med audit trail |
+| **Agenter** | Ny agent-typ i plattformen | Platform team + Tjänsteägare | Security (sandbox-review) | Governance-checklista (§12.5) + pentest om extern-access |
+| **Compliance** | Ny compliance-profil | Tjänsteägare + juridik | Security, berörd kund | Regelverk-mappning → Kyverno-policy → funktionstestning |
+| **Onboarding** | Nytt team onboarding | Platform team | Champion Network (§24.5) | Self-service via Backstage (inom befintlig profil) |
+| **Data** | Ny datakälla till RAG-plattformen | Teamet själva | Platform team (kapacitet) | Self-service (§5.9) inom teamets budget |
+| **Infrastruktur** | GPU-skalning, ny provider | Se §22.1 | — | Se §22.1 |
+| **Eskalering** | Konflikt mellan team/roller | Tjänsteägare | Executive sponsor | Möte inom 48h, dokumenterat beslut |
+
+**Princip:** Varje beslut har *en* beslutsfattare — inte en kommitté. Rådgivare ger input, men blockar inte. Tjänsteägare (Marcus) är eskaleringsinstans för allt som inte löses på nivån under.
 
 ---
 
@@ -1902,7 +2127,48 @@ Utöver *responstid* (hur snabbt teamet agerar) behövs *notifieringstid* (hur s
 | **Berörd kund (GDPR)** | < 72 timmar (om persondata) | < 72 timmar (om persondata) | Ej tillämpligt |
 | **Executive sponsor** | < 1 timme | Daglig sammanfattning | Ej tillämpligt |
 
-**Statuskanal:** `status.bifrost.internal` — dedicerad statussida (Atlassian Statuspage eller liknande). Automatisk uppdatering vid SEV1/SEV2. Alla konsumerande team prenumererar.
+#### Statussida — `status.bifrost.internal`
+
+**Syfte:** En enda URL där alla konsumerande team kan se plattformens hälsa i realtid. Inte en teknisk dashboard (det är Grafana) — utan en användarriktad statusvy.
+
+**Verktyg:** Atlassian Statuspage (hosted) eller Cachet/Upptime Kuma (self-hosted). Val i fas 1.
+
+**Komponenter som visas:**
+
+| Komponent | Källa | Granularitet |
+|-----------|-------|-------------|
+| **LLM Gateway** | LiteLLM health endpoint | Operational / Degraded / Down |
+| **Lokala modeller** | Per modell-familj (Llama, Mistral, etc.) | Per modell |
+| **Externa providers** | Per provider (OpenAI, Anthropic, Bedrock) | Per provider |
+| **RAG-pipeline** | Qdrant + embedding-service health | Operational / Degraded |
+| **Agent Sandbox** | CRD controller health + spawn-success-rate | Operational / Degraded |
+| **AI Hub Portal** | Backstage health endpoint | Operational / Down |
+| **Data Plane** | Qdrant, Neo4j, MinIO, Redis individuellt | Per tjänst |
+
+**Automatisk uppdatering:**
+
+```
+Prometheus alert → PagerDuty incident → Statuspage API → status uppdateras
+     (§16)            (§23.1)              (webhook)       (< 2 min)
+```
+
+- SEV1/SEV2: Statuspage uppdateras automatiskt via PagerDuty-webhook
+- SEV3+: Manuell uppdatering av on-call
+- Planerat underhåll: Schemalagt via Statuspage med 48h varsel
+
+**Prenumeration:**
+- RSS/Atom-feed
+- E-post-prenumeration (per komponent)
+- Webhook → Slack/Teams-kanal
+- SDK: `client.status()` returnerar komponentstatus (polling-baserat)
+
+**Fasning:**
+
+| Fas | Kapabilitet |
+|-----|------------|
+| **Fas 1** | Grundläggande statussida med gateway + inference. Manuell + PagerDuty-webhook |
+| **Fas 2** | Alla komponenter. SDK-integration. Historik (uptime %) synlig |
+| **Fas 3** | Per-team statusvy (filtrat på komponenter teamet använder). SLA-rapporter |
 
 ### 23.3 SLOs & Error Budgets
 
@@ -2179,7 +2445,7 @@ Champions är inte extra arbete — de är teamets röst in i plattformen. Utan 
 
 ## 25. Sammanfattande princip
 
-> Teamet bygger en AI-native Kubernetes-plattform där Docker producerar signerade och attesterade artefakter, Helm uttrycker plattformsavsikt, Kubernetes verkställer policy och resursdisciplin, lokala LLM:er serveras som kontrakterade inferenstjänster med observability, kvotstyrning och adversariell testning, agenter arbetar i isolerade sandboxes med egna identiteter, persistent minne och iterativa workspaces — och kommunicerar via standardiserade protokoll (MCP för verktygsaccess, A2A för agent-samarbete), data lever i tre parallella representationer (vektor, graf, objekt) med kryptering och backup, säkerhet genomsyrar alla lager — från zero trust med agent-identitetslivscykel och nyckelrotation till SOC-integration, vulnerability management och honeypots — drift styrs av SLOs med error budgets, DR-planer och operational readiness reviews, FinOps säkerställer att kostnad behandlas som designrestriktion med beslutshierarki, anomali-detektion och chargeback, regulatorisk compliance mappar GDPR, EU AI Act, DORA, NIS2 och säkerhetsskyddslagen till konkreta plattformskontroller med kunddata-segregering per uppdrag, en modellval-guide kanaliserar team mot rätt modell per användningsfall och dataklass — och allt exponeras som en AI Hub med self-service, compliance, modell-livscykelhantering, champion-nätverk och migrationsväg för befintliga lösningar från dag ett.
+> Teamet bygger en AI-native Kubernetes-plattform där Docker producerar signerade och attesterade artefakter, Helm uttrycker plattformsavsikt, Kubernetes verkställer policy och resursdisciplin, lokala LLM:er serveras som kontrakterade inferenstjänster med observability, kvotstyrning och adversariell testning, agenter arbetar i isolerade sandboxes med egna identiteter, persistent minne och iterativa workspaces — och kommunicerar via standardiserade protokoll (MCP för verktygsaccess, A2A för agent-samarbete med discovery via Agent Registry), data lever i tre parallella representationer (vektor, graf, objekt) med kryptering och backup — där varje third-party dependency (Qdrant, Neo4j, LiteLLM) har en dokumenterad riskprofil, namngiven alternativkandidat och exit-plan — säkerhet genomsyrar alla lager — från zero trust med agent-identitetslivscykel och nyckelrotation till SOC-integration, vulnerability management och honeypots, observability inkluderar compliance-specifika signaler som matar CISO-dashboarden — drift styrs av SLOs med error budgets, DR-planer, operational readiness reviews och en publik statussida, FinOps säkerställer att kostnad behandlas som designrestriktion med organisatorisk beslutshierarki för alla beslutskategorier (modeller, policy, agenter, compliance, onboarding), SDK:t exponerar rate limit-kvot i realtid — regulatorisk compliance mappar GDPR, EU AI Act, DORA, NIS2 och säkerhetsskyddslagen till konkreta plattformskontroller med kunddata-segregering per uppdrag, en modellval-guide kanaliserar team mot rätt modell per användningsfall och dataklass, en "göra ingenting"-analys visar att avsaknad av plattform kostar 1-3M SEK/år mer — och allt exponeras som en AI Hub med self-service, compliance, modell-livscykelhantering, champion-nätverk och migrationsväg för befintliga lösningar från dag ett.
 
 ---
 
@@ -2413,7 +2679,7 @@ Skillnaden: point-in-time kontroll (finns det?) vs continuous evidence (fungerar
 | Dashboard-vy | Datakälla | Uppdateringsfrekvens |
 |-------------|-----------|---------------------|
 | Regelverk × kontroll-status | Manuellt underhållen matris i Git (YAML) + automatisk verifiering | Veckovis (manuell) + realtid (automatisk) |
-| Per-team compliance-profil | Kubernetes namespace-labels + Kyverno policy audit | Realtid |
+| Per-team compliance-profil | Kubernetes namespace-labels + **Kyverno Policy Reporter** (aggregerar PolicyReport CRDs → Prometheus metrics + UI) | Realtid |
 | PII/dataklass-händelser | LiteLLM + PII Gateway metrics → Prometheus | Realtid |
 | Pentest-status | Manuell inmatning (datum + resultat) | Per pentest |
 | Cross-tenant anomalier | Anomali-detektor alerts → SIEM → dashboard | Realtid |
@@ -2423,7 +2689,7 @@ Skillnaden: point-in-time kontroll (finns det?) vs continuous evidence (fungerar
 
 | Fas | Dashboard-kapabilitet |
 |-----|----------------------|
-| **Fas 1** | Grafana: tekniska compliance-metrics (audit completeness, NetworkPolicy denies, cert-expiry) |
+| **Fas 1** | Grafana: tekniska compliance-metrics (audit completeness, NetworkPolicy denies, cert-expiry). **Kyverno Policy Reporter** installeras här — exponerar `policy_report_result` metrics till Prometheus och ger per-namespace violation-vy |
 | **Fas 2** | Backstage-plugin: regelverk × kontroll-matris, per-team status, compliance-profil-vy |
 | **Fas 3** | Auto-genererad kvartalsrapport (PDF/Markdown) för CISO och extern audit |
 
