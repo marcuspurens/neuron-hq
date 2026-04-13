@@ -271,7 +271,9 @@ Team skickar dokument → plattformen bygger sökbar kunskapsgraf. Inte varje te
 
 ### 5.6 Agent Memory — A-MEM-inspirerad
 
-Agenter behöver minne som **utvecklas** — inte bara lagrar fakta, utan organiserar, länkar och uppdaterar förståelse. Inspirerat av A-MEM (NeurIPS 2025) och Zettelkasten-metoden.
+Agenter behöver minne som **utvecklas** — inte bara lagrar fakta, utan organiserar, länkar och uppdaterar förståelse. Inspirerat av A-MEM (NeurIPS 2025, arXiv:2502.12110) och Zettelkasten-metoden.
+
+**Mognadsnotering:** A-MEM är ett forskningspaper med referensimplementation — inte ett produktionsramverk. Bifrost implementerar en *A-MEM-inspirerad* arkitektur, inte A-MEM direkt. Produktionsorienterade alternativ att bevaka: **Mem0** (MIT, managed + self-hosted, persistent memory for agents) och **Zep** (Apache 2.0, long-term agent memory med knowledge graph). Utvärdera i fas 3 om Bifrost-implementationen möter skalkraven.
 
 **Tre minneslager:**
 
@@ -577,6 +579,8 @@ llm-d (CNCF sandbox) separerar prefill och decode i olika pods:
 - ~3.1k tok/s per B200, storleksordning bättre TTFT
 
 Bevaka och planera in som uppgradering när mönster 2 (streaming) och 4 (agent) skalas.
+
+**Alternativ att bevaka: SGLang.** Per april 2026 visar benchmarks att SGLang levererar ~29% högre throughput/$ vs vLLM på H100 för agentic workloads (MorphLLM/SemiAnalysis). SGLang optimerar specifikt för multi-turn, tool-calling och agent-loopar. llm-d (CNCF) wrappar vLLM — om SGLang fortsätter leda kan det påverka valet. **Rekommendation:** Inkludera SGLang i fas 2-utvärderingen av inference-stack, särskilt för Agent Plane (mönster 4).
 
 ---
 
@@ -1392,7 +1396,9 @@ Se §26.4 för fullständig isoleringsmodell och incidenthantering vid läcka.
 
 ### 12.5 Agent Governance
 
-Microsoft Agent Governance Toolkit (MIT-licens) adresserar alla 10 OWASP Agentic AI-risker:
+Microsoft Agent Governance Toolkit (MIT-licens, släppt 2 april 2026) adresserar alla 10 OWASP Agentic AI-risker.
+
+**Mognadsnotering:** Toolkit:et är extremt nytt (~2 veckor vid skrivtillfället). 9500+ tester är lovande men inga kända produktionsdeployments ännu. **Fallback:** Om toolkit:et inte mognar tillräckligt snabbt, implementera OWASP Agentic Top 10-kontrollerna som egna Kyverno-policies + Agent Sandbox-konfigurationer. Checklistorna i tabellen nedan är oberoende av toolkit:et.
 
 | Risk | Mitigation |
 |------|-----------|
