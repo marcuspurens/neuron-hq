@@ -924,9 +924,30 @@ program
   .command('obsidian-import')
   .description('Import tagged/annotated Obsidian files back into Aurora knowledge graph')
   .option('--vault <path>', 'Obsidian vault path (or set AURORA_OBSIDIAN_VAULT env)')
-  .action(async (options: { vault?: string }) => {
+  .option('--no-sync', 'Skip deleting nodes whose files were removed from Obsidian')
+  .action(async (options: { vault?: string; sync?: boolean }) => {
     const { obsidianImportCommand } = await import('./commands/obsidian-import.js');
-    await obsidianImportCommand(options);
+    await obsidianImportCommand({ ...options, sync: options.sync ?? true });
+  });
+
+// Obsidian restore
+program
+  .command('obsidian-restore')
+  .description('Lista och återställ raderade Aurora-noder (30 dagars retention)')
+  .option('--id <nodeId>', 'Återställ en specifik nod')
+  .action(async (options: { id?: string }) => {
+    const { obsidianRestoreCommand } = await import('./commands/obsidian-restore.js');
+    await obsidianRestoreCommand(options);
+  });
+
+// Obsidian sync daemon
+program
+  .command('daemon <action>')
+  .description('Hantera Obsidian auto-sync daemon (install/uninstall/status)')
+  .option('--vault <path>', 'Obsidian vault path')
+  .action(async (action: string, options: { vault?: string }) => {
+    const { obsidianDaemonCommand } = await import('./commands/obsidian-daemon.js');
+    await obsidianDaemonCommand({ action, ...options });
   });
 
 // Morning briefing
