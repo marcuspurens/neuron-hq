@@ -7,6 +7,34 @@ Sessions are listed newest-first.
 
 ---
 
+## [Session 17] — 2026-04-13
+
+### Added
+- YouTube subtitle download before Whisper — `extract_video.py` now tries yt-dlp subtitles first. Manual subs used directly (confidence 0.95, Whisper skipped). Auto subs saved as reference, Whisper runs regardless (confidence 0.9). No subs falls back to Whisper only.
+- VTT subtitle parser — HTML entity decoding (`&amp;`, `&nbsp;`, etc.), deduplication of repeated cue text, whitespace normalization.
+- Rich YouTube metadata extraction — channel name, channel handle, video description, YouTube tags, categories, creators, chapters — all stored on transcript node.
+- Auto-generated tags from YouTube metadata — `youtube.com` domain tag + video categories + `ytTags` property.
+- Speaker guesser now uses channel name + description as additional context for name inference.
+- Obsidian subdirectory routing — export writes to `Aurora/Video/`, `Aurora/Dokument/`, `Aurora/Artikel/`, `Aurora/Koncept/`. Import scans recursively.
+- Speaker table in Obsidian body — speakers moved from YAML frontmatter to editable markdown table under `## Talare` (6 columns: Label, Namn, Titel, Organisation, Roll, Konfidenspoäng). Parser reads table format with YAML fallback.
+- `cascadeDeleteAuroraNode()` in `src/aurora/cascade-delete.ts` — single SQL transaction: soft-delete snapshot → cleanup cross_refs + confidence_audit → hard-delete nodes (edges auto-cascade). Regex-based chunk ID matching (avoids LIKE `_` wildcard bug).
+- `aurora_deleted_nodes` table (migration 018) — soft delete with 30-day retention. Deleted node metadata preserved for restoration.
+- `pnpm neuron obsidian-restore` — lists and restores soft-deleted nodes.
+- Auto-purge of expired `aurora_deleted_nodes` entries on each export run.
+- Obsidian auto-sync daemon — launchd-based (macOS native), WatchPaths on `Aurora/` directory for zero-polling file change detection. `pnpm neuron daemon install/uninstall/status`. Plist stored in `~/Library/LaunchAgents/`. Survives reboot.
+- New files: `src/aurora/cascade-delete.ts`, `src/aurora/obsidian-daemon.ts`, `src/aurora/obsidian-restore.ts`, `migrations/018_soft_delete.sql`.
+
+### Changed
+- Video frontmatter now includes: `källa`, `språk`, `tags`, `publicerad`, `confidence`, `tldr`.
+- `formatFrontmatter()` for non-video nodes now includes `id:`, `confidence:`, `exported_at:` — fixes import round-trip.
+- Subtitle download runs as a separate yt-dlp call, isolated from the audio download — failures no longer crash the audio pipeline.
+
+### Fixed
+- `formatFrontmatter()` missing `id:`, `confidence:`, `exported_at:` for non-video nodes — broke Obsidian import round-trip.
+- LIKE wildcard bug in chunk ID matching — `_` is a wildcard in SQL LIKE; switched to regex match.
+
+---
+
 ## [Session 16] — 2026-04-13
 
 ### Added

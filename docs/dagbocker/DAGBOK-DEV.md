@@ -859,6 +859,159 @@ tests: 28/28 pdf-eval (+17), 21/21 ocr, 5/5 compare, 2/2 MCP pdf-eval
 
 ---
 
+## 2026-04-13 (session 17) — YouTube subtitle pipeline + Obsidian sync infrastructure
+
+### YouTube subtitle + metadata pipeline
+
+Ny logik i `aurora-workers/extract_video.py`. Pipeline:
+
+1. Separate yt-dlp call: `--write-sub --write-auto-sub --sub-langs en,sv --skip-download`. Falls through silently on 404 or region block.
+2. VTT parser: HTML entity decode (`&amp;` → `&`, `&nbsp;` → `\u00a0` etc.), dedup repeated cue text (YouTube VTT repeats partial lines as cues update), whitespace normalization.
+3. Confidence routing: manual sub → use directly, `confidence: 0.95`, skip Whisper. Auto sub → run Whisper, save auto text as `autoSubtitleText` property, `confidence: 0.9`. No sub → Whisper fallback.
+4. Rich metadata: `channelName`, `channelHandle`, `videoDescription`, `ytTags[]`, `categories[]`, `creators[]`, `chapters[]`. All stored on transcript node.
+
+**Speaker guesser context expansion:** `src/aurora/video.ts` now passes `channelName` + `description` into the guesser prompt context. IBM Technology videos returned no guesses — prompt needs few-shot examples, deferred to session 18.
+
+**Auto-tag generation:** tags include `youtube.com` domain, all `categories` values, and `ytTags` from YouTube metadata.
+
+**Key issue — `--sub-langs` not `--sub-lang`:** yt-dlp uses plural flag. Singular silently produces no output. Cost ~30 min before identified.
+
+### Cascade delete — src/aurora/cascade-delete.ts
+
+New `cascadeDeleteAuroraNode(nodeId)`. Single DB transaction:
+
+```
+1. INSERT INTO aurora_deleted_nodes (snapshot of properties)
+2. DELETE FROM aurora_cross_refs WHERE source_id = nodeId OR target_id = nodeId
+3. DELETE FROM aurora_confidence_audit WHERE node_id = nodeId
+4. DELETE FROM aurora_nodes WHERE id LIKE pattern  ← WRONG, fixed below
+```
+
+**Chunk ID regex bug:** `LIKE 'nodeId%_chunk_%'` treats `_` as SQL wildcard (any single character). Matched unrelated nodes. Fixed by building an array of expected chunk IDs using regex pattern and passing them as an `IN` clause instead.
+
+Speaker identity cleanup: eager. If deleted node has edges to `voice_print` or `speaker_identity`, those are cleaned up in the same transaction.
+
+### Obsidian subdirectory routing
+
+`getSubdirectory(nodeType)` in `obsidian-export.ts`:
+
+```typescript
+function getSubdirectory(type: string): string {
+  if (type === 'transcript') return 'Video';
+  if (type === 'document') return 'Dokument';
+  if (type === 'article') return 'Artikel';
+  return 'Koncept';
+}
+```
+
+`obsidian-import.ts` now uses `readdirSync` recursively (depth-2 scan of `Aurora/` subdirs). Preserves backward compat: files in root `Aurora/` are still imported.
+
+### Speaker table in body
+
+Old format (frontmatter):
+```yaml
+speakers:
+  - label: SPEAKER_00
+    name: null
+    confidence: 0.5
+```
+
+New format (body, under `## Talare`):
+```markdown
+| Label | Namn | Titel | Organisation | Roll | Konfidenspoäng |
+|-------|------|-------|--------------|------|----------------|
+| SPEAKER_00 | John Doe | Engineer | Acme Corp | | 0.85 |
+```
+
+`parseSpeakerTable()` in `obsidian-parser.ts` reads table format. YAML fallback for files exported before session 17. Import reads whichever is present.
+
+### Soft delete — migrations/018_soft_delete.sql
+
+```sql
+CREATE TABLE aurora_deleted_nodes (
+  id           TEXT PRIMARY KEY,
+  node_id      TEXT NOT NULL,
+  node_type    TEXT NOT NULL,
+  properties   JSONB NOT NULL,
+  deleted_at   TIMESTAMPTZ DEFAULT NOW(),
+  expires_at   TIMESTAMPTZ NOT NULL
+);
+```
+
+`expires_at = NOW() + INTERVAL '30 days'`. Auto-purge runs at start of each `obsidian-export` run: `DELETE FROM aurora_deleted_nodes WHERE expires_at < NOW()`.
+
+`src/aurora/obsidian-restore.ts` exposes `listDeletedNodes()` and `restoreDeletedNode(nodeId)`. CLI: `pnpm neuron obsidian-restore`.
+
+### formatFrontmatter() round-trip fix
+
+Bug: non-video nodes (`document`, `article`, `concept`) were exported without `id:`, `confidence:`, `exported_at:` fields in frontmatter. Import used these fields to identify the node and detect changes. Without them, import treated every re-import as a new node or silently skipped updates.
+
+Fix: `formatFrontmatter()` now always includes:
+
+```yaml
+id: "node_abc123"
+confidence: 0.85
+exported_at: "2026-04-13T18:00:00.000Z"
+```
+
+### exported_at guard in import
+
+**Problem discovered during testing:** Ingest a new video → it's in Aurora but not yet exported → run sync → import sees no Obsidian file → assumes deleted → calls `cascadeDeleteAuroraNode()`. Node is gone before it was ever surfaced.
+
+**Fix:** `obsidian-import.ts` checks `node.properties.exported_at` before treating absence as deletion. If `exported_at` is null/missing, skip the delete check for that node.
+
+### Obsidian daemon — src/aurora/obsidian-daemon.ts
+
+launchd plist generated at runtime:
+
+```xml
+<key>WatchPaths</key>
+<array>
+  <string>/Users/mpmac/Documents/Neuron Lab/Aurora</string>
+</array>
+<key>ProgramArguments</key>
+<array>
+  <string>/path/to/node</string>
+  <string>/path/to/neuron-hq/src/cli.ts</string>
+  <string>obsidian-import</string>
+</array>
+```
+
+Plist path: `~/Library/LaunchAgents/com.neuronhq.obsidian-sync.plist`. `launchctl load` on install, `launchctl unload` on uninstall. `launchctl list | grep neuronhq` for status.
+
+**Not E2E verified:** Install path confirmed. WatchPaths trigger under real Obsidian save not tested. Session 18 should verify this.
+
+### Mönster etablerade
+
+- **Separate yt-dlp calls for download vs metadata**: any step that can fail independently (region block, private subtitle, auth error) should be its own process call, not combined. Failures are silent and non-blocking.
+- **Soft-delete before hard-delete**: any sync operation that deletes nodes should snapshot first. `expires_at` set at deletion time, not at purge time. Purge is opportunistic.
+- **`exported_at` as sync state marker**: "has this node ever been surfaced to the user?" is a distinct question from "does this node exist?". Track them separately.
+- **SQL LIKE `_` wildcard**: `_` is any single character in SQL LIKE. Chunk IDs contain underscores. Use `IN (id1, id2, ...)` or regex comparison instead of LIKE for pattern matching on IDs.
+
+| Tid   | Typ     | Vad                                                        |
+| ----- | ------- | ---------------------------------------------------------- |
+| 17:00 | SESSION | Session 17 start, läser handoff S16                        |
+| 17:15 | FEATURE | Subtitle download + VTT parser                             |
+| 17:45 | FIX     | --sub-langs (plural) vs --sub-lang (singular)              |
+| 18:00 | FEATURE | Rich YouTube metadata (channel, tags, chapters)            |
+| 18:20 | FEATURE | Obsidian subdirectory routing + recursive import           |
+| 18:35 | FEATURE | Speaker table (body) + parser + YAML fallback              |
+| 19:00 | FEATURE | cascade-delete.ts + SQL LIKE _ bug discovered + fixed      |
+| 19:20 | FEATURE | 018_soft_delete.sql + obsidian-restore.ts                  |
+| 19:35 | FIX     | formatFrontmatter() round-trip (id/confidence/exported_at) |
+| 19:45 | FIX     | exported_at guard in import (sync deleted fresh nodes)     |
+| 20:00 | FEATURE | obsidian-daemon.ts + launchd plist                         |
+| 20:15 | FIX     | Subtitle pipeline isolated (separate yt-dlp call)          |
+| 20:30 | TEST    | +30 tester, alla gröna                                     |
+| 20:45 | DOCS    | CHANGELOG, handoff, dagböcker, release notes               |
+
+### Baseline
+
+typecheck: clean
+tests: 4092/4092 (+30 new). 299 test files.
+
+---
+
 ## 2026-04-13 (session 16) — Compiled concept articles (WP1-5)
 
 ### compileConceptArticle — arkitektur

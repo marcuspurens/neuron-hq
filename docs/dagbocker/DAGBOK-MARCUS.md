@@ -484,6 +484,65 @@ Kärnfrågan: Joel-modellen producerar något man *läser* (en wiki). Aurora pro
 
 ---
 
+## 2026-04-13 (kväll) — Session 17: YouTube laddar ned sina egna texter, Obsidian synkar sig själv
+
+### Vad hände?
+
+**1. YouTube-ingest är snabbare — och smartare.**
+
+Förut körde systemet alltid Whisper, en lokal taligenkänningsmodell, på varje video. Det tar runt 85 sekunder. Idag ändrades det: systemet kollar först om YouTube redan har undertexter. Har videon manuella undertexter, alltså texter som en människa har skrivit och kvalitetsgranskat, används de direkt. Whisper körs inte alls. Resultatet är lika bra, men det tar tre sekunder istället för 85.
+
+Har YouTube bara automatiska undertexter (de som Google genererar automatiskt, ofta med fel och utan skiljetecken) körs Whisper ändå, eftersom dess kvalitet brukar vara bättre. De automatiska sparas som referens.
+
+Systemet hämtar nu också rikare information från YouTube: kanalnamn, kanalbeskrivning, kapitel (om kanalen delar in videon i delar), kategorier och YouTubes egna taggar. Allt lagras i kunskapsgrafen. Den som försöker gissa talarens namn i ett klipp har nu mer kontext att gå på.
+
+**2. Obsidian är organiserat i mappar.**
+
+Alla kunskapsnoder hamnar nu i rätt mapp automatiskt: `Aurora/Video/`, `Aurora/Dokument/`, `Aurora/Artikel/` eller `Aurora/Koncept/`. Tidigare hamnade allt i en enda `Aurora/`-mapp, som snabbt blir kaotisk när man har hundratals filer. Nu är det sorterat.
+
+**3. Talarlistan är nu en riktig tabell.**
+
+I videotranskriptioner visades talare tidigare i filhuvudet som en serie tekniska fält (YAML-format), som ser ut ungefär som en konfigurationsfil. Svårt att läsa, svårare att redigera. Nu visas de istället som en snygg tabell mitt i dokumentet, med kolumnerna Namn, Titel, Organisation, Roll och Konfidenspoäng. Du kan redigera direkt i Obsidian och ändringarna importeras tillbaka till Aurora.
+
+**4. Radering ångrar sig inte direkt.**
+
+Om du tar bort en fil i Obsidian och kör synk raderas noden ur Aurora, men en kopia bevaras i 30 dagar. Du kan lista och återställa borttagna noder med ett enkelt kommando. Det skyddar mot misstag. Gammalt beteende var att borttagning var permanent.
+
+**5. Automatisk synk utan att du gör något.**
+
+`pnpm neuron daemon install` installerar en bakgrundstjänst som bevakar din Obsidian-mapp. Så fort du sparar en fil triggas en synk. Ingen polling, ingen manuell körning. Fungerar via macOS egna launchd-system och överlever omstart av datorn.
+
+### Vad funkade inte?
+
+Det var en ganska hård session. Flera saker gick snett längs vägen.
+
+**YouTube rate-limiting.** Under testningen körde systemet för många yt-dlp-anrop tätt inpå varandra. YouTube returnerade 429-fel (för många förfrågningar). Ingenting i vår kod hanterade det bra. Fick vänta och köra om manuellt. Inte fixat i den här sessionen.
+
+**Undertextnedladdningen kraschade ljud-pipelinen.** Den ursprungliga implementationen försökte ladda ner undertexter i samma yt-dlp-anrop som ljudet. Om det misslyckades (fel region, inga undertexter) kraschade hela ingestionen. Lösningen: dela upp det i två separata anrop, ett för ljud och ett för undertexter. Undviker att ett misslyckat undertextsök saboterar en annars fungerande transkription.
+
+**Synkroniseringen raderade precis ingångna videor.** Det visade sig att om en video indexerades men ännu inte hade exporterats till Obsidian, tolkade synken frånvaron i Obsidian som "den här noden är raderad." Den raderade alltså noden. Fixades med ett `exported_at`-tidsstämpel-check: om noden aldrig exporterats, radera den inte vid import.
+
+**yt-dlp har `--sub-langs` (plural), inte `--sub-lang` (singular).** Liten sak, men det tog ett tag att hitta. Parametern med singular fungerar inte. Systemet ladde inte ner några undertexter alls tills flaggan korrigerades.
+
+**Talaridentifieringen returnerade inga namn.** IBM Technology-videor har tydlig information om vem som pratar, men gissningslogiken hittade ingenting. Det verkar som att prompten behöver exempel på hur kanalnamn hänger ihop med verkliga personer. Just nu vet inte systemet vad det ska söka efter ens om det har informationen. Det är nästa sessions problem.
+
+### Vad bestämdes?
+
+| Beslut | Varför |
+| ------ | ------ |
+| Manuella undertexter → skippa Whisper | Mänskligt redigerade texter håller hög kvalitet. Onödigt att köra 85s lokal AI när svaret redan finns. |
+| Automatiska undertexter → kör Whisper ändå | Googles automatiska ASR är sämre än Whisper på tekniska ämnen och icke-engelska. |
+| launchd WatchPaths istället för polling | Noll resursanvändning när inget händer. Inbyggt i macOS, överlever omstart. Polling kostar alltid CPU oavsett om det hänt något. |
+| Mjuk radering med 30 dagars fönster | Hårda borttagningar är svåra att ångra. 30 dagar är tillräckligt för att märka ett misstag utan att lagra gammal data i evighet. |
+
+### Vad är planen framöver?
+
+1. **Mening-gräns-talarsegmentering** — just nu klipper diariseringen (det som identifierar vem som pratar) på tidsgränser, inte meningsgränser. Det kan hända att en mening delas mellan två talare mitt i en ordkombination. Nästa session åtgärdar det.
+2. **Riktig tldr-sammanfattning** — för tillfället är `tldr` bara första raden i YouTubes beskrivning, ofta reklamtext. Den ska ersättas med en riktig sammanfattning från transkriptet.
+3. **Verifiera daemon i praktiken** — installationen fungerar, men att WatchPaths faktiskt triggas när du sparar en fil i Obsidian behöver testas manuellt.
+
+---
+
 ## 2026-04-13 — Session 16: Konceptartiklarna blev verklighet
 
 ### Vad hände?

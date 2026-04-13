@@ -718,6 +718,24 @@ Handoff: `docs/handoffs/HANDOFF-2026-04-10T0930-opencode-session15-fuzzy-scoring
 
 ---
 
+## 2026-04-13 — Session 17
+
+**Changes**: `extract_video.py`: subtitle download (separate yt-dlp call), VTT parser (entity decode + dedup + normalize), rich metadata (channelName/channelHandle/description/ytTags/categories/chapters); `video.ts`: speaker guesser +channelName+description context, subtitle confidence routing (manual 0.95, auto 0.9); `cascade-delete.ts`: NEW — `cascadeDeleteAuroraNode()` single-tx cascade with regex chunk matching (LIKE `_` wildcard bug fixed); `obsidian-daemon.ts`: NEW — launchd plist, install/uninstall/status, WatchPaths; `obsidian-restore.ts`: NEW — list+restore from aurora_deleted_nodes; `obsidian-export.ts`: subdirectory routing, speaker table, video frontmatter parity, `formatFrontmatter()` fix (id/confidence/exported_at), auto-purge expired deleted nodes; `obsidian-import.ts`: recursive scan, speaker table parser, `exported_at` guard; `obsidian-parser.ts`: `## Talare` table parser + YAML fallback; `migrations/018_soft_delete.sql`: NEW — aurora_deleted_nodes table; `cli.ts`: +obsidian-restore +daemon.
+
+**New interfaces**: `cascadeDeleteAuroraNode(nodeId)`, `installDaemon/uninstallDaemon/getDaemonStatus`, `listDeletedNodes/restoreDeletedNode`, `DeletedNodeRecord`, `ParsedSpeakerRow`, `getSubdirectory(nodeType)`.
+
+**Decisions**: manual subs skip Whisper (human-edited = high quality, confidence 0.95); auto subs: Whisper runs anyway (Google ASR inferior); separate yt-dlp calls (subtitle failure must not crash audio); launchd WatchPaths over polling (zero CPU when idle); soft-delete 30d window (sync deletes can be accidental); `exported_at` guard (node never exported → don't treat absence as delete); speaker table in body (markdown > YAML for editability in Obsidian).
+
+**Gotchas**: `--sub-langs` plural (not `--sub-lang`); SQL LIKE `_` is wildcard — chunk IDs use underscores — use IN clause instead; `formatFrontmatter()` missing id/confidence/exported_at broke import for non-video nodes; sync deleted freshly ingested nodes that hadn't been exported yet (exported_at guard fixes it); YouTube 429 rate-limit under rapid testing.
+
+**Dead ends**: Combined yt-dlp call for audio+subs — subtitle failure crashes audio pipeline. Split into two independent calls.
+
+**Tests**: 4092/4092 (+30). typecheck: clean. cascade-delete +12, obsidian-daemon +8, obsidian-restore +5, video +5.
+
+**Next**: sentence-boundary speaker alignment (diarization clips mid-sentence); LLM-generated tldr for video (first-line-of-description heuristic is often ad copy); speaker guesser prompt tuning (IBM Tech returned no names — needs few-shot examples); verify daemon WatchPaths trigger under real Obsidian saves.
+
+Handoff: `docs/handoffs/HANDOFF-2026-04-13-opencode-session17-youtube-subtitle-obsidian-sync.md`
+
 ## 2026-04-13 — Session 16
 
 **Changes**: `ontology.ts`: +`compiledArticleId/compiledAt/compiledStale` on ConceptProperties, staleness trigger with circular guard in `linkArticleToConcepts`; `knowledge-library.ts`: +`compileConceptArticle()` (250 lines, 14-step pipeline), +imports `updateAuroraNode`/`getConcept`; `intake.ts`: concept extraction via Ollama `concept-extraction.md` replaces tags-as-concepts, steps 7→8; `ask.ts`: +`saveAsArticle` option; `index.ts`: +export; `mcp/tools/knowledge-library.ts`: +`compile_concept`/`concept_article`/`concept_index` actions; `mcp/tools/aurora-ask.ts`: +`learn`/`save_as_article` params; `prompts/concept-compile.md`: NEW; `concept-compile-lint.test.ts`: NEW; `AGENTS.md`: +depth.md first in §7 Orient; `ROADMAP-AURORA.md`: WP1-5 complete + summary sludge risk.
