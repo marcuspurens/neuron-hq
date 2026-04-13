@@ -112,6 +112,9 @@ export async function auroraIngestVideoCommand(
       console.log(`    Video ID: ${result.videoId}`);
     }
     console.log(`    Duration: ${result.duration}s`);
+    if (result.transcriptionSource) {
+      console.log(`    Transcription: ${result.transcriptionSource}`);
+    }
     if (result.modelUsed) {
       console.log(`    Model used: ${result.modelUsed}`);
     }

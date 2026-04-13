@@ -79,6 +79,14 @@ const extractVideoResponse = {
     source_type: 'video',
     extractor: 'youtube',
     webpage_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    channel: 'Test Channel',
+    channelId: 'UC1234567890',
+    channelHandle: '@testchannel',
+    videoDescription: 'This is a test video. It covers many interesting topics about testing.',
+    ytTags: ['testing', 'software', 'demo'],
+    categories: ['Science & Technology'],
+    creators: null,
+    chapters: null,
   },
 };
 
@@ -93,6 +101,14 @@ const extractSvtResponse = {
     source_type: 'video',
     extractor: 'svtplay',
     webpage_url: 'https://www.svt.se/nyheter/test-article',
+    channel: 'SVT Nyheter',
+    channelId: '',
+    channelHandle: '',
+    videoDescription: '',
+    ytTags: [],
+    categories: [],
+    creators: null,
+    chapters: null,
   },
 };
 
@@ -322,7 +338,7 @@ describe('ingestVideo', () => {
     expect(result.title).toBe('Test Video');
     expect(result.videoId).toBe('dQw4w9WgXcQ');
     expect(result.platform).toBe('youtube');
-    expect(mockSaveAuroraGraph).toHaveBeenCalledTimes(1);
+    expect(mockSaveAuroraGraph).toHaveBeenCalledTimes(2);
     expect(mockAutoEmbedAuroraNodes).toHaveBeenCalledTimes(1);
   });
 
@@ -534,6 +550,66 @@ describe('ingestVideo', () => {
     expect(result.modelUsed).toBe('KBLab/kb-whisper-large');
   });
 
+  it('stores rich metadata on transcript node', async () => {
+    mockRunWorker
+      .mockResolvedValueOnce(extractVideoResponse)
+      .mockResolvedValueOnce(transcribeResponse);
+
+    await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+
+    const savedGraph = mockSaveAuroraGraph.mock.calls[0][0] as AuroraGraph;
+    const node = savedGraph.nodes.find(
+      (n) => n.id === 'yt-dQw4w9WgXcQ' && n.type === 'transcript' && !n.properties.chunkIndex,
+    );
+    expect(node).toBeDefined();
+    expect(node!.properties.channelName).toBe('Test Channel');
+    expect(node!.properties.channelHandle).toBe('@testchannel');
+    expect(node!.properties.videoDescription).toBe(
+      'This is a test video. It covers many interesting topics about testing.',
+    );
+    expect(node!.properties.ytTags).toEqual(['testing', 'software', 'demo']);
+    expect(node!.properties.categories).toEqual(['Science & Technology']);
+    expect(node!.properties.creators).toBeNull();
+    expect(node!.properties.chapters).toBeNull();
+  });
+
+  it('generates tags from ytTags, categories, and domain', async () => {
+    mockRunWorker
+      .mockResolvedValueOnce(extractVideoResponse)
+      .mockResolvedValueOnce(transcribeResponse);
+
+    await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+
+    const lastSaveCall = mockSaveAuroraGraph.mock.calls[mockSaveAuroraGraph.mock.calls.length - 1];
+    const savedGraph = lastSaveCall[0] as AuroraGraph;
+    const node = savedGraph.nodes.find(
+      (n) => n.id === 'yt-dQw4w9WgXcQ' && n.type === 'transcript' && !n.properties.chunkIndex,
+    );
+    expect(node).toBeDefined();
+    const tags = node!.properties.tags as string[];
+    expect(tags).toContain('youtube.com');
+    expect(tags).toContain('science & technology');
+    expect(tags).toContain('testing');
+    expect(tags).toContain('software');
+    expect(tags).toContain('demo');
+  });
+
+  it('generates summary from video description first sentence', async () => {
+    mockRunWorker
+      .mockResolvedValueOnce(extractVideoResponse)
+      .mockResolvedValueOnce(transcribeResponse);
+
+    await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+
+    const lastSaveCall = mockSaveAuroraGraph.mock.calls[mockSaveAuroraGraph.mock.calls.length - 1];
+    const savedGraph = lastSaveCall[0] as AuroraGraph;
+    const node = savedGraph.nodes.find(
+      (n) => n.id === 'yt-dQw4w9WgXcQ' && n.type === 'transcript' && !n.properties.chunkIndex,
+    );
+    expect(node).toBeDefined();
+    expect(node!.properties.summary).toBe('This is a test video.');
+  });
+
   it("saves rawSegments on transcript node from transcribeMeta", async () => {
     mockRunWorker
       .mockResolvedValueOnce(extractVideoResponse)
@@ -579,6 +655,173 @@ describe('ingestVideo', () => {
     }
   });
 
+});
+
+/* ------------------------------------------------------------------ */
+/*  Subtitle-based transcription                                       */
+/* ------------------------------------------------------------------ */
+
+const extractWithSubtitlesResponse = {
+  ok: true,
+  title: 'Subtitled Video',
+  text: '',
+  metadata: {
+    videoId: 'sub1234567x',
+    duration: 180,
+    audioPath: '/tmp/audio-sub.m4a',
+    source_type: 'video',
+    extractor: 'youtube',
+    webpage_url: 'https://www.youtube.com/watch?v=sub1234567x',
+    subtitles: {
+      text: 'Hello everyone welcome to this video about testing',
+      segments: [
+        { start_ms: 0, end_ms: 4000, text: 'Hello everyone' },
+        { start_ms: 4000, end_ms: 10000, text: 'welcome to this video about testing' },
+      ],
+      segment_count: 2,
+      subtitle_format: 'vtt',
+    },
+    subtitleSource: 'auto',
+    channel: 'Sub Channel',
+    channelId: '',
+    channelHandle: '',
+    videoDescription: 'A subtitled video about testing.',
+    ytTags: ['subtitles'],
+    categories: ['Education'],
+    creators: null,
+    chapters: null,
+  },
+};
+
+const extractWithManualSubsResponse = {
+  ...extractWithSubtitlesResponse,
+  metadata: {
+    ...extractWithSubtitlesResponse.metadata,
+    subtitleSource: 'manual',
+  },
+};
+
+describe('Subtitle-based transcription', () => {
+  beforeEach(() => {
+    mockRunWorker.mockReset();
+    mockLoadAuroraGraph.mockReset();
+    mockSaveAuroraGraph.mockReset();
+    mockAutoEmbedAuroraNodes.mockReset();
+    mockLoadAuroraGraph.mockResolvedValue(emptyGraph());
+    mockSaveAuroraGraph.mockResolvedValue(undefined);
+    mockAutoEmbedAuroraNodes.mockResolvedValue(undefined);
+  });
+
+  it('skips Whisper when manual subtitles are present', async () => {
+    mockRunWorker.mockResolvedValueOnce(extractWithManualSubsResponse);
+
+    const result = await ingestVideo('https://www.youtube.com/watch?v=sub1234567x');
+
+    expect(result.transcriptNodeId).toBe('yt-sub1234567x');
+    expect(result.transcriptionSource).toBe('subtitles:manual');
+    expect(mockRunWorker).toHaveBeenCalledTimes(1);
+    const actions = mockRunWorker.mock.calls.map((c: unknown[]) => (c[0] as Record<string, unknown>).action);
+    expect(actions).not.toContain('transcribe_audio');
+  });
+
+  it('runs Whisper despite auto-subs and saves reference', async () => {
+    mockRunWorker
+      .mockResolvedValueOnce(extractWithSubtitlesResponse)
+      .mockResolvedValueOnce(transcribeResponse);
+
+    const result = await ingestVideo('https://www.youtube.com/watch?v=sub1234567x');
+
+    expect(result.transcriptionSource).toBe('whisper+reference');
+    expect(mockRunWorker).toHaveBeenCalledTimes(2);
+    const actions = mockRunWorker.mock.calls.map((c: unknown[]) => (c[0] as Record<string, unknown>).action);
+    expect(actions).toContain('transcribe_audio');
+
+    const savedGraph = mockSaveAuroraGraph.mock.calls[0][0] as AuroraGraph;
+    const node = savedGraph.nodes.find(
+      (n) => n.id === 'yt-sub1234567x' && n.type === 'transcript' && !n.properties.chunkIndex,
+    );
+    expect(node).toBeDefined();
+    expect(node!.properties.referenceSubtitles).toBe(
+      'Hello everyone welcome to this video about testing',
+    );
+  });
+
+  it('stores manual subtitle segments as rawSegments on transcript node', async () => {
+    mockRunWorker.mockResolvedValueOnce(extractWithManualSubsResponse);
+
+    await ingestVideo('https://www.youtube.com/watch?v=sub1234567x');
+
+    const savedGraph = mockSaveAuroraGraph.mock.calls[0][0] as AuroraGraph;
+    const node = savedGraph.nodes.find(
+      (n) => n.id === 'yt-sub1234567x' && n.type === 'transcript' && !n.properties.chunkIndex,
+    );
+    expect(node).toBeDefined();
+    expect(node!.properties.rawSegments).toEqual([
+      { start_ms: 0, end_ms: 4000, text: 'Hello everyone' },
+      { start_ms: 4000, end_ms: 10000, text: 'welcome to this video about testing' },
+    ]);
+  });
+
+  it('sets provenance method to subtitles:manual for manual subs', async () => {
+    mockRunWorker.mockResolvedValueOnce(extractWithManualSubsResponse);
+
+    await ingestVideo('https://www.youtube.com/watch?v=sub1234567x');
+
+    const savedGraph = mockSaveAuroraGraph.mock.calls[0][0] as AuroraGraph;
+    const node = savedGraph.nodes.find(
+      (n) => n.id === 'yt-sub1234567x' && n.type === 'transcript' && !n.properties.chunkIndex,
+    );
+    const provenance = node!.properties.provenance as Record<string, unknown>;
+    expect(provenance.method).toBe('subtitles:manual');
+    expect(provenance.model).toBe('subtitles:manual');
+  });
+
+  it('sets confidence to 0.95 for manual subtitle transcripts', async () => {
+    mockRunWorker.mockResolvedValueOnce(extractWithManualSubsResponse);
+
+    await ingestVideo('https://www.youtube.com/watch?v=sub1234567x');
+
+    const savedGraph = mockSaveAuroraGraph.mock.calls[0][0] as AuroraGraph;
+    const node = savedGraph.nodes.find(
+      (n) => n.id === 'yt-sub1234567x' && n.type === 'transcript' && !n.properties.chunkIndex,
+    );
+    expect(node!.confidence).toBe(0.95);
+  });
+
+  it('sets confidence to 0.9 for auto-subs (Whisper used)', async () => {
+    mockRunWorker
+      .mockResolvedValueOnce(extractWithSubtitlesResponse)
+      .mockResolvedValueOnce(transcribeResponse);
+
+    await ingestVideo('https://www.youtube.com/watch?v=sub1234567x');
+
+    const savedGraph = mockSaveAuroraGraph.mock.calls[0][0] as AuroraGraph;
+    const node = savedGraph.nodes.find(
+      (n) => n.id === 'yt-sub1234567x' && n.type === 'transcript' && !n.properties.chunkIndex,
+    );
+    expect(node!.confidence).toBe(0.9);
+  });
+
+  it('falls back to Whisper when no subtitles in extract result', async () => {
+    mockRunWorker
+      .mockResolvedValueOnce(extractVideoResponse)
+      .mockResolvedValueOnce(transcribeResponse);
+
+    const result = await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+
+    expect(result.transcriptionSource).toBe('whisper');
+    expect(mockRunWorker).toHaveBeenCalledTimes(2);
+    const actions = mockRunWorker.mock.calls.map((c: unknown[]) => (c[0] as Record<string, unknown>).action);
+    expect(actions).toContain('transcribe_audio');
+  });
+
+  it('reports subtitles:manual in pipeline_report for manual subs', async () => {
+    mockRunWorker.mockResolvedValueOnce(extractWithManualSubsResponse);
+
+    const result = await ingestVideo('https://www.youtube.com/watch?v=sub1234567x');
+
+    expect(result.pipeline_report!.details.transcribe?.model).toBe('subtitles:manual');
+  });
 });
 
 /* ------------------------------------------------------------------ */

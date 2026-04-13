@@ -104,6 +104,8 @@ export interface VideoIngestResult {
   }>;
   /** The Whisper model that was actually used for transcription. */
   modelUsed?: string;
+  /** How the transcript was obtained: 'whisper', 'subtitles:manual', or 'subtitles:auto'. */
+  transcriptionSource?: string;
   /** Path to the temporary audio file (for cleanup). */
   audioPath?: string;
   /** Path to the temporary video file (for cleanup). */
@@ -290,40 +292,81 @@ export async function ingestVideo(
       metadata: { size_mb: report.details.download?.size_mb },
     });
 
-    // 3. Transcribe audio (may take 20-30 min for long videos on CPU)
+    // 3. Transcribe
+    //    Manual subs → use directly (human-edited, high quality)
+    //    Auto subs   → run Whisper anyway (often better), save auto-subs as reference
+    //    No subs     → Whisper only
     stepStart = Date.now();
     options?.onProgress?.({ step: 'transcribing', progress: 0, stepElapsedMs: 0 });
 
-    const transcribeOptions: Record<string, unknown> = {};
-    if (options?.whisperModel) {
-      transcribeOptions.whisper_model = options.whisperModel;
-    }
-    if (options?.language) {
-      transcribeOptions.language = options.language;
+    const subtitlesData = extractMeta.subtitles as
+      | { text: string; segments: Array<{ start_ms: number; end_ms: number; text: string }>; segment_count: number }
+      | undefined;
+    const subtitleSource = extractMeta.subtitleSource as string | undefined;
+    const hasManualSubs = subtitlesData && subtitlesData.segment_count > 0 && subtitleSource === 'manual';
+    const hasAutoSubs = subtitlesData && subtitlesData.segment_count > 0 && subtitleSource === 'auto';
+
+    let transcribeText: string;
+    let transcribeSegments: Array<{ start_ms: number; end_ms: number; text: string }>;
+    let modelUsed: string | undefined;
+    let transcribeLanguage: string;
+    let referenceSubtitles: typeof subtitlesData | undefined;
+
+    if (hasManualSubs) {
+      transcribeText = subtitlesData.text;
+      transcribeSegments = subtitlesData.segments;
+      modelUsed = undefined;
+      transcribeLanguage = 'unknown';
+      logger.info('Using manual subtitles (human-edited)', {
+        segments: subtitlesData.segment_count,
+      });
+    } else {
+      // Auto subs or no subs → run Whisper
+      if (hasAutoSubs) {
+        referenceSubtitles = subtitlesData;
+        logger.info('Auto-subs found — running Whisper anyway, saving subs as reference', {
+          segments: subtitlesData.segment_count,
+        });
+      }
+
+      const transcribeOptions: Record<string, unknown> = {};
+      if (options?.whisperModel) {
+        transcribeOptions.whisper_model = options.whisperModel;
+      }
+      if (options?.language) {
+        transcribeOptions.language = options.language;
+      }
+
+      const transcribeResult = await wrapPipelineStep('transcribe_audio', async () => {
+        const result = await runWorker(
+          {
+            action: 'transcribe_audio',
+            source: extractMeta.audioPath as string,
+            ...(Object.keys(transcribeOptions).length > 0 ? { options: transcribeOptions } : {}),
+          },
+          { timeout: 1_800_000 }
+        );
+        if (!result.ok) throw new Error(result.error);
+        return result;
+      });
+      const transcribeMeta = transcribeResult.metadata as Record<string, unknown>;
+      transcribeText = transcribeResult.text as string;
+      transcribeSegments = (transcribeMeta.segments as typeof transcribeSegments) ?? [];
+      modelUsed = (transcribeMeta.model_used as string) ?? undefined;
+      transcribeLanguage = (transcribeMeta.language as string) ?? 'unknown';
     }
 
-    const transcribeResult = await wrapPipelineStep('transcribe_audio', async () => {
-      const result = await runWorker(
-        {
-          action: 'transcribe_audio',
-          source: extractMeta.audioPath as string,
-          ...(Object.keys(transcribeOptions).length > 0 ? { options: transcribeOptions } : {}),
-        },
-        { timeout: 1_800_000 }
-      );
-      if (!result.ok) throw new Error(result.error);
-      return result;
-    });
-    const transcribeMeta = transcribeResult.metadata as Record<string, unknown>;
-    const modelUsed = (transcribeMeta.model_used as string) ?? undefined;
-    const wordCount = (transcribeResult.text as string)?.split(/\s+/).length ?? 0;
+    const wordCount = transcribeText?.split(/\s+/).length ?? 0;
+    const transcriptionModel = hasManualSubs
+      ? 'subtitles:manual'
+      : (modelUsed ?? 'unknown');
 
     report.details.transcribe = {
       status: 'ok',
       duration_s: Math.round((Date.now() - stepStart) / 1000),
       words: wordCount,
-      model: modelUsed ?? 'unknown',
-      language: (transcribeMeta.language as string) ?? 'unknown',
+      model: transcriptionModel,
+      language: transcribeLanguage,
     };
     report.steps_completed++;
 
@@ -331,10 +374,10 @@ export async function ingestVideo(
       step: 'transcribing',
       progress: 1.0,
       stepElapsedMs: Date.now() - stepStart,
-      backend: modelUsed,
+      backend: transcriptionModel,
       stepNumber: 2,
       totalSteps: 7,
-      metadata: { words: wordCount, language: transcribeMeta.language },
+      metadata: { words: wordCount, language: transcribeLanguage },
     });
 
     // 4. Optional diarization
@@ -381,34 +424,40 @@ export async function ingestVideo(
 
     // 5. Create transcript node
     const now = new Date().toISOString();
+    const transcriptionMethod = hasManualSubs ? 'subtitles:manual' : 'transcription';
+    const provenanceModel = hasManualSubs ? 'subtitles:manual' : (modelUsed ?? 'whisper');
     const transcriptNode: AuroraNode = {
       id: transcriptNodeId,
       type: 'transcript',
       title: extractResult.title,
       properties: {
-        text: transcribeResult.text,
+        text: transcribeText,
         videoId: ytVideoId,
         videoUrl: url,
         platform,
         duration: extractMeta.duration as number,
-        language: transcribeMeta.language as string,
-        segmentCount: transcribeMeta.segment_count as number,
-        rawSegments: transcribeMeta.segments as Array<{
-          start_ms: number;
-          end_ms: number;
-          text: string;
-        }>,
+        language: transcribeLanguage,
+        segmentCount: transcribeSegments.length,
+        rawSegments: transcribeSegments,
         publishedDate: (extractMeta.publishedDate as string) ?? null,
+        channelName: (extractMeta.channel as string) ?? null,
+        channelHandle: (extractMeta.channelHandle as string) ?? null,
+        videoDescription: ((extractMeta.videoDescription as string) ?? '').slice(0, 2000),
+        ytTags: (extractMeta.ytTags as string[]) ?? [],
+        categories: (extractMeta.categories as string[]) ?? [],
+        creators: (extractMeta.creators as string[] | null) ?? null,
+        chapters: extractMeta.chapters ?? null,
+        ...(referenceSubtitles ? { referenceSubtitles: referenceSubtitles.text } : {}),
         provenance: {
           agent: 'System',
           agentId: null,
-          method: 'transcription',
-          model: 'whisper-large-v3',
+          method: transcriptionMethod,
+          model: provenanceModel,
           sourceId: null,
           timestamp: now,
         },
       },
-      confidence: 0.9,
+      confidence: hasManualSubs ? 0.95 : 0.9,
       scope: options?.scope ?? 'personal',
       sourceUrl: url,
       created: now,
@@ -422,13 +471,13 @@ export async function ingestVideo(
     stepStart = Date.now();
     options?.onProgress?.({ step: 'chunking', progress: 0, stepElapsedMs: 0 });
 
-    const allChunks = chunkText(transcribeResult.text, {
+    const allChunks = chunkText(transcribeText, {
       maxWords: 200,
       overlap: 20,
     });
     const chunks = allChunks.slice(0, options?.maxChunks ?? 100);
     const duration = extractMeta.duration as number;
-    const fullTextLength = (transcribeResult.text as string)?.length || 1;
+    const fullTextLength = transcribeText?.length || 1;
 
     for (const chunk of chunks) {
       const chunkId = `${transcriptNodeId}_chunk_${chunk.index}`;
@@ -652,6 +701,40 @@ export async function ingestVideo(
       });
     }
 
+    // 11b. Generate tags and summary from YouTube metadata
+    {
+      const ytTags = (extractMeta.ytTags as string[]) ?? [];
+      const categories = (extractMeta.categories as string[]) ?? [];
+      const videoDesc = (extractMeta.videoDescription as string) ?? '';
+
+      const domainTag = (() => {
+        try {
+          return new URL(url).hostname.replace(/^(www\.|m\.)/, '');
+        } catch {
+          return null;
+        }
+      })();
+
+      const allTags = [
+        ...(domainTag ? [domainTag] : []),
+        ...categories.map((c) => c.toLowerCase()),
+        ...ytTags.map((t) => t.toLowerCase()),
+      ];
+      const uniqueTags = [...new Set(allTags)].filter((t) => t.length >= 2 && t.length <= 40);
+
+      const graphNode = graph.nodes.find((n) => n.id === transcriptNodeId);
+      if (graphNode) {
+        graphNode.properties.tags = uniqueTags.slice(0, 20);
+        if (videoDesc) {
+          const sentenceMatch = videoDesc.match(/^[^.!?\n]+[.!?]?/);
+          graphNode.properties.summary = sentenceMatch
+            ? sentenceMatch[0].trim().slice(0, 200)
+            : videoDesc.slice(0, 200).trim();
+        }
+        await saveAuroraGraph(graph);
+      }
+    }
+
     // 12. Optional: Identify speakers via LLM
     let speakerGuesses: SpeakerGuess[] | null = null;
     if (options?.identifySpeakers !== false && options?.diarize) {
@@ -688,6 +771,7 @@ export async function ingestVideo(
       crossRefsCreated,
       crossRefMatches,
       modelUsed,
+      transcriptionSource: hasManualSubs ? 'subtitles:manual' : (hasAutoSubs ? 'whisper+reference' : 'whisper'),
       audioPath: extractMeta.audioPath as string | undefined,
       videoPath: extractMeta.videoPath as string | undefined,
       polished,
