@@ -6,7 +6,7 @@ import {
   saveAuroraGraph,
   addAuroraNode,
   addAuroraEdge,
-
+  updateAuroraNode,
   autoEmbedAuroraNodes,
 } from './aurora-graph.js';
 import { searchAurora } from './search.js';
@@ -21,7 +21,8 @@ import {
 } from '../core/model-registry.js';
 import { semanticSearch } from '../core/semantic-search.js';
 import type Anthropic from '@anthropic-ai/sdk';
-import { linkArticleToConcepts } from './ontology.js';
+import { linkArticleToConcepts, getConcept } from './ontology.js';
+import type { ConceptNode } from './ontology.js';
 
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:knowledge-library');
@@ -676,4 +677,250 @@ export async function refreshArticle(
   }
 
   return existing;
+}
+
+// ---------------------------------------------------------------------------
+//  Concept Article Compilation
+// ---------------------------------------------------------------------------
+
+const MAX_COMPILE_SOURCES = 20;
+
+/**
+ * Compile a concept article from all sources linked to a concept in the graph.
+ * Unlike synthesizeArticle (keyword search), this uses the concept's graph
+ * structure: about-edges, child concepts, and related facts.
+ */
+export async function compileConceptArticle(
+  conceptId: string,
+  options?: { model?: string },
+): Promise<ArticleNode> {
+  const concept = await getConcept(conceptId);
+  if (!concept) throw new Error(`Concept not found: ${conceptId}`);
+
+  const graph = await loadAuroraGraph();
+
+  // 1. Gather linked articles via 'about' edges (article → concept)
+  const linkedArticleIds = graph.edges
+    .filter((e) => e.type === 'about' && e.to === conceptId)
+    .map((e) => e.from);
+
+  // 2. Find child concepts via 'broader_than' edges (concept → child)
+  const childConceptIds = graph.edges
+    .filter((e) => e.type === 'broader_than' && e.from === conceptId)
+    .map((e) => e.to);
+  const childConcepts = childConceptIds
+    .map((id) => graph.nodes.find((n) => n.id === id))
+    .filter((n): n is ConceptNode => n?.type === 'concept');
+
+  // 3. Find parent concept via 'broader_than' edges (parent → concept)
+  const parentEdge = graph.edges.find(
+    (e) => e.type === 'broader_than' && e.to === conceptId,
+  );
+  const parentConcept = parentEdge
+    ? graph.nodes.find((n) => n.id === parentEdge.from)
+    : undefined;
+
+  // 4. Collect source texts from linked articles + recall
+  const sourceTexts: string[] = [];
+  const sourceNodeIds: string[] = [];
+
+  const linkedNodes = linkedArticleIds
+    .map((id) => graph.nodes.find((n) => n.id === id))
+    .filter((n): n is AuroraNode => n != null)
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, MAX_COMPILE_SOURCES);
+
+  for (const node of linkedNodes) {
+    const text = (node.properties.content as string)
+      ?? (node.properties.text as string)
+      ?? (node.properties.summary as string)
+      ?? '';
+    if (text) {
+      const conf = Math.round(node.confidence * 100);
+      sourceTexts.push(`[${node.type}] ${node.title} (konfidensgrad: ${conf}%): ${text.slice(0, 2000)}`);
+      sourceNodeIds.push(node.id);
+    }
+  }
+
+  // 5. Add facts from recall (may find nodes not linked via edges)
+  try {
+    const factsResult = await recall(concept.title);
+    for (const mem of factsResult.memories) {
+      if (!sourceNodeIds.includes(mem.id)) {
+        sourceTexts.push(`[${mem.type}] ${mem.title}: ${mem.text}`);
+        sourceNodeIds.push(mem.id);
+      }
+    }
+  } catch {
+    // recall failure is non-fatal
+  }
+
+  // 6. Gather relevant gaps
+  let gapsText = 'Inga kända kunskapsluckor.';
+  try {
+    const gapsResult = await getGaps();
+    const conceptTitle = concept.title.toLowerCase();
+    const relevantGaps = gapsResult.gaps.filter((g) =>
+      g.question.toLowerCase().includes(conceptTitle),
+    );
+    if (relevantGaps.length > 0) {
+      gapsText = relevantGaps
+        .map((g) => `- ${g.question} (ställd ${g.frequency} gånger)`)
+        .join('\n');
+    }
+  } catch {
+    // gaps failure is non-fatal
+  }
+
+  // 7. Build hierarchy text for prompt
+  const hierarchyParts: string[] = [];
+  if (parentConcept) {
+    hierarchyParts.push(`Bredare begrepp: ${parentConcept.title}`);
+  }
+  if (childConcepts.length > 0) {
+    hierarchyParts.push(
+      `Underbegrepp: ${childConcepts.map((c) => c.title).join(', ')}`,
+    );
+  }
+  if (hierarchyParts.length === 0) {
+    hierarchyParts.push('Inget hierarki-kontext tillgängligt.');
+  }
+
+  const sourcesText = sourceTexts.length > 0
+    ? sourceTexts.join('\n\n')
+    : 'Inga källor hittades.';
+
+  // 8. Read and fill prompt template
+  const promptPath = path.resolve(
+    import.meta.dirname ?? '.',
+    '../../prompts/concept-compile.md',
+  );
+  let promptTemplate = await fs.readFile(promptPath, 'utf-8');
+  promptTemplate = promptTemplate.replace('{{concept_title}}', concept.title);
+  promptTemplate = promptTemplate.replace(
+    '{{concept_facet}}',
+    (concept.properties.facet as string) ?? 'topic',
+  );
+  promptTemplate = promptTemplate.replace(
+    '{{concept_description}}',
+    (concept.properties.description as string) ?? '',
+  );
+  promptTemplate = promptTemplate.replace(
+    '{{concept_hierarchy}}',
+    hierarchyParts.join('\n'),
+  );
+  promptTemplate = promptTemplate.replace('{{sources}}', sourcesText);
+  promptTemplate = promptTemplate.replace('{{gaps}}', gapsText);
+
+  // 9. Call LLM
+  const modelConfig = getSynthesisModelConfig(options?.model);
+  const { client, model } = createAgentClient(modelConfig);
+  const response = await client.messages.create({
+    model,
+    max_tokens: modelConfig.maxTokens,
+    messages: [{ role: 'user', content: promptTemplate }],
+  });
+
+  const responseText = response.content
+    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+    .map((block) => block.text)
+    .join('');
+
+  // 10. Parse response
+  const jsonBlock = parseJsonBlock(responseText);
+  const jsonBlockMatch = responseText.match(/```json[\s\S]*$/);
+  const markdownContent = jsonBlockMatch
+    ? responseText.slice(0, jsonBlockMatch.index).trim()
+    : responseText.trim();
+
+  const articleAbstract = (jsonBlock?.abstract as string) ?? markdownContent.slice(0, 200);
+
+  // 11. Create or update article
+  const existingArticleId = concept.properties.compiledArticleId as string | undefined;
+  let article: ArticleNode;
+
+  if (existingArticleId) {
+    const existing = await getArticle(existingArticleId);
+    if (existing && contentDiffers(existing.properties.content as string, markdownContent)) {
+      article = await updateArticle(existingArticleId, {
+        title: concept.title,
+        content: markdownContent,
+        domain: (concept.properties.domain as string) ?? 'general',
+        sourceNodeIds,
+        synthesizedBy: 'concept-compile',
+        synthesisModel: model,
+        abstract: articleAbstract,
+      });
+    } else if (existing) {
+      article = existing;
+    } else {
+      article = await createArticle({
+        title: concept.title,
+        content: markdownContent,
+        domain: (concept.properties.domain as string) ?? 'general',
+        sourceNodeIds,
+        synthesizedBy: 'concept-compile',
+        synthesisModel: model,
+        abstract: articleAbstract,
+      });
+    }
+  } else {
+    article = await createArticle({
+      title: concept.title,
+      content: markdownContent,
+      domain: (concept.properties.domain as string) ?? 'general',
+      sourceNodeIds,
+      synthesizedBy: 'concept-compile',
+      synthesisModel: model,
+      abstract: articleAbstract,
+    });
+  }
+
+  // 12. Link article back to this concept
+  try {
+    await linkArticleToConcepts(article.id, [
+      {
+        name: concept.title,
+        facet: (concept.properties.facet as string) ?? 'topic',
+      },
+    ]);
+  } catch (err) {
+    logger.error('[knowledge-library] concept link failed', { error: String(err) });
+  }
+
+  // 13. Link any new related concepts from the LLM response
+  try {
+    const relatedConcepts = Array.isArray(jsonBlock?.relatedConcepts)
+      ? jsonBlock.relatedConcepts
+      : [];
+    if (relatedConcepts.length > 0) {
+      const conceptData = relatedConcepts.map((c: unknown) => {
+        if (typeof c === 'string') return { name: c, facet: 'topic' as const, broaderConcept: null };
+        const obj = c as Record<string, unknown>;
+        return {
+          name: (obj.name as string) ?? String(c),
+          facet: (obj.facet as string) ?? 'topic',
+          broaderConcept: (obj.broaderConcept as string) ?? null,
+        };
+      });
+      await linkArticleToConcepts(article.id, conceptData);
+    }
+  } catch (err) {
+    logger.error('[knowledge-library] related concepts link failed', { error: String(err) });
+  }
+
+  // 14. Update concept with compiled article reference
+  const now = new Date().toISOString();
+  let updatedGraph = await loadAuroraGraph();
+  updatedGraph = updateAuroraNode(updatedGraph, conceptId, {
+    properties: {
+      ...concept.properties,
+      compiledArticleId: article.id,
+      compiledAt: now,
+      compiledStale: false,
+    },
+  });
+  await saveAuroraGraph(updatedGraph);
+
+  return article;
 }

@@ -554,6 +554,106 @@ describe('linkArticleToConcepts()', () => {
       expect(node.properties.facet).toBe('topic');
     }
   });
+
+  it('marks compiled concept as stale when new article is linked', async () => {
+    const conceptNode = makeConceptNode({
+      id: 'concept_ai',
+      title: 'AI',
+      properties: {
+        description: 'Artificial Intelligence',
+        domain: 'tech',
+        facet: 'topic',
+        aliases: [],
+        articleCount: 3,
+        depth: 0,
+        compiledArticleId: 'compiled-art-1',
+        compiledAt: '2026-04-01T00:00:00.000Z',
+        compiledStale: false,
+      },
+    });
+    currentGraph = makeGraph([conceptNode]);
+
+    mockSemanticSearch.mockResolvedValue([
+      { id: 'concept_ai', title: 'AI', similarity: 0.95, confidence: 0.8 },
+    ]);
+
+    await linkArticleToConcepts('new-art-1', [{ name: 'AI' }]);
+
+    const lastSave = mockSaveAuroraGraph.mock.calls[
+      mockSaveAuroraGraph.mock.calls.length - 1
+    ][0] as AuroraGraph;
+    const saved = lastSave.nodes.find((n) => n.id === 'concept_ai');
+    expect(saved!.properties.compiledStale).toBe(true);
+  });
+
+  it('does NOT mark stale when concept-compile article links back', async () => {
+    const conceptNode = makeConceptNode({
+      id: 'concept_ai',
+      title: 'AI',
+      properties: {
+        description: 'Artificial Intelligence',
+        domain: 'tech',
+        facet: 'topic',
+        aliases: [],
+        articleCount: 3,
+        depth: 0,
+        compiledArticleId: 'compiled-art-1',
+        compiledAt: '2026-04-01T00:00:00.000Z',
+        compiledStale: false,
+      },
+    });
+    const compiledArticle: AuroraNode = {
+      id: 'compiled-art-2',
+      type: 'article',
+      title: 'AI',
+      properties: { synthesizedBy: 'concept-compile' },
+      confidence: 0.8,
+      scope: 'personal',
+      created: '2026-04-01T00:00:00.000Z',
+      updated: '2026-04-01T00:00:00.000Z',
+    };
+    currentGraph = makeGraph([conceptNode, compiledArticle]);
+
+    mockSemanticSearch.mockResolvedValue([
+      { id: 'concept_ai', title: 'AI', similarity: 0.95, confidence: 0.8 },
+    ]);
+
+    await linkArticleToConcepts('compiled-art-2', [{ name: 'AI' }]);
+
+    const lastSave = mockSaveAuroraGraph.mock.calls[
+      mockSaveAuroraGraph.mock.calls.length - 1
+    ][0] as AuroraGraph;
+    const saved = lastSave.nodes.find((n) => n.id === 'concept_ai');
+    expect(saved!.properties.compiledStale).toBe(false);
+  });
+
+  it('does NOT set stale when concept has never been compiled', async () => {
+    const conceptNode = makeConceptNode({
+      id: 'concept_ai',
+      title: 'AI',
+      properties: {
+        description: 'Artificial Intelligence',
+        domain: 'tech',
+        facet: 'topic',
+        aliases: [],
+        articleCount: 1,
+        depth: 0,
+      },
+    });
+    currentGraph = makeGraph([conceptNode]);
+
+    mockSemanticSearch.mockResolvedValue([
+      { id: 'concept_ai', title: 'AI', similarity: 0.95, confidence: 0.8 },
+    ]);
+
+    await linkArticleToConcepts('new-art-1', [{ name: 'AI' }]);
+
+    const lastSave = mockSaveAuroraGraph.mock.calls[
+      mockSaveAuroraGraph.mock.calls.length - 1
+    ][0] as AuroraGraph;
+    const saved = lastSave.nodes.find((n) => n.id === 'concept_ai');
+    expect(saved!.properties.compiledStale).toBeUndefined();
+  });
 });
 
 /* ------------------------------------------------------------------ */

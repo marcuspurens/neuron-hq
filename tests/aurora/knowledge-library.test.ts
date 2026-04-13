@@ -9,6 +9,7 @@ const mockLoadAuroraGraph = vi.fn();
 const mockSaveAuroraGraph = vi.fn();
 const mockAddAuroraNode = vi.fn();
 const mockAddAuroraEdge = vi.fn();
+const mockUpdateAuroraNode = vi.fn();
 const mockAutoEmbedAuroraNodes = vi.fn();
 
 vi.mock('../../src/aurora/aurora-graph.js', () => ({
@@ -16,6 +17,7 @@ vi.mock('../../src/aurora/aurora-graph.js', () => ({
   saveAuroraGraph: (...args: unknown[]) => mockSaveAuroraGraph(...args),
   addAuroraNode: (...args: unknown[]) => mockAddAuroraNode(...args),
   addAuroraEdge: (...args: unknown[]) => mockAddAuroraEdge(...args),
+  updateAuroraNode: (...args: unknown[]) => mockUpdateAuroraNode(...args),
   autoEmbedAuroraNodes: (...args: unknown[]) => mockAutoEmbedAuroraNodes(...args),
 }));
 
@@ -50,8 +52,10 @@ vi.mock('../../src/core/agent-client.js', () => ({
 }));
 
 const mockLinkArticleToConcepts = vi.fn();
+const mockGetConcept = vi.fn();
 vi.mock('../../src/aurora/ontology.js', () => ({
   linkArticleToConcepts: (...args: unknown[]) => mockLinkArticleToConcepts(...args),
+  getConcept: (...args: unknown[]) => mockGetConcept(...args),
 }));
 
 vi.mock('../../src/core/model-registry.js', () => ({
@@ -67,10 +71,16 @@ vi.mock('../../src/core/model-registry.js', () => ({
   },
 }));
 
-// Mock fs/promises for prompt template reading in synthesizeArticle
 vi.mock('fs/promises', () => ({
   default: {
-    readFile: vi.fn().mockResolvedValue('Prompt template: {{sources}}\n\nGaps: {{gaps}}'),
+    readFile: vi.fn().mockImplementation((filePath: string) => {
+      if (filePath.includes('concept-compile')) {
+        return Promise.resolve(
+          'Compile: {{concept_title}} ({{concept_facet}})\n{{concept_description}}\nHierarki: {{concept_hierarchy}}\nKällor: {{sources}}\nLuckor: {{gaps}}',
+        );
+      }
+      return Promise.resolve('Prompt template: {{sources}}\n\nGaps: {{gaps}}');
+    }),
   },
 }));
 
@@ -84,6 +94,7 @@ import {
   importArticle,
   synthesizeArticle,
   refreshArticle,
+  compileConceptArticle,
   countWords,
   parseJsonBlock,
   contentDiffers,
@@ -167,8 +178,9 @@ beforeEach(() => {
   mockSemanticSearch.mockResolvedValue([]);
   mockCreate.mockResolvedValue(makeLLMResponse());
   mockLinkArticleToConcepts.mockResolvedValue({ conceptsLinked: 0, conceptsCreated: 0 });
+  mockGetConcept.mockResolvedValue(null);
 
-  // addAuroraNode / addAuroraEdge: return updated graph with the new node/edge
+  // addAuroraNode / addAuroraEdge / updateAuroraNode: return updated graph
   mockAddAuroraNode.mockImplementation((graph: AuroraGraph, node: AuroraNode) => ({
     ...graph,
     nodes: [...graph.nodes, node],
@@ -177,6 +189,10 @@ beforeEach(() => {
   mockAddAuroraEdge.mockImplementation((graph: AuroraGraph, edge: AuroraGraph['edges'][0]) => ({
     ...graph,
     edges: [...graph.edges, edge],
+    lastUpdated: new Date().toISOString(),
+  }));
+  mockUpdateAuroraNode.mockImplementation((graph: AuroraGraph, _id: string, _updates: unknown) => ({
+    ...graph,
     lastUpdated: new Date().toISOString(),
   }));
 });
@@ -769,5 +785,252 @@ describe('refreshArticle()', () => {
     mockLoadAuroraGraph.mockResolvedValue(makeGraph());
 
     await expect(refreshArticle('nonexistent')).rejects.toThrow('Article not found');
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  compileConceptArticle() tests                                      */
+/* ------------------------------------------------------------------ */
+
+function makeConceptNode(overrides: Partial<AuroraNode> = {}): AuroraNode {
+  const now = new Date().toISOString();
+  return {
+    id: 'concept_test',
+    type: 'concept',
+    title: 'Test Concept',
+    properties: {
+      description: 'A test concept',
+      domain: 'general',
+      facet: 'topic',
+      aliases: [],
+      articleCount: 2,
+      depth: 0,
+    },
+    confidence: 0.8,
+    scope: 'personal',
+    created: now,
+    updated: now,
+    ...overrides,
+  };
+}
+
+function makeCompileLLMResponse(content?: string) {
+  const text = content ?? [
+    '# Test Concept',
+    '',
+    'En sammanfattning av konceptet baserad på tillgängliga källor.',
+    '',
+    '## Detaljer',
+    '',
+    'Konceptet har studerats i flera artiklar [källa: Article 1].',
+    '',
+    '## Öppna frågor',
+    '',
+    '- Vilka begränsningar finns?',
+    '',
+    '```json',
+    '{',
+    '  "abstract": "En sammanfattning av Test Concept",',
+    '  "relatedConcepts": [',
+    '    { "name": "Related Topic", "facet": "topic", "broaderConcept": null }',
+    '  ]',
+    '}',
+    '```',
+  ].join('\n');
+
+  return {
+    content: [{ type: 'text', text }],
+  };
+}
+
+describe('compileConceptArticle()', () => {
+  const conceptNode = makeConceptNode({
+    id: 'concept_ai',
+    title: 'AI',
+    properties: {
+      description: 'Artificial Intelligence',
+      domain: 'tech',
+      facet: 'topic',
+      aliases: [],
+      articleCount: 2,
+      depth: 0,
+    },
+  });
+
+  const linkedArticle: AuroraNode = {
+    id: 'art-linked-1',
+    type: 'article',
+    title: 'Article 1',
+    properties: { content: 'Deep article about AI advances' },
+    confidence: 0.9,
+    scope: 'personal',
+    created: '2026-01-01T00:00:00.000Z',
+    updated: '2026-01-01T00:00:00.000Z',
+  };
+
+  beforeEach(() => {
+    mockGetConcept.mockResolvedValue(conceptNode);
+    mockCreate.mockResolvedValue(makeCompileLLMResponse());
+
+    const graphWithSources = makeGraph(
+      [conceptNode, linkedArticle],
+      [{ from: 'art-linked-1', to: 'concept_ai', type: 'about', metadata: {} }],
+    );
+    mockLoadAuroraGraph.mockResolvedValue(graphWithSources);
+  });
+
+  it('throws when concept not found', async () => {
+    mockGetConcept.mockResolvedValue(null);
+    await expect(compileConceptArticle('nonexistent')).rejects.toThrow('Concept not found');
+  });
+
+  it('creates article from concept graph sources', async () => {
+    const article = await compileConceptArticle('concept_ai');
+
+    expect(article.type).toBe('article');
+    expect(article.title).toBe('AI');
+    expect(article.properties.synthesizedBy).toBe('concept-compile');
+    expect(article.properties.domain).toBe('tech');
+  });
+
+  it('calls LLM with concept-specific prompt', async () => {
+    await compileConceptArticle('concept_ai');
+
+    expect(mockCreate).toHaveBeenCalledOnce();
+    const callArgs = mockCreate.mock.calls[0][0] as { messages: Array<{ content: string }> };
+    const prompt = callArgs.messages[0].content;
+    expect(prompt).toContain('AI');
+    expect(prompt).toContain('topic');
+  });
+
+  it('gathers sources from linked articles via about-edges', async () => {
+    const article = await compileConceptArticle('concept_ai');
+
+    expect(article.properties.sourceNodeIds).toContain('art-linked-1');
+  });
+
+  it('calls recall for additional facts', async () => {
+    mockRecall.mockResolvedValue({
+      memories: [
+        { id: 'fact-1', title: 'AI fact', type: 'fact', text: 'AI is growing', confidence: 0.9, scope: 'personal', tags: [], similarity: 0.8, related: [], createdAt: '2026-01-01', updatedAt: '2026-01-01' },
+      ],
+      totalFound: 1,
+    });
+
+    const article = await compileConceptArticle('concept_ai');
+
+    expect(mockRecall).toHaveBeenCalledWith('AI');
+    expect(article.properties.sourceNodeIds).toContain('fact-1');
+  });
+
+  it('links article back to the source concept', async () => {
+    await compileConceptArticle('concept_ai');
+
+    expect(mockLinkArticleToConcepts).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'AI', facet: 'topic' }),
+      ]),
+    );
+  });
+
+  it('links related concepts from LLM response', async () => {
+    await compileConceptArticle('concept_ai');
+
+    expect(mockLinkArticleToConcepts).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'Related Topic' }),
+      ]),
+    );
+  });
+
+  it('updates concept with compiledArticleId and compiledAt', async () => {
+    await compileConceptArticle('concept_ai');
+
+    expect(mockUpdateAuroraNode).toHaveBeenCalledWith(
+      expect.anything(),
+      'concept_ai',
+      expect.objectContaining({
+        properties: expect.objectContaining({
+          compiledArticleId: expect.any(String),
+          compiledAt: expect.any(String),
+          compiledStale: false,
+        }),
+      }),
+    );
+    expect(mockSaveAuroraGraph).toHaveBeenCalled();
+  });
+
+  it('handles recall failure gracefully', async () => {
+    mockRecall.mockRejectedValue(new Error('recall down'));
+
+    const article = await compileConceptArticle('concept_ai');
+    expect(article.type).toBe('article');
+  });
+
+  it('handles gaps failure gracefully', async () => {
+    mockGetGaps.mockRejectedValue(new Error('gaps down'));
+
+    const article = await compileConceptArticle('concept_ai');
+    expect(article.type).toBe('article');
+  });
+
+  it('includes hierarchy context in prompt', async () => {
+    const parentConcept = makeConceptNode({
+      id: 'concept_science',
+      title: 'Science',
+    });
+    const childConcept = makeConceptNode({
+      id: 'concept_ml',
+      title: 'Machine Learning',
+    });
+
+    const graphWithHierarchy = makeGraph(
+      [conceptNode, linkedArticle, parentConcept, childConcept],
+      [
+        { from: 'art-linked-1', to: 'concept_ai', type: 'about', metadata: {} },
+        { from: 'concept_science', to: 'concept_ai', type: 'broader_than', metadata: {} },
+        { from: 'concept_ai', to: 'concept_ml', type: 'broader_than', metadata: {} },
+      ],
+    );
+    mockLoadAuroraGraph.mockResolvedValue(graphWithHierarchy);
+
+    await compileConceptArticle('concept_ai');
+
+    const callArgs = mockCreate.mock.calls[0][0] as { messages: Array<{ content: string }> };
+    const prompt = callArgs.messages[0].content;
+    expect(prompt).toContain('Science');
+    expect(prompt).toContain('Machine Learning');
+  });
+
+  it('sorts sources by confidence (highest first)', async () => {
+    const lowConfArticle: AuroraNode = {
+      id: 'art-low',
+      type: 'article',
+      title: 'Low Confidence',
+      properties: { content: 'Uncertain content' },
+      confidence: 0.3,
+      scope: 'personal',
+      created: '2026-01-01T00:00:00.000Z',
+      updated: '2026-01-01T00:00:00.000Z',
+    };
+
+    const graphWithMultiple = makeGraph(
+      [conceptNode, linkedArticle, lowConfArticle],
+      [
+        { from: 'art-linked-1', to: 'concept_ai', type: 'about', metadata: {} },
+        { from: 'art-low', to: 'concept_ai', type: 'about', metadata: {} },
+      ],
+    );
+    mockLoadAuroraGraph.mockResolvedValue(graphWithMultiple);
+
+    await compileConceptArticle('concept_ai');
+
+    const callArgs = mockCreate.mock.calls[0][0] as { messages: Array<{ content: string }> };
+    const prompt = callArgs.messages[0].content;
+    const art1Pos = prompt.indexOf('Article 1');
+    const lowPos = prompt.indexOf('Low Confidence');
+    expect(art1Pos).toBeLessThan(lowPos);
   });
 });

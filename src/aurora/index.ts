@@ -149,6 +149,7 @@ export {
   importArticle,
   synthesizeArticle,
   refreshArticle,
+  compileConceptArticle,
   countWords,
   parseJsonBlock,
   contentDiffers,

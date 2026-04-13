@@ -25,6 +25,9 @@ export interface ConceptProperties {
   articleCount: number;
   depth: number; // 0 = root
   standardRefs?: Record<string, string>;
+  compiledArticleId?: string | null; // points to the cached ArticleNode
+  compiledAt?: string | null; // ISO datetime of last compilation
+  compiledStale?: boolean; // true = new knowledge added since last compilation
 }
 
 export interface ConceptNode extends AuroraNode {
@@ -501,7 +504,7 @@ export async function linkArticleToConcepts(
       });
     }
 
-    // Increment articleCount
+    // Increment articleCount + mark compiled article stale if needed
     const idx = graph.nodes.findIndex((n) => n.id === conceptNode.id);
     if (idx !== -1) {
       const current = graph.nodes[idx];
@@ -509,10 +512,21 @@ export async function linkArticleToConcepts(
         typeof current.properties.articleCount === 'number'
           ? (current.properties.articleCount as number)
           : 0;
+
+      // Guard: compiled articles linking back to their own concept must not trigger staleness
+      const linkedNode = graph.nodes.find((n) => n.id === articleId);
+      const isSelfCompile = linkedNode?.properties.synthesizedBy === 'concept-compile';
+      const hasCompiledArticle = typeof current.properties.compiledAt === 'string';
+      const shouldMarkStale = hasCompiledArticle && !isSelfCompile;
+
       const nodes = [...graph.nodes];
       nodes[idx] = {
         ...current,
-        properties: { ...current.properties, articleCount: count + 1 },
+        properties: {
+          ...current.properties,
+          articleCount: count + 1,
+          ...(shouldMarkStale ? { compiledStale: true } : {}),
+        },
         updated: new Date().toISOString(),
       };
       graph = { ...graph, nodes, lastUpdated: new Date().toISOString() };
