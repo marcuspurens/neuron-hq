@@ -66,15 +66,14 @@ describe('obsidian-export', () => {
       .mockResolvedValueOnce({ rows: [docNode] }) // nodes query
       .mockResolvedValueOnce({ rows: [] }); // edges query
 
-    await obsidianExportCommand({ vault: '/tmp/vault' });
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
     expect(writtenFiles.size).toBe(1);
-    const content = [...writtenFiles.values()][0];
+    const [[path, content]] = [...writtenFiles.entries()];
 
+    expect(path).toContain('/Aurora/Dokument/My Document.md');
     expect(content).toContain('typ: document');
-    // Should have text section
     expect(content).toContain('Hello world content');
-    // Should NOT have timeline sections
     expect(content).not.toContain('## Tidslinje');
     expect(content).not.toContain('## Talare');
   });
@@ -124,27 +123,24 @@ describe('obsidian-export', () => {
       })
       .mockResolvedValueOnce({ rows: [] });
 
-    await obsidianExportCommand({ vault: '/tmp/vault' });
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
-    // voice_print nodes are not transcript — they export normally; transcript gets timeline
-    const transcriptContent = [...writtenFiles.entries()].find(([path]) =>
-      path.includes('Test Video Transcript')
-    )?.[1];
+    // voice_print nodes are skipped — only transcript gets exported
+    expect(writtenFiles.size).toBe(1);
+    const [[transcriptPath, transcriptContent]] = [...writtenFiles.entries()];
 
+    expect(transcriptPath).toContain('/Aurora/Video/Test Video Transcript.md');
     expect(transcriptContent).toBeDefined();
 
-    // Speaker table
     expect(transcriptContent).toContain('## Talare');
     expect(transcriptContent).toContain('| SPEAKER_00 |');
-    expect(transcriptContent).toContain('_ej identifierad_');
+    expect(transcriptContent).not.toContain('_ej identifierad_');
 
-    // Timeline section
     expect(transcriptContent).toContain('## Tidslinje');
     expect(transcriptContent).toContain('00:00:00');
     expect(transcriptContent).toContain('Hello from speaker zero');
     expect(transcriptContent).toContain('Now speaker one talks');
 
-    // Should NOT have standard text section
     expect(transcriptContent).not.toContain('## Innehåll');
   });
 
@@ -171,7 +167,7 @@ describe('obsidian-export', () => {
       .mockResolvedValueOnce({ rows: [transcriptNode, chunkNode] })
       .mockResolvedValueOnce({ rows: [] });
 
-    await obsidianExportCommand({ vault: '/tmp/vault' });
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
     // Only 1 file should be written (transcript), not the chunk
     expect(writtenFiles.size).toBe(1);
@@ -179,7 +175,7 @@ describe('obsidian-export', () => {
     expect(paths.some((p) => p.includes('chunk'))).toBe(false);
   });
 
-  it('frontmatter contains duration in hh:mm:ss format and speakers map', async () => {
+  it('frontmatter contains duration in hh:mm:ss format and speaker table in body', async () => {
     const transcriptNode = makeNode({
       id: 'yt-vid1',
       title: 'Duration Test',
@@ -207,7 +203,7 @@ describe('obsidian-export', () => {
       .mockResolvedValueOnce({ rows: [transcriptNode, voicePrint] })
       .mockResolvedValueOnce({ rows: [] });
 
-    await obsidianExportCommand({ vault: '/tmp/vault' });
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
     const content = [...writtenFiles.entries()].find(([path]) =>
       path.includes('Duration Test')
@@ -217,13 +213,9 @@ describe('obsidian-export', () => {
 
     // Frontmatter checks
     expect(content).toContain('duration: "01:02:03"');
-    expect(content).toContain('speakers:');
-    expect(content).toContain('SPEAKER_00:');
-    expect(content).toContain('name: ""');
-    expect(content).toContain('title: ""');
-    expect(content).toContain('organization: ""');
-    expect(content).toContain('confidence: 0.85');
-    expect(content).toContain('role: ""');
+    expect(content).not.toContain('speakers:');
+    expect(content).toContain('| SPEAKER_00 |');
+    expect(content).toContain('0.85');
   });
 
   it('excludes chunk nodes for non-video document nodes', async () => {
@@ -245,7 +237,7 @@ describe('obsidian-export', () => {
       .mockResolvedValueOnce({ rows: [parentNode, chunkNode] })
       .mockResolvedValueOnce({ rows: [] });
 
-    await obsidianExportCommand({ vault: '/tmp/vault' });
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
     expect(writtenFiles.size).toBe(1);
     const hasChunkFile = [...writtenFiles.keys()].some((p) => p.includes('chunk'));
@@ -302,7 +294,7 @@ describe('obsidian-export', () => {
       .mockResolvedValueOnce({ rows: [transcriptNode, voicePrint0, voicePrint1] })
       .mockResolvedValueOnce({ rows: [] });
 
-    await obsidianExportCommand({ vault: '/tmp/vault' });
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
     const content = [...writtenFiles.entries()].find(([path]) =>
       path.includes('Highlight Test')
@@ -364,7 +356,7 @@ describe('obsidian-export', () => {
       .mockResolvedValueOnce({ rows: [transcriptNode, voicePrint0, voicePrint1] })
       .mockResolvedValueOnce({ rows: [] });
 
-    await obsidianExportCommand({ vault: '/tmp/vault' });
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
     const content = [...writtenFiles.entries()].find(([path]) =>
       path.includes('Comment Test')
@@ -410,7 +402,7 @@ describe('obsidian-export', () => {
       .mockResolvedValueOnce({ rows: [transcriptNode, voicePrint] })
       .mockResolvedValueOnce({ rows: [] });
 
-    await obsidianExportCommand({ vault: '/tmp/vault' });
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
     const content = [...writtenFiles.entries()].find(([path]) =>
       path.includes('Both Annotations Test')
@@ -453,7 +445,7 @@ describe('obsidian-export', () => {
       .mockResolvedValueOnce({ rows: [transcriptNode, voicePrint] })
       .mockResolvedValueOnce({ rows: [] });
 
-    await obsidianExportCommand({ vault: '/tmp/vault' });
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
     const content = [...writtenFiles.entries()].find(([path]) =>
       path.includes('Empty Annotations Test')
@@ -528,7 +520,7 @@ describe('obsidian-export', () => {
       .mockResolvedValueOnce({ rows: [transcriptNode, vp0, vp1, vp2] })
       .mockResolvedValueOnce({ rows: [] });
 
-    await obsidianExportCommand({ vault: '/tmp/vault' });
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
     const content = [...writtenFiles.entries()].find(([path]) =>
       path.includes('Roundtrip Test')
@@ -603,7 +595,7 @@ describe('obsidian-export', () => {
       .mockResolvedValueOnce({ rows: [transcriptNode, vp0, vp1, vp2] })
       .mockResolvedValueOnce({ rows: [] });
 
-    await obsidianExportCommand({ vault: '/tmp/vault' });
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
     const content = [...writtenFiles.entries()].find(([path]) =>
       path.includes('Multi Highlight Test')
@@ -667,7 +659,7 @@ describe('obsidian-export', () => {
       .mockResolvedValueOnce({ rows: [transcriptNode, vp0, vp1] })
       .mockResolvedValueOnce({ rows: [] });
 
-    await obsidianExportCommand({ vault: '/tmp/vault' });
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
     const content = [...writtenFiles.entries()].find(([path]) =>
       path.includes('Comment Only Test')
@@ -717,7 +709,7 @@ describe('obsidian-export', () => {
       .mockResolvedValueOnce({ rows: [node1, node2, node3] })
       .mockResolvedValueOnce({ rows: [] });
 
-    const result = await obsidianExportCommand({ vault: '/tmp/vault' });
+    const result = await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
     expect(result).toEqual({ exported: 3 });
     expect(writtenFiles.size).toBe(3);
@@ -740,7 +732,7 @@ describe('obsidian-export', () => {
 
     mockQuery.mockResolvedValueOnce({ rows: [docNode] }).mockResolvedValueOnce({ rows: [] });
 
-    await obsidianExportCommand({ vault: '/tmp/vault' });
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
     const content = [...writtenFiles.values()][0];
     expect(content).toContain('källa_typ: web_scrape');
@@ -758,7 +750,7 @@ describe('obsidian-export', () => {
 
     mockQuery.mockResolvedValueOnce({ rows: [docNode] }).mockResolvedValueOnce({ rows: [] });
 
-    await obsidianExportCommand({ vault: '/tmp/vault' });
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
     const content = [...writtenFiles.values()][0];
     expect(content).not.toContain('källa_typ');
@@ -779,7 +771,7 @@ describe('obsidian-export', () => {
 
     mockQuery.mockResolvedValueOnce({ rows: [docNode] }).mockResolvedValueOnce({ rows: [] });
 
-    await obsidianExportCommand({ vault: '/tmp/vault' });
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
     const content = [...writtenFiles.values()][0];
 
@@ -819,7 +811,7 @@ describe('obsidian-export', () => {
 
     mockQuery.mockResolvedValueOnce({ rows: [docNode] }).mockResolvedValueOnce({ rows: [] });
 
-    await obsidianExportCommand({ vault: '/tmp/vault' });
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
     const content = [...writtenFiles.values()][0];
     expect(content).toContain('> [!info]- Pipeline-detaljer per sida');
@@ -837,14 +829,14 @@ describe('obsidian-export', () => {
 
     mockQuery.mockResolvedValueOnce({ rows: [docNode] }).mockResolvedValueOnce({ rows: [] });
 
-    await obsidianExportCommand({ vault: '/tmp/vault' });
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
     const content = [...writtenFiles.values()][0];
     expect(content).not.toContain('Pipeline-detaljer');
   });
 
   describe('AC4-AC6: exported_at frontmatter and stale cleanup', () => {
-    it('AC4: exported file contains frontmatter with typ field', async () => {
+    it('AC4: exported file contains frontmatter with typ field and correct subdir', async () => {
       const docNode = makeNode({
         id: 'ac4-doc',
         title: 'AC4 Test',
@@ -854,10 +846,11 @@ describe('obsidian-export', () => {
 
       mockQuery.mockResolvedValueOnce({ rows: [docNode] }).mockResolvedValueOnce({ rows: [] });
 
-      await obsidianExportCommand({ vault: '/tmp/vault' });
+      await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
       expect(writtenFiles.size).toBe(1);
-      const content = [...writtenFiles.values()][0];
+      const [[path, content]] = [...writtenFiles.entries()];
+      expect(path).toContain('/Aurora/Dokument/AC4 Test.md');
       expect(content).toContain('typ: document');
     });
 
@@ -873,7 +866,7 @@ describe('obsidian-export', () => {
 
       mockReaddir.mockResolvedValue([]);
 
-      await obsidianExportCommand({ vault: '/tmp/vault' });
+      await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
       // rm should NOT have been called with { recursive: true } on the directory
       const rmCallsWithRecursive = mockRm.mock.calls.filter(
@@ -882,7 +875,7 @@ describe('obsidian-export', () => {
       expect(rmCallsWithRecursive).toHaveLength(0);
     });
 
-    it('AC6: stale files (not matching current nodes) are removed', async () => {
+    it('AC6: stale files (not matching current nodes) are removed per-subdirectory', async () => {
       const docNode = makeNode({
         id: 'ac6-doc',
         title: 'AC6 Test',
@@ -892,17 +885,251 @@ describe('obsidian-export', () => {
 
       mockQuery.mockResolvedValueOnce({ rows: [docNode] }).mockResolvedValueOnce({ rows: [] });
 
-      // Simulate that the directory has both current node file AND a stale file
-      mockReaddir.mockResolvedValue(['AC6 Test.md', 'stale-old-node.md']);
+      mockReaddir.mockImplementation((dir: string) => {
+        if (typeof dir === 'string' && dir.endsWith('/Dokument')) {
+          return Promise.resolve(['AC6 Test.md', 'stale-old-node.md']);
+        }
+        return Promise.resolve([]);
+      });
 
-      await obsidianExportCommand({ vault: '/tmp/vault' });
+      await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
-      // rm should have been called for the stale file only
       const rmCalls = mockRm.mock.calls.filter(
         (args: unknown[]) =>
           typeof args[0] === 'string' && (args[0] as string).includes('stale-old-node.md')
       );
       expect(rmCalls).toHaveLength(1);
+
+      const noAc6Rm = mockRm.mock.calls.filter(
+        (args: unknown[]) =>
+          typeof args[0] === 'string' && (args[0] as string).includes('AC6 Test.md')
+      );
+      expect(noAc6Rm).toHaveLength(0);
+    });
+  });
+
+  describe('type-based subdirectory routing', () => {
+    it('routes article nodes to Aurora/Artikel/', async () => {
+      const node = makeNode({
+        id: 'art-1',
+        title: 'My Article',
+        type: 'article',
+        properties: { text: 'Article content' },
+      });
+
+      mockQuery.mockResolvedValueOnce({ rows: [node] }).mockResolvedValueOnce({ rows: [] });
+
+      await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
+
+      const path = [...writtenFiles.keys()][0];
+      expect(path).toBe('/tmp/vault/Aurora/Artikel/My Article.md');
+    });
+
+    it('routes concept nodes to Aurora/Koncept/', async () => {
+      const node = makeNode({
+        id: 'concept-1',
+        title: 'My Concept',
+        type: 'concept',
+        properties: { text: 'Concept content' },
+      });
+
+      mockQuery.mockResolvedValueOnce({ rows: [node] }).mockResolvedValueOnce({ rows: [] });
+
+      await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
+
+      const path = [...writtenFiles.keys()][0];
+      expect(path).toBe('/tmp/vault/Aurora/Koncept/My Concept.md');
+    });
+
+    it('routes unknown types to Aurora/ root', async () => {
+      const node = makeNode({
+        id: 'fact-1',
+        title: 'Some Fact',
+        type: 'fact',
+        properties: { text: 'Fact content' },
+      });
+
+      mockQuery.mockResolvedValueOnce({ rows: [node] }).mockResolvedValueOnce({ rows: [] });
+
+      await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
+
+      const path = [...writtenFiles.keys()][0];
+      expect(path).toBe('/tmp/vault/Aurora/Some Fact.md');
+    });
+
+    it('skips voice_print and speaker_identity nodes from export', async () => {
+      const vpNode = makeNode({
+        id: 'vp-1',
+        title: 'Speaker: SPEAKER_00',
+        type: 'voice_print',
+        properties: { speakerLabel: 'SPEAKER_00', videoNodeId: 'yt-1' },
+      });
+
+      const siNode = makeNode({
+        id: 'si-1',
+        title: 'Speaker Identity',
+        type: 'speaker_identity',
+        properties: { name: 'Alice' },
+      });
+
+      mockQuery
+        .mockResolvedValueOnce({ rows: [vpNode, siNode] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      const result = await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
+
+      expect(writtenFiles.size).toBe(0);
+      expect(result.exported).toBe(0);
+    });
+
+    it('creates subdirectories via mkdir', async () => {
+      const node = makeNode({
+        id: 'doc-mkdir',
+        title: 'MkDir Test',
+        type: 'document',
+        properties: { text: 'Content' },
+      });
+
+      mockQuery.mockResolvedValueOnce({ rows: [node] }).mockResolvedValueOnce({ rows: [] });
+
+      await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
+
+      const mkdirPaths = mockMkdir.mock.calls.map((args: unknown[]) => args[0] as string);
+      expect(mkdirPaths).toContain('/tmp/vault/Aurora/Video');
+      expect(mkdirPaths).toContain('/tmp/vault/Aurora/Dokument');
+      expect(mkdirPaths).toContain('/tmp/vault/Aurora/Artikel');
+      expect(mkdirPaths).toContain('/tmp/vault/Aurora/Koncept');
+    });
+  });
+
+  describe('extended video frontmatter', () => {
+    it('includes källa, språk, tags, publicerad, confidence, and tldr', async () => {
+      const transcriptNode = makeNode({
+        id: 'yt-fm-full',
+        title: 'Full FM Video',
+        type: 'transcript',
+        confidence: 0.92,
+        properties: {
+          platform: 'youtube',
+          duration: 60,
+          rawSegments: [{ start_ms: 0, end_ms: 5000, text: 'Hello' }],
+          videoUrl: 'https://youtube.com/watch?v=abc',
+          language: 'sv',
+          tags: ['AI', 'machine learning'],
+          publishedDate: '2026-03-15',
+          summary: 'A great video about AI',
+        },
+      });
+
+      const vp = makeNode({
+        id: 'vp-fm-full',
+        type: 'voice_print',
+        confidence: 0.9,
+        properties: {
+          speakerLabel: 'SPEAKER_00',
+          videoNodeId: 'yt-fm-full',
+          segments: [{ start_ms: 0, end_ms: 5000 }],
+        },
+      });
+
+      mockQuery
+        .mockResolvedValueOnce({ rows: [transcriptNode, vp] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
+
+      const content = [...writtenFiles.entries()].find(([p]) =>
+        p.includes('Full FM Video')
+      )?.[1];
+
+      expect(content).toBeDefined();
+      expect(content).toContain('källa: "https://youtube.com/watch?v=abc"');
+      expect(content).toContain('språk: sv');
+      expect(content).toContain('tags: [AI, "machine learning"]');
+      expect(content).toContain('publicerad: 2026-03-15');
+      expect(content).toContain('confidence: 0.92');
+      expect(content).toContain('tldr: "A great video about AI"');
+    });
+
+    it('omits optional fields when not present', async () => {
+      const transcriptNode = makeNode({
+        id: 'yt-fm-minimal',
+        title: 'Minimal FM Video',
+        type: 'transcript',
+        confidence: 0.5,
+        properties: {
+          platform: 'youtube',
+          duration: 30,
+          rawSegments: [{ start_ms: 0, end_ms: 3000, text: 'Hi' }],
+        },
+      });
+
+      const vp = makeNode({
+        id: 'vp-fm-minimal',
+        type: 'voice_print',
+        confidence: 0.7,
+        properties: {
+          speakerLabel: 'SPEAKER_00',
+          videoNodeId: 'yt-fm-minimal',
+          segments: [{ start_ms: 0, end_ms: 3000 }],
+        },
+      });
+
+      mockQuery
+        .mockResolvedValueOnce({ rows: [transcriptNode, vp] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
+
+      const content = [...writtenFiles.entries()].find(([p]) =>
+        p.includes('Minimal FM Video')
+      )?.[1];
+
+      expect(content).toBeDefined();
+      expect(content).not.toContain('källa:');
+      expect(content).not.toContain('språk:');
+      expect(content).not.toContain('tags:');
+      expect(content).not.toContain('publicerad:');
+      expect(content).not.toContain('tldr:');
+      expect(content).toContain('confidence: 0.5');
+    });
+
+    it('escapes quotes in tldr', async () => {
+      const transcriptNode = makeNode({
+        id: 'yt-fm-escape',
+        title: 'Escape Test Video',
+        type: 'transcript',
+        confidence: 0.8,
+        properties: {
+          platform: 'youtube',
+          duration: 30,
+          rawSegments: [{ start_ms: 0, end_ms: 3000, text: 'Hi' }],
+          summary: 'He said "hello" to everyone',
+        },
+      });
+
+      const vp = makeNode({
+        id: 'vp-fm-escape',
+        type: 'voice_print',
+        confidence: 0.7,
+        properties: {
+          speakerLabel: 'SPEAKER_00',
+          videoNodeId: 'yt-fm-escape',
+          segments: [{ start_ms: 0, end_ms: 3000 }],
+        },
+      });
+
+      mockQuery
+        .mockResolvedValueOnce({ rows: [transcriptNode, vp] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
+
+      const content = [...writtenFiles.entries()].find(([p]) =>
+        p.includes('Escape Test Video')
+      )?.[1];
+
+      expect(content).toContain('tldr: "He said \\"hello\\" to everyone"');
     });
   });
 });

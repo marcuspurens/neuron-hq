@@ -130,6 +130,54 @@ export function extractSpeakers(frontmatter: Record<string, unknown>): ParsedSpe
   return result;
 }
 
+/** Extract speakers from markdown table in ## Talare section. */
+export function extractSpeakersFromTable(markdownBody: string): ParsedSpeaker[] {
+  const sectionMatch = markdownBody.match(/## Talare\s*\n([\s\S]*?)(?=\n## |\n$|$)/);
+  if (!sectionMatch) return [];
+  const section = sectionMatch[1];
+
+  const lines = section.split('\n').filter((l) => l.trim().startsWith('|'));
+  if (lines.length < 3) return [];
+
+  const headerCells = lines[0]
+    .split('|')
+    .map((c) => c.trim().toLowerCase())
+    .filter(Boolean);
+
+  const colIndex = {
+    label: headerCells.indexOf('label'),
+    namn: headerCells.indexOf('namn'),
+    titel: headerCells.indexOf('titel'),
+    organisation: headerCells.indexOf('organisation'),
+    roll: headerCells.indexOf('roll'),
+    konfidenspoäng: headerCells.indexOf('konfidenspoäng'),
+  };
+
+  if (colIndex.label === -1) return [];
+
+  const result: ParsedSpeaker[] = [];
+  for (let i = 2; i < lines.length; i++) {
+    const rawCells = lines[i].split('|');
+    const cells = rawCells.slice(1, -1).map((c) => c.trim());
+
+    const label = cells[colIndex.label]?.trim() ?? '';
+    if (!label) continue;
+
+    const confStr = colIndex.konfidenspoäng >= 0 ? (cells[colIndex.konfidenspoäng] ?? '') : '';
+    const confidence = confStr ? Number(confStr) : 0;
+
+    result.push({
+      label,
+      name: colIndex.namn >= 0 ? (cells[colIndex.namn] ?? '') : '',
+      title: colIndex.titel >= 0 ? (cells[colIndex.titel] ?? '') : '',
+      organization: colIndex.organisation >= 0 ? (cells[colIndex.organisation] ?? '') : '',
+      confidence: isNaN(confidence) ? 0 : confidence,
+      role: colIndex.roll >= 0 ? (cells[colIndex.roll] ?? '') : '',
+    });
+  }
+  return result;
+}
+
 /**
  * Extract highlights from markdown body by scanning for timecode headers
  * with known hash-tags.
@@ -403,7 +451,8 @@ export function parseObsidianFile(content: string): ParsedObsidianFile | null {
     if (id === undefined || id === null) return null;
 
     const idStr = String(id);
-    const speakers = extractSpeakers(frontmatter);
+    const tableSpeakers = extractSpeakersFromTable(parsed.content);
+    const speakers = tableSpeakers.length > 0 ? tableSpeakers : extractSpeakers(frontmatter);
     const rawHighlights = extractHighlights(parsed.content);
     const rawComments = extractComments(parsed.content);
 

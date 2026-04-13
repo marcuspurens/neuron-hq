@@ -8,6 +8,15 @@ import type { TimelineBlock } from '../aurora/speaker-timeline.js';
 
 const DEFAULT_VAULT = '/Users/mpmac/Documents/Neuron Lab';
 
+/** Determine the type-based subdirectory for an Aurora node. */
+export function getNodeSubdir(node: { type: string; properties: Record<string, unknown> }): string {
+  if (node.type === 'transcript' && Array.isArray(node.properties.rawSegments)) return 'Video';
+  if (node.type === 'document') return 'Dokument';
+  if (node.type === 'article') return 'Artikel';
+  if (node.type === 'concept') return 'Koncept';
+  return '';
+}
+
 interface AuroraNode {
   id: string;
   title: string;
@@ -54,6 +63,8 @@ function formatFrontmatter(node: AuroraNode): string {
   const props = node.properties || {};
   const lines = ['---'];
 
+  lines.push(`id: ${node.id}`);
+
   const contentType = props.contentType as string | undefined;
   lines.push(`typ: ${contentType ?? node.type}`);
 
@@ -88,12 +99,15 @@ function formatFrontmatter(node: AuroraNode): string {
   const summary = props.summary as string | undefined;
   if (summary) lines.push(`tldr: "${summary.replace(/"/g, '\\"')}"`);
 
+  lines.push(`confidence: ${node.confidence}`);
+  lines.push(`exported_at: "${new Date().toISOString()}"`);
+
   lines.push('---');
   return lines.join('\n');
 }
 
 /** Build frontmatter for video transcript with timeline speaker data. */
-function formatVideoFrontmatter(node: AuroraNode, speakers: Map<string, SpeakerInfo>): string {
+function formatVideoFrontmatter(node: AuroraNode, _speakers: Map<string, SpeakerInfo>): string {
   const props = node.properties || {};
   const durationMs = typeof props.duration === 'number' ? props.duration * 1000 : 0;
   const lines = ['---', `id: ${node.id}`, `type: transcript`];
@@ -101,14 +115,18 @@ function formatVideoFrontmatter(node: AuroraNode, speakers: Map<string, SpeakerI
   if (props.platform) lines.push(`platform: ${props.platform}`);
   lines.push(`duration: "${formatMs(durationMs)}"`);
 
-  lines.push('speakers:');
-  for (const [label, info] of speakers) {
-    lines.push(`  ${label}:`);
-    lines.push(`    name: "${info.name}"`);
-    lines.push(`    title: "${info.title}"`);
-    lines.push(`    organization: "${info.organization}"`);
-    lines.push(`    confidence: ${info.confidence}`);
-    lines.push(`    role: "${info.role}"`);
+  if (props.publishedDate) lines.push(`publicerad: ${props.publishedDate}`);
+
+  const sourceUrl = props.videoUrl ?? props.sourceUrl ?? node.source_url;
+  if (sourceUrl) lines.push(`källa: "${sourceUrl}"`);
+
+  const language = props.language as string | undefined;
+  if (language && language !== 'unknown') lines.push(`språk: ${language}`);
+
+  const tags = Array.isArray(props.tags) ? (props.tags as string[]) : [];
+  if (tags.length > 0) {
+    const quoted = tags.map((t) => (t.includes(' ') ? `"${t}"` : t));
+    lines.push(`tags: [${quoted.join(', ')}]`);
   }
 
   const provenance = props.provenance as
@@ -120,6 +138,10 @@ function formatVideoFrontmatter(node: AuroraNode, speakers: Map<string, SpeakerI
     if (provenance.model) lines.push(`källa_modell: ${provenance.model}`);
   }
 
+  const summary = props.summary as string | undefined;
+  if (summary) lines.push(`tldr: "${summary.replace(/"/g, '\\"')}"`);
+
+  lines.push(`confidence: ${node.confidence}`);
   lines.push(`exported_at: "${new Date().toISOString()}"`);
   lines.push('---');
   return lines.join('\n');
@@ -128,16 +150,16 @@ function formatVideoFrontmatter(node: AuroraNode, speakers: Map<string, SpeakerI
 function buildSpeakerTable(speakers: Map<string, SpeakerInfo>): string[] {
   const lines: string[] = [
     '## Talare',
-    '| ID | Namn | Konfidenspoäng | Roll |',
-    '|----|------|-----------|------|',
+    '| Label | Namn | Titel | Organisation | Roll | Konfidenspoäng |',
+    '|-------|------|-------|--------------|------|----------------|',
   ];
   for (const [label, info] of speakers) {
-    const displayName = label.startsWith('SPEAKER_')
-      ? '_ej identifierad_'
-      : info.name || '_ej identifierad_';
-    const conf = info.confidence > 0 ? String(info.confidence) : '\u2014';
-    const role = info.role || '\u2014';
-    lines.push(`| ${label} | ${displayName} | ${conf} | ${role} |`);
+    const name = info.name || '';
+    const title = info.title || '';
+    const org = info.organization || '';
+    const role = info.role || '';
+    const conf = String(info.confidence);
+    lines.push(`| ${label} | ${name} | ${title} | ${org} | ${role} | ${conf} |`);
   }
   return lines;
 }
@@ -354,12 +376,30 @@ function buildVideoChunkIds(nodes: AuroraNode[], videoTranscriptIds: Set<string>
 export async function obsidianExportCommand(cmdOptions: {
   vault?: string;
   clean?: boolean;
+  skipImport?: boolean;
 }): Promise<{ exported: number }> {
   const vaultPath = cmdOptions.vault || DEFAULT_VAULT;
   const nodesDir = join(vaultPath, 'Aurora');
   const pool = getPool();
 
   try {
+    if (!cmdOptions.skipImport) {
+      const { obsidianImportCommand } = await import('./obsidian-import.js');
+      await obsidianImportCommand({ vault: vaultPath, sync: true });
+    }
+
+    if (!cmdOptions.skipImport) {
+      try {
+        const { purgeExpiredDeleted } = await import('./obsidian-restore.js');
+        const purged = await purgeExpiredDeleted();
+        if (purged > 0) {
+          console.log(chalk.gray(`  Rensade ${purged} utgångna raderade noder.`));
+        }
+      } catch {
+        // Purge is best-effort — DB may not have the table yet
+      }
+    }
+
     console.log(chalk.bold('\n📓 Obsidian Export\n'));
     console.log(`  Vault: ${vaultPath}`);
 
@@ -405,12 +445,19 @@ export async function obsidianExportCommand(cmdOptions: {
     // Ensure output directory exists (preserve manually created files)
     await mkdir(nodesDir, { recursive: true });
 
+    const subdirs = ['Video', 'Dokument', 'Artikel', 'Koncept'];
+    for (const sub of subdirs) {
+      await mkdir(join(nodesDir, sub), { recursive: true });
+    }
+
     let written = 0;
     for (const node of nodes) {
       if (skipChunkIds.has(node.id)) continue;
       if (node.id.includes('_chunk_')) continue;
+      if (node.type === 'voice_print' || node.type === 'speaker_identity') continue;
 
       const filename = filenameMap.get(node.id)!;
+      const subdir = getNodeSubdir(node);
       const props = node.properties || {};
       const lines: string[] = [];
 
@@ -522,24 +569,38 @@ export async function obsidianExportCommand(cmdOptions: {
         }
       }
 
-      const filePath = join(nodesDir, `${filename}.md`);
+      const targetDir = subdir ? join(nodesDir, subdir) : nodesDir;
+      const filePath = join(targetDir, `${filename}.md`);
       await writeFile(filePath, lines.join('\n'), 'utf-8');
       written++;
     }
 
-    // Remove stale export files (files for nodes no longer in Aurora)
-    const exportedFilenames = new Set();
+    const exportedByDir = new Map<string, Set<string>>();
     for (const nd of nodes) {
       if (skipChunkIds.has(nd.id)) continue;
       if (nd.id.includes('_chunk_')) continue;
+      if (nd.type === 'voice_print' || nd.type === 'speaker_identity') continue;
       const fn = filenameMap.get(nd.id);
-      if (fn) exportedFilenames.add(fn + '.md');
+      if (!fn) continue;
+      const sub = getNodeSubdir(nd);
+      const dir = sub ? join(nodesDir, sub) : nodesDir;
+      if (!exportedByDir.has(dir)) exportedByDir.set(dir, new Set());
+      exportedByDir.get(dir)!.add(fn + '.md');
     }
-    const existingFiles = await readdir(nodesDir);
-    for (const file of existingFiles) {
-      if (file.endsWith('.md') && !exportedFilenames.has(file)) {
-        logger.info('Removing stale export file', { file });
-        await rm(join(nodesDir, file));
+    const dirsToClean = [nodesDir, ...subdirs.map((s) => join(nodesDir, s))];
+    for (const dir of dirsToClean) {
+      const expected = exportedByDir.get(dir) || new Set();
+      let existingFiles: string[];
+      try {
+        existingFiles = await readdir(dir);
+      } catch {
+        continue;
+      }
+      for (const file of existingFiles) {
+        if (file.endsWith('.md') && !expected.has(file)) {
+          logger.info('Removing stale export file', { file, dir });
+          await rm(join(dir, file));
+        }
       }
     }
 

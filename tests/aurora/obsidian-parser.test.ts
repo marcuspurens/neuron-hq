@@ -67,6 +67,7 @@ vi.mock('gray-matter', () => ({
 import {
   parseTimecodeToMs,
   extractSpeakers,
+  extractSpeakersFromTable,
   extractHighlights,
   extractComments,
   matchSegmentTime,
@@ -172,6 +173,89 @@ describe('extractSpeakers', () => {
     const result = extractSpeakers(frontmatter);
     expect(result).toHaveLength(1);
     expect(result[0].label).toBe('SPEAKER_01');
+  });
+});
+
+describe('extractSpeakersFromTable', () => {
+  it('extracts speakers from 6-column table', () => {
+    const body = [
+      '## Talare',
+      '| Label | Namn | Titel | Organisation | Roll | Konfidenspoäng |',
+      '|-------|------|-------|--------------|------|----------------|',
+      '| SPEAKER_00 |  |  |  |  | 0.7 |',
+      '| SPEAKER_01 | Anna Svensson | Journalist | SVT | Intervjuare | 0.9 |',
+      '',
+      '## Tidslinje',
+    ].join('\n');
+    const result = extractSpeakersFromTable(body);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({
+      label: 'SPEAKER_00',
+      name: '',
+      title: '',
+      organization: '',
+      confidence: 0.7,
+      role: '',
+    });
+    expect(result[1]).toEqual({
+      label: 'SPEAKER_01',
+      name: 'Anna Svensson',
+      title: 'Journalist',
+      organization: 'SVT',
+      role: 'Intervjuare',
+      confidence: 0.9,
+    });
+  });
+
+  it('returns empty array when no Talare section', () => {
+    expect(extractSpeakersFromTable('## Tidslinje\nsome content')).toEqual([]);
+  });
+
+  it('returns empty array when table has only headers', () => {
+    const body = [
+      '## Talare',
+      '| Label | Namn | Titel | Organisation | Roll | Konfidenspoäng |',
+      '|-------|------|-------|--------------|------|----------------|',
+      '',
+      '## Tidslinje',
+    ].join('\n');
+    expect(extractSpeakersFromTable(body)).toEqual([]);
+  });
+
+  it('handles mixed identified and unidentified speakers', () => {
+    const body = [
+      '## Talare',
+      '| Label | Namn | Titel | Organisation | Roll | Konfidenspoäng |',
+      '|-------|------|-------|--------------|------|----------------|',
+      '| Marcus | Marcus Persson | VD | Neuron | Värd | 0.95 |',
+      '| SPEAKER_01 |  |  |  |  | 0.5 |',
+    ].join('\n');
+    const result = extractSpeakersFromTable(body);
+    expect(result).toHaveLength(2);
+    expect(result[0].label).toBe('Marcus');
+    expect(result[0].name).toBe('Marcus Persson');
+    expect(result[0].organization).toBe('Neuron');
+    expect(result[1].name).toBe('');
+    expect(result[1].confidence).toBe(0.5);
+  });
+
+  it('trims whitespace from all fields', () => {
+    const body = [
+      '## Talare',
+      '| Label | Namn | Titel | Organisation | Roll | Konfidenspoäng |',
+      '|-------|------|-------|--------------|------|----------------|',
+      '|  SPEAKER_00  |  Anna  |  Dr  |  KI  |  Gäst  |  0.8  |',
+    ].join('\n');
+    const result = extractSpeakersFromTable(body);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({
+      label: 'SPEAKER_00',
+      name: 'Anna',
+      title: 'Dr',
+      organization: 'KI',
+      role: 'Gäst',
+      confidence: 0.8,
+    });
   });
 });
 
@@ -436,6 +520,63 @@ describe('parseObsidianFile', () => {
   it('returns null for content without frontmatter', () => {
     const content = 'no frontmatter at all';
     expect(parseObsidianFile(content)).toBeNull();
+  });
+
+  it('prefers table speakers over YAML frontmatter speakers', () => {
+    const content = [
+      '---',
+      'id: vid-with-both',
+      'speakers:',
+      '  SPEAKER_00:',
+      '    name: "Old Name"',
+      '    confidence: 0.5',
+      '    role: "old"',
+      '---',
+      '',
+      '## Talare',
+      '| Label | Namn | Titel | Organisation | Roll | Konfidenspoäng |',
+      '|-------|------|-------|--------------|------|----------------|',
+      '| SPEAKER_00 | New Name | Dr | KI | Värd | 0.95 |',
+      '',
+      '## Tidslinje',
+    ].join('\n');
+
+    const result = parseObsidianFile(content);
+    expect(result).not.toBeNull();
+    expect(result!.speakers).toHaveLength(1);
+    expect(result!.speakers[0]).toEqual({
+      label: 'SPEAKER_00',
+      name: 'New Name',
+      title: 'Dr',
+      organization: 'KI',
+      role: 'Värd',
+      confidence: 0.95,
+    });
+  });
+
+  it('falls back to YAML speakers when table has no data rows', () => {
+    const content = [
+      '---',
+      'id: vid-yaml-only',
+      'speakers:',
+      '  SPEAKER_00:',
+      '    name: "Marcus"',
+      '    confidence: 0.85',
+      '    role: "host"',
+      '---',
+      '',
+      '## Talare',
+      '| Label | Namn | Titel | Organisation | Roll | Konfidenspoäng |',
+      '|-------|------|-------|--------------|------|----------------|',
+      '',
+      '## Tidslinje',
+    ].join('\n');
+
+    const result = parseObsidianFile(content);
+    expect(result).not.toBeNull();
+    expect(result!.speakers).toHaveLength(1);
+    expect(result!.speakers[0].name).toBe('Marcus');
+    expect(result!.speakers[0].confidence).toBe(0.85);
   });
 });
 
