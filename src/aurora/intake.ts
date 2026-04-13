@@ -376,7 +376,7 @@ export async function processExtractedText(
   const pipelineStart = Date.now();
   const report: PipelineReport = {
     steps_completed: 0,
-    steps_total: 7,
+    steps_total: 8,
     duration_seconds: 0,
     details: {},
   };
@@ -568,6 +568,67 @@ export async function processExtractedText(
     report.details.tags = { status: 'ok', count: llm.tags.length };
   } catch (err) {
     report.details.tags = { status: 'error', message: String(err) };
+  }
+
+  // --- Concept extraction + linking via local LLM ---
+  try {
+    const { ensureOllama, getOllamaUrl } = await import('../core/ollama.js');
+    const { getConfig } = await import('../core/config.js');
+    const { readFile } = await import('fs/promises');
+    const { resolve } = await import('path');
+    const ollamaModel = getConfig().OLLAMA_MODEL_POLISH;
+    await ensureOllama(ollamaModel);
+
+    const promptPath = resolve(import.meta.dirname ?? '.', '../../prompts/concept-extraction.md');
+    let extractionPrompt = await readFile(promptPath, 'utf-8');
+    extractionPrompt = extractionPrompt.replace('{{text}}', sampleText(text));
+
+    const conceptResp = await fetch(`${getOllamaUrl()}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: ollamaModel,
+        messages: [{ role: 'user', content: extractionPrompt }],
+        stream: false,
+      }),
+      signal: AbortSignal.timeout(45_000),
+    });
+
+    if (conceptResp.ok) {
+      const conceptData = (await conceptResp.json()) as OllamaChatResponse;
+      const conceptContent = conceptData.message.content.trim();
+      const conceptJson = conceptContent.match(/\{[\s\S]*\}/);
+      if (conceptJson) {
+        const parsed = JSON.parse(conceptJson[0]) as Record<string, unknown>;
+        const rawConcepts = Array.isArray(parsed.concepts) ? parsed.concepts : [];
+        const conceptsForOntology = rawConcepts
+          .filter((c): c is Record<string, unknown> => typeof c === 'object' && c !== null)
+          .map((c) => ({
+            name: (c.name as string) ?? String(c),
+            facet: (c.facet as string) ?? 'topic',
+            broaderConcept: (c.broaderConcept as string) ?? null,
+            standardRefs: c.standardRefs as Record<string, string> | undefined,
+          }));
+
+        if (conceptsForOntology.length > 0) {
+          const { linkArticleToConcepts } = await import('./ontology.js');
+          const result = await linkArticleToConcepts(docId, conceptsForOntology);
+          report.details.concepts = {
+            status: 'ok',
+            linked: result.conceptsLinked,
+            created: result.conceptsCreated,
+          };
+        } else {
+          report.details.concepts = { status: 'skipped', reason: 'no concepts extracted' };
+        }
+      } else {
+        report.details.concepts = { status: 'skipped', reason: 'no JSON in LLM response' };
+      }
+    } else {
+      report.details.concepts = { status: 'skipped', reason: `ollama ${conceptResp.status}` };
+    }
+  } catch (err) {
+    report.details.concepts = { status: 'error', message: String(err) };
   }
 
   // --- Memory evolution: update related nodes + resolve gaps ---

@@ -61,6 +61,11 @@ vi.mock('../../src/core/db.js', () => ({
   closePool: vi.fn(),
 }));
 
+const mockLinkArticleToConcepts = vi.fn();
+vi.mock('../../src/aurora/ontology.js', () => ({
+  linkArticleToConcepts: (...args: unknown[]) => mockLinkArticleToConcepts(...args),
+}));
+
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -100,6 +105,7 @@ beforeEach(() => {
   mockAutoEmbedAuroraNodes.mockResolvedValue(undefined);
   mockFindSimilarNodes.mockResolvedValue([]);
   mockResolveGap.mockResolvedValue(undefined);
+  mockLinkArticleToConcepts.mockResolvedValue({ conceptsLinked: 0, conceptsCreated: 0 });
   mockFetch.mockResolvedValue({
     ok: true,
     json: () =>
@@ -675,5 +681,129 @@ describe('memory evolution', () => {
     expect(result.pipeline_report).toBeDefined();
     expect(result.pipeline_report!.details.evolution).toBeDefined();
     expect(result.pipeline_report!.details.evolution?.status).toBe('ok');
+  });
+
+  it('extracts concepts via local LLM and links to ontology', async () => {
+    mockRunWorker.mockResolvedValue({
+      ok: true,
+      title: 'Concept Link Test',
+      text: SAMPLE_TEXT,
+      metadata: SAMPLE_METADATA,
+    });
+    mockLinkArticleToConcepts.mockResolvedValue({ conceptsLinked: 2, conceptsCreated: 1 });
+
+    // First fetch = metadata, second fetch = concept extraction
+    let fetchCallCount = 0;
+    mockFetch.mockImplementation(() => {
+      fetchCallCount++;
+      if (fetchCallCount <= 1) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            message: { role: 'assistant', content: '{"tags": ["test"], "language": "english", "author": null, "content_type": "annat", "summary": "Test."}' },
+            done: true,
+          }),
+        } as unknown as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          message: {
+            role: 'assistant',
+            content: '{"concepts": [{"name": "Machine Learning", "facet": "topic", "broaderConcept": "AI"}, {"name": "OpenAI", "facet": "entity", "broaderConcept": null}]}',
+          },
+          done: true,
+        }),
+      } as unknown as Response);
+    });
+
+    const result = await ingestUrl('https://example.com/concept-test');
+
+    expect(mockLinkArticleToConcepts).toHaveBeenCalledWith(
+      expect.stringMatching(/^doc_/),
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'Machine Learning', facet: 'topic', broaderConcept: 'AI' }),
+        expect.objectContaining({ name: 'OpenAI', facet: 'entity' }),
+      ]),
+    );
+    expect(result.pipeline_report!.details.concepts).toEqual({
+      status: 'ok',
+      linked: 2,
+      created: 1,
+    });
+  });
+
+  it('skips concept linking when Ollama concept extraction fails', async () => {
+    mockRunWorker.mockResolvedValue({
+      ok: true,
+      title: 'Concept Fail Doc',
+      text: SAMPLE_TEXT,
+      metadata: SAMPLE_METADATA,
+    });
+
+    // First fetch = metadata OK, second fetch = concept extraction fails
+    let fetchCallCount = 0;
+    mockFetch.mockImplementation(() => {
+      fetchCallCount++;
+      if (fetchCallCount <= 1) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            message: { role: 'assistant', content: '{"tags": ["test"], "language": "english", "author": null, "content_type": "annat", "summary": "Test."}' },
+            done: true,
+          }),
+        } as unknown as Response);
+      }
+      return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) } as unknown as Response);
+    });
+
+    const result = await ingestUrl('https://example.com/concept-fail');
+
+    expect(mockLinkArticleToConcepts).not.toHaveBeenCalled();
+    expect(result.pipeline_report!.details.concepts).toEqual({
+      status: 'skipped',
+      reason: 'ollama 500',
+    });
+    expect(result.documentNodeId).toBeDefined();
+  });
+
+  it('continues gracefully when concept linking throws', async () => {
+    mockRunWorker.mockResolvedValue({
+      ok: true,
+      title: 'Concept Error Doc',
+      text: SAMPLE_TEXT,
+      metadata: SAMPLE_METADATA,
+    });
+    mockLinkArticleToConcepts.mockRejectedValue(new Error('ontology down'));
+
+    // First fetch = metadata, second fetch = concept extraction with valid concepts
+    let fetchCallCount = 0;
+    mockFetch.mockImplementation(() => {
+      fetchCallCount++;
+      if (fetchCallCount <= 1) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            message: { role: 'assistant', content: '{"tags": ["test"], "language": "english", "author": null, "content_type": "annat", "summary": "Test."}' },
+            done: true,
+          }),
+        } as unknown as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          message: { role: 'assistant', content: '{"concepts": [{"name": "AI", "facet": "topic", "broaderConcept": null}]}' },
+          done: true,
+        }),
+      } as unknown as Response);
+    });
+
+    const result = await ingestUrl('https://example.com/concept-error');
+
+    expect(result.pipeline_report!.details.concepts).toEqual({
+      status: 'error',
+      message: expect.stringContaining('ontology down'),
+    });
+    expect(result.documentNodeId).toBeDefined();
   });
 });
