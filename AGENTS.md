@@ -326,6 +326,7 @@ When uncertain, classify as higher risk.
 
 ### Step 1: Orient (≤ 10 iterations)
 
+- Read `.claude/rules/depth.md` — the Depth Protocol. Internalize it before doing anything else.
 - Read `brief.md` from the run artifacts dir
 - Run baseline verification (tests, typecheck, lint)
 - Search memory files for relevant prior patterns: `search_memory(query=...)`

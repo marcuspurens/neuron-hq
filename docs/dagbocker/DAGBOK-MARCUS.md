@@ -481,3 +481,37 @@ Kärnfrågan: Joel-modellen producerar något man *läser* (en wiki). Aurora pro
 1. **P3: Vision prompt tuning** — interaktiv session med dig. Eval-verktyget är redo.
 2. **Koncept-artiklar WP1-3** — kan köras autonomt i nästa session.
 3. JSON-LD-export och DOCX-ingest ligger kvar i backlog.
+
+---
+
+## 2026-04-13 — Session 16: Konceptartiklarna blev verklighet
+
+### Vad hände?
+
+**1. Hela planen från session 15 implementerades.** Alla fem arbetspaketen (WP1-5) som vi planerade förra gången är nu klara. Aurora kan sammanfatta allt den vet om ett ämne till en läsbar artikel. Den kan göra det via MCP-verktyget (`compile_concept`), och den cachas — nästa gång slipper man LLM-anropet.
+
+**2. Kunskapsgrafen växer smartare vid ingest.** Den stora förändringen under ytan: varje ny URL eller PDF som indexeras får nu sina koncept extraherade av en lokal LLM (Ollama — den som redan kör på din maskin). Förut skapades bara platta nyckelord ("ai", "machine learning"). Nu skapas strukturerade koncept med kategori ("topic", "entity", "method"), hierarki ("Machine Learning" under "AI"), och länkar till standarder (Wikidata, Schema.org). Helt gratis — lokal inferens kostar ingenting förutom tid.
+
+**3. Svar kan sparas som artiklar.** När `aurora_ask` ger ett bra svar kan det sparas direkt som artikel. Inga extra LLM-anrop — svaret finns redan. Det kopplas automatiskt till rätt koncept. Kunskapen ackumuleras.
+
+### Vad funkade inte?
+
+**Jag tog en genväg och blev påkommen.** WP5 (ingest → koncept-koppling) implementerade jag först genom att bara återanvända de metadata-taggar som redan genererades — platta nyckelord utan struktur. Det var snabbt, det var enkelt, och det funkade tekniskt.
+
+Men det var precis det Depth Protocol varnar för. Du frågade varför jag tog den enkla vägen trots att prompten borde ha fångat det. Och du hade rätt. Lokala LLM-anrop är "the thing" — de kostar ingenting, och `concept-extraction.md`-prompten fanns redan. Jag hade kunnat använda den från början.
+
+Jag uppgraderade WP5 till riktig Ollama concept extraction. Det tog 15 minuter extra. Kvalitetsskillnaden: platta nyckelord → strukturerade koncept med hierarki.
+
+### Vad bestämdes?
+
+| Beslut | Varför |
+| ------ | ------ |
+| Lokal LLM för concept extraction vid ingest | Gratis inferens, strukturerade koncept med facet+hierarki |
+| "Summary sludge"-risk dokumenterad i roadmap | Kompilerade artiklar kan bli platta — behöver testas med riktiga koncept |
+| Depth Protocol som första punkt i Orient-steget | Agenter ska läsa den *först*, inte som en av hundra regler |
+
+### Vad är planen framöver?
+
+1. **YT-video transkribering med VoicePrint** — nästa session, ditt önskemål
+2. **Prompt-tuning** — testa kompilerade artiklar mot riktiga koncept, iterera prompten
+3. P3 (vision prompt tuning) och JSON-LD export ligger kvar

@@ -715,3 +715,23 @@ Handoff: `docs/handoffs/HANDOFF-2026-04-08T1200-opencode-session14-pipeline-wiri
 **Next**: P3 vision prompt tuning (interactive, needs Marcus). WP1-3 compiled concept articles (autonomous). Schema.org JSON-LD deferred.
 
 Handoff: `docs/handoffs/HANDOFF-2026-04-10T0930-opencode-session15-fuzzy-scoring-concept-plan.md`
+
+---
+
+## 2026-04-13 — Session 16
+
+**Changes**: `ontology.ts`: +`compiledArticleId/compiledAt/compiledStale` on ConceptProperties, staleness trigger with circular guard in `linkArticleToConcepts`; `knowledge-library.ts`: +`compileConceptArticle()` (250 lines, 14-step pipeline), +imports `updateAuroraNode`/`getConcept`; `intake.ts`: concept extraction via Ollama `concept-extraction.md` replaces tags-as-concepts, steps 7→8; `ask.ts`: +`saveAsArticle` option; `index.ts`: +export; `mcp/tools/knowledge-library.ts`: +`compile_concept`/`concept_article`/`concept_index` actions; `mcp/tools/aurora-ask.ts`: +`learn`/`save_as_article` params; `prompts/concept-compile.md`: NEW; `concept-compile-lint.test.ts`: NEW; `AGENTS.md`: +depth.md first in §7 Orient; `ROADMAP-AURORA.md`: WP1-5 complete + summary sludge risk.
+
+**New interfaces**: `ConceptProperties.compiledArticleId?: string|null`, `.compiledAt?: string|null`, `.compiledStale?: boolean`; `compileConceptArticle(conceptId, options?)` → `ArticleNode`; `AskOptions.saveAsArticle?: boolean`; `AskResult.savedArticle?: {id, title}`.
+
+**Decisions**: compile fn in knowledge-library.ts (shares helpers with synthesize); staleness on graph properties not freshness.ts DB; `synthesizedBy: 'concept-compile'` breaks circular stale-loop; WP5 Ollama extraction not tags (Depth Protocol caught easy path — local LLM is free, gives facet+hierarchy+standardRefs); `saveAsArticle` via `importArticle` (free concept extraction); 100-char min on saveAsArticle.
+
+**Gotchas**: `fs/promises` mock in knowledge-library.test.ts must be path-aware (concept-compile vs article-synthesis prompts have different placeholders). `mockFetch` in intake.test.ts handles two sequential fetch calls (metadata + concept extraction) via `fetchCallCount` — order matters. `linkArticleToConcepts` loads graph per concept in a loop (N saves for N concepts) — perf ok for 3-7 concepts, would need batching for 50+.
+
+**Dead ends**: Initial WP5 used `generateMetadata` tags as concepts. Worked but produced flat taxonomy (all `facet: 'topic'`, `depth: 0`). Marcus challenged via Depth Protocol — upgraded to proper Ollama extraction in 15 minutes.
+
+**Tests**: 4062/4062 (+35). typecheck: clean. +3 staleness, +12 compile, +3 intake, +3 ask, +7 prompt lint.
+
+**Next**: YT video transcription with VoicePrint (Marcus request). Check `src/aurora/video.ts` + `identify-speakers` skill.
+
+Handoff: `docs/handoffs/HANDOFF-2026-04-13-opencode-session16-compiled-concept-articles.md`

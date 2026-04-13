@@ -7,6 +7,28 @@ Sessions are listed newest-first.
 
 ---
 
+## [Session 16] — 2026-04-13
+
+### Added
+- `compileConceptArticle(conceptId)` in `knowledge-library.ts` — 14-step pipeline: gather sources via concept graph edges → build hierarchy context → LLM compilation → create/update article → link back to ontology → mark concept as compiled
+- `ConceptProperties` extended with `compiledArticleId`, `compiledAt`, `compiledStale` fields
+- Staleness trigger in `linkArticleToConcepts` — marks compiled concepts stale when new articles link, with circular dependency guard (`concept-compile` articles don't trigger themselves)
+- `prompts/concept-compile.md` — LLM prompt with epistemic status marking (facts vs single-source claims vs contradictions vs gaps)
+- MCP actions: `compile_concept`, `concept_article` (read cached), `concept_index` (list all concepts with compile status)
+- `aurora_ask` gains `saveAsArticle` option — saves answer as article (no extra LLM call), with `learn` option also exposed in MCP
+- Concept extraction in intake pipeline via local Ollama LLM — `processExtractedText` now calls `concept-extraction.md` prompt and `linkArticleToConcepts` with structured concepts (facet, hierarchy, standardRefs)
+- Depth Protocol reference added as first item in AGENTS.md §7 Step 1: Orient
+- 35 new tests across 5 test files
+
+### Changed
+- `processExtractedText` pipeline steps: 7 → 8 (concept extraction + linking added after metadata enrichment)
+- `ROADMAP-AURORA.md` — WP1-5 all marked complete, summary sludge risk documented
+
+### Fixed
+- WP5 upgraded from shallow tags-as-concepts to proper Ollama concept extraction after Depth Protocol caught the easy-path bias
+
+---
+
 ## [Session 15] — 2026-04-10
 
 ### Added

@@ -856,3 +856,82 @@ Plan i `docs/plans/PLAN-compiled-concept-articles-2026-04-10.md`: 5 WP, 10-14h. 
 
 typecheck: clean
 tests: 28/28 pdf-eval (+17), 21/21 ocr, 5/5 compare, 2/2 MCP pdf-eval
+
+---
+
+## 2026-04-13 (session 16) — Compiled concept articles (WP1-5)
+
+### compileConceptArticle — arkitektur
+
+Ny 14-stegs pipeline i `knowledge-library.ts` (250 rader). Medvetet placerad bredvid `synthesizeArticle` — delar `parseJsonBlock`, `createArticle`, `getSynthesisModelConfig`, `linkArticleToConcepts`.
+
+Kärndesign: **graf-traversering** istället för keyword-sökning.
+
+```
+synthesizeArticle(topic):  recall(topic) + searchAurora(topic) → LLM → artikel
+compileConceptArticle(id): graph.edges.filter(about→conceptId) → LLM → artikel
+```
+
+Steg i pipeline: load concept → collect `about`-edges → find children (`broader_than` from) → find parent (`broader_than` to) → collect source texts (sorted by confidence) → recall for additional facts → filter relevant gaps → build hierarchy text → read+fill prompt → call LLM → parse response → create/update article → link article back → link related concepts → update concept metadata → save graph.
+
+`createArticle` vs `updateArticle`: vid re-compile kontrolleras `contentDiffers()` — om artikeln inte ändrats materiellt returneras den befintliga. Versionskedja med `supersedes`-edges bevaras.
+
+### Staleness-trigger + cirkulär guard
+
+`linkArticleToConcepts` (ontology.ts L507-530) utökad:
+
+```typescript
+const isSelfCompile = linkedNode?.properties.synthesizedBy === 'concept-compile';
+const hasCompiledArticle = typeof current.properties.compiledAt === 'string';
+const shouldMarkStale = hasCompiledArticle && !isSelfCompile;
+```
+
+Utan `isSelfCompile`: compile → link back → stale → compile → link → stale → ∞. Guarden bryter loopen genom att kolla `synthesizedBy` på artikeln som kopplas.
+
+### WP5: Ollama concept extraction i intake
+
+Ursprunglig implementation: återanvänd `generateMetadata`-tags som koncept. **Uppgraderad** efter Depth Protocol-utmaning.
+
+Nu: dedikerat Ollama-anrop med `concept-extraction.md`-prompten. Samma mönster som `generateMetadata` — `ensureOllama()` → `fetch()` → parse JSON → `linkArticleToConcepts()`.
+
+Skillnad: tags ger `["ai", "machine learning"]` (flat, facet=topic, depth=0). LLM extraction ger `[{name: "Machine Learning", facet: "method", broaderConcept: "AI", standardRefs: {wikidata: "..."}}]`. Taxonomin byggs organiskt vid varje ingest.
+
+**Risk: concept explosion.** Varje ingest skapar nu koncept. `getOrCreateConcept` har 0.85 semantic dedup — bör kontrollera.
+
+### WP4: saveAsArticle i ask
+
+Minimal implementation — `importArticle(question, answer, sourceNodeIds)`. 100-char minimum. `importArticle` ger gratis concept extraction via sin befintliga LLM-flow.
+
+### Prompt: concept-compile.md
+
+Nyckelskillnad mot `article-synthesis.md`: epistemisk markering. Prompten instruerar explicit:
+- Fakta stödda av flera källor → skriv som fakta
+- Fakta stödda av en källa → markera "(enligt [källa: X])"
+- Motstridiga uppgifter → presentera båda sidor
+- Kunskapsluckor → "Öppna frågor"
+
+JSON-block returnerar `relatedConcepts` (inte `concepts`) — bara koncept som INTE redan finns i hierarkin.
+
+### Mönster etablerade
+
+- `synthesizedBy: 'concept-compile'` — ny string constant för att skilja kompilerade artiklar från syntetiserade/importerade/refreshade
+- `resolveConceptId(args)` helper i MCP — resolvar conceptName→conceptId via case-insensitive match, undviker duplicering av lookup-logik
+- Dynamic import i intake: `await import('./ontology.js')` — undviker cirkulär import (intake → ontology → ?)
+
+| Tid   | Typ     | Vad                                        |
+| ----- | ------- | ------------------------------------------ |
+| 09:30 | FEATURE | ConceptProperties extended, staleness trigger |
+| 09:45 | FEATURE | compileConceptArticle pipeline (250 rader) |
+| 09:50 | FEATURE | prompts/concept-compile.md                 |
+| 10:00 | FEATURE | MCP: compile_concept, concept_article, concept_index |
+| 10:10 | FEATURE | saveAsArticle i ask.ts + MCP               |
+| 10:20 | FEATURE | WP5: tags-bridge (initial)                 |
+| 10:30 | TEST    | +35 tester, alla gröna                     |
+| 12:15 | FIX     | prompt lint coverage (concept-compile-lint.test.ts) |
+| 12:35 | REFACTOR| WP5 uppgraderad: tags → Ollama concept extraction |
+| 12:40 | DOCS    | CHANGELOG, handoff, dagböcker, release notes |
+
+### Baseline
+
+typecheck: clean
+tests: 4062/4062 (+35 new). 299 test files.

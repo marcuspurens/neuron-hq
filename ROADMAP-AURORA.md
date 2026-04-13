@@ -50,11 +50,13 @@ Ny feature inspirerad av Joel Rangsjö / Karpathys "LLM Knowledge Bases"-koncept
 
 | WP  | Vad                                  | Effort | Status  |
 | --- | ------------------------------------ | ------ | ------- |
-| WP1 | `compileConceptArticle(conceptId)`   | 3-4h   | Planerad |
-| WP2 | MCP-exponering                       | 1-2h   | Planerad |
-| WP3 | Koncept-index (INDEX.md-motsvarighet)| 1-2h   | Planerad |
-| WP4 | Svar som flödar tillbaka             | 1-2h   | Planerad |
-| WP5 | Ingest → koncept-brygga              | 2-3h   | Planerad |
+| WP1 | `compileConceptArticle(conceptId)`   | 3-4h   | ✅ Klar (session 16) |
+| WP2 | MCP-exponering                       | 1-2h   | ✅ Klar (session 16) |
+| WP3 | Koncept-index (INDEX.md-motsvarighet)| 1-2h   | ✅ Klar (session 16) |
+| WP4 | Svar som flödar tillbaka             | 1-2h   | ✅ Klar (session 16) |
+| WP5 | Ingest → koncept-brygga              | 2-3h   | ✅ Klar (session 16) |
+
+**Öppen risk: "Summary sludge"** — kompilerade artiklar kan bli platta LLM-sammanfattningar som inte tillför utöver vad `aurora_ask` gör on-demand. Prompten (`concept-compile.md`) kräver epistemisk markering men det är oprövat mot riktiga koncept. Behöver kvalitets-eval: bygg facit för 3-5 koncept, bedöm manuellt med Marcus, iterera prompten. Naturlig del av prompt-tuning-spåret (P3).
 
 ---
 
@@ -84,6 +86,7 @@ Ny feature inspirerad av Joel Rangsjö / Karpathys "LLM Knowledge Bases"-koncept
 | Facit-driven PDF eval                 | `aurora:pdf-eval`             |
 | Prompt comparison                     | `aurora:pdf-eval-compare`     |
 | CrossRef DOI lookup                   | `crossref:lookup`             |
+| Kompilerade koncept-artiklar (WP1-3)  | `neuron:knowledge-library compile_concept` |
 
 ---
 
