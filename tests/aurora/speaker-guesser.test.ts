@@ -65,7 +65,10 @@ function makeTranscriptNode(overrides?: Partial<AuroraNode>): AuroraNode {
     type: 'transcript',
     title: 'Interview with Dario Amodei',
     properties: {
-      platform: 'YouTube / Lex Fridman',
+      platform: 'YouTube',
+      channelName: 'Lex Fridman',
+      videoDescription: 'Dario Amodei, CEO of Anthropic, discusses AI safety and alignment research.',
+      creators: null,
       rawSegments: [
         { speaker: 'SPEAKER_00', text: 'AI safety is critical for humanity.', start: 0, end: 5000 },
         { speaker: 'SPEAKER_00', text: 'We need to get alignment right.', start: 5000, end: 10000 },
@@ -325,6 +328,66 @@ describe('guessSpeakers', () => {
 
     expect(result.guesses).toHaveLength(1);
     expect(result.guesses[0].name).toBe('Test');
+  });
+
+  it('passes channel name and description to LLM', async () => {
+    const transcript = makeTranscriptNode();
+    const vp0 = makeVoicePrint('vp-0', 'SPEAKER_00', 2, 10000);
+    const edges: AuroraGraph['edges'] = [
+      { from: 'vp-0', to: 'transcript-1', type: 'derived_from', metadata: {} },
+    ];
+
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph([transcript, vp0], edges));
+
+    const result = await guessSpeakers('transcript-1', { model: 'claude' });
+
+    const callArgs = mockClaudeCreate.mock.calls[0][0] as { messages: Array<{ content: string }> };
+    const userMsg = callArgs.messages[0].content;
+    expect(userMsg).toContain('Channel: Lex Fridman');
+    expect(userMsg).toContain('Video description: Dario Amodei, CEO of Anthropic');
+    expect(result.guesses).toHaveLength(1);
+  });
+
+  it('passes creators list to LLM when present', async () => {
+    const transcript = makeTranscriptNode({
+      properties: {
+        ...makeTranscriptNode().properties,
+        creators: ['Alice Smith', 'Bob Jones'],
+      },
+    });
+    const vp0 = makeVoicePrint('vp-0', 'SPEAKER_00', 2, 10000);
+    const edges: AuroraGraph['edges'] = [
+      { from: 'vp-0', to: 'transcript-1', type: 'derived_from', metadata: {} },
+    ];
+
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph([transcript, vp0], edges));
+
+    await guessSpeakers('transcript-1', { model: 'claude' });
+
+    const callArgs = mockClaudeCreate.mock.calls[0][0] as { messages: Array<{ content: string }> };
+    const userMsg = callArgs.messages[0].content;
+    expect(userMsg).toContain('Creators: Alice Smith, Bob Jones');
+  });
+
+  it('falls back to platform when channelName is empty', async () => {
+    const transcript = makeTranscriptNode({
+      properties: {
+        ...makeTranscriptNode().properties,
+        channelName: '',
+      },
+    });
+    const vp0 = makeVoicePrint('vp-0', 'SPEAKER_00', 2, 10000);
+    const edges: AuroraGraph['edges'] = [
+      { from: 'vp-0', to: 'transcript-1', type: 'derived_from', metadata: {} },
+    ];
+
+    mockLoadAuroraGraph.mockResolvedValue(makeGraph([transcript, vp0], edges));
+
+    await guessSpeakers('transcript-1', { model: 'claude' });
+
+    const callArgs = mockClaudeCreate.mock.calls[0][0] as { messages: Array<{ content: string }> };
+    const userMsg = callArgs.messages[0].content;
+    expect(userMsg).toContain('Channel: YouTube');
   });
 
   it('sets defaults for missing fields in LLM response', async () => {

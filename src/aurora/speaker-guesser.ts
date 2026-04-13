@@ -36,7 +36,9 @@ export interface SpeakerContext {
 
 // --- Constants ---
 
-const SYSTEM_PROMPT = `You are analyzing a video transcript to identify speakers. Based on the video title, channel, and transcript content, guess who each speaker is.
+const SYSTEM_PROMPT = `You are analyzing a video transcript to identify speakers. Based on the video title, channel name, video description, and transcript content, guess who each speaker is.
+
+Pay close attention to the video description — it often names the speakers explicitly (e.g. "Cedric Clyburn breaks down..." means a speaker is Cedric Clyburn). Also check for creator/host names mentioned in the channel name or description.
 
 Return a JSON array with objects: { "speakerLabel": "SPEAKER_00", "name": "Full Name or empty string", "confidence": 0-100, "role": "description", "reason": "why you think this" }
 
@@ -192,13 +194,16 @@ function buildSingleSpeakerFallback(
   ];
 }
 
-/** Build the user message from transcript and speaker contexts. */
 function buildUserMessage(
   transcriptNode: AuroraNode,
   speakerContexts: SpeakerContext[],
 ): string {
   const title = transcriptNode.title || 'Unknown';
+  const channelName = (transcriptNode.properties.channelName as string) || '';
   const platform = (transcriptNode.properties.platform as string) || 'Unknown';
+  const channel = channelName || platform;
+  const videoDescription = ((transcriptNode.properties.videoDescription as string) || '').slice(0, 500);
+  const creators = transcriptNode.properties.creators as string[] | null | undefined;
 
   const speakerLines = speakerContexts
     .map(
@@ -207,7 +212,16 @@ function buildUserMessage(
     )
     .join('\n\n');
 
-  return `Video title: ${title}\nPlatform/Channel: ${platform}\n\nSpeakers found in transcript:\n\n${speakerLines}`;
+  let msg = `Video title: ${title}\nChannel: ${channel}`;
+  if (videoDescription) {
+    msg += `\nVideo description: ${videoDescription}`;
+  }
+  if (creators && creators.length > 0) {
+    msg += `\nCreators: ${creators.join(', ')}`;
+  }
+  msg += `\n\nSpeakers found in transcript:\n\n${speakerLines}`;
+
+  return msg;
 }
 
 /** Parse the LLM response into validated SpeakerGuess objects. */
