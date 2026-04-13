@@ -31,6 +31,8 @@ export function registerAuroraAskTool(server: McpServer): void {
         .optional()
         .default(10)
         .describe('Maximum number of sources to use as context'),
+      learn: z.boolean().optional().describe('Extract and save facts from the answer'),
+      save_as_article: z.boolean().optional().describe('Save the answer as an article in the knowledge library'),
     },
     async (args) => {
       try {
@@ -38,6 +40,8 @@ export function registerAuroraAskTool(server: McpServer): void {
           maxSources: args.max_sources,
           type: args.type,
           scope: args.scope,
+          learn: args.learn,
+          saveAsArticle: args.save_as_article,
         });
 
         return {

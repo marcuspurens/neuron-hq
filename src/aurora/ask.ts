@@ -9,6 +9,7 @@ import {
 import { remember } from './memory.js';
 import type { RememberResult } from './memory.js';
 import { recordGap } from './knowledge-gaps.js';
+import { importArticle } from './knowledge-library.js';
 
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:ask');
@@ -21,6 +22,8 @@ export interface AskOptions {
   maxTokens?: number; // Default: 1024
   /** Extrahera och spara fakta från svaret. Default: false. */
   learn?: boolean;
+  /** Spara svaret som en artikel i kunskapsbiblioteket. Default: false. */
+  saveAsArticle?: boolean;
 }
 
 export interface AskResult {
@@ -30,6 +33,8 @@ export interface AskResult {
   noSourcesFound: boolean;
   /** Fakta som lärdes (om learn=true). */
   factsLearned?: RememberResult[];
+  /** Artikeln som skapades (om saveAsArticle=true). */
+  savedArticle?: { id: string; title: string };
 }
 
 export interface Citation {
@@ -231,13 +236,30 @@ export async function ask(
       }
     }
 
-    // Step 9: Return result
+    // Step 9: Save as article if requested (no extra LLM call)
+    let savedArticle: { id: string; title: string } | undefined;
+    if (options?.saveAsArticle && answer.length > 100) {
+      try {
+        const article = await importArticle({
+          title: question,
+          content: answer,
+          domain: 'general',
+          sourceNodeIds: results.map((r) => r.id),
+        });
+        savedArticle = { id: article.id, title: article.title };
+      } catch {
+        // Article saving is non-fatal
+      }
+    }
+
+    // Step 10: Return result
     return {
       answer,
       citations,
       sourcesUsed: results.length,
       noSourcesFound: false,
       ...(factsLearned ? { factsLearned } : {}),
+      ...(savedArticle ? { savedArticle } : {}),
     };
   } catch (error: unknown) {
     const message =

@@ -16,6 +16,11 @@ vi.mock('../../src/core/agent-client.js', () => ({
   createAgentClient: (...args: unknown[]) => mockCreateAgentClient(...args),
 }));
 
+const mockImportArticle = vi.fn();
+vi.mock('../../src/aurora/knowledge-library.js', () => ({
+  importArticle: (...args: unknown[]) => mockImportArticle(...args),
+}));
+
 vi.mock('../../src/core/model-registry.js', () => ({
   resolveModelConfig: () => ({
     provider: 'anthropic' as const,
@@ -205,5 +210,50 @@ describe('ask', () => {
     const result = await ask('Question?');
 
     expect(result.citations[0].similarity).toBe(0);
+  });
+
+  it('saves answer as article when saveAsArticle=true', async () => {
+    const { ask } = await import('../../src/aurora/ask.js');
+    mockSearchAurora.mockResolvedValue([
+      makeResult({ id: 'src-1', title: 'Source Doc' }),
+    ]);
+    const longAnswer = 'A '.repeat(60) + 'detailed answer about the topic.';
+    setupClaudeMock(longAnswer);
+    mockImportArticle.mockResolvedValue({ id: 'art-saved', title: 'What is X?', type: 'article', properties: {} });
+
+    const result = await ask('What is X?', { saveAsArticle: true });
+
+    expect(mockImportArticle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'What is X?',
+        content: longAnswer,
+        sourceNodeIds: ['src-1'],
+      }),
+    );
+    expect(result.savedArticle).toEqual({ id: 'art-saved', title: 'What is X?' });
+  });
+
+  it('does not save article when answer is too short', async () => {
+    const { ask } = await import('../../src/aurora/ask.js');
+    mockSearchAurora.mockResolvedValue([makeResult()]);
+    setupClaudeMock('Short.');
+
+    const result = await ask('Q?', { saveAsArticle: true });
+
+    expect(mockImportArticle).not.toHaveBeenCalled();
+    expect(result.savedArticle).toBeUndefined();
+  });
+
+  it('continues gracefully when article save fails', async () => {
+    const { ask } = await import('../../src/aurora/ask.js');
+    mockSearchAurora.mockResolvedValue([makeResult()]);
+    const longAnswer = 'A '.repeat(60) + 'detailed answer.';
+    setupClaudeMock(longAnswer);
+    mockImportArticle.mockRejectedValue(new Error('save failed'));
+
+    const result = await ask('Q?', { saveAsArticle: true });
+
+    expect(result.answer).toBe(longAnswer);
+    expect(result.savedArticle).toBeUndefined();
   });
 });
