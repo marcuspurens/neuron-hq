@@ -8,6 +8,7 @@ import {
   importArticle,
   synthesizeArticle,
   refreshArticle,
+  compileConceptArticle,
 } from '../../aurora/knowledge-library.js';
 import {
   getConceptTree,
@@ -23,13 +24,24 @@ import type { AuroraNode } from '../../aurora/aurora-schema.js';
 // Re-export for external consumers so imports are not flagged as unused
 export { getConcept, searchConcepts };
 
+async function resolveConceptId(args: { conceptId?: string; conceptName?: string }): Promise<string> {
+  if (args.conceptId) return args.conceptId;
+  if (!args.conceptName) throw new Error('conceptId or conceptName required');
+  const concepts = await listConcepts();
+  const found = concepts.find(
+    (c) => c.title.toLowerCase() === args.conceptName!.toLowerCase(),
+  );
+  if (!found) throw new Error(`Concept not found: ${args.conceptName}`);
+  return found.id;
+}
+
 /** Register the neuron_knowledge_library MCP tool on the given server. */
 export function registerKnowledgeLibraryTool(server: McpServer): void {
   server.tool(
     'neuron_knowledge_library',
-    'Manage the knowledge library — synthesized articles from Aurora knowledge base. Actions: list, search, read, history, synthesize, refresh, import, browse, concepts, ontology_stats, merge_suggestions, lookup_external_ids, backfill_ids, export_jsonld.',
+    'Manage the knowledge library — synthesized articles from Aurora knowledge base. Actions: list, search, read, history, synthesize, refresh, import, browse, concepts, ontology_stats, merge_suggestions, lookup_external_ids, backfill_ids, export_jsonld, compile_concept, concept_article, concept_index.',
     {
-      action: z.enum(['list', 'search', 'read', 'history', 'synthesize', 'refresh', 'import', 'browse', 'concepts', 'ontology_stats', 'merge_suggestions', 'lookup_external_ids', 'backfill_ids', 'export_jsonld']),
+      action: z.enum(['list', 'search', 'read', 'history', 'synthesize', 'refresh', 'import', 'browse', 'concepts', 'ontology_stats', 'merge_suggestions', 'lookup_external_ids', 'backfill_ids', 'export_jsonld', 'compile_concept', 'concept_article', 'concept_index']),
       query: z.string().optional().describe('Search query (for search action)'),
       articleId: z.string().optional().describe('Article ID (for read/history/refresh)'),
       topic: z.string().optional().describe('Topic to synthesize (for synthesize action)'),
@@ -38,7 +50,8 @@ export function registerKnowledgeLibraryTool(server: McpServer): void {
       title: z.string().optional().describe('Article title (for import)'),
       content: z.string().optional().describe('Article content markdown (for import)'),
       limit: z.number().optional().describe('Max results (for list/search)'),
-      conceptName: z.string().optional().describe('Concept name (for browse/concepts)'),
+      conceptName: z.string().optional().describe('Concept name (for browse/concepts/compile_concept/concept_article)'),
+      conceptId: z.string().optional().describe('Concept ID (for compile_concept/concept_article)'),
       facet: z.string().optional().describe('Facet filter: topic, entity, method, domain, tool'),
       maxDepth: z.number().optional().describe('Max tree depth (for browse)'),
       dryRun: z.boolean().optional().describe('Dry run mode for backfill_ids'),
@@ -175,6 +188,57 @@ export function registerKnowledgeLibraryTool(server: McpServer): void {
                 result = { '@context': JSONLD_CONTEXT, '@graph': items };
               }
             }
+            break;
+          }
+          case 'compile_concept': {
+            const resolvedId = await resolveConceptId(args);
+            const article = await compileConceptArticle(resolvedId);
+            result = {
+              articleId: article.id,
+              title: article.title,
+              abstract: article.properties.abstract,
+              wordCount: article.properties.wordCount,
+              sourceCount: (article.properties.sourceNodeIds as string[])?.length ?? 0,
+            };
+            break;
+          }
+          case 'concept_article': {
+            const resolvedId = await resolveConceptId(args);
+            const concept = await getConcept(resolvedId);
+            if (!concept) throw new Error(`Concept not found: ${resolvedId}`);
+            const compiledId = concept.properties.compiledArticleId as string | undefined;
+            if (!compiledId) {
+              result = { error: 'Konceptet har ingen kompilerad artikel ännu. Kör compile_concept först.' };
+              break;
+            }
+            const article = await getArticle(compiledId);
+            if (!article) {
+              result = { error: `Kompilerad artikel ${compiledId} hittades inte i grafen.` };
+              break;
+            }
+            result = {
+              content: article.properties.content,
+              abstract: article.properties.abstract,
+              stale: concept.properties.compiledStale ?? false,
+              compiledAt: concept.properties.compiledAt,
+              wordCount: article.properties.wordCount,
+            };
+            break;
+          }
+          case 'concept_index': {
+            const allConcepts = await listConcepts();
+            const index = allConcepts.map((c) => ({
+              id: c.id,
+              title: c.title,
+              facet: c.properties.facet,
+              domain: c.properties.domain,
+              articleCount: c.properties.articleCount ?? 0,
+              compiled: typeof c.properties.compiledAt === 'string',
+              stale: c.properties.compiledStale === true,
+              compiledAt: c.properties.compiledAt ?? null,
+            }));
+            index.sort((a, b) => (b.articleCount as number) - (a.articleCount as number));
+            result = { totalConcepts: index.length, concepts: index };
             break;
           }
         }
