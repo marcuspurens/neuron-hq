@@ -14,6 +14,7 @@ from extract_text import extract_text
 from extract_video import extract_video
 from transcribe_audio import transcribe_audio
 from diarize_audio import diarize_audio
+from denoise_audio import denoise_audio
 from check_deps import check_deps
 from ocr_pdf import render_pdf_page, get_pdf_page_count
 from docling_extract import extract_pdf_docling
@@ -98,6 +99,7 @@ HANDLERS: dict[str, callable] = {
     "extract_youtube": extract_video,  # backward compat alias
     "transcribe_audio": transcribe_audio,
     "diarize_audio": diarize_audio,
+    "denoise_audio": denoise_audio,
     "check_deps": check_deps,
     "extract_ocr": lazy_extract_ocr,
     "ocr_pdf": lazy_ocr_pdf,

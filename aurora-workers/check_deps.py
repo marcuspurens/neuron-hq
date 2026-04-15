@@ -1,4 +1,5 @@
 """Check which Python dependencies are available for Aurora workers."""
+
 import importlib
 import os
 import sys
@@ -21,20 +22,28 @@ def check_deps(source: str, options: dict | None = None) -> dict:
         "yt_dlp": _check_import("yt_dlp"),
         "pypdfium2": _check_import("pypdfium2"),
         "trafilatura": _check_import("trafilatura"),
+        "deepfilternet": _check_cli("deep-filter"),
     }
 
     models: dict = {}
     opts = options or {}
     if opts.get("preload_models") and deps["faster_whisper"]["available"]:
         from faster_whisper import WhisperModel
-        for model_name in ["tiny", "small", os.environ.get("WHISPER_MODEL_SV", "KBLab/kb-whisper-large")]:
+
+        for model_name in [
+            "tiny",
+            "small",
+            os.environ.get("WHISPER_MODEL_SV", "KBLab/kb-whisper-large"),
+        ]:
             try:
                 WhisperModel(model_name)
                 models[model_name] = {"available": True, "error": None}
             except Exception as e:
                 models[model_name] = {"available": False, "error": str(e)}
 
-    python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    python_version = (
+        f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    )
 
     return {
         "title": "Aurora dependency check",
@@ -46,6 +55,20 @@ def check_deps(source: str, options: dict | None = None) -> dict:
             "models": models,
             "source_type": "dependency_check",
         },
+    }
+
+
+def _check_cli(cmd_name: str) -> dict:
+    """Check if a CLI tool is available in PATH."""
+    import shutil
+
+    path = shutil.which(cmd_name)
+    if path:
+        return {"available": True, "version": path, "error": None}
+    return {
+        "available": False,
+        "version": None,
+        "error": f"{cmd_name} not found in PATH",
     }
 
 

@@ -20,6 +20,9 @@ dist/
 *~
 .DS_Store
 
+# Python venvs
+.venvs/
+
 # Runtime artifacts
 runs/*/
 workspaces/*/

@@ -26,6 +26,7 @@ export interface WorkerRequest {
     | 'extract_youtube'
     | 'transcribe_audio'
     | 'diarize_audio'
+    | 'denoise_audio'
     | 'check_deps'
     | 'extract_ocr'
     | 'ocr_pdf'
