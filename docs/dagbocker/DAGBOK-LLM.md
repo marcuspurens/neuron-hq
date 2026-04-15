@@ -22,6 +22,26 @@
 
 ---
 
+## 2026-04-15 — Session 19
+
+**Changes**: `transcribe_audio.py`: `word_timestamps=True`, words array in segment output; `extract_video.py`: +`viewCount`, `likeCount`, `channelFollowerCount`, `thumbnailUrl`; `speaker-timeline.ts`: +`WhisperWord` interface, +`splitAtWordBoundaries()`, `buildSpeakerTimeline()` prefers word-split; `transcript-tldr.ts`: NEW — `generateTldr()` Ollama/Claude; `video.ts`: propagate new yt-dlp fields, LLM tldr step (11c), fallback Speaker_01 (7b), removed description-summary; `obsidian-export.ts`: `källa:`→`videoUrl:`, +kanal/visningar/likes/prenumeranter/thumbnail, +`extractHashtags()`, +description+chapters body sections, removed provenance, restored tldr (now LLM)
+
+**New interfaces**: `WhisperWord {start_ms, end_ms, word, probability?}`; `WhisperSegment.words?: WhisperWord[]`; `splitAtWordBoundaries(seg, dia): WhisperSegment[]`; `TldrOptions {model?, ollamaModel?}`; `TldrResult {tldr, modelUsed}`; `generateTldr(text, context, options?): Promise<TldrResult>`
+
+**Decisions**: word-level split with sentence-split fallback; hashtags from description > ytTags; remove provenance from video frontmatter; LLM tldr replaces description-first-sentence; fallback Speaker_01 when no diarization; 8000 char transcript truncation for tldr
+
+**Gotchas**: `loadAuroraGraph` loads from DB first — file-only node deletion doesn't work when DB is available. `ensureOllama()` caches result — if first call returns false, all subsequent LLM steps (polish, tldr, speaker-guess) get false. Re-ingestion blocked by dedup (early return at line 238 of video.ts).
+
+**Dead ends**: Spent ~20 min debugging why LLM tldr didn't appear in re-ingested video. Root cause: node existed in DB (not file), dedup returned early. Need `cascadeDeleteAuroraNode` via CLI to properly re-ingest.
+
+**Tests**: 4126/4127 (+8 net new). typecheck: clean.
+
+**Next**: speaker guesser prompt-tuning; fix pyannote AudioDecoder crash; CLI `aurora:delete` command for re-ingestion
+
+Handoff: `docs/handoffs/HANDOFF-2026-04-15-opencode-session19-word-align-metadata-tldr.md`
+
+---
+
 ## 2026-04-14 — Session 18
 
 **Changes**: `speaker-timeline.ts`: +`splitAtSentenceBoundaries()`, Step 0 in `buildSpeakerTimeline()`; `denoise_audio.py`: new worker (DeepFilterNet CLI); `__main__.py`: dispatcher; `check_deps.py`: `_check_cli()` + deepfilternet; `worker-bridge.ts`: `'denoise_audio'` action; `video.ts`: `denoise` option, denoising step, `denoised` result; `obsidian-export.ts`: `###`→`####`; `obsidian-parser.ts`: `#{3,4}` regex; `obsidian-import.ts`: Path B position-based speaker rename

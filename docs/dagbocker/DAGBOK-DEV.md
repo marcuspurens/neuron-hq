@@ -8,6 +8,61 @@
 
 **Historik:** S1–S150 + körningar #1–#183 → `docs/DAGBOK.md`. Handoffs → `docs/handoffs/`. ADR → `docs/adr/`.
 
+## 2026-04-15 (session 19) — Word-level speaker alignment + Rich metadata + LLM tldr
+
+### Word-level speaker alignment
+
+`splitAtWordBoundaries()` i `speaker-timeline.ts` — tar en WhisperSegment med `words[]` och diarization-segment, hittar speaker per ord via overlap, grupperar konsekutiva ord med samma speaker till sub-segment. Exakta word-level start/end_ms, inte proportionell fördelning.
+
+`transcribe_audio.py`: `word_timestamps=True` i `model.transcribe()`. Varje segment inkluderar `words: [{start_ms, end_ms, word, probability}]`. ~10-20% långsammare transkribering (cross-attention + DTW).
+
+`buildSpeakerTimeline()`: `hasWords` check → word-level path, annars sentence-boundary fallback. Fullt bakåtkompatibelt — segment utan `words` (äldre transkriptioner, subtitle-baserade) degraderar till session 18-beteende.
+
+### Rich Obsidian video metadata
+
+`extract_video.py` → `view_count`, `like_count`, `channel_follower_count`, `thumbnail` från yt-dlp JSON. Propageras genom `video.ts` transcript node properties → `obsidian-export.ts` `formatVideoFrontmatter()`.
+
+Frontmatter-ändringar: `källa:` → `videoUrl:`. +`kanal`, `kanalhandle`, `visningar`, `likes`, `prenumeranter`, `thumbnail`. Borttagen `källa_typ`/`källa_modell`/`källa_agent` (provenance — brus för Obsidian-användare).
+
+Body-sektioner: `## Beskrivning` (YouTube description) och `## Kapitel` (tidskodad lista från yt-dlp chapters) infogade mellan speaker-tabell och tidslinje.
+
+### Hashtag tags
+
+`extractHashtags(text)` — regex `/#[a-zA-Z]\w*/g`, dedup via Set, tar bort `#`-prefix. Preferens: hashtags från `videoDescription` → fallback till `ytTags`. Löser problemet att generiska YouTube-tags ("youtube.com", "education") hamnade i Obsidian.
+
+### LLM tldr
+
+Ny `transcript-tldr.ts` — `generateTldr()` med Ollama/Claude dual backend (identiskt mönster som `speaker-guesser.ts`). System prompt: "concise summarizer, 2-3 sentences, same language as transcript". Trunkerar till 8000 chars. Pipeline-steg 11c i `video.ts`, efter tags (11b), innan speaker-guess (12).
+
+Ersätter `summary` = första meningen av description (som ofta var en reklamlänk). Verified E2E: IBM Technology RAG-video fick en faktiskt bra sammanfattning via Gemma3.
+
+### Fallback Speaker_01
+
+Steg 7b i `video.ts` — om `voicePrintsCreated === 0` efter steg 7, skapa en `SPEAKER_01` voice_print med ett segment `[0, duration_ms]`. Confidence 0.5 (lägre än diarized 0.7). Garanterar att Obsidian-exporten alltid har en redigerbar talartabell.
+
+### Mönster etablerade
+
+- **Dual-backend LLM pattern**: System prompt + user message, Ollama default med Claude fallback. `ensureOllama()` → `callOllama()` / `callClaude()`. Tredje modulen som följer detta (polish, speaker-guess, tldr).
+- **Hashtag extraction over metadata tags**: Creator-kurerade hashtags > platform-genererade tags. Fallback-kedja.
+- **Fallback voice_print**: Alltid minst en speaker-rad i Obsidian. `createdBy: 'video-intake-fallback'` edge metadata för spårbarhet.
+
+| Tid | Typ | Vad |
+|-----|-----|-----|
+| — | FEATURE | splitAtWordBoundaries + WhisperWord |
+| — | FEATURE | Rich YouTube metadata i Obsidian frontmatter |
+| — | FEATURE | extractHashtags — hashtags > ytTags |
+| — | FEATURE | LLM tldr via transcript-tldr.ts |
+| — | FEATURE | Fallback Speaker_01 |
+| — | CLEANUP | Borttagen provenance från video frontmatter |
+| — | CLEANUP | källa → videoUrl i frontmatter |
+
+### Baseline
+
+typecheck: clean
+tests: 4126/4127 (+8 netto, 1 pre-existerande failure)
+
+---
+
 ## 2026-04-14 (session 18) — Sentence-boundary split + DeepFilterNet + Obsidian H4/rename
 
 ### Sentence-boundary speaker alignment

@@ -9,6 +9,48 @@ Det här är din personliga projektdagbok. Inga kodsnuttar, inget fackspråk. Ba
 
 **Historik:** Allt som hände _innan_ 2026-03-26 finns i `docs/DAGBOK.md`. Den rör vi inte — det är historien. Vill du ha ännu mer detalj om en specifik session hittar du det i `docs/handoffs/`.
 
+## 2026-04-15 — Session 19: Nu vet Obsidian vem som sa vad, hur populär videon är, och vad den handlar om
+
+### Vad hände?
+
+**1. Ordnivå-precision på talardelning**
+
+I session 18 delade vi upp transkript vid meningsgränser för att avgöra vem som sa vad. Det funkade okej men var en gissning. Nu sparar Whisper (transkriberingmotorn) tidsstämplar för *varje enskilt ord*. Det betyder att systemet kan hitta exakt vilken millisekund talaren bytte — ord för ord. Om du har ett samtal där Anna säger "Precis, och det—" och Martin fortsätter "—därför tycker jag att..." så hamnar varje persons ord hos rätt person.
+
+**2. YouTube-metadata i Obsidian**
+
+Du jämförde Obsidian-filen med YouTube och sa "YouTube har bättre metadata." Du hade rätt. Nu visar Obsidian-filen: kanal (IBM Technology), visningar (1.7M), likes (42K), prenumeranter (1.65M), thumbnail-bild, och fullständig beskrivning. Tags kommer från YouTubes hashtags (#a2a, #aiagents) istället för generiska interna taggar. Kapitelmarkeringar visas som en tidskodad lista.
+
+**3. AI-sammanfattning istället för reklamlänk**
+
+Förut var "tldr" bara första meningen i YouTubes beskrivning — som ofta var "Ready to become a certified watsonx AI Assistant Engineer? Use code IBMTechYT20..." Nu genererar Ollama (vår lokala AI, modellen Gemma3) en riktig sammanfattning på 2-3 meningar utifrån det faktiska transkriptet. Testade med IBM:s RAG-video — sammanfattningen förklarar vad RAG är och varför det behövs. Mycket bättre.
+
+**4. Alltid minst en talare i tabellen**
+
+Du frågade "kan jag alltid byta namn på talaren?" — svaret var nej om diarization kraschade. Nu skapas alltid minst en `Speaker_01` i talartabellen, även om talaridentifieringen misslyckas. Så du kan alltid döpa om talaren.
+
+### Vad funkade inte?
+
+Re-ingestion av befintliga videor var förvirrande. Systemet har en dedup-check: om noden redan finns returneras den direkt. Men grafen laddas från databasen, inte bara JSON-filen. Att ta bort noden från filen hjälpte inte — den måste bort från PostgreSQL också. Tog ~20 minuter att felsöka. Inte ett bug utan en designkonsekvens som behöver dokumenteras bättre.
+
+pyannotes talaridentifiering kraschade med `AudioDecoder`-fel under E2E-test. Inte relaterat till våra ändringar — det är ett existerande infrastrukturproblem med Python-biblioteket.
+
+### Vad bestämdes?
+
+| Beslut | Varför |
+|--------|--------|
+| Hashtags från beskrivningen istället för ytTags | YouTubes interna taggar ("youtube.com", "education") är meningslösa. Skaparens hashtags (#a2a, #aiagents) beskriver innehållet. |
+| LLM-sammanfattning istället för YouTubes AI-sammanfattning | YouTubes version finns inte i yt-dlp:s API. Vår egen är bättre — den läser hela transkriptet, inte bara metadata. |
+| Fallback Speaker_01 | Du vill alltid kunna byta namn. Rimlig trade-off. |
+
+### Vad är planen framöver?
+
+1. **Speaker guesser prompt-tuning** (kvarstår sedan session 17).
+2. **Fixa diarization-krasch** (pyannote AudioDecoder).
+3. **CLI: `aurora:delete <nodeId>`** — behövs för att re-ingestera videor utan SQL.
+
+---
+
 ## 2026-04-14 — Session 18: Brusreducering, smartare talaruppdelning och Obsidian-fixar
 
 ### Vad hände?
