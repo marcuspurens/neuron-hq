@@ -9,6 +9,42 @@ Det här är din personliga projektdagbok. Inga kodsnuttar, inget fackspråk. Ba
 
 **Historik:** Allt som hände _innan_ 2026-03-26 finns i `docs/DAGBOK.md`. Den rör vi inte — det är historien. Vill du ha ännu mer detalj om en specifik session hittar du det i `docs/handoffs/`.
 
+## 2026-04-14 — Session 18: Brusreducering, smartare talaruppdelning och Obsidian-fixar
+
+### Vad hände?
+
+**1. Vem sa vad? Nu smartare.**
+
+Förut kunde systemet ibland lägga en hel mening hos fel person i ett samtal — om talarbytet skedde mitt i meningen hamnade allt hos den som pratade mest. Nu klipps transkriptionen vid meningsgränser (punkt, frågetecken) *innan* den avgör vem som sa vad. Resultatet: varje mening hamnar hos rätt person. Det är inte perfekt (det gissar utifrån interpunktion) men märkbart bättre.
+
+**2. Brusreducering av ljud**
+
+Vi installerade DeepFilterNet — ett AI-verktyg som tar bort bakgrundsbrus från ljud. Det körs nu som ett valfritt steg innan transkribering. Det krävde en del pillande med Python-beroenden (DeepFilterNet vill ha en gammal version av torch medan pyannote vill ha en ny), men lösningen blev att ge DeepFilterNet sin egen isolerade miljö. Testade med en syntetisk ljudfil — fungerar.
+
+**3. Obsidian blev snyggare och smartare**
+
+Två saker du märker direkt i Obsidian: tidskoderna och talarnamnen är nu mindre (H4 istället för H3) så de inte dominerar över transkripttexten. Och om du döper om en talare i tabellen — oavsett om du skriver i Label-kolumnen eller Namn-kolumnen — så propageras det nu korrekt.
+
+### Vad funkade inte?
+
+DeepFilterNet-installationen var seg. Verktyget behövde Rust-kompilering (fick installera Rust), och sedan hade det versionskonflikter med pyannote (båda vill ha olika versioner av numpy och torch). Vi försökte en wrapper-lösning, en shimm, och till slut blev den separata miljön den enda vettiga lösningen. Tog ~30 minuter att landa.
+
+### Vad bestämdes?
+
+| Beslut | Varför |
+|--------|--------|
+| Meningssplit via interpunktion (inte ordtidsstämplar) | Whisper sparar inte ordtidsstämplar idag — det kräver en ändring i transkriberingskoden. Interpunktion ger 80% av nyttan gratis. |
+| Separat Python-miljö för DeepFilterNet | Enda lösningen utan Docker. Konfigureras via en miljövariabel. |
+| H4 istället för H3 i Obsidian | Du klagade att det var för stort — H4 är lagom. |
+
+### Vad är planen framöver?
+
+1. **Ordnivå-tidsstämplar** — Slå på Whispers ord-timestamps så vi kan dela upp exakt vid talarbyte istället för att gissa via interpunktion.
+2. **LLM-genererad sammanfattning** per video (kvarstår sedan session 17).
+3. **Speaker guesser-förbättringar** (kvarstår sedan session 17).
+
+---
+
 ## 2026-04-01 (kväll) — Sökningen blev smartare, kunskapsgrafen lär sig
 
 Två saker som gör Aurora mer intelligent:

@@ -7,6 +7,26 @@ Sessions are listed newest-first.
 
 ---
 
+## [Session 18] — 2026-04-14
+
+### Added
+- Sentence-boundary speaker alignment — `splitAtSentenceBoundaries()` in `speaker-timeline.ts` splits WhisperSegments at `.?!` before speaker assignment, giving finer granularity at speaker changes.
+- Audio denoising pipeline — `denoise_audio` Python worker wraps DeepFilterNet CLI with passthrough fallback. Isolated `.venvs/denoise/` venv (torch 2.2 + deepfilternet 0.5.6) to avoid pyannote conflicts.
+- `denoise?: boolean` option in `VideoIngestOptions` — runs DeepFilterNet between download and transcription. Denoised audio path propagated to both transcribe and diarize steps.
+- `'denoising'` progress step and `denoised: boolean` result field in video pipeline.
+- `_check_cli()` helper in `check_deps.py` for CLI tool availability checks.
+- 17 new tests across speaker-timeline, video, obsidian-parser, obsidian-import.
+
+### Changed
+- Obsidian timeline headers: `###` (H3) → `####` (H4) for less visual dominance.
+- `TIMECODE_HEADER_RE` parser regex accepts both `###` and `####` headers for backward compatibility.
+- Speaker rename import: supports Label-column edits (position-based matching) in addition to Namn-column edits (label-based matching).
+
+### Fixed
+- Speaker names not updating in Obsidian transcript timeline after editing the speaker table Label column.
+
+---
+
 ## [Session 17] — 2026-04-13
 
 ### Added

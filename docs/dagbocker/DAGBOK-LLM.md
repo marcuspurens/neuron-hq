@@ -22,6 +22,26 @@
 
 ---
 
+## 2026-04-14 — Session 18
+
+**Changes**: `speaker-timeline.ts`: +`splitAtSentenceBoundaries()`, Step 0 in `buildSpeakerTimeline()`; `denoise_audio.py`: new worker (DeepFilterNet CLI); `__main__.py`: dispatcher; `check_deps.py`: `_check_cli()` + deepfilternet; `worker-bridge.ts`: `'denoise_audio'` action; `video.ts`: `denoise` option, denoising step, `denoised` result; `obsidian-export.ts`: `###`→`####`; `obsidian-parser.ts`: `#{3,4}` regex; `obsidian-import.ts`: Path B position-based speaker rename
+
+**New interfaces**: `splitAtSentenceBoundaries(segment: WhisperSegment): WhisperSegment[]`; `VideoIngestOptions.denoise?: boolean`; `VideoIngestResult.denoised: boolean`; `ProgressStep 'denoising'`; `WorkerAction 'denoise_audio'`
+
+**Decisions**: punctuation-split over word-timestamps (not saved yet); isolated `.venvs/denoise/` for deepfilternet (torch conflict); H4 headers for visual proportion; position-based speaker rename matching
+
+**Gotchas**: DeepFilterNet 0.5.6 incompatible with torchaudio>=2.6 (`torchaudio.backend.common` removed). Requires isolated venv with torch 2.2.2. Env var `DEEPFILTERNET_CMD` must point to venv binary. `STEP_NAMES` always includes `denoise` — marked `skipped` when disabled.
+
+**Dead ends**: tried torchaudio compat shim (patching `sys.modules`) — worked for import but multiprocessing DataLoader re-imports without shim. Tried same-env install — numpy<2 breaks pyannote.
+
+**Tests**: 4109/4109 (+17). typecheck: clean.
+
+**Next**: word-level speaker alignment (enable `word_timestamps=True` in `transcribe_audio.py`, save word array in rawSegments, split at diarization boundaries with exact word times)
+
+Handoff: `docs/handoffs/HANDOFF-2026-04-14-opencode-session18-speaker-denoise-obsidian.md`
+
+---
+
 ## 2026-03-26
 
 ### State

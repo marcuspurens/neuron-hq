@@ -8,6 +8,49 @@
 
 **Historik:** S1–S150 + körningar #1–#183 → `docs/DAGBOK.md`. Handoffs → `docs/handoffs/`. ADR → `docs/adr/`.
 
+## 2026-04-14 (session 18) — Sentence-boundary split + DeepFilterNet + Obsidian H4/rename
+
+### Sentence-boundary speaker alignment
+
+`splitAtSentenceBoundaries()` i `speaker-timeline.ts` — splittar WhisperSegments vid `/[.?!][)»"']?\s+/g` till sub-segment med proportionell tidsfördelning baserad på teckenantal. Integrerad som Step 0 i `buildSpeakerTimeline()` via `sorted.flatMap(splitAtSentenceBoundaries)`. Ger finare granularitet för overlap-baserad speaker assignment.
+
+**Begränsning**: Heuristik baserad på interpunktion, inte ord-timestamps. `transcribe_audio.py` sparar inte `word_timestamps` idag. Session 19 aktiverar `word_timestamps=True` i faster-whisper och splittar vid diarization-gränser med exakta ordtider.
+
+### DeepFilterNet denoising pipeline
+
+Ny `denoise_audio.py` worker — anropar DeepFilterNet CLI (`deep-filter`/`deepFilter`) som subprocess. Passthrough-fallback om verktyget saknas eller kraschar. Konfigureras via `DEEPFILTERNET_CMD` env var.
+
+**Beroendekonflikt**: deepfilternet 0.5.6 kräver `numpy<2` + `torch<2.6`. pyannote kräver `numpy>=2` + `torch>=2.8`. Löst med isolerad venv i `.venvs/denoise/` (torch 2.2.2, numpy 1.26.4, soundfile). Anaconda-miljön orörd.
+
+Pipeline-integration: `video.ts` Step 2b mellan download och transcribe. `audioPath` variabel ersätter `extractMeta.audioPath` för transcribe+diarize. `STEP_NAMES` inkluderar `denoise` alltid (markeras `skipped` om inte aktiverat).
+
+### Obsidian H3→H4
+
+`buildTimelineSection()` och `buildTimelineSectionWithAnnotations()` ändrade från `### ${formatMs(...)}` → `#### ${formatMs(...)}`. Parser `TIMECODE_HEADER_RE` ändrad till `#{3,4}` för backward compat.
+
+### Speaker rename Path B
+
+`obsidian-import.ts` — ny matchningslogik: om `speaker.label` inte börjar med `SPEAKER_` och `speaker.name` är tomt → labelet IS det nya namnet. Matchning via position bland `videoVoicePrints` (sorterade efter första segmentets start_ms).
+
+### Mönster etablerade
+
+- **Isolerad venv-pattern**: När Python-beroenden konfliktar, skapa `.venvs/<name>/` med egen torch-version. Referera via env var (`DEEPFILTERNET_CMD`). Lägg `.venvs/` i `.gitignore`.
+- **Optional pipeline step**: Alltid i `STEP_NAMES`, markera `skipped` i rapport om inte aktiverat. Följer diarize-stegets mönster.
+
+| Tid | Typ | Vad |
+|-----|-----|-----|
+| — | FEATURE | splitAtSentenceBoundaries i speaker-timeline |
+| — | FEATURE | DeepFilterNet denoise pipeline + venv |
+| — | FIX | Obsidian timeline H3→H4 |
+| — | FIX | Speaker rename via Label-kolumn |
+
+### Baseline
+
+typecheck: clean
+tests: 4109/4109 (+17 nya, 2 pre-existerande failures)
+
+---
+
 ## 2026-04-02 (session 8) — PDF timeout-hantering + Hermes git-tracking + Metadata-schema
 
 ### PDF ingest timeout-kaskadskydd
