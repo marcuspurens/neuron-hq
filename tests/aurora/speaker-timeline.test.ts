@@ -2,9 +2,12 @@ import { describe, it, expect } from 'vitest';
 import {
   formatMs,
   buildSpeakerTimeline,
+  splitAtSentenceBoundaries,
+  splitAtWordBoundaries,
 } from '../../src/aurora/speaker-timeline.js';
 import type {
   WhisperSegment,
+  WhisperWord,
   DiarizationSegment,
 } from '../../src/aurora/speaker-timeline.js';
 
@@ -170,5 +173,375 @@ describe('buildSpeakerTimeline', () => {
     for (let i = 1; i < result.length; i++) {
       expect(result[i].start_ms).toBeGreaterThanOrEqual(result[i - 1].start_ms);
     }
+  });
+
+  it('splits multi-sentence segments before speaker assignment', () => {
+    // One whisper segment spans two speakers. The first sentence falls in SPEAKER_A's
+    // time range and the second in SPEAKER_B's. Without sentence splitting, the whole
+    // segment goes to whichever speaker has more overlap. With splitting, each sentence
+    // gets its own speaker assignment.
+    const whisper: WhisperSegment[] = [
+      {
+        start_ms: 0,
+        end_ms: 10000,
+        text: 'This is the first sentence. This is the second sentence.',
+      },
+    ];
+    const diarization: DiarizationSegment[] = [
+      { start_ms: 0, end_ms: 5000, speaker: 'SPEAKER_A' },
+      { start_ms: 5000, end_ms: 10000, speaker: 'SPEAKER_B' },
+    ];
+    const result = buildSpeakerTimeline(whisper, diarization);
+    expect(result.length).toBeGreaterThanOrEqual(2);
+    const speakerA = result.find((b) => b.speaker === 'SPEAKER_A');
+    const speakerB = result.find((b) => b.speaker === 'SPEAKER_B');
+    expect(speakerA).toBeDefined();
+    expect(speakerB).toBeDefined();
+    expect(speakerA!.text).toContain('first sentence');
+    expect(speakerB!.text).toContain('second sentence');
+  });
+
+  it('preserves single-sentence segments unchanged through splitting', () => {
+    const whisper: WhisperSegment[] = [
+      { start_ms: 0, end_ms: 5000, text: 'Just one sentence' },
+    ];
+    const diarization: DiarizationSegment[] = [
+      { start_ms: 0, end_ms: 5000, speaker: 'SPEAKER_A' },
+    ];
+    const result = buildSpeakerTimeline(whisper, diarization);
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toBe('Just one sentence');
+    expect(result[0].speaker).toBe('SPEAKER_A');
+  });
+});
+
+describe('splitAtWordBoundaries', () => {
+  const mkWord = (start_ms: number, end_ms: number, word: string): WhisperWord => ({
+    start_ms,
+    end_ms,
+    word,
+  });
+
+  it('falls back to sentence split when segment has no words', () => {
+    const seg: WhisperSegment = {
+      start_ms: 0,
+      end_ms: 10000,
+      text: 'First sentence. Second sentence.',
+    };
+    const dia: DiarizationSegment[] = [
+      { start_ms: 0, end_ms: 10000, speaker: 'SPEAKER_A' },
+    ];
+    const result = splitAtWordBoundaries(seg, dia);
+    expect(result).toHaveLength(2);
+    expect(result[0].text).toBe('First sentence.');
+  });
+
+  it('returns segment unchanged when all words map to the same speaker', () => {
+    const seg: WhisperSegment = {
+      start_ms: 0,
+      end_ms: 3000,
+      text: ' Hello world today',
+      words: [
+        mkWord(0, 1000, ' Hello'),
+        mkWord(1000, 2000, ' world'),
+        mkWord(2000, 3000, ' today'),
+      ],
+    };
+    const dia: DiarizationSegment[] = [
+      { start_ms: 0, end_ms: 5000, speaker: 'SPEAKER_A' },
+    ];
+    const result = splitAtWordBoundaries(seg, dia);
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toBe('Hello world today');
+  });
+
+  it('splits at speaker change boundary between words', () => {
+    const seg: WhisperSegment = {
+      start_ms: 0,
+      end_ms: 4000,
+      text: ' I agree. No way.',
+      words: [
+        mkWord(0, 1000, ' I'),
+        mkWord(1000, 2000, ' agree.'),
+        mkWord(2000, 3000, ' No'),
+        mkWord(3000, 4000, ' way.'),
+      ],
+    };
+    const dia: DiarizationSegment[] = [
+      { start_ms: 0, end_ms: 2000, speaker: 'SPEAKER_A' },
+      { start_ms: 2000, end_ms: 4000, speaker: 'SPEAKER_B' },
+    ];
+    const result = splitAtWordBoundaries(seg, dia);
+    expect(result).toHaveLength(2);
+    expect(result[0].text).toBe('I agree.');
+    expect(result[0].start_ms).toBe(0);
+    expect(result[0].end_ms).toBe(2000);
+    expect(result[1].text).toBe('No way.');
+    expect(result[1].start_ms).toBe(2000);
+    expect(result[1].end_ms).toBe(4000);
+  });
+
+  it('handles three speakers across one segment', () => {
+    const seg: WhisperSegment = {
+      start_ms: 0,
+      end_ms: 6000,
+      text: ' one two three four five six',
+      words: [
+        mkWord(0, 1000, ' one'),
+        mkWord(1000, 2000, ' two'),
+        mkWord(2000, 3000, ' three'),
+        mkWord(3000, 4000, ' four'),
+        mkWord(4000, 5000, ' five'),
+        mkWord(5000, 6000, ' six'),
+      ],
+    };
+    const dia: DiarizationSegment[] = [
+      { start_ms: 0, end_ms: 2000, speaker: 'A' },
+      { start_ms: 2000, end_ms: 4000, speaker: 'B' },
+      { start_ms: 4000, end_ms: 6000, speaker: 'C' },
+    ];
+    const result = splitAtWordBoundaries(seg, dia);
+    expect(result).toHaveLength(3);
+    expect(result[0].text).toBe('one two');
+    expect(result[1].text).toBe('three four');
+    expect(result[2].text).toBe('five six');
+  });
+
+  it('preserves word-level timing on sub-segments', () => {
+    const seg: WhisperSegment = {
+      start_ms: 1000,
+      end_ms: 5000,
+      text: ' alpha beta gamma delta',
+      words: [
+        mkWord(1000, 2000, ' alpha'),
+        mkWord(2000, 3000, ' beta'),
+        mkWord(3000, 4000, ' gamma'),
+        mkWord(4000, 5000, ' delta'),
+      ],
+    };
+    const dia: DiarizationSegment[] = [
+      { start_ms: 0, end_ms: 3000, speaker: 'X' },
+      { start_ms: 3000, end_ms: 6000, speaker: 'Y' },
+    ];
+    const result = splitAtWordBoundaries(seg, dia);
+    expect(result).toHaveLength(2);
+    expect(result[0].words).toHaveLength(2);
+    expect(result[1].words).toHaveLength(2);
+    expect(result[0].start_ms).toBe(1000);
+    expect(result[0].end_ms).toBe(3000);
+    expect(result[1].start_ms).toBe(3000);
+    expect(result[1].end_ms).toBe(5000);
+  });
+
+  it('returns segment unchanged with empty diarization', () => {
+    const seg: WhisperSegment = {
+      start_ms: 0,
+      end_ms: 2000,
+      text: ' hello world',
+      words: [
+        mkWord(0, 1000, ' hello'),
+        mkWord(1000, 2000, ' world'),
+      ],
+    };
+    const result = splitAtWordBoundaries(seg, []);
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toBe(' hello world');
+  });
+
+  it('falls back to sentence split when words array is empty', () => {
+    const seg: WhisperSegment = {
+      start_ms: 0,
+      end_ms: 10000,
+      text: 'Hello there. How are you?',
+      words: [],
+    };
+    const dia: DiarizationSegment[] = [
+      { start_ms: 0, end_ms: 10000, speaker: 'A' },
+    ];
+    const result = splitAtWordBoundaries(seg, dia);
+    expect(result).toHaveLength(2);
+  });
+});
+
+describe('buildSpeakerTimeline with word timestamps', () => {
+  const mkWord = (start_ms: number, end_ms: number, word: string): WhisperWord => ({
+    start_ms,
+    end_ms,
+    word,
+  });
+
+  it('uses word-level splitting when segments have words', () => {
+    const whisper: WhisperSegment[] = [
+      {
+        start_ms: 0,
+        end_ms: 4000,
+        text: ' Hello there. Goodbye now.',
+        words: [
+          mkWord(0, 1000, ' Hello'),
+          mkWord(1000, 2000, ' there.'),
+          mkWord(2000, 3000, ' Goodbye'),
+          mkWord(3000, 4000, ' now.'),
+        ],
+      },
+    ];
+    const diarization: DiarizationSegment[] = [
+      { start_ms: 0, end_ms: 2000, speaker: 'SPEAKER_A' },
+      { start_ms: 2000, end_ms: 4000, speaker: 'SPEAKER_B' },
+    ];
+    const result = buildSpeakerTimeline(whisper, diarization);
+    expect(result).toHaveLength(2);
+    expect(result[0].speaker).toBe('SPEAKER_A');
+    expect(result[0].text).toBe('Hello there.');
+    expect(result[1].speaker).toBe('SPEAKER_B');
+    expect(result[1].text).toBe('Goodbye now.');
+  });
+
+  it('falls back to sentence split when segments lack words', () => {
+    const whisper: WhisperSegment[] = [
+      {
+        start_ms: 0,
+        end_ms: 10000,
+        text: 'This is the first sentence. This is the second sentence.',
+      },
+    ];
+    const diarization: DiarizationSegment[] = [
+      { start_ms: 0, end_ms: 5000, speaker: 'SPEAKER_A' },
+      { start_ms: 5000, end_ms: 10000, speaker: 'SPEAKER_B' },
+    ];
+    const result = buildSpeakerTimeline(whisper, diarization);
+    expect(result.length).toBeGreaterThanOrEqual(2);
+    expect(result.find((b) => b.speaker === 'SPEAKER_A')).toBeDefined();
+    expect(result.find((b) => b.speaker === 'SPEAKER_B')).toBeDefined();
+  });
+
+  it('merges adjacent word-split sub-segments with same speaker', () => {
+    const whisper: WhisperSegment[] = [
+      {
+        start_ms: 0,
+        end_ms: 2000,
+        text: ' first second',
+        words: [
+          mkWord(0, 1000, ' first'),
+          mkWord(1000, 2000, ' second'),
+        ],
+      },
+      {
+        start_ms: 2000,
+        end_ms: 4000,
+        text: ' third fourth',
+        words: [
+          mkWord(2000, 3000, ' third'),
+          mkWord(3000, 4000, ' fourth'),
+        ],
+      },
+    ];
+    const diarization: DiarizationSegment[] = [
+      { start_ms: 0, end_ms: 4000, speaker: 'SPEAKER_A' },
+    ];
+    const result = buildSpeakerTimeline(whisper, diarization);
+    expect(result).toHaveLength(1);
+    expect(result[0].speaker).toBe('SPEAKER_A');
+    expect(result[0].text).toContain('first');
+    expect(result[0].text).toContain('fourth');
+  });
+});
+
+describe('splitAtSentenceBoundaries', () => {
+  it('returns single-element array for single sentence', () => {
+    const seg: WhisperSegment = { start_ms: 0, end_ms: 5000, text: 'Hello world' };
+    const result = splitAtSentenceBoundaries(seg);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(seg);
+  });
+
+  it('returns single-element array for empty text', () => {
+    const seg: WhisperSegment = { start_ms: 0, end_ms: 5000, text: '' };
+    const result = splitAtSentenceBoundaries(seg);
+    expect(result).toHaveLength(1);
+  });
+
+  it('splits two sentences with proportional time', () => {
+    const seg: WhisperSegment = {
+      start_ms: 0,
+      end_ms: 10000,
+      text: 'Short. This is a much longer second sentence.',
+    };
+    const result = splitAtSentenceBoundaries(seg);
+    expect(result).toHaveLength(2);
+    expect(result[0].text).toBe('Short.');
+    expect(result[1].text).toBe('This is a much longer second sentence.');
+    expect(result[0].start_ms).toBe(0);
+    expect(result[1].end_ms).toBe(10000);
+    // Shorter sentence gets less time
+    expect(result[0].end_ms).toBeLessThan(5000);
+    // Times are contiguous
+    expect(result[0].end_ms).toBe(result[1].start_ms);
+  });
+
+  it('splits three sentences', () => {
+    const seg: WhisperSegment = {
+      start_ms: 1000,
+      end_ms: 7000,
+      text: 'First. Second? Third!',
+    };
+    const result = splitAtSentenceBoundaries(seg);
+    expect(result).toHaveLength(3);
+    expect(result[0].text).toBe('First.');
+    expect(result[1].text).toBe('Second?');
+    expect(result[2].text).toBe('Third!');
+    expect(result[0].start_ms).toBe(1000);
+    expect(result[2].end_ms).toBe(7000);
+    // Contiguous
+    expect(result[0].end_ms).toBe(result[1].start_ms);
+    expect(result[1].end_ms).toBe(result[2].start_ms);
+  });
+
+  it('handles trailing text without punctuation', () => {
+    const seg: WhisperSegment = {
+      start_ms: 0,
+      end_ms: 6000,
+      text: 'Complete sentence. And then some more',
+    };
+    const result = splitAtSentenceBoundaries(seg);
+    expect(result).toHaveLength(2);
+    expect(result[0].text).toBe('Complete sentence.');
+    expect(result[1].text).toBe('And then some more');
+    expect(result[1].end_ms).toBe(6000);
+  });
+
+  it('handles question marks and exclamation points', () => {
+    const seg: WhisperSegment = {
+      start_ms: 0,
+      end_ms: 9000,
+      text: 'Is this working? Yes it is! Great.',
+    };
+    const result = splitAtSentenceBoundaries(seg);
+    expect(result).toHaveLength(3);
+    expect(result[0].text).toBe('Is this working?');
+    expect(result[1].text).toBe('Yes it is!');
+    expect(result[2].text).toBe('Great.');
+  });
+
+  it('does not split on periods without following space', () => {
+    const seg: WhisperSegment = {
+      start_ms: 0,
+      end_ms: 5000,
+      text: 'Version 3.1 is here',
+    };
+    const result = splitAtSentenceBoundaries(seg);
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toBe('Version 3.1 is here');
+  });
+
+  it('handles closing quotes after punctuation', () => {
+    const seg: WhisperSegment = {
+      start_ms: 0,
+      end_ms: 8000,
+      text: 'He said "hello." Then she replied.',
+    };
+    const result = splitAtSentenceBoundaries(seg);
+    expect(result).toHaveLength(2);
+    expect(result[0].text).toBe('He said "hello."');
+    expect(result[1].text).toBe('Then she replied.');
   });
 });

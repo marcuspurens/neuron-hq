@@ -35,6 +35,7 @@ const logger = createLogger('aurora:video');
 export interface ProgressUpdate {
   step:
     | 'downloading'
+    | 'denoising'
     | 'transcribing'
     | 'diarizing'
     | 'chunking'
@@ -63,6 +64,8 @@ export interface VideoIngestOptions {
   language?: string;
   /** Optional callback invoked at the start and end of each pipeline step. */
   onProgress?: (update: ProgressUpdate) => void;
+  /** Denoise audio before transcription using DeepFilterNet (default: false). */
+  denoise?: boolean;
   /** Polish transcript via LLM (default: true if Ollama is available). */
   polish?: boolean;
   /** Identify speakers via LLM (default: true if Ollama is available). */
@@ -110,6 +113,8 @@ export interface VideoIngestResult {
   audioPath?: string;
   /** Path to the temporary video file (for cleanup). */
   videoPath?: string;
+  /** Whether audio was denoised before transcription. */
+  denoised: boolean;
   /** Whether the transcript was LLM-polished. */
   polished: boolean;
   /** AI-guessed speaker identities (null if not performed). */
@@ -194,7 +199,7 @@ export function videoNodeId(url: string): string {
 /*  Pipeline report helpers                                            */
 /* ------------------------------------------------------------------ */
 
-const STEP_NAMES = ['download', 'transcribe', 'diarize', 'chunk', 'embed', 'crossref', 'save'];
+const STEP_NAMES = ['download', 'denoise', 'transcribe', 'diarize', 'chunk', 'embed', 'crossref', 'save'];
 
 /** Mark all steps after `fromStep` as skipped in the report. */
 function markRemainingSkipped(report: PipelineReport, fromStep: string): void {
@@ -241,6 +246,7 @@ export async function ingestVideo(
       platform: (existing.properties.platform as string) ?? 'unknown',
       crossRefsCreated: 0,
       crossRefMatches: [],
+      denoised: false,
       polished: false,
       speakerGuesses: null,
     };
@@ -292,6 +298,56 @@ export async function ingestVideo(
       metadata: { size_mb: report.details.download?.size_mb },
     });
 
+    // 2b. Optional denoising (before transcription/diarization)
+    let audioPath = extractMeta.audioPath as string;
+    let denoiseApplied = false;
+
+    if (options?.denoise) {
+      stepStart = Date.now();
+      options?.onProgress?.({ step: 'denoising', progress: 0, stepElapsedMs: 0 });
+
+      const denoiseResult = await wrapPipelineStep('denoise_audio', async () => {
+        const result = await runWorker(
+          {
+            action: 'denoise_audio',
+            source: audioPath,
+          },
+          { timeout: 600_000 }
+        );
+        if (!result.ok) throw new Error(result.error);
+        return result;
+      });
+      const denoiseMeta = denoiseResult.metadata as Record<string, unknown>;
+      denoiseApplied = (denoiseMeta.applied as boolean) ?? false;
+      audioPath = (denoiseMeta.denoised_path as string) ?? audioPath;
+
+      report.details.denoise = {
+        status: 'ok',
+        duration_s: Math.round((Date.now() - stepStart) / 1000),
+        applied: denoiseApplied,
+        fallback_reason: denoiseMeta.fallback_reason as string | null,
+      };
+      report.steps_completed++;
+
+      options?.onProgress?.({
+        step: 'denoising',
+        progress: 1.0,
+        stepElapsedMs: Date.now() - stepStart,
+        metadata: { applied: denoiseApplied },
+      });
+
+      if (denoiseApplied) {
+        logger.info('Audio denoised successfully', { audioPath });
+      } else {
+        logger.info('Denoise skipped (fallback)', {
+          reason: denoiseMeta.fallback_reason,
+        });
+      }
+    } else {
+      report.details.denoise = { status: 'skipped' };
+      report.steps_completed++;
+    }
+
     // 3. Transcribe
     //    Manual subs → use directly (human-edited, high quality)
     //    Auto subs   → run Whisper anyway (often better), save auto-subs as reference
@@ -307,7 +363,7 @@ export async function ingestVideo(
     const hasAutoSubs = subtitlesData && subtitlesData.segment_count > 0 && subtitleSource === 'auto';
 
     let transcribeText: string;
-    let transcribeSegments: Array<{ start_ms: number; end_ms: number; text: string }>;
+    let transcribeSegments: Array<{ start_ms: number; end_ms: number; text: string; words?: Array<{ start_ms: number; end_ms: number; word: string; probability?: number }> }>;
     let modelUsed: string | undefined;
     let transcribeLanguage: string;
     let referenceSubtitles: typeof subtitlesData | undefined;
@@ -341,7 +397,7 @@ export async function ingestVideo(
         const result = await runWorker(
           {
             action: 'transcribe_audio',
-            source: extractMeta.audioPath as string,
+            source: audioPath,
             ...(Object.keys(transcribeOptions).length > 0 ? { options: transcribeOptions } : {}),
           },
           { timeout: 1_800_000 }
@@ -391,7 +447,7 @@ export async function ingestVideo(
         const result = await runWorker(
           {
             action: 'diarize_audio',
-            source: extractMeta.audioPath as string,
+            source: audioPath,
           },
           { timeout: 1_200_000 }
         );
@@ -774,6 +830,7 @@ export async function ingestVideo(
       transcriptionSource: hasManualSubs ? 'subtitles:manual' : (hasAutoSubs ? 'whisper+reference' : 'whisper'),
       audioPath: extractMeta.audioPath as string | undefined,
       videoPath: extractMeta.videoPath as string | undefined,
+      denoised: denoiseApplied,
       polished,
       speakerGuesses,
       pipeline_report: report,

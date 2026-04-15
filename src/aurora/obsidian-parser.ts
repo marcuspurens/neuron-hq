@@ -63,8 +63,8 @@ const KNOWN_TAGS = new Set(['highlight', 'key-insight', 'quote', 'follow-up']);
 
 // --- Regex patterns ---
 
-/** Matches `### HH:MM:SS — Speaker` headers (em dash U+2014). */
-const TIMECODE_HEADER_RE = /^###\s+(\d{2}:\d{2}:\d{2})\s+\u2014\s+(.*)$/;
+/** Matches `### HH:MM:SS — Speaker` or `#### HH:MM:SS — Speaker` headers (em dash U+2014). */
+const TIMECODE_HEADER_RE = /^#{3,4}\s+(\d{2}:\d{2}:\d{2})\s+\u2014\s+(.*)$/;
 
 /** Matches `#tag` in a line. */
 const TAG_RE = /#([\w-]+)/g;

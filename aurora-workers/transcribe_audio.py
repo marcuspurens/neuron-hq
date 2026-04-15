@@ -1,4 +1,5 @@
 """Transcribe audio files using faster-whisper with language-aware model selection."""
+
 import os
 
 from faster_whisper import WhisperModel
@@ -52,13 +53,19 @@ def transcribe_audio(source: str, options: dict | None = None) -> dict:
             without_timestamps=True,
         )
         detected_language = detect_info.language if detect_info else None
-        model_id = LANG_MODEL_MAP.get(detected_language, DEFAULT_MODEL) if detected_language else DEFAULT_MODEL
+        model_id = (
+            LANG_MODEL_MAP.get(detected_language, DEFAULT_MODEL)
+            if detected_language
+            else DEFAULT_MODEL
+        )
 
     # Full transcription with chosen model
     model = WhisperModel(model_id)
     transcribe_kwargs = {}
     if detected_language:
         transcribe_kwargs["language"] = detected_language
+
+    transcribe_kwargs["word_timestamps"] = True
 
     try:
         raw_segments, info = model.transcribe(source, **transcribe_kwargs)
@@ -70,11 +77,22 @@ def transcribe_audio(source: str, options: dict | None = None) -> dict:
     for seg in raw_segments:
         start_ms = int(seg.start * 1000)
         end_ms = int(seg.end * 1000)
-        segments.append({
+        seg_dict = {
             "start_ms": start_ms,
             "end_ms": end_ms,
             "text": seg.text.strip(),
-        })
+        }
+        if seg.words:
+            seg_dict["words"] = [
+                {
+                    "start_ms": int(w.start * 1000),
+                    "end_ms": int(w.end * 1000),
+                    "word": w.word,
+                    "probability": round(w.probability, 4),
+                }
+                for w in seg.words
+            ]
+        segments.append(seg_dict)
         text_parts.append(seg.text.strip())
 
     full_text = " ".join(text_parts)

@@ -3,11 +3,22 @@
  * and diarization segments.
  */
 
+/** A single word with timing from Whisper word_timestamps. */
+export interface WhisperWord {
+  start_ms: number;
+  end_ms: number;
+  word: string;
+  /** Whisper confidence for this word (0–1). */
+  probability?: number;
+}
+
 /** A segment from Whisper transcription. */
 export interface WhisperSegment {
   start_ms: number;
   end_ms: number;
   text: string;
+  /** Per-word timestamps (present when `word_timestamps=True` in Whisper). */
+  words?: WhisperWord[];
 }
 
 /** A segment from speaker diarization. */
@@ -27,6 +38,136 @@ export interface TimelineBlock {
 
 /** Maximum lines per block before splitting. */
 const MAX_LINES_PER_BLOCK = 7;
+
+/**
+ * Sentence-ending punctuation pattern.
+ * Matches '.', '?', '!' optionally followed by closing quotes/parens.
+ * Does not match abbreviations like "Dr." or "U.S." (single uppercase letter before dot).
+ */
+const SENTENCE_END = /[.?!][)»"']?\s+/g;
+
+/**
+ * Split a single WhisperSegment into sub-segments at sentence boundaries.
+ * Time is distributed proportionally by character count within each sub-segment.
+ *
+ * If the segment contains no sentence boundaries (single sentence or no punctuation),
+ * returns the original segment unchanged in a single-element array.
+ */
+export function splitAtSentenceBoundaries(
+  segment: WhisperSegment,
+): WhisperSegment[] {
+  const text = segment.text.trim();
+  if (text.length === 0) {
+    return [segment];
+  }
+
+  // Find all sentence-boundary split points
+  const sentences: string[] = [];
+  let lastIndex = 0;
+
+  // Reset regex state
+  SENTENCE_END.lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = SENTENCE_END.exec(text)) !== null) {
+    // Include the punctuation + space in the preceding sentence
+    const end = match.index + match[0].length;
+    const sentence = text.slice(lastIndex, end).trim();
+    if (sentence.length > 0) {
+      sentences.push(sentence);
+    }
+    lastIndex = end;
+  }
+
+  // Remaining text after last sentence boundary
+  const remainder = text.slice(lastIndex).trim();
+  if (remainder.length > 0) {
+    sentences.push(remainder);
+  }
+
+  // Single sentence or no splits found → return unchanged
+  if (sentences.length <= 1) {
+    return [segment];
+  }
+
+  // Distribute time proportionally by character count
+  const totalChars = sentences.reduce((sum, s) => sum + s.length, 0);
+  const duration = segment.end_ms - segment.start_ms;
+  const subSegments: WhisperSegment[] = [];
+  let currentStart = segment.start_ms;
+
+  for (let i = 0; i < sentences.length; i++) {
+    const proportion = sentences[i].length / totalChars;
+    const subDuration = Math.round(duration * proportion);
+    const subEnd =
+      i === sentences.length - 1
+        ? segment.end_ms // Last sub-segment snaps to original end
+        : currentStart + subDuration;
+
+    subSegments.push({
+      start_ms: currentStart,
+      end_ms: subEnd,
+      text: sentences[i],
+    });
+    currentStart = subEnd;
+  }
+
+  return subSegments;
+}
+
+/**
+ * Split a segment at diarization speaker-change boundaries using per-word timestamps.
+ * Falls back to `splitAtSentenceBoundaries()` when the segment has no words.
+ */
+export function splitAtWordBoundaries(
+  segment: WhisperSegment,
+  diarizationSegments: DiarizationSegment[],
+): WhisperSegment[] {
+  const words = segment.words;
+  if (!words || words.length === 0) {
+    return splitAtSentenceBoundaries(segment);
+  }
+
+  if (diarizationSegments.length === 0) {
+    return [segment];
+  }
+
+  // For each word, find the diarization speaker with most overlap
+  const wordSpeakers = words.map((w) => {
+    let bestSpeaker = 'UNKNOWN';
+    let bestOverlap = 0;
+    for (const dia of diarizationSegments) {
+      const overlap = Math.max(
+        0,
+        Math.min(w.end_ms, dia.end_ms) - Math.max(w.start_ms, dia.start_ms),
+      );
+      if (overlap > bestOverlap) {
+        bestOverlap = overlap;
+        bestSpeaker = dia.speaker;
+      }
+    }
+    return bestSpeaker;
+  });
+
+  // Group consecutive words with the same speaker into sub-segments
+  const subSegments: WhisperSegment[] = [];
+  let groupStart = 0;
+
+  for (let i = 1; i <= words.length; i++) {
+    if (i === words.length || wordSpeakers[i] !== wordSpeakers[groupStart]) {
+      const groupWords = words.slice(groupStart, i);
+      subSegments.push({
+        start_ms: groupWords[0].start_ms,
+        end_ms: groupWords[groupWords.length - 1].end_ms,
+        text: groupWords.map((w) => w.word).join('').trim(),
+        words: groupWords,
+      });
+      groupStart = i;
+    }
+  }
+
+  return subSegments.length > 0 ? subSegments : [segment];
+}
 
 /**
  * Convert milliseconds to 'hh:mm:ss' format (floored to seconds).
@@ -149,8 +290,16 @@ export function buildSpeakerTimeline(
   // Sort whisper segments by start_ms
   const sorted = [...whisperSegments].sort((a, b) => a.start_ms - b.start_ms);
 
+  // Step 0: Split segments at speaker-change boundaries.
+  // Prefer word-level split (exact times) when words are available,
+  // fall back to sentence-boundary heuristic otherwise.
+  const hasWords = sorted.some((s) => s.words && s.words.length > 0);
+  const fineSorted = hasWords
+    ? sorted.flatMap((s) => splitAtWordBoundaries(s, diarizationSegments))
+    : sorted.flatMap(splitAtSentenceBoundaries);
+
   // Step 1: Assign speaker to each whisper segment
-  const assigned: TimelineBlock[] = sorted.map((ws) => ({
+  const assigned: TimelineBlock[] = fineSorted.map((ws) => ({
     speaker: assignSpeaker(ws, diarizationSegments),
     start_ms: ws.start_ms,
     end_ms: ws.end_ms,

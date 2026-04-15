@@ -168,7 +168,7 @@ function buildSpeakerTable(speakers: Map<string, SpeakerInfo>): string[] {
 function buildTimelineSection(blocks: TimelineBlock[]): string[] {
   const lines: string[] = ['## Tidslinje', ''];
   for (const block of blocks) {
-    lines.push(`### ${formatMs(block.start_ms)} \u2014 ${block.speaker}`);
+    lines.push(`#### ${formatMs(block.start_ms)} \u2014 ${block.speaker}`);
     lines.push(block.text);
     lines.push('');
   }
@@ -215,7 +215,7 @@ function buildTimelineSectionWithAnnotations(
     const blockHighlights = highlights.filter((h) => matchesBlock(h.segment_start_ms));
     const blockComments = comments.filter((c) => matchesBlock(c.segment_start_ms));
 
-    const heading = `### ${formatMs(block.start_ms)} \u2014 ${block.speaker}`;
+    const heading = `#### ${formatMs(block.start_ms)} \u2014 ${block.speaker}`;
 
     if (blockHighlights.length > 0) {
       // Render as Obsidian callout
@@ -486,6 +486,7 @@ export async function obsidianExportCommand(cmdOptions: {
           start_ms: number;
           end_ms: number;
           text: string;
+          words?: Array<{ start_ms: number; end_ms: number; word: string; probability?: number }>;
         }>;
 
         const timelineBlocks = buildSpeakerTimeline(rawSegments, allDiarizationSegments);

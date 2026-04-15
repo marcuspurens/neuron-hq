@@ -470,6 +470,55 @@ describe('obsidian-import', () => {
     expect(mockRenameSpeaker).not.toHaveBeenCalled();
   });
 
+  it('renames speaker when user edits the Label column directly', async () => {
+    mockStat.mockResolvedValue({ isDirectory: () => true });
+    mockReaddir.mockResolvedValue([makeDirent('label-rename.md', false)]);
+
+    // User changed Label column from SPEAKER_00 → Alice, left Namn empty
+    const mdContent = [
+      '---',
+      'id: trans-6',
+      '---',
+      '',
+      '## Talare',
+      '| Label | Namn | Titel | Organisation | Roll | Konfidenspoäng |',
+      '|-------|------|-------|--------------|------|----------------|',
+      '| Alice |      |       |              |      | 0.7            |',
+      '',
+      '#### 00:00:10 \u2014 Alice',
+      'Some text',
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(mdContent);
+
+    const graph = makeGraph([
+      {
+        id: 'trans-6',
+        type: 'transcript',
+        properties: {
+          rawSegments: [{ start_ms: 10000, end_ms: 15000, text: 'Text' }],
+        },
+      },
+      {
+        id: 'vp-4',
+        type: 'voice_print',
+        title: 'Speaker: SPEAKER_00',
+        properties: {
+          videoNodeId: 'trans-6',
+          speakerLabel: 'SPEAKER_00',
+          segments: [{ start_ms: 10000, end_ms: 15000 }],
+        },
+      },
+    ]);
+
+    mockLoadAuroraGraph.mockResolvedValue(graph);
+    mockUpdateAuroraNode.mockReturnValue(graph);
+
+    await obsidianImportCommand({ vault: '/test-vault' });
+
+    expect(mockRenameSpeaker).toHaveBeenCalledWith('vp-4', 'Alice');
+  });
+
   it('processes multiple files in vault and saves graph once', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
     mockReaddir.mockResolvedValue([makeDirent('file-a.md', false), makeDirent('file-b.md', false)]);

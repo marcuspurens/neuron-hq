@@ -298,17 +298,43 @@ export async function obsidianImportCommand(options: {
     // ONE single updateAuroraNode call — never call it twice for the same node
     graph = updateAuroraNode(graph, node.id, nodeUpdates);
 
-    // Collect speaker renames
-    for (const speaker of parsed.speakers) {
-      if (!speaker.name) continue;
+    // Collect speaker renames.
+    // Two rename paths:
+    //   A) User fills in the Namn column → speaker.name is set, match by label
+    //   B) User edits the Label column directly → speaker.label is no longer
+    //      a SPEAKER_XX auto-label, speaker.name is empty. Match by position
+    //      among the video's voice_print nodes (sorted by first segment time).
+    const videoVoicePrints = graph.nodes
+      .filter(
+        (n) =>
+          n.type === 'voice_print' && n.properties.videoNodeId === parsed.id
+      )
+      .sort((a, b) => {
+        const aSegs = a.properties.segments as Array<{ start_ms: number }> | undefined;
+        const bSegs = b.properties.segments as Array<{ start_ms: number }> | undefined;
+        const aStart = aSegs?.[0]?.start_ms ?? Infinity;
+        const bStart = bSegs?.[0]?.start_ms ?? Infinity;
+        return aStart - bStart;
+      });
 
-      // Find matching voice_print node
-      const vpNode = graph.nodes.find(
+    for (let si = 0; si < parsed.speakers.length; si++) {
+      const speaker = parsed.speakers[si];
+      const effectiveName = speaker.name || '';
+
+      // Path A: Namn column has a value → match voice_print by label
+      let vpNode = graph.nodes.find(
         (n) =>
           n.type === 'voice_print' &&
           n.properties.videoNodeId === parsed.id &&
           n.properties.speakerLabel === speaker.label
       );
+
+      // Path B: Label column was edited (no longer matches any speakerLabel)
+      // and Namn is empty → the label IS the new name. Match by table position.
+      const isAutoLabel = speaker.label.startsWith('SPEAKER_');
+      if (!vpNode && !isAutoLabel && !effectiveName) {
+        vpNode = videoVoicePrints[si];
+      }
 
       if (!vpNode) {
         logger.warn('Voice print not found for speaker rename', {
@@ -319,18 +345,19 @@ export async function obsidianImportCommand(options: {
         continue;
       }
 
-      // Only rename if the name differs from the current label
+      const newName = effectiveName || speaker.label;
       const currentLabel = vpNode.properties.speakerLabel as string;
-      if (currentLabel !== speaker.name) {
-        pendingRenames.push({
-          voicePrintId: vpNode.id,
-          newName: speaker.name,
-        });
-      }
+
+      if (!newName || currentLabel === newName) continue;
+
+      pendingRenames.push({
+        voicePrintId: vpNode.id,
+        newName,
+      });
 
       if (speaker.title || speaker.organization) {
         pendingMetadataUpdates.push({
-          speakerName: speaker.name,
+          speakerName: newName,
           voicePrintId: vpNode.id,
           title: speaker.title,
           organization: speaker.organization,

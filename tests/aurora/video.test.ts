@@ -626,6 +626,46 @@ describe('ingestVideo', () => {
     ]);
   });
 
+  it("preserves word timestamps in rawSegments when worker returns them", async () => {
+    const transcribeWithWords = {
+      ok: true,
+      title: 'Transcription',
+      text: 'Hello world',
+      metadata: {
+        segments: [
+          {
+            start_ms: 0,
+            end_ms: 5000,
+            text: 'Hello world',
+            words: [
+              { start_ms: 0, end_ms: 2500, word: ' Hello', probability: 0.98 },
+              { start_ms: 2500, end_ms: 5000, word: ' world', probability: 0.95 },
+            ],
+          },
+        ],
+        segment_count: 1,
+        language: 'en',
+        source_type: 'audio_transcription',
+      },
+    };
+
+    mockRunWorker
+      .mockResolvedValueOnce(extractVideoResponse)
+      .mockResolvedValueOnce(transcribeWithWords);
+
+    await ingestVideo("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+
+    const savedGraph = mockSaveAuroraGraph.mock.calls[0][0] as AuroraGraph;
+    const transcriptNode = savedGraph.nodes.find((n) => n.id === "yt-dQw4w9WgXcQ" && n.type === "transcript" && !n.properties.chunkIndex);
+    expect(transcriptNode).toBeDefined();
+    const segments = transcriptNode!.properties.rawSegments as Array<{ words?: unknown[] }>;
+    expect(segments[0].words).toBeDefined();
+    expect(segments[0].words).toHaveLength(2);
+    expect(segments[0].words![0]).toEqual(
+      expect.objectContaining({ start_ms: 0, end_ms: 2500, word: ' Hello' }),
+    );
+  });
+
   it("saves segments (start_ms/end_ms only) on voice_print nodes", async () => {
     mockRunWorker
       .mockResolvedValueOnce(extractVideoResponse)
@@ -949,5 +989,116 @@ describe('Progress metadata', () => {
     for (const u of withTotal) {
       expect(u.totalSteps).toBe(7);
     }
+  });
+
+  it('denoise: true runs denoise_audio worker before transcription', async () => {
+    const denoiseResponse = {
+      ok: true,
+      title: 'audio',
+      text: 'Audio denoised successfully',
+      metadata: {
+        denoised_path: '/tmp/audio_denoised.wav',
+        original_path: '/tmp/audio.m4a',
+        applied: true,
+        fallback_reason: null,
+        source_type: 'audio_denoise',
+      },
+    };
+
+    mockRunWorker
+      .mockResolvedValueOnce(extractVideoResponse)
+      .mockResolvedValueOnce(denoiseResponse)
+      .mockResolvedValueOnce(transcribeResponse);
+
+    const result = await ingestVideo(
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      { denoise: true },
+    );
+
+    expect(result.denoised).toBe(true);
+    expect(mockRunWorker).toHaveBeenCalledTimes(3);
+    const denoiseCall = mockRunWorker.mock.calls[1][0];
+    expect(denoiseCall.action).toBe('denoise_audio');
+    expect(denoiseCall.source).toBe('/tmp/audio.m4a');
+    const transcribeCall = mockRunWorker.mock.calls[2][0];
+    expect(transcribeCall.action).toBe('transcribe_audio');
+    expect(transcribeCall.source).toBe('/tmp/audio_denoised.wav');
+  });
+
+  it('denoise: true with fallback passes original audio path to transcribe', async () => {
+    const denoiseFallbackResponse = {
+      ok: true,
+      title: 'audio',
+      text: 'Denoise skipped: DeepFilterNet not found in PATH',
+      metadata: {
+        denoised_path: '/tmp/audio.m4a',
+        original_path: '/tmp/audio.m4a',
+        applied: false,
+        fallback_reason: 'DeepFilterNet not found in PATH',
+        source_type: 'audio_denoise',
+      },
+    };
+
+    mockRunWorker
+      .mockResolvedValueOnce(extractVideoResponse)
+      .mockResolvedValueOnce(denoiseFallbackResponse)
+      .mockResolvedValueOnce(transcribeResponse);
+
+    const result = await ingestVideo(
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      { denoise: true },
+    );
+
+    expect(result.denoised).toBe(false);
+    const transcribeCall = mockRunWorker.mock.calls[2][0];
+    expect(transcribeCall.source).toBe('/tmp/audio.m4a');
+  });
+
+  it('denoise: false skips denoise step entirely', async () => {
+    mockRunWorker
+      .mockResolvedValueOnce(extractVideoResponse)
+      .mockResolvedValueOnce(transcribeResponse);
+
+    const result = await ingestVideo(
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    );
+
+    expect(result.denoised).toBe(false);
+    expect(mockRunWorker).toHaveBeenCalledTimes(2);
+    const actions = mockRunWorker.mock.calls.map((c: unknown[]) => (c[0] as Record<string, string>).action);
+    expect(actions).not.toContain('denoise_audio');
+  });
+
+  it('denoise + diarize uses denoised path for both transcribe and diarize', async () => {
+    const denoiseResponse = {
+      ok: true,
+      title: 'audio',
+      text: 'Audio denoised successfully',
+      metadata: {
+        denoised_path: '/tmp/audio_denoised.wav',
+        original_path: '/tmp/audio.m4a',
+        applied: true,
+        fallback_reason: null,
+        source_type: 'audio_denoise',
+      },
+    };
+
+    mockRunWorker
+      .mockResolvedValueOnce(extractVideoResponse)
+      .mockResolvedValueOnce(denoiseResponse)
+      .mockResolvedValueOnce(transcribeResponse)
+      .mockResolvedValueOnce(diarizeResponse);
+
+    const result = await ingestVideo(
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      { denoise: true, diarize: true },
+    );
+
+    expect(result.denoised).toBe(true);
+    expect(result.voicePrintsCreated).toBe(2);
+    const transcribeCall = mockRunWorker.mock.calls[2][0];
+    const diarizeCall = mockRunWorker.mock.calls[3][0];
+    expect(transcribeCall.source).toBe('/tmp/audio_denoised.wav');
+    expect(diarizeCall.source).toBe('/tmp/audio_denoised.wav');
   });
 });

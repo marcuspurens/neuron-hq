@@ -323,6 +323,12 @@ describe('extractHighlights', () => {
     const body = '### 00:01:00 - Speaker #highlight';
     expect(extractHighlights(body)).toEqual([]);
   });
+
+  it('extracts highlights from #### (H4) timecode headers', () => {
+    const body = '#### 00:01:45 \u2014 Dario Amodei #highlight';
+    const result = extractHighlights(body);
+    expect(result).toEqual([{ timecode_ms: 105000, tag: 'highlight' }]);
+  });
 });
 
 describe('extractComments', () => {
@@ -784,5 +790,20 @@ describe('extractTimelineBlocks', () => {
 
   it('returns empty array for body without timeline headers', () => {
     expect(extractTimelineBlocks('Just plain text')).toEqual([]);
+  });
+
+  it('parses #### (H4) timecode headers', () => {
+    const body = [
+      '#### 00:00:00 \u2014 Alice',
+      'First block',
+      '',
+      '#### 00:01:00 \u2014 Bob',
+      'Second block',
+    ].join('\n');
+
+    const blocks = extractTimelineBlocks(body);
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0].speaker).toBe('Alice');
+    expect(blocks[1].speaker).toBe('Bob');
   });
 });
