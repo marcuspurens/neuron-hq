@@ -1,7 +1,9 @@
 # Projekt Bifrost — 30/60/90-dagarsplan
 
 > Exekverbar rollout-plan | Start: mitten av maj 2026
-> Version: 3.2 | Datum: 2026-04-13 | v3.2: statussida, rate limit-transparens, Kyverno Policy Reporter, compliance-signaler, agent registry, dependency risk-mitigeringar, LiteLLM supply chain-risk
+> Version: 5.0 | Datum: 2026-04-13 | v5.0: P14 inference-landskapsuppdatering — llm-d från post-90d till fas 2, SGLang degraderad till Hold (opatchade CVE:er), Envoy AI Gateway-utvärdering fas 2, vLLM ≥0.11.1 krav, llm-d runbook, ShadowMQ-risk
+> v4.0: debugging & troubleshooting guide, runbook-standardformat, plattforms-evolution (tech radar), prompt management, fine-tuning pipeline, context assembly
+> v3.2: statussida, rate limit-transparens, Kyverno Policy Reporter, compliance-signaler, agent registry, dependency risk-mitigeringar, LiteLLM supply chain-risk
 > v3.0→3.1: Security Review Gate per fas (CISO sign-off)
 > v3.0: compliance-milestones, SLO, ORR, DR, champions, ISO 42001
 
@@ -16,8 +18,8 @@
    (dag 1-30)                 (dag 31-60)              (dag 61-90)
    
    GPU + vLLM + Gateway       Multi-tenant + GitOps    Agent + Compliance
-   Redis + Qdrant + MinIO     KServe + Kueue + Neo4j   Agent Sandbox + A-MEM
-   1 modell, 1 team           Policy + RAG pipeline    Full rollout
+   Redis + Qdrant + MinIO     KServe + llm-d + Neo4j   Agent Sandbox + A-MEM
+   1 modell, 1 team           Policy + RAG + Envoy     Full rollout
 ```
 
 **EU AI Act deadline: 2 augusti 2026** — högrisk-enforcement.
@@ -48,7 +50,7 @@ Compliance-grunderna måste vara på plats i fas 2.
 
 | Uppgift | Detaljer | Leverabel |
 |---------|----------|-----------|
-| vLLM deployment | En chat-modell (t.ex. Llama 3.1 70B eller Mistral) | Fungerande inferens |
+| vLLM deployment (≥0.11.1) | En chat-modell (t.ex. Llama 3.1 70B eller Mistral). **Krav: vLLM ≥0.11.1** (ShadowMQ CVE:er patchade, se §20.2) | Fungerande inferens |
 | **Embedding-modell** | Deploy embedding-modell i vLLM → Qdrant | Embedding-pipeline |
 | LiteLLM gateway | OpenAI-kompatibelt API, basic auth | Gateway endpoint |
 | Health checks | Startup/readiness/liveness probes | Stable serving |
@@ -99,6 +101,12 @@ Compliance-grunderna måste vara på plats i fas 2.
 - [ ] **LiteLLM pinning**: version pinnad, PyPI-signaturer verifierade, automatiska uppdateringar blockerade (§21.1, supply chain-mitigering)
 - [ ] **Kyverno Policy Reporter** installerad: `policy_report_result` metrics till Prometheus (§26.9)
 - [ ] **Compliance-signaler v1**: audit trail completeness + policy violation count i Grafana (§16.4)
+- [ ] **Felkatalog publicerad** i AI Hub: 8 felkoder med åtgärdssteg (§23.8)
+- [ ] **Per-team Grafana dashboard**: latency, throughput, error rate, token usage filtrerat på virtual key (§23.8)
+- [ ] **Runbook-standardformat etablerat**: template i Git, RB-001 (vLLM OOM) skriven och verifierad av on-call (§23.1)
+- [ ] **6 fas 1-runbooks** skrivna i standardformat (RB-001—RB-006) med "senast verifierad"-datum (§23.1)
+- [ ] **Tech radar v1 publicerad**: Markdown-tabell i Git med alla komponenter ringtilldelade (§23.9)
+- [ ] **Prompt management aktiverat i Langfuse**: pilotteam migrerar 1-2 prompts från kod till registry (§27.1)
 
 ---
 
@@ -145,6 +153,8 @@ Compliance-grunderna måste vara på plats i fas 2.
 | ai-batch namespace | Separerade GPU:er för batch | Ingen konkurrens med serving |
 | KEDA | Streaming-autoscaling på TTFT/queue depth | Smart skalning |
 | KServe | InferenceService CRD för minst 1 modell | Standardiserad serving |
+| **llm-d deployment** | Disaggregerade prefill/decode-pods för streaming + agent-mönster. K8s Inference Gateway. (§7.6) | Disaggregerad inference |
+| **Envoy AI Gateway-utvärdering** | Testa som LiteLLM-alternativ: AI-medveten LB, K8s Inference Gateway-integration, governance (§6, §21.1) | Gateway-migrationsplan |
 | NetworkPolicies | Default deny, explicit Data Plane-access per namespace | Nätverksisolering |
 | **GraphRAG pipeline** | Neo4j + Qdrant: entity extraction → kunskapsgraf → sökning | GraphRAG som tjänst |
 | **Inkrementell re-embedding** | Batch-jobb som detekterar ändrade dokument → uppdatera Qdrant | Automatisk indexering |
@@ -195,7 +205,19 @@ Compliance-grunderna måste vara på plats i fas 2.
 - [ ] **Rate limit-transparens**: SDK exponerar `X-RateLimit-*` headers, Backstage visar kvot-status per team (§8.6)
 - [ ] **Statussida v2**: alla komponenter, SDK-integration `client.status()`, historik (§23.2)
 - [ ] **Compliance-signaler komplett**: alla 9 signaler i §16.4 aktiva i Prometheus med `compliance_domain`-label
-- [ ] **LiteLLM alternativ-utvärdering**: Portkey och/eller Kong AI Gateway testad mot krav (§21.1)
+- [ ] **llm-d disaggregerad inference** aktiv för streaming + agent-mönster (§7.6)
+- [ ] **Kubernetes Inference Gateway** deployad med llm-d-scheduler
+- [ ] **Envoy AI Gateway utvärderad** som LiteLLM-ersättare (AI-medveten LB, K8s-nativ) (§6, §21.1)
+- [ ] **RB-007 (llm-d disaggregering)** skriven: prefill/decode-pod-felsökning, scheduler-routing-problem, KV-offloading-failure (§23.1)
+- [ ] **SGLang-patchstatus kontrollerad**: om CVE-2026-3059/3060/3989 patchade → utvärdera som Agent Plane-motor (§7.6)
+- [ ] **LiteLLM alternativ-utvärdering**: Envoy AI Gateway (primärt) och/eller Portkey testad mot krav (§21.1)
+- [ ] **Retrieval quality dashboard**: chunk-level visibility, similarity scores (§23.8)
+- [ ] **Prompt playground med version diffing**: testa prompt-ändringar mot sparade testfall (§23.8)
+- [ ] **Alla produktionsprompter i Langfuse registry**: A/B-testning aktiv, eval-gate före production-promotion (§27.1)
+- [ ] **Kvartalsvis tech radar-review etablerad** med beslutlog i Git (§23.9)
+- [ ] **Arkitektur-review schemalagd** var 6:e månad (§23.9)
+- [ ] **Reranker (cross-encoder) utvärderad/deployad** för förbättrad RAG-kvalitet (§27.3)
+- [ ] **Fine-tuning design klar**: `fine-tune` node pool förberedd, Kueue konfigurerad (§27.2)
 
 ---
 
@@ -285,6 +307,13 @@ Compliance-grunderna måste vara på plats i fas 2.
 - [ ] **Intern A2A**: agenter inom samma tenant kan upptäcka och delegera via Agent Cards
 - [ ] **Organisatorisk beslutshierarki operativ**: alla 10 beslutskategorier i §22.3 har namngiven beslutsfattare
 - [ ] **Statussida v3**: per-team statusvy + SLA-rapporter (§23.2)
+- [ ] **Eval dashboard**: automatiserade kvalitetsscores per endpoint, regressionsdetektering (§23.8)
+- [ ] **Första fine-tuning genomförd**: svensk anpassning av basmodell, QLoRA, adapter hot-loading i vLLM (§27.2)
+- [ ] **Adapter Registry**: MLflow-register med DBOM, eval-resultat, governance-godkännande per adapter (§27.2)
+- [ ] **Full context assembly i SDK**: multiple sources → ranked → token-budget-optimerad → formatted (§27.3)
+- [ ] **Tech radar visualiserad i Backstage** + automatiserad dependency-scanning (§23.9)
+- [ ] **Team offboarding-process etablerad** med compliance-koppling (§23.9)
+- [ ] **Prompt analytics**: kostnad och kvalitet per prompt, auto-optimeringsförslag (§27.1)
 
 ---
 
@@ -292,10 +321,10 @@ Compliance-grunderna måste vara på plats i fas 2.
 
 | Område | Uppgift |
 |--------|---------|
-| **llm-d** | Utvärdera prefill/decode-disaggregering |
+| **llm-d full disaggregering** | Alla 4 inference-mönster disaggregerade (fas 2 = streaming + agent). Multi-cluster HA. Cache-aware LoRA routing. |
 | **Full AI Hub** | Backstage med alla plugins, komplett self-service |
 | **Drift-detektion** | Automatisk kvalitetsövervakning |
-| **Finjustering** | On-platform fine-tuning pipeline |
+| **Finjustering** | Per-tenant adapters, automatisk re-training vid drift, prompt-till-fine-tuning pipeline (§27.2) |
 | **AI-operatörer** | Fler plattformsagenter (GPU packing, incident, cost) |
 | **Chargeback** | Full kostnadsallokering till team/avdelning |
 | **Shadow mode** | Ny modell → shadow → canary → prod |
@@ -307,7 +336,9 @@ Compliance-grunderna måste vara på plats i fas 2.
 | **Agent-agent** | Inter-agent communication via authenticated mesh |
 | **Cross-tenant A2A** | Agenter från olika team samarbetar (med governance-godkännande). Partner-agenter med signerade Agent Cards |
 | **Neo4j-migrationsplan** | Utvärdera Apache AGE (PostgreSQL) om Neo4j-rättsläget ändras (§21.1) |
-| **LiteLLM-beslut** | Baserat på fas 2-utvärdering: migrera till Portkey/Kong eller bekräfta LiteLLM med förstärkt supply chain-kontroll |
+| **Gateway-beslut** | Baserat på fas 2-utvärdering: migrera till Envoy AI Gateway, Portkey eller bekräfta LiteLLM med förstärkt supply chain-kontroll |
+| **Feast (feature store)** | Utvärdera om hybrid ML+LLM-workloads kräver tabulär feature store (§27.3) |
+| **AI-assisterad felsökning** | "Beskriv problemet" → agent analyserar Langfuse traces och föreslår åtgärd (§23.8) |
 | **Pub/sub inter-agent** | NATS/Redis Streams för asynkrona agent-händelser |
 | **Intern SDK** | Python/TS-bibliotek som abstraherar RAG, memory, tools |
 
@@ -325,7 +356,8 @@ Compliance-grunderna måste vara på plats i fas 2.
 | Säkerhetsincident | Låg | Hög | Admission policies, image signing, agent governance |
 | SDK-adoption låg — team föredrar OpenAI SDK direkt | Medel | Medel | Quickstart < 5 min, golden paths, SDK ger capabilities (RAG, memory) som OpenAI SDK saknar. Compliance-headers automatiska i SDK — manuellt annars. |
 | Compliance-gap vid AI Act deadline (2 aug) | Medel | Hög | Compliance dashboard visar gap i realtid. Juridisk review i fas 2. Profiler enforced server-side oavsett SDK. |
-| **LiteLLM supply chain-risk** | Medel | Hög | Mars 2026: komprometterade PyPI-versioner stal credentials (40k+ drabbade). Mitigation: pinna version, verifiera signaturer, blockera auto-update. Utvärdera Portkey/Kong i fas 2. (§21.1) |
+| **LiteLLM supply chain-risk** | Medel | Hög | Mars 2026: komprometterade PyPI-versioner stal credentials (40k+ drabbade). Mitigation: pinna version, verifiera signaturer, blockera auto-update. Utvärdera Envoy AI Gateway i fas 2. (§21.1) |
+| **Inference-motor CVE:er (ShadowMQ)** | Medel | Hög | Copy-paste-sårbarheter i vLLM/SGLang/TensorRT-LLM (30+ CVE:er, nov 2025). Mitigation: vLLM ≥0.11.1, aldrig exponera ZMQ, JSON/protobuf istället för pickle, service mesh mTLS. SGLang ej deployad (opatchade RCE). (§20.2) |
 | **Neo4j licenslåsning** | Låg | Hög | GPL + Commons Clause + pågående rättstvist. Enterprise-licens = kostnad + beroende. Mitigation: tunn query-adapter, undvik djupt Cypher-beroende. Apache AGE som fallback-plan. (§21.1) |
 
 ---

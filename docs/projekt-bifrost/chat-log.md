@@ -375,3 +375,230 @@ En rad tillagd i §23.3 SLO-tabell: "Tid från dokument-ändring till uppdaterad
 2. **TOC läsordning** — tabell med 6 roller, rekommenderad §-ordning med motivering per roll. Lade till Executive sponsor som ny roll.
 3. **MCP auth detaljerat** i §8.7 — OAuth 2.1 flödesdiagram (4 steg), tabell med säkerhetsfunktion per steg, token-livscykel (5-15 min, auto-rotation).
 4. **Kostnadssiffror verifierade** — uppdaterade med B200 benchmarks (SemiAnalysis InferenceMAX 2026). B200 ~$3.50-6/hr, ~4× throughput/$ vs H100. Ny GPU-pristabell med throughput och $/Mtok.
+
+---
+
+## Session 7 — 2026-04-13
+
+### S7-001
+
+**Marcus:** Läs systemprompt och handoff från session 6. Bifrost session 7. P5-backlog: P4 (debugging/troubleshooting), P5 (runbook-format), P6 (plattforms-evolution), P7 (feature store, prompt mgmt, fine-tuning). Regler: visa CoT, kör leveransgate, spara research, skriv chattlogg i realtid.
+
+**Opus:** Läste systemprompt, handoff, target architecture v7.0, rollout-plan v3.2, review-log, chattlogg. Planerade 4 block i ordning P4→P5→P6→P7. Startade 3 parallella research-agenter:
+1. Dag-30 AI-plattformsproblem (riktad + explorativ)
+2. Runbook-format + plattforms-evolution (SRE best practice)
+3. Feature store + prompt management + fine-tuning (aktuell status 2026)
+
+CoT: Systemprompt säger sök explorativt, inte bara bekräftande. Varje agent har en explorativ sökning utöver de riktade.
+
+### S7-002 — Research + P4 Debugging Guide
+
+**Opus:** 3 research-agenter slutförda (websökning ej tillgänglig, använde träningsdata). Nyckelinsikter:
+- Dag-30: Observability är flaskhalsen, inte modellkvalitet. Chunking > embedding-modellval för RAG.
+- Runbooks: Google SRE + PagerDuty format. "Last verified date" är det mest glömda fältet.
+- Tech radar: Adopt/Trial/Assess/Hold/Deprecating, kvartalsvis. Arkitektur-review var 6:e månad.
+- Feature store: Morfat. Qdrant + context assembly = LLM-ekvivalent. Traditionell FS bara vid hybrid ML+LLM.
+- Prompt management: Langfuse täcker det. Redan i stacken.
+- Fine-tuning: QLoRA standard, adapter hot-loading i vLLM.
+
+3 research-filer sparade:
+- `research/dag-30-developer-problems.md`
+- `research/runbook-format-platform-evolution.md`
+- `research/feature-store-prompt-mgmt-finetuning.md`
+
+Skrev §23.8 Debugging & Troubleshooting Guide: decision tree, 6 vanliga problem, self-service verktyg per fas, felkatalog (8 koder), eskaleringsmatris.
+
+**Leveransgate P4:**
+- Kollade INTE: LiteLLM:s faktiska felkoder, Langfuse trace-kapabilitet
+- SRE-rollbyte: saknar koppling §23.8 → §23.2 (konsument-eskalering → incident-klass)
+
+### S7-003 — P5 Runbook-standardformat
+
+**Opus:** Utökade §23.1 med standardformat (metadata, 6 sektioner, obligatoriska fält), livscykelhantering, komplett exempelrunbook RB-001 (vLLM OOM), prioriterad runbook-lista per fas med SEV och §-koppling.
+
+**Leveransgate P5:**
+- Kollade INTE: nvidia-smi i container, KServe canaryTrafficPercent-fältnamn
+- CTO-rollbyte: saknar MTTR-besparingsargument i §22 Business Case
+
+### S7-004 — P6 Plattforms-evolution
+
+**Opus:** Skrev §23.9: tech radar (5 ringar, exempelradar dag 1), dependency-rotation (5 triggers, beslutsprocess), arkitektur-review-cykel (6 frågor), team offboarding (6 steg med compliance-koppling).
+
+**Leveransgate P6:**
+- Kollade INTE: ThoughtWorks Tech Radar uppdatering 2026, §24 offboarding-överlapp (verifierad — ingen överlapp)
+- Utvecklar-rollbyte: tech radar → konsument-notifiering saknas
+
+### S7-005 — P7 Prompt Management, Fine-Tuning, Context Assembly
+
+**Opus:** Skrev §27 med 3 subsektioner:
+- §27.1 Prompt Management — Langfuse-baserad, 7 principer, governance
+- §27.2 Fine-Tuning Pipeline — QLoRA, 4-stegs arkitektur, adapter hot-loading, governance per risklass
+- §27.3 Context Assembly Layer — motiverade varför traditionell feature store inte behövs
+
+**Leveransgate P7:**
+- Kollade INTE: Langfuse A/B-testning feature, vLLM adapter hot-loading + KServe
+- CISO-rollbyte: §20 Threat Model saknar fine-tuning som attackvektor (data poisoning)
+
+### S7-006 — TOC, §25, rollout-plan
+
+**Opus:** Uppdaterade TOC (§27 tillagd, §23 "9 subsektioner"), läsordning (utvecklare + SRE utökade), versionsnotis (v7.0→v8.0), §25 sammanfattande princip (runbooks, tech radar, prompt management, fine-tuning, context assembly), rollout-plan v4.0 (nya leverabler per fas).
+
+### S7-007
+
+**Marcus:** Kör på, tack. (P8-P11)
+
+**Opus:** Körde P8-P11 (gate-fixar):
+
+**P8 — §22 Operations-besparingar:**
+- MTTR-tabell: utan vs med Bifrost
+- Kvantifiering: ~30K SEK/mån besparing vid 10+ team (konservativt)
+- Ny rad i icke-monetära värden: operations
+
+**P9 — §20.2 Fine-tuning Threat Model:**
+- Ny angriparprofil: "Fine-tuning-angripare" (backdoor i adapter)
+- 3 nya attackvektorer: training data poisoning, adapter backdoor, eval manipulation
+- Mitigeringar kopplade till §27.2:s eval-gate, DBOM, red-team
+- 2 nya SIEM-events i §20.4
+
+**P10 — §23.9 Konsument-notifiering:**
+- Deprecation alerts-flöde: tech radar-ändring → identifiera berörda team → notifiering
+- Notifieringsnivåer: Hold = informativ, Deprecating = åtgärd krävs
+- SDK deprecation-header: `X-Bifrost-Deprecation`
+- Princip: min 30d migrationstid, undantag vid säkerhet
+
+**P11 — §23.8 Eskaleringsbrygga:**
+- Komplett flöde: self-service → support-ärende → incident
+- Klassificering: support vs incident (4 signaler)
+- SLA: support < 4h svar, < 1 arbetsdag lösning
+- Princip: support äts inte av on-call-budget
+
+**Leveransgate P8-P11 (samlad):**
+1. Levererade: 4 gate-fixar, alla kopplade till leveransgate-fynd från P4-P7
+2. Kollade INTE: CGI timkostnad (1000 SEK/h antagande), Langfuse capability att identifiera vilka team som använder vilken modell/pipeline
+3. Rollbyte — jag är nu **extern auditor** och jag saknar: Det finns nu 27 sektioner + subsektioner. Dokumentet växer. Var är sammanfattningen som en auditor kan läsa på 10 minuter? §25 är en mening. Det behövs en executive summary eller compliance summary per regelverk.
+4. Frånvaro-sökning: parkerad (auditor-perspektivet noterat som möjligt P12)
+
+---
+
+## Session 8 — P7-backlog komplett + Gemma 4
+
+### S8-001
+
+**Marcus:** Läs om Bifrost. Läs systemprompt + HANDOFF S7.
+
+**Opus:** Läste SYSTEMPROMPT-BIFROST.md, project-bifrost.md (memory), HANDOFF S7. Sammanfattade status: v8.0, P7-backlog (P12-P15).
+
+### S8-002 — P14: vLLM fortfarande rätt?
+
+**Marcus:** P14 — vLLM — men var inte vLLM "ute"? Det var något annat som hade kommit?
+
+**Opus:** Marcus tänkte troligen på SGLang. Snabb första sökning bekräftade SGLang som utmanare (29% throughput-vinst), men Marcus påminde om systempromptens bias 5 (söker bara det man redan misstänker). Bred explorativ research (20+ queries) hittade tre överraskningar:
+
+1. **llm-d** — K8s-nativ disaggregerad inference (vLLM + K8s Inference Gateway). Ny standard.
+2. **SGLang opatchade RCE:er** — CVE-2026-3059/3060/3989, maintainers svarar inte.
+3. **ShadowMQ** — copy-paste-sårbarhet spridd mellan vLLM, SGLang, TensorRT-LLM (30+ CVE:er).
+
+Target architecture och rollout-plan uppdaterade. llm-d: bevaka → rekommenderad. SGLang: Trial → Hold.
+
+### S8-003 — P12: Executive Summary
+
+**Marcus:** Kör update (efter P14-leverans).
+
+**Opus:** Uppdaterade target architecture v8.0→v9.0 med inference-ändringar. Sedan P12: Executive Summary (~80 rader) med compliance-statusmatris per fas, läsordning för auditor. 5 leveransgater kördes — §6-diagram, rollout-plan, runbook-lucka, compliance-status, §25-hänvisning åtgärdade.
+
+### S8-004 — Gemma 4 + utvecklarproduktivitet
+
+**Marcus:** Skulle Googles Gemma 4 kunna bygga allt detta? Om man har agenter i OpenCode med Gemma 4 på GPU:er? + Vilket kodspråk byggs allt i?
+
+**Opus:** Bifrost = ~70% YAML/config, ~20% Python, ~10% TypeScript. Gemma 4 kan bygga ~50-60% av komponenterna men inte helheten (resonemangsstyrka otillräcklig). Apache 2.0, 256K kontext, vLLM dag-1-stöd.
+
+**Marcus:** Utveckla, CoT, deep thinking. Tabeller med 4 utvecklare utan/med agenter. T/s — vad vill man ha?
+
+**Opus:** Djupresearch (30+ källor). Nyckelinsikter:
+- METR-studien (RCT): erfarna devs 19% *långsammare* med AI
+- CodeRabbit: AI-kod 1.7x fler defekter
+- TTFT (inte throughput) = flaskhals för agent-loopar
+- Claude API billigare än lokal RTX 4090 vid <2M tok/dag
+- 4 devs + agenter = 10-25% snabbare, inte 2-3x
+
+### S8-005 — Managed vs self-hosted korrigering
+
+**Marcus:** Med tanke på AIs utveckling (ex. Mythos) kan väl inte managed vara rätt val någonsin...
+
+**Opus:** Korrigerade rapporten. Tre argument: (1) kapabiliteter skiftar snabbare än leverantörer levererar, (2) frontier-modeller (Mythos) begränsas, (3) lock-in accelererar med AI-takten. Ny slutsats: managed aldrig rätt val för CGI.
+
+### S8-006 — P13 + P15
+
+**Opus:** Parallell verifiering:
+- P13: Langfuse A/B-testning = inbyggd feature (verifierat). Nyans: applogik väljer variant, Langfuse trackar.
+- P15: 1000 SEK/h = mitt i marknad (800-1200 SEK/h). Fotnot tillagd i §22.
+
+P7-backlog tom.
+
+---
+
+## Session 9: Konsolidering (2026-04-14)
+
+### S9-001 — Uppstart och planering
+
+**Marcus:** Läs handoff S8 + systemprompt. Fokus Bifrost.
+
+**Opus:** Läste båda. Sammanfattade: P7-backlog tom, target architecture v9.0 ~3700 rader, nästa session = konsolidering. Föreslog 9-stegs plan: läs hela dokumentet → konsistenskontroll → redundansrensning → §25 omskrivning → krympning, med leveransgater emellan.
+
+**Marcus:** Vad tycker du? (om att börja)
+
+**Opus:** Ja, jag börjar. Läste hela target-architecture.md (3557 rader).
+
+### S9-002 — Konsistenskontroll
+
+**Opus:** Identifierade 6 konsistensbrister (K2-K10) relaterade till v9.0-ändringar (llm-d, Envoy, SGLang, K8s Inference Gateway):
+- K2: §7.1-7.4 mönster saknade llm-d fas 2-referens → fixat (4 `Fas 2+`-noter)
+- K3: §8.2 saknade Envoy → fixat
+- K4: §15 scale-to-zero saknade llm-d → fixat
+- K6: §23.5 komponentuppgraderingar saknade llm-d, K8s Inf GW → 2 rader tillagda
+- K7: §25 ur synk → separat omskrivning (se S9-004)
+- K10: §11.1 Helm chart saknade llm-d → fixat
+
+Leveransgate 1: Grep visade 29 förekomster av "llm-d" — konsistent genomslag. SRE-rollbyte flaggade saknad llm-d-runbook, bedömt som fas 2-uppgift.
+
+### S9-003 — Redundansrensning
+
+**Opus:** Identifierade 5 redundanser (R1-R5). R5 (LiteLLM supply chain i ES vs §21.1) bedömdes som avsiktlig — olika detaljeringsnivå. 4 åtgärdade:
+- R1: Server-side enforcement dubblering i §8.6 → hänvisning
+- R2: §3d ai-agents (10 rader) → krympt till 2 rader + hänvisning till §5.7
+- R3: Dataklass-routing i §8.5b → krympt till hänvisning till §12.4
+- R4: Agent Registry fasning → hänvisning till A2A-fasning ovan
+
+~22 rader sparade.
+
+Leveransgate 2: CTO-rollbyte — §22 operations-besparingar vs §23.8 bedömt som avsiktligt (ekonomi vs mekanism). Gate: inget nytt.
+
+### S9-004 — §25 omskrivning
+
+**Opus:** §25 (sammanfattande princip, en mening) omskriven med 6 nya v9.0-element:
+1. llm-d som rekommenderad disaggregerad arkitektur
+2. K8s Inference Gateway med AI-medveten lastbalansering
+3. Envoy AI Gateway som planerat LiteLLM-alternativ
+4. ShadowMQ supply chain-risk + mitigering
+5. SGLang Hold pga opatchade RCE
+6. Adapter hot-loading-begränsning (switch mellan requests)
+
+Missade leveransgate (systemprompt-brott). Körde den retroaktivt efter påminnelse från Marcus.
+
+### S9-005 — Vy-idén
+
+**Marcus:** Kan dokumentet skrivas i 3 versioner? C-level, seniora utvecklare, LLMs (Gemma 4, Qwen 3.5)?
+
+**Opus:** Inte galet. Föreslog "en source of truth + genererade vyer" — samma princip som Bifrost (en sanningskälla, flera gränssnitt). target-architecture.md förblir kanonisk, tre vyer genereras: C-level (~5-10 sidor), dev (~30-40 sidor), LLM-optimerad (YAML/JSON-LD).
+
+**Marcus:** WOW!!! Snyggt!
+
+**Opus:** Rekommenderade att avsluta konsolideringen först, vy-design som session 9:s (nästa) huvuduppgift.
+
+**Marcus:** Kom ihåg din systemprompt.
+
+**Opus:** Erkände två missade krav: chattloggen (aldrig påbörjad) och leveransgate efter §25. Fixade båda.
+
+### S9-006 — Krympning
+
+**Opus:** Identifierade 4 kandidater (S1-S4). S1 (exempelrunbook RB-001, 70 rader) krympt till 3 rader — runbooken levereras som separat fil, arkitekturdokumentet beskriver formatet. S2-S4 behölls (SDK-kodexempel värdefullt, säkerhets-auth behövs, avgränsningstext liten vinst).

@@ -1,7 +1,9 @@
 # Projekt Bifrost — Target Architecture
 
 > AI-native Kubernetes-plattform för 3000+ anställda
-> Version: 7.0 | Datum: 2026-04-13 | Författare: Marcus Purens + Opus
+> Version: 9.0 | Datum: 2026-04-13 | Författare: Marcus Purens + Opus
+> v8.0→9.0: P7-backlog komplett (P12-P15) — ES: Executive Summary tillagd (~10 min läsning, auditor-vy + compliance-statusmatris). P13: Langfuse A/B-testning verifierad som inbyggd feature, nyans dokumenterad (applogik väljer variant, Langfuse trackar). P14: §7.6 llm-d uppgraderad till rekommenderad, SGLang degraderad till Hold (opatchade RCE), §20.2 ShadowMQ-attackvektor, §21.1 Envoy AI Gateway, §23.9 tech radar, §27.2 adapter-begränsningar. P15: 1000 SEK/h verifierad mot marknad (800-1200 SEK/h, mitt i spann). Research: `research/inference-landscape-2026.md`, `reports/gemma4-bifrost-build-feasibility.md`
+> v7.0→8.0: P5-backlog komplett + P6-gate-fixar — §23.8 Debugging & Troubleshooting Guide (dag-30 developer journey, decision tree, felkatalog, eskaleringsbrygga §23.8→§23.2), runbook-standardformat med exempelrunbook (RB-001), §23.9 Plattforms-evolution (tech radar, dependency-rotation, konsument-notifiering/deprecation alerts, arkitektur-review-cykel, team offboarding), §27 AI-kapabiliteter (prompt management via Langfuse, fine-tuning pipeline med QLoRA/adapter hot-loading, context assembly layer), §22 operations-besparingar (MTTR), §20.2 fine-tuning threat model (data poisoning, adapter backdoor, eval manipulation)
 > v6.0→7.0: P4-backlog komplett — §16.4 compliance-signaler, §21.1 dependency risk (Qdrant/Neo4j/LiteLLM supply chain-attack 2026), §22.2 göra-ingenting-scenario, §22.3 organisatorisk beslutshierarki, statussida-design (§23.2), rate limit-transparens (§8.6), agent registry & discovery (§8.7), GraphRAG-källa korrigerad, llm-d fas 3+, gate-fixar (§20.6/§26.2, §5.9/SDK, §26.9 Kyverno Policy Reporter)
 > v5.0→6.0: TOC, modellval-guide (§8.5b), MCP/A2A-protokoll (§8.7), data freshness SLI (§23.3), §20.12 RACI security gate, §25 uppdaterad
 > v4.0→5.0: 4-pass review — fixat "fem/sex plan", Agent Sandbox alpha-flaggning, §20.12 Security Review Gate, Incident Notification SLA (DORA), §22.1 FinOps Governance, Continuous Compliance Evidence, SDK fördjupning (§8.6), rollout KPI:er (44 st)
@@ -10,10 +12,102 @@
 
 ---
 
+## Executive Summary
+
+> Denna sammanfattning ger en komplett bild av Bifrost på ~10 minuter.
+> För detaljer, följ sektionsreferenserna eller läsordningen per roll nedan.
+
+### Vad är Bifrost?
+
+Bifrost är en intern AI Hub — en centraliserad Kubernetes-plattform där CGI:s 3000+ anställda konsumerar AI-tjänster (inference, RAG, agenter, fine-tuning) via ett standardiserat, säkert och observerbart gränssnitt. Alternativet — att varje team bygger eget — kostar uppskattningsvis 1-3M SEK/år mer, saknar governance, och skapar compliance-risk inför EU AI Act (full enforcement augusti 2026).
+
+### Arkitektur i korthet
+
+Plattformen organiseras i **sex plan** (§2):
+
+| Plan | Ansvar | Nyckelkomponenter |
+|------|--------|-------------------|
+| **Governance** | Policy, compliance, audit | Kyverno, Agent Governance Toolkit, DBOM |
+| **Control** | Orkestrering | Kubernetes, ArgoCD (GitOps), DRA (GPU-hantering) |
+| **Inference** | Modell-serving | llm-d + vLLM, KServe, LiteLLM/Envoy AI Gateway |
+| **Data** | Lagring och retrieval | Qdrant (vektor), Neo4j (graf), MinIO (objekt), Redis (cache) |
+| **Agent** | Autonoma arbetsflöden | Agent Sandbox (CRD), gVisor-isolering, A-MEM, MCP/A2A-protokoll |
+| **Build** | CI/CD och supply chain | Docker (signerad), Helm, Sigstore, SBOM |
+
+Inference sker i **fyra mönster** (§7): synkront API, streaming (SSE), batch och agent-loopar — med differentierad GPU-allokering och autoscaling per mönster.
+
+### Säkerhet
+
+Hotmodellen (§20) identifierar 6 angriparprofiler och 12 attackvektorer (MITRE ATLAS + OWASP), inklusive prompt injection, RAG poisoning, agent memory poisoning, fine-tuning backdoors och inference-motor supply chain-risker (ShadowMQ). Säkerheten är skiktad: perimeter → AI firewall → infrastruktur → agent governance → supply chain → detection & response. SOC/SIEM-integration levererar security events till bolagets befintliga SOC.
+
+### Compliance
+
+Bifrost hanterar **10 regelverk** parallellt (§26): GDPR, EU AI Act, DORA, NIS2, säkerhetsskyddslagen, ISO 27001, ISO 42001, SOC 2, PCI-DSS och patientdatalagen. Lösningen: **compliance-profiler per uppdrag** — varje team/kund tilldelas en profil (Standard, Finans, Försvar, Hälsa, Högrisk AI) som automatiskt styr routing, audit-nivå, human oversight och pentest-krav. Kunddata segregeras strikt per uppdrag i alla datalager.
+
+**Compliance-status per fas:**
+
+| Regelverk | Fas 1 | Fas 2 | Fas 3 | Status |
+|-----------|-------|-------|-------|--------|
+| **GDPR** | PII Gateway, audit trail, dataklass-routing | Compliance-profiler, continuous evidence | Cross-tenant pentest | 🟢 Grund klar fas 1 |
+| **EU AI Act** | Threat model, audit trail | Risk Registry, PII, Human Oversight | Högrisk-profil, DBOM, eval | 🟡 Grund klar fas 2, full i fas 3 |
+| **DORA** | — | Finans-profil, SOC-integration, pentest | Kvartalsvis pentest, DR-övning | 🟡 Fas 2 |
+| **NIS2** | SBOM, Sigstore | Incident reporting, supply chain | — | 🟢 Grund klar fas 1-2 |
+| **ISO 27001** | Aligned med befintligt ISMS | — | — | 🟢 CGI redan certifierat |
+| **ISO 42001** | — | Gap-analys | Certifieringsmål | 🔴 Planerad fas 2-3 |
+| **Säkerhetsskyddslagen** | — | — | Secure zone om kundkrav | ⚪ Vid behov |
+
+### Developer Experience
+
+Team konsumerar plattformen via fyra gränssnitt (§8): OpenAI-kompatibelt API (gateway), AI Hub Portal (Backstage), Playground och Admin Console. Ett TypeScript SDK ger typad access till inference, RAG, memory och usage — med automatisk dataklass-routing och compliance-headers. Onboarding-mål: < 30 minuter till första request.
+
+### Ekonomi
+
+Break-even vid ~3-5 aktiva team (§22). Vid 10+ team sparar plattformen mer än den kostar. Plattformskostnad fas 1-2: ~500-800K SEK/månad. FinOps-governance med beslutshierarki, kostnadsanomali-detektion och chargeback-modell (showback → soft chargeback → full chargeback).
+
+### Drift
+
+SLO-baserad drift (§23) med error budgets, 9 runbooks i standardformat, self-service debugging (decision trees, felkatalog med 8 koder, per-team Grafana-dashboards), DR-plan med kvartalsvis övning, och en tech radar (Adopt/Trial/Assess/Hold) med kvartalsvis review. On-call med PagerDuty/Opsgenie, eskaleringsmatris, och AI-assisterad SRE (fas 3).
+
+### Viktigaste riskerna
+
+| Risk | Allvarlighet | Mitigering |
+|------|-------------|------------|
+| **LiteLLM supply chain** | 🔴 Hög | Komprometterade PyPI-versioner mars 2026. Pinnad version + Envoy AI Gateway-utvärdering fas 2 (§21.1) |
+| **Neo4j licenslåsning** | 🔴 Hög | GPL + Commons Clause. Tunn query-adapter + Apache AGE som exit-plan (§21.1) |
+| **Inference-motor CVE:er** | 🔴 Hög | ShadowMQ: 30+ CVE:er i vLLM/SGLang/TensorRT-LLM. vLLM ≥0.11.1, nätverksisolering obligatoriskt (§20.2) |
+| **EU AI Act deadline** | 🟡 Medel | Compliance-grund klar i fas 2 (Risk Registry + PII + Audit Trail + Human Oversight) |
+| **Låg adoption** | 🟡 Medel | Pilotteam tidigt, playground, enkel DX, champion-nätverk |
+
+### Rollout
+
+**30/60/90-dagarsplan** med start mitten av maj 2026:
+
+| Fas | Period | Leverans |
+|-----|--------|----------|
+| **Fas 1: Foundation** | Dag 1-30 | GPU + vLLM + Gateway + 1 pilotteam. Redis, Qdrant, MinIO. Grundläggande säkerhet och audit. |
+| **Fas 2: Platform** | Dag 31-60 | Multi-tenant (3+ team), GitOps, KServe, llm-d disaggregering, Neo4j, RAG self-service, PII-detektion, SOC-integration, Backstage MVP, compliance-grund (EU AI Act deadline). |
+| **Fas 3: Scale** | Dag 61-90 | Agent Sandbox, full compliance-profiler, MLflow model registry, eval + red-team, 10+ team, fine-tuning (QLoRA), Backstage med alla plugins. |
+| **Post 90d** | Löpande | Full disaggregering, per-tenant adapters, ISO 42001-certifiering, chargeback, secure zone (försvar). |
+
+### Nyckeltal (mål fas 3)
+
+| Metrik | Mål |
+|--------|-----|
+| Team onboardade | 15+ |
+| Aktiva användare (MAU) | 500+ |
+| Requests/dag | 50 000+ |
+| SLO compliance | > 95% |
+| Incident MTTR | < 1 timme |
+| GPU utilization | > 60% |
+| Compliance-incidenter | 0 |
+
+---
+
 ## Innehållsförteckning
 
 | # | Sektion | Område |
 |---|---------|--------|
+| [ES](#executive-summary) | **Executive Summary** (~10 min läsning) | Översikt |
 | [1](#1-vision) | Vision | Strategi |
 | [2](#2-sex-plan) | Sex plan | Arkitektur |
 | [3](#3-klusterzoner) | Klusterzoner (5 zoner) | Infrastruktur |
@@ -36,10 +130,11 @@
 | [20](#20-security-architecture) | Security Architecture (12 subsektioner) | Security |
 | [21](#21-buy-vs-build) | Buy vs Build | Strategi |
 | [22](#22-business-case) | Business Case & FinOps Governance | Ekonomi |
-| [23](#23-operations--sre) | Operations & SRE (7 subsektioner) | Operations |
+| [23](#23-operations--sre) | Operations & SRE (9 subsektioner) | Operations |
 | [24](#24-change-management) | Change Management (6 subsektioner) | Organisation |
 | [25](#25-sammanfattande-princip) | Sammanfattande princip | — |
 | [26](#26-regulatory--compliance-framework) | Regulatory & Compliance Framework (9 subsektioner) | Compliance |
+| [27](#27-ai-kapabiliteter--prompt-management-fine-tuning--context-assembly) | Prompt Management, Fine-Tuning & Context Assembly | AI-kapabiliteter |
 
 **Rekommenderad läsordning per roll:**
 
@@ -47,10 +142,11 @@
 |------|-------------------|--------|
 | **CISO / säkerhet** | §20 → §26 → §13 → §12.2 → §10 → §20.12 | Hotmodell först, sedan compliance-ramverk, secrets, governance, supply chain, och slutligen security review gate |
 | **CTO / arkitektur** | §1 → §2 → §21 → §22 → §5 → §7 → §8 | Vision, sex plan, buy vs build, business case — sedan deep dive i data, inference, DX |
-| **Utvecklare** | §8 → §8.5b → §6 → §7 → §5.9 → §8.7 | Börja med DX: modellval-guide, gateway, inference-mönster, RAG self-service, MCP/A2A-protokoll |
-| **SRE / drift** | §23 → §3 → §15 → §16 → §4 → §17 | SLOs/DR/ops först, sedan klusterzoner, autoscaling, observability, GPU, GitOps |
+| **Utvecklare** | §8 → §8.5b → §6 → §7 → §5.9 → §8.7 → §23.8 → §27.1 | DX, gateway, inference, RAG, MCP/A2A, troubleshooting, prompt management |
+| **SRE / drift** | §23 → §23.8 → §23.9 → §3 → §15 → §16 → §4 → §17 | SLOs/DR/ops, debugging-guide, plattforms-evolution, klusterzoner, autoscaling, observability |
 | **Compliance / juridik** | §26 → §12 → §22.1 → §20.12 → §9.8 | Regulatoriskt ramverk, governance, FinOps, security gate, modell-governance |
-| **Executive sponsor** | §1 → §22 → §24 → §26.1 → §25 | Vision, business case, change management, regulatorisk kontext, sammanfattning |
+| **Executive sponsor** | **ES** → §22 → §24 → §26.1 | Executive summary, business case, change management, regulatorisk kontext |
+| **Auditor / extern granskare** | **ES** → §26 → §20 → §22 | Executive summary, compliance-ramverk, säkerhetsarkitektur, business case |
 
 ---
 
@@ -81,9 +177,9 @@ Plattformen organiseras i sex plan som samverkar:
 │  Kubernetes · GitOps (Argo CD) · DRA · Scheduling · RBAC           │
 ├──────────────────────┬──────────────────────────────────────────────┤
 │   INFERENCE PLANE    │              DATA PLANE                      │
-│  vLLM · KServe       │  Vector Store (Qdrant) · Knowledge Graph    │
-│  LiteLLM Gateway     │  Object Store (MinIO) · Cache (Redis)       │
-│  llm-d (fas 3+)      │  Agent Memory (A-MEM) · Telemetry           │
+│  llm-d + vLLM        │  Vector Store (Qdrant) · Knowledge Graph    │
+│  KServe · K8s Inf GW │  Object Store (MinIO) · Cache (Redis)       │
+│  LiteLLM / Envoy GW  │  Agent Memory (A-MEM) · Telemetry           │
 │                      │  Model Registry (MLflow) · DBOM Store        │
 ├──────────────────────┼──────────────────────────────────────────────┤
 │   AGENT PLANE        │              BUILD PLANE                     │
@@ -101,23 +197,13 @@ Plattformen organiseras i sex plan som samverkar:
 Ingress/Gateway API, Argo CD, policy controllers, cert-manager, observability stack, registry mirrors, secrets integration.
 
 ### 3b. ai-serving
-vLLM-instanser, KServe InferenceServices, LiteLLM gateway, tokenizer/cache-lager, guardrails/moderationstjänster, PII-gateway.
+llm-d disaggregerade pods (prefill + decode), vLLM-instanser, KServe InferenceServices, Kubernetes Inference Gateway, LiteLLM gateway (med Envoy AI Gateway som planerat alternativ), tokenizer/cache-lager, guardrails/moderationstjänster, PII-gateway.
 
 ### 3c. ai-batch
 Embeddings, eval-jobb, finjustering, syntetisk testdata, reindexering, red-team-körningar. Kueue för kö- och kvotstyrning.
 
 ### 3d. ai-agents
-Agent-loopar, autonoma arbetsflöden. Separerad zon med:
-- **Agent Sandbox** (K8s CRD, kubernetes-sigs) — stateful, isolerade workspaces
-- gVisor/Kata Containers för säker kodexekvering
-- PersistentVolumeClaim per agent-workspace (kod, scratch, artifacts)
-- Pause/resume — idle i timmar, vakna och fortsätt
-- Scale-to-zero mellan uppgifter
-- Session-baserade concurrency limits
-- Timeout-policies (obligatoriskt)
-- Agent Governance Toolkit integration
-- Isolerad RBAC
-- Anslutning till Vector DB, Knowledge Graph och Object Store via NetworkPolicy
+Agent-loopar, autonoma arbetsflöden. Separerad zon med Agent Sandbox (K8s CRD), gVisor-isolering, session-baserade concurrency limits och timeout-policies. Fullständig beskrivning av sandbox-arkitektur, workspace-layout, livscykel och säkerhet i §5.7.
 
 ### 3e. app-teams
 Domänapplikationer som konsumerar AI-tjänster via gateway.
@@ -427,7 +513,7 @@ Team väljer recept vid onboarding → plattformen provisionerar rätt pipeline.
 
 ---
 
-## 6. LLM Gateway — LiteLLM
+## 6. LLM Gateway — LiteLLM (med Envoy AI Gateway som planerat alternativ)
 
 ### 6.1 Varför en gateway
 Bolaget kommer använda **både lokala och externa modeller** (Claude, GPT, Bedrock). Gatewayen abstraherar alla bakom ett enhetligt OpenAI-kompatibelt API.
@@ -436,7 +522,7 @@ Bolaget kommer använda **både lokala och externa modeller** (Claude, GPT, Bedr
 
 ```
 ┌──────────────────────────────────────────────────┐
-│              LiteLLM Gateway                      │
+│         AI GATEWAY (LiteLLM → Envoy fas 2)       │
 │                                                    │
 │  ┌─────────────┐  ┌────────────┐  ┌────────────┐ │
 │  │ Auth/RBAC   │  │ PII Gate   │  │ Rate Limit │ │
@@ -447,7 +533,7 @@ Bolaget kommer använda **både lokala och externa modeller** (Claude, GPT, Bedr
 │                     ▼                              │
 │  ┌─────────────────────────────────────────────┐  │
 │  │              Routing Engine                  │  │
-│  │  order 1 → local vLLM                       │  │
+│  │  order 1 → local vLLM (via llm-d)           │  │
 │  │  order 2 → Claude API                       │  │
 │  │  order 3 → GPT-4o API                       │  │
 │  │  fallback → smaller local model             │  │
@@ -459,6 +545,8 @@ Bolaget kommer använda **både lokala och externa modeller** (Claude, GPT, Bedr
 │  └────────────┘  └────────────┘  └──────────────┘│
 └──────────────────────────────────────────────────┘
 ```
+
+**Gateway-migration (fas 2):** LiteLLM har känd supply chain-risk (§21.1). Envoy AI Gateway (ny 2025, K8s-nativ) integreras med Kubernetes Inference Gateway och llm-d, erbjuder AI-medveten lastbalansering (KV-cache-utnyttjande, ködjup) och ger ~30% kostnadsbesparing/60% lägre tail-latency vs traditionell LB. Utvärderas i fas 2 som ersättare. Designen abstraherar redan bakom OpenAI-kompatibelt API — byte kräver inte SDK-ändring.
 
 ### 6.3 Multi-tenancy
 
@@ -508,6 +596,8 @@ Client → Gateway → vLLM → Response (komplett)
 | Kö | Ingen — timeout och reject |
 | Användning | Klassificering, extraction, sentiment |
 
+**Fas 2+:** Kan köras utan disaggregering (llm-d) — små modeller med låg latens har liten vinst av separerade prefill/decode-pods. Se §7.6 för fasning.
+
 ### 7.2 Streaming (SSE)
 
 ```
@@ -522,6 +612,8 @@ Client → Gateway → vLLM → Token... Token... Token... [DONE]
 | Optimering | Prefix caching (30-60% TTFT-reduktion) |
 | Användning | Chat, kodgenerering, assistenter |
 
+**Fas 2+:** Primärt mönster för llm-d disaggregering — separerade prefill/decode-pods ger ~40% lägre per-token-latency (§7.6).
+
 ### 7.3 Batch
 
 ```
@@ -535,6 +627,8 @@ Job Queue → Kueue → vLLM (batch) → Results → Storage
 | GPU-profil | Maximera throughput, latens irrelevant |
 | Kö | Ja — Kueue med prioritet och fairness |
 | Användning | Embeddings, eval, syntetisk data, reindexering |
+
+**Fas 2+:** Kan köras utan disaggregering initialt — throughput viktigare än latens. llm-d tillför Kueue-integration i fas 3 (§7.6).
 
 ### 7.4 Agent-loopar
 
@@ -552,35 +646,80 @@ Client → Agent → [LLM ↔ Tool ↔ LLM ↔ Tool ↔ ... ] → Final
 | Governance | Agent Governance Toolkit |
 | Användning | Kodagenter, research, autonoma arbetsflöden |
 
+**Fas 2+:** Andra primära mönstret för llm-d — TTFT-optimering via disaggregering är kritiskt för agent-loopar där varje steg väntar på LLM-svar (§7.6).
+
 ### 7.5 Routing per mönster
 
 ```
-┌────────────────────────────────────────────────────┐
-│                  AI GATEWAY (LiteLLM)              │
-│  ┌─────────┐ ┌─────────┐ ┌───────┐ ┌────────────┐│
-│  │ Sync    │ │ Stream  │ │ Batch │ │ Agent      ││
-│  │ Router  │ │ Router  │ │ Queue │ │ Scheduler  ││
-│  └────┬────┘ └────┬────┘ └───┬───┘ └─────┬──────┘│
-│       │           │          │            │       │
-│  ┌────▼────┐ ┌────▼────┐ ┌──▼─────┐ ┌────▼────┐ │
-│  │ vLLM    │ │ vLLM    │ │ vLLM   │ │ vLLM    │ │
-│  │ (small) │ │ (medium │ │ (batch │ │ (large) │ │
-│  │         │ │ +cache) │ │  mode) │ │         │ │
-│  └─────────┘ └─────────┘ └────────┘ └─────────┘ │
-└────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│           AI GATEWAY (LiteLLM → Envoy fas 2)            │
+│  ┌─────────┐ ┌─────────┐ ┌───────┐ ┌────────────┐     │
+│  │ Sync    │ │ Stream  │ │ Batch │ │ Agent      │     │
+│  │ Router  │ │ Router  │ │ Queue │ │ Scheduler  │     │
+│  └────┬────┘ └────┬────┘ └───┬───┘ └─────┬──────┘     │
+│       │           │          │            │            │
+│  ┌────▼────────────▼──────────▼────────────▼─────────┐ │
+│  │         K8s Inference Gateway (llm-d)              │ │
+│  │  Disaggregering-scheduler · KV-cache-aware routing │ │
+│  │  Cache-aware LoRA routing · OTel tracing           │ │
+│  └──┬──────────┬──────────┬──────────┬───────────────┘ │
+│  ┌──▼────┐ ┌───▼─────┐ ┌─▼──────┐ ┌─▼───────┐        │
+│  │ vLLM  │ │ vLLM    │ │ vLLM   │ │ vLLM    │        │
+│  │(small)│ │(prefill)│ │(batch) │ │(prefill)│        │
+│  │       │ │(decode) │ │        │ │(decode) │        │
+│  └───────┘ └─────────┘ └────────┘ └─────────┘        │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### 7.6 llm-d — fas 3+ uppgradering
+**Not:** Fas 1 kör vLLM direkt via gateway. Fas 2 lägger till llm-d-lagret med disaggregerade prefill/decode-pods för streaming (mönster 2) och agent-loopar (mönster 4). Sync (mönster 1) och batch (mönster 3) kan köra utan disaggregering initialt.
 
-llm-d (CNCF sandbox) separerar prefill och decode i olika pods:
-- **Prefill-pods:** compute-bound, processar input parallellt
-- **Decode-pods:** memory-bound, genererar output sekventiellt
-- Oberoende skalning per fas
-- ~3.1k tok/s per B200, storleksordning bättre TTFT
+### 7.6 llm-d — rekommenderad inference-arkitektur
 
-Bevaka och planera in som uppgradering när mönster 2 (streaming) och 4 (agent) skalas.
+**Status (april 2026):** llm-d har gått från CNCF sandbox-experiment till rekommenderad standard för Kubernetes AI-plattformar. Backas av Red Hat, AWS, NVIDIA och Google. Version 0.5 GA.
 
-**Alternativ att bevaka: SGLang.** Per april 2026 visar benchmarks att SGLang levererar ~29% högre throughput/$ vs vLLM på H100 för agentic workloads (MorphLLM/SemiAnalysis). SGLang optimerar specifikt för multi-turn, tool-calling och agent-loopar. llm-d (CNCF) wrappar vLLM — om SGLang fortsätter leda kan det påverka valet. **Rekommendation:** Inkludera SGLang i fas 2-utvärderingen av inference-stack, särskilt för Agent Plane (mönster 4).
+**Vad det är:** Kubernetes-nativt ramverk som bygger *på* vLLM men lägger till disaggregerad inference — separerar prefill (compute-tung) och decode (minnes-tung) i olika pods.
+
+**Komponenter:**
+- **vLLM** som model server (≥0.11.1, se §20.2 för säkerhetskrav)
+- **Kubernetes Inference Gateway** som kontrollplan och lastbalansering
+- **Disaggregering-scheduler** som routar requests dynamiskt
+- **OpenTelemetry-tracing** inbyggd (inte eftermonterad)
+
+**Kapabiliteter (v0.5):**
+- Prefill-pods och decode-pods skalar oberoende
+- 40% reduktion i per-token-latency (benchmarkad med DeepSeek V3.1 på H200)
+- Cache-aware LoRA routing (multi-tenant adapter-stöd)
+- Active-active high availability
+- Scale-to-zero autoscaling
+- Hierarkisk KV-offloading (GPU → CPU → disk)
+- Multi-cluster-stöd via GKE Inference Gateway
+
+**Varför llm-d istället för enbart vLLM:**
+- Disaggregering är inte längre experimentellt — det är default-mönstret 2026
+- Kubernetes-nativ: ingen custom orkestrering behövs
+- Observability inbyggd (Prometheus + OTel) istället för att monteras på efteråt
+- Governance-stöd integrerat (kvoter, routing) — minskar beroendet av proxy-lager
+
+**Fasning i Bifrost:**
+| Fas | Kapabilitet |
+|-----|------------|
+| **Fas 1** | vLLM v0.11.1+ med KServe (fungerar redan). Planera llm-d-migration. |
+| **Fas 2** | llm-d deployment — disaggregerade prefill/decode-pods för mönster 2 (streaming) och 4 (agent). Kubernetes Inference Gateway. |
+| **Fas 3** | Full disaggregering alla mönster. Multi-cluster HA. Cache-aware LoRA routing. |
+
+#### SGLang — bevaka, ej deploya (april 2026)
+
+SGLang levererar ~29% högre throughput/$ vs vLLM på H100 för agentic workloads tack vare RadixAttention (KV-cache-återanvändning via radix tree). Adoption hos xAI, Microsoft Azure, Cursor.
+
+**VARNING: Opatchade RCE-sårbarheter.** CVE-2026-3059, CVE-2026-3060 och CVE-2026-3989 möjliggör fjärrkörning av kod via multimodal generation och disaggregering-endpoints. Per april 2026 har maintainers *inte svarat* på coordinated disclosure. **SGLang kan inte exponeras mot nätverket utan härdad proxy.**
+
+**Rekommendation:** Bevaka SGLang-patchstatus kvartalsvis. Om/när CVE:erna patchas → utvärdera som sekundär motor för Agent Plane (mönster 4). llm-d wrappar vLLM — om SGLang ersätter vLLM som llm-d:s backend i framtiden får Bifrost vinsten automatiskt.
+
+#### HuggingFace TGI — deprecated
+
+TGI gick i maintenance mode december 2025. HuggingFace rekommenderar själva vLLM eller SGLang. **Ta bort TGI som alternativ i alla utvärderingar.**
+
+Se `research/inference-landscape-2026.md` för fullständig analys med CVE-detaljer, jämförelsematris och kostnadstrender.
 
 ---
 
@@ -594,7 +733,7 @@ Göra det rätta enkelt, det felaktiga svårt. Kanalisera, inte blockera.
 
 | Gränssnitt | Målgrupp | Teknik |
 |------------|----------|--------|
-| **API Gateway** | Utvecklare | OpenAI-kompatibelt API via LiteLLM |
+| **API Gateway** | Utvecklare | OpenAI-kompatibelt API via LiteLLM / Envoy AI Gateway (§6) |
 | **AI Hub Portal** | Alla team | Backstage (CNCF graduated) |
 | **Playground** | Alla | Web UI för att testa modeller |
 | **Admin Console** | Platform team | Kvoter, GPU, policy, audit, kostnad |
@@ -669,13 +808,7 @@ Backstage ger:
 
 #### Dataklass-routing
 
-```
-Dataklass "public"       → alla modeller tillgängliga (lokal + extern)
-Dataklass "internal"     → alla modeller tillgängliga (data ej personligt känslig)
-Dataklass "confidential" → ENBART lokala modeller (data lämnar inte klustret)
-```
-
-LiteLLM gateway (§6) enforcar detta automatiskt. Team behöver inte tänka på routing — de anger dataklass, gateway väljer modell. SDK:ts `DataClassError` (§8.6) triggas om teamet explicit begär extern modell + konfidentiell data.
+Dataklass styr vilka modeller som är tillgängliga: `public` → alla, `internal` → alla, `confidential` → enbart lokala. Fullständig definition, detektionsflöde och fail-safe i §12.4. LiteLLM gateway (§6) enforcar automatiskt. SDK:ts `DataClassError` (§8.6) triggas vid konflikt.
 
 #### Kostnadssignal
 
@@ -962,7 +1095,7 @@ Golden paths *är* SDK-dokumentation i praktiken — de visar inte bara API:t ut
 | **Cross-modell datadelning** | `client.graph.query()` med Cypher som refererar annan tenants data | Blockeras server-side + `TenantIsolationError` |
 | **Högrisk AI-request utan human oversight** | Om compliance-profilen kräver human-in-the-loop → `HumanOversightRequired` error med instruktion | EU AI Act-krav (§26.5) |
 
-**Server-side enforcement:** Alla speed bumps enforced server-side — SDK:t ger bra felmeddelanden, men säkerheten sitter inte i klienten. Ett team som bygger egen HTTP-klient möter samma regler.
+**Server-side enforcement:** Se §8.6 Auth & Tenant-isolering — samma princip gäller: SDK:t är convenience, all enforcement sker server-side.
 
 ### 8.7 Agent-protokoll — MCP och A2A
 
@@ -1155,13 +1288,7 @@ A2A, ursprungligen från Google (2025), hanterar agent-till-agent-kommunikation:
 - Agent Cards kan inte registreras utan security review
 - Kill switch: platform team kan avregistrera en agent omedelbart
 
-**Fasning:**
-
-| Fas | Kapabilitet |
-|-----|------------|
-| **Fas 2** | Ingen agent-till-agent. Agenter kommunicerar via delade resurser (Qdrant, Neo4j). Agent catalog finns i Backstage (metadata, inte discovery) |
-| **Fas 3** | Intern A2A: agenter inom samma tenant kan hitta och delegera. Discovery API live. Agent Cards publicerade |
-| **Post 90d** | Cross-tenant A2A med governance. Pub/sub för asynkrona händelser. Partner-agenter med signerade Agent Cards |
+**Fasning:** Följer A2A-fasningen ovan — Agent Registry Discovery API live i fas 3, agent catalog (metadata-only) i Backstage från fas 2.
 
 ---
 
@@ -1261,7 +1388,7 @@ Låt AI:
 | Chart | Syfte |
 |-------|-------|
 | **base-service** | Alla interna mikrotjänster |
-| **llm-serving** | vLLM/KServe inferenstjänster |
+| **llm-serving** | vLLM/llm-d/KServe inferenstjänster, K8s Inference Gateway (fas 2+) |
 | **batch-job** | Eval/reindex/embedding-jobb |
 | **vector-db** | Qdrant deployment + collection management |
 | **knowledge-graph** | Neo4j deployment + plugin config |
@@ -1467,7 +1594,7 @@ Microsoft Agent Governance Toolkit (MIT-licens, släppt 2 april 2026) adresserar
 | Embeddings | Egen worker-klass | HPA |
 | Eval-jobb | Restkapacitet/fönster | Kueue |
 | Warm replicas | Alltid igång | Manuell min |
-| Scale-to-zero | Bara där cold start OK | KServe/Knative |
+| Scale-to-zero | Bara där cold start OK | KServe/Knative, llm-d (fas 2+, §7.6) |
 | **Qdrant** | Collection count, query latency, RAM | HPA (fas 1 manuell, fas 2 HA) |
 | **Neo4j** | Query latency, heap usage | Manuell → Read replicas (fas 3) |
 | **Redis** | Memory usage, connections | HPA + Sentinel |
@@ -1612,6 +1739,7 @@ Traditionell zero trust antar att en *människa* initierar en session. Agentic A
 | **Insider (avsiktlig)** | Data, sabotage | Missbrukar API-nyckel, exfiltrerar via prompts |
 | **Komprometterad agent** | Eskalering | Tool misuse, memory poisoning, lateral movement |
 | **Supply chain** | Bakdörr | Poisoned modellvikter, skadligt RAG-innehåll |
+| **Fine-tuning-angripare** | Backdoor i adapter | Poisoned träningsdata, manipulerade eval-resultat |
 
 **Attackvektorer (MITRE ATLAS + OWASP):**
 
@@ -1626,6 +1754,10 @@ Traditionell zero trust antar att en *människa* initierar en session. Agentic A
 | **Model supply chain** | Bakdörrar i nedladdade modellvikter | Säkerhetsscan vid import (§9.3), signerade vikter |
 | **GPU side-channel** | Informationsläckage via delad GPU | Isolerade GPU:er per tenant (DRA), överväg TEE |
 | **Tool/MCP-missbruk** | Agent anropar verktyg utanför sin behörighet | Per-tool allowlist, parameter-validering |
+| **Training data poisoning** | Injicera skadlig data i fine-tuning-dataset för att introducera backdoor i adapter | PII-rensning av all träningsdata (§27.2), DBOM med proveniens, human review av curated datasets, eval-gate med red-team (§27.2) |
+| **Adapter backdoor** | Fine-tunad adapter innehåller latent beteende som aktiveras av specifik trigger-fras | Oberoende eval (§27.2 steg 1-5) inkl. red-team. Adapter aldrig deployad utan eval-gate. Jämförelse bas vs fine-tunad. |
+| **Eval manipulation** | Manipulera eval-resultat för att promotera skadlig adapter | Eval-pipeline i read-only-miljö. Eval-data separerad från träningsdata. Audit trail på alla eval-körningar (MLflow §9). |
+| **Inference-motor supply chain (ShadowMQ)** | Copy-paste-spridning av osäker pickle-deserialisering via ZeroMQ. Drabbar vLLM, SGLang, TensorRT-LLM, Modular Max — 30+ CVE:er (nov 2025). Oautentiserad angripare kan exekvera godtycklig kod på GPU-kluster. | vLLM ≥0.11.1 (CVE-2025-30165 patchad). Aldrig exponera ZeroMQ-sockets mot opålitliga nätverk. JSON/protobuf, aldrig pickle för serialisering. Service mesh (Istio) med mTLS för all inter-pod-kommunikation. NetworkPolicy deny-by-default. SGLang: ej deployad i Bifrost pga opatchade CVE:er (se §7.6). |
 
 ### 20.3 Säkerhetslager — samlad bild
 
@@ -1680,6 +1812,9 @@ Traditionell zero trust antar att en *människa* initierar en session. Agentic A
 | Honeypot-prompt triggad | Kritisk | Inference API |
 | Okänd modell i registry (supply chain) | Hög | MLflow + admission |
 | Agent breakout-försök (NetworkPolicy deny) | Kritisk | K8s audit log |
+| Fine-tuning-jobb med ovanlig data (anomali) | Medel | MLflow + data curation pipeline (§27.2) |
+| Inference-motor ZMQ-deserialisering (ShadowMQ-mönster) | Kritisk | NetworkPolicy + service mesh audit |
+| Adapter eval misslyckas efter red-team | Hög | Eval-pipeline (§27.2) |
 
 **Transport:** OpenTelemetry → bolagets SIEM (Splunk/Sentinel/Elastic). Standardformat, ingen custom-integration.
 
@@ -1901,8 +2036,8 @@ Bygg → Intern test → Security review → Åtgärda fynd → Re-review → CI
 | **Finansiering** | VC-backed (BerriAI, liten runda). Startup, inte foundation |
 | **Enterprise-adoption** | Bred användning men mestadels startups/mid-size. Få Fortune 500-case studies |
 | **Huvudrisk** | **Supply chain-attack mars 2026.** Komprometterade PyPI-versioner (1.82.7, 1.82.8) installerades av 40 000+ användare. Malware stal SSL/SSH-nycklar, cloud credentials, K8s-konfigurationer, API-nycklar. Angripare (TeamPCP) komprometterade LiteLLMs CI/CD via en trojaniserad Trivy GitHub Action. Dessutom: 800+ öppna issues, PostgreSQL-loggning degraderar vid 1M+ poster, OOM-problem i K8s rapporterade sept 2025 |
-| **Alternativ** | Portkey (kommersiell, mer enterprise-redo), Kong AI Gateway (enterprise-grade, API-fokus), Cloudflare AI Gateway (managed edge), egenbyggd tunn adapter (~500 rader för 2-3 providers) |
-| **Mitigering** | **Omedelbart:** Pinna versioner, verifiera signaturer, blockera automatiska PyPI-uppdateringar. **Långsiktigt:** Utvärdera Portkey eller Kong som alternativ. Designen i §6 abstraherar redan bakom OpenAI-kompatibelt API — providerbyte kräver inte SDK-ändring |
+| **Alternativ** | **Envoy AI Gateway** (K8s-nativ, AI-medveten lastbalansering, 30% kostnadsbesparing/60% lägre tail-latency vs traditionell LB — ny 2025, integreras med K8s Inference Gateway), Portkey (kommersiell, mer enterprise-redo), Kong AI Gateway (enterprise-grade, API-fokus), egenbyggd tunn adapter (~500 rader för 2-3 providers) |
+| **Mitigering** | **Omedelbart:** Pinna versioner, verifiera signaturer, blockera automatiska PyPI-uppdateringar. **Långsiktigt:** Utvärdera **Envoy AI Gateway** som primärt alternativ (alignar med llm-d + K8s Inference Gateway i §7.6). Portkey som sekundärt alternativ. Designen i §6 abstraherar redan bakom OpenAI-kompatibelt API — providerbyte kräver inte SDK-ändring |
 
 #### Sammanfattande riskmatris
 
@@ -1914,7 +2049,7 @@ Bygg → Intern test → Security review → Åtgärda fynd → Re-review → CI
 
 **Princip:** Varje OSS-komponent i §21.1 ska ha en namngiven alternativkandidat och en dokumenterad exit-plan. Abstract → interface → swap. Leverantörslåsning är acceptabel bara om exit-kostnaden är kvantifierad.
 
-**Rekommendation:** Neo4j och LiteLLM kräver aktiv bevakning. Neo4j: planera för Apache AGE-migration om rättsläget försämras. LiteLLM: utvärdera Portkey under fas 2. Supply chain-incidenten gör det svårt att motivera LiteLLM utan strikta pinning- och signaturkontroller.
+**Rekommendation:** Neo4j och LiteLLM kräver aktiv bevakning. Neo4j: planera för Apache AGE-migration om rättsläget försämras. LiteLLM: utvärdera **Envoy AI Gateway** under fas 2 (K8s-nativ, alignar med llm-d/K8s Inference Gateway — se §7.6). Portkey som sekundärt alternativ. Supply chain-incidenten gör det svårt att motivera LiteLLM utan strikta pinning- och signaturkontroller.
 
 ---
 
@@ -1936,6 +2071,8 @@ Bygg → Intern test → Security review → Åtgärda fynd → Re-review → CI
 | Säkerhetsincident-risk | Hög (ingen governance) | Lägre (PII gateway, agent governance) |
 | Modell-kvalitet | Ingen eval-pipeline | Standardiserad eval + red-team |
 | Kostnadsöversikt | Ingen | Per-team, per-modell, per-request |
+| Incident-hantering (MTTR) | Ad hoc, ingen runbook, varje team felsöker själv | Standardiserade runbooks (§23.1), self-service debugging (§23.8), MTTR-reduktion |
+| Felsökning per team | Varje team bygger egen observability | Centralt: Langfuse traces, per-team dashboards, felkatalog |
 
 ### Break-even-estimat
 
@@ -1944,12 +2081,32 @@ Bygg → Intern test → Security review → Åtgärda fynd → Re-review → CI
 - **Break-even:** ~3-5 team som aktivt använder plattformen
 - **Vid 10+ team:** Plattformen sparar mer än den kostar
 
+### Operations-besparingar
+
+**Princip:** Standardiserade runbooks + self-service debugging minskar MTTR (Mean Time To Recovery) och avlastar plattformsteamet.
+
+| Scenario | Utan Bifrost | Med Bifrost | Besparing |
+|----------|-------------|-------------|-----------|
+| **Plattformsincident (SEV1)** | MTTR ~4h (ad hoc, ingen runbook) | MTTR ~30 min (standardiserad runbook §23.1) | ~3.5h per incident |
+| **Team felsöker dålig RAG** | Eskalerar till plattformsteam direkt → 2-4h plattformstid per ärende | Self-service via decision tree + Langfuse traces (§23.8) → 80% löses utan eskalering | ~1.5h plattformstid per ärende |
+| **Dependency-problem** | Upptäcks reaktivt (CVE, avbrott) | Tech radar + dependency-rotation (§23.9) proaktiv hantering | Färre SEV1/SEV2 incidenter |
+
+**Kvantifiering (konservativ):** Vid 10+ team, ~2 SEV1-2/månad + ~20 team-eskaleringar/månad:
+- Runbook-besparing: 2 × 3.5h = 7h/månad × ~1000 SEK/h = ~7 000 SEK/månad
+- Self-service-besparing: 20 × 1.5h × 80% = 24h/månad × ~1000 SEK/h = ~24 000 SEK/månad
+- **Total: ~30 000 SEK/månad** i plattformsteamets frigjorda tid — tid som kan användas för utveckling istället för support
+
+Siffran är konservativ. Den faktiska besparingen ökar med adoption — 20 team genererar fler ärenden, men self-service-verktygen skalar utan extra plattformstid.
+
+**Antagande: 1000 SEK/h (verifierat april 2026).** Inkluderar lön (~45-55K SEK/mån), sociala avgifter (31.42%), kontorsplats, verktyg och management-overhead. Svensk marknad för IT-utvecklare/plattformsingenjörer: 800-1200 SEK/h fullt belastad. 1000 SEK/h = mitt i spannet, konservativt för senior-roller (1200-1600 SEK/h). Källor: Unionen, Opsio, branschrapporter.
+
 ### Icke-monetära värden
 
 - **Compliance:** AI Act deadline 2 augusti 2026 — centralt register vs 30 ad hoc-system
 - **Säkerhet:** En attackyta istället för 10-30
 - **Hastighet:** Organisationen accelererar AI-adoption
 - **Kontroll:** Tjänsteägare har översikt och kan styra
+- **Operations:** Standardiserade runbooks + debugging-guide → lägre MTTR, mindre plattformsteam-belastning
 
 ### 22.1 FinOps Governance
 
@@ -2062,20 +2219,91 @@ Start: L1 räcker i fas 1 (2-3 platform engineers roterar). L2 och L3 tillkommer
 
 #### Runbook-krav
 
-Varje komponent i plattformen ska ha en runbook med:
-- **Symptom:** Vad ser du? (alert, dashboard, logg)
-- **Diagnos:** Hur bekräftar du? (3-5 kommandon)
-- **Åtgärd:** Steg-för-steg fix
-- **Rollback:** Hur återställer du?
-- **Eskalering:** När och till vem?
+Varje komponent i plattformen ska ha en runbook som följer standardformatet nedan.
 
-Prioriterade runbooks (fas 1):
-1. vLLM svarar inte / OOM
-2. GPU-nod tappad
-3. LiteLLM gateway down
-4. Qdrant disk full / query timeout
-5. Redis OOM
-6. Extern API-provider nere (fallback)
+#### Runbook-standardformat
+
+Alla runbooks ska följa detta format. Principen: **skriven för on-call klockan 3 på natten — ingen prosa, ingen tvetydighet, exakta kommandon.**
+
+```markdown
+# RB-<NNN>: <Komponentnamn> — <Problemtyp>
+
+| Metadata        | Värde                    |
+|-----------------|--------------------------|
+| **Ägare**       | <team/person>            |
+| **Senast verifierad** | <YYYY-MM-DD>       |
+| **SEV-klass**   | SEV1 / SEV2 / SEV3      |
+| **Relaterade alerts** | <alert-namn i PagerDuty> |
+
+## 1. Symptom
+Vad ser du? Vilken alert triggade? Vad visar dashboarden?
+- Alert: `<alert-namn>`
+- Dashboard: `<Grafana URL>`
+- Logg: `<logg-query>`
+
+## 2. Diagnos
+Hur bekräftar du problemet? 3-5 kommandon, copy-paste-klara.
+\```bash
+kubectl get pods -n <namespace> -l app=<komponent>
+kubectl logs -n <namespace> <pod> --tail=100
+curl -s http://<endpoint>/health | jq .
+\```
+
+## 3. Åtgärd
+Steg-för-steg fix. Numrerade steg. Varje steg = ett kommando.
+1. ...
+2. ...
+3. **Verifiera:** `<kommando som bekräftar att det fungerar>`
+
+## 4. Rollback
+Hur återställer du om åtgärden inte fungerar?
+1. ...
+
+## 5. Eskalering
+| Situation | Eskalera till | Kontakt |
+|-----------|--------------|---------|
+| Åtgärd fungerar inte efter 15 min | L2: ML/Inference | PagerDuty |
+| Säkerhetsincident | L3: Security | PagerDuty + CISO |
+| Konsument-eskalering (§23.8) | Platform team Slack | #bifrost-support |
+
+## 6. Referens
+- Arkitektur: §<nummer>
+- Relaterade runbooks: RB-<NNN>
+- Post-mortem: <länk om relevant>
+```
+
+**Obligatoriska fält:**
+
+| Fält | Varför |
+|------|--------|
+| **Senast verifierad** | Det fält team oftast skippar — och mest ångrar. En runbook som inte verifierats på 6 månader är opålitlig. Kvartalsvis verifiering krävs. |
+| **SEV-klass** | Styr responstid och eskaleringskedja (§23.2) |
+| **Exakta kommandon** | Copy-paste, inte "kolla loggarna". On-call ska inte behöva *tänka* klockan 3 — bara *följa*. |
+| **Verifieringssteg** | Varje åtgärd måste avslutas med verifiering att fixen fungerade |
+
+**Runbook-livscykel:**
+- Nya runbooks skapas som del av ORR (§23.6) — ingen komponent i produktion utan runbook
+- Verifiering: kvartalsvis genomgång (on-call testar varje runbook)
+- Uppdatering: obligatorisk efter varje post-mortem som involverar komponenten
+- Lagring: Git-repo (versionerat, review-krav, sökbart)
+
+#### Exempelrunbook
+
+RB-001 (vLLM svarar inte / OOM) är skriven som fullständigt exempel i standardformatet ovan: symptom (alert + dashboard + konsument-vy), diagnos (5 copy-paste-kommandon), åtgärd (2 scenarion: OOM + pod startar inte), rollback, eskaleringsmatris och referens. Fullständig runbook levereras som separat fil i runbook-repot vid fas 1-start.
+
+#### Prioriterade runbooks (fas 1)
+
+| # | Runbook | SEV | Koppling |
+|---|---------|-----|----------|
+| RB-001 | vLLM svarar inte / OOM | SEV1/2 | §7, §4 |
+| RB-002 | GPU-nod tappad | SEV2 | §4, §15 |
+| RB-003 | LiteLLM gateway down | SEV1 | §6, §8 |
+| RB-004 | Qdrant disk full / query timeout | SEV2/3 | §5.1, §5.9 |
+| RB-005 | Redis OOM | SEV3 | §5.4 |
+| RB-006 | Extern API-provider nere (fallback) | SEV2/3 | §6, §8.5b |
+
+**Fas 2 runbooks:** RAG-pipeline degradering, PII-gateway blockerar legitimt, Agent Sandbox spawn-failure, Neo4j-restore.
+**Fas 3 runbooks:** Cross-tenant anomali, agent breakout, modell-drift detekterad, compliance-violation.
 
 #### Kapacitetsplanering
 
@@ -2255,6 +2483,8 @@ Varje SLO har en error budget = 100% - SLO. Exempel: 99.5% SLO = 0.5% error budg
 | **Qdrant** | Varje minor release | Rolling upgrade (replicas) |
 | **LiteLLM** | Varje release | Blue-green (snabb rollback) |
 | **Argo CD** | Varje minor release | In-place (namespace-isolerad) |
+| **llm-d** | Varje minor release (fas 2+) | Canary: disaggregerade pods uppgraderas en åt gången. Verifiera KV-cache-routing efter upgrade. |
+| **K8s Inference Gateway** | Varje minor release (fas 2+) | In-place. Verifiera routing-regler och llm-d-integration efter upgrade. |
 | **GPU-drivers** | Kvartalsvis | Drain node → uppgradera → uncordon. Aldrig alla noder samtidigt. |
 | **Modellvikter** | Vid behov (ny modell) | Canary med eval-jobb (§9) innan full utrullning |
 
@@ -2317,6 +2547,317 @@ Tre skäl:
 **Utrullning:**
 - Fas 3: RCA-assistent + runbook-navigering (read-only, advisory)
 - Fas 4: Anomali-korrelation + kapacitetsförslag + automatiska lågrisk-åtgärder
+
+### 23.8 Debugging & Troubleshooting Guide — konsumentperspektiv
+
+**Varför denna sektion finns:** §23.1-23.7 är skrivna för plattformsteamet. Men dag 30 efter launch har utvecklare i Team X ett annat problem: *"Mitt RAG-svar är dåligt och jag vet inte varför."* Utan en troubleshooting-guide från konsumentens perspektiv riktas all felsökning mot plattformsteamets Slack-kanal — och det skalar inte.
+
+> **Princip:** Det största dag-30-problemet är sällan modellkvalitet — det är att team inte kan avgöra *om* deras app fungerar bra eller dåligt. Observability är flaskhalsen.
+
+#### Felsökningsträd (decision tree)
+
+```
+Användare rapporterar problem
+    │
+    ├─ "Dåliga svar" ──────────────────────────────────────────┐
+    │   │                                                       │
+    │   ├─ Kolla retrieval (Langfuse trace)                    │
+    │   │   ├─ Fel chunks hämtade → RAG-problem                │
+    │   │   │   ├─ Chunking-strategi? (storlek, overlap)       │
+    │   │   │   ├─ Corpus vuxit? (precision sjunker vid skala) │
+    │   │   │   └─ Embedding-modell bytt?                      │
+    │   │   │                                                   │
+    │   │   └─ Rätt chunks men fel svar → Prompt-problem       │
+    │   │       ├─ System prompt ändrad? (kolla version)       │
+    │   │       ├─ Context window överfyllt?                   │
+    │   │       └─ Testa samma prompt på annan modell          │
+    │   │                                                       │
+    │   └─ Ingen retrieval → Konfigurationsfel                 │
+    │       └─ Kolla SDK-config, API-nyckel, collection-namn   │
+    │                                                           │
+    ├─ "Långsamt" ─────────────────────────────────────────────┐
+    │   │                                                       │
+    │   ├─ Kolla p50 vs p99 (Grafana per-team dashboard)       │
+    │   │   ├─ p50 ok, p99 hög → Cache-missar eller kall start│
+    │   │   └─ Allt långsamt → Modell överbelastad eller fel   │
+    │   │                                                       │
+    │   ├─ Kolla token-förbrukning per request                 │
+    │   │   └─ > 10k tokens/request? → Context stuffing        │
+    │   │                                                       │
+    │   └─ Kolla embedding-latency separat                     │
+    │       └─ Qdrant-latency > 200ms? → Eskalera till SRE    │
+    │                                                           │
+    ├─ "Timeout / Error" ──────────────────────────────────────┐
+    │   │                                                       │
+    │   ├─ Kolla felkod (se felkatalog nedan)                  │
+    │   ├─ Agent-loop? → Kolla iterationsantal + tool-timeouts │
+    │   └─ Extern provider? → Kolla status.bifrost.internal    │
+    │                                                           │
+    └─ "Kostar för mycket" ────────────────────────────────────┐
+        │                                                       │
+        ├─ Kolla token usage dashboard (per endpoint)          │
+        ├─ Hitta topp-3 dyraste endpoints                      │
+        ├─ Agent retry-storms? (exponentiell retry utan cap)   │
+        └─ Prompt för lång? (injicerar hela dokument?)         │
+```
+
+#### Vanliga dag-30-problem
+
+| Problem | Symptom | Diagnos | Åtgärd |
+|---------|---------|---------|--------|
+| **RAG-kvalitetsdrift** | Svar försämras gradvis | Retrieval-scores i Langfuse sjunker | Justera chunking, överväg reranking, kontrollera corpus-tillväxt |
+| **Token-budget-sprängning** | 429 Too Many Requests | Token usage dashboard visar spike | Identifiera endpoint, optimera prompt, begränsa context window |
+| **Prompt-versionsförvirring** | "Det fungerade igår" | Jämför aktuell vs föregående prompt i Langfuse | Rollback till föregående version, inför prompt-review |
+| **Agent timeout-kaskad** | Agent-jobb failar efter lång tid | Langfuse trace visar tool-call som hänger | Sänk tool-timeout, lägg till circuit breaker, verifiera extern API |
+| **Context overflow** | Trunkerade svar, felaktiga svar | Token count per request > modellens max | Minska injicerad kontext, filtrera retrieval-resultat hårdare |
+| **Embedding cache-miss** | Sporadisk hög latency | Qdrant cache hit rate sjunker | Kontrollera om nya collections skapats, överväg warm-up |
+
+#### Self-service debugging — verktyg per fas
+
+| Fas | Verktyg | Vad det ger utvecklaren |
+|-----|---------|------------------------|
+| **Fas 1** | **Langfuse** (redan deployed) | Per-request traces: prompt → retrieval → generation → response. Token counts, latency per steg. Prompt versionshistorik. |
+| **Fas 1** | **Grafana per-team dashboard** | Latency (p50/p95/p99), throughput, error rate, token usage — filtrerat på teamets virtual key |
+| **Fas 2** | **Retrieval quality dashboard** | Vilka chunks hämtades, similarity scores, om svaret faktiskt använde dem |
+| **Fas 2** | **Prompt playground** | Testa prompt-ändringar mot sparade testfall. Version-diffing. Rött/grönt innan deploy |
+| **Fas 3** | **Eval dashboard** | Automatiserade kvalitetsscores per endpoint. Regressionsdetektering vid varje ändring |
+
+#### Felkatalog
+
+Varje fel som SDK:t returnerar ska ha en dokumenterad åtgärd:
+
+| Felkod | Namn | Vad hände | Vad gör jag? |
+|--------|------|-----------|-------------|
+| `429` | `RateLimitError` | Teamets token/request-kvot överskriden | Kolla usage dashboard. Optimera prompt. Begär högre kvot via AI Hub. |
+| `413` | `ContextOverflowError` | Request överstiger modellens max context | Minska injicerad kontext. Filtrera retrieval-resultat. Överväg modell med större context. |
+| `408` | `TimeoutError` | Request översteg timeout (default: se §3d) | Kolla Langfuse trace för flaskhals. Minska prompt-storlek. Om agent: kolla tool-latency. |
+| `403` | `DataClassError` | Request skickade konfidentiell data till extern modell | Kontrollera dataklass-header i request. Routa om till lokal modell. Se §12.4. |
+| `422` | `GuardrailBlockError` | PII Gateway eller policy blockerade request | Kolla vilken guardrail som triggade (i response headers). Rensa PII eller justera request. |
+| `503` | `ModelUnavailableError` | Modellen är nere eller överbelastad | Kolla status.bifrost.internal. Fallback-modell aktiveras automatiskt via gateway. Vänta eller välj annan modell. |
+| `507` | `EmptyRetrievalError` | RAG-pipeline returnerade 0 resultat | Kolla collection-namn, embedding-modell, query-format. Verifiera att data indexerats. |
+| `502` | `UpstreamProviderError` | Extern provider (OpenAI/Anthropic) returnerade fel | Automatisk retry + fallback i gateway. Om persistent: kolla provider-status. |
+
+#### Eskaleringsmatris — när kontaktar du plattformsteamet?
+
+| Situation | Self-service | Eskalera om |
+|-----------|-------------|-------------|
+| Dåliga RAG-svar | Kolla Langfuse traces, justera chunking/prompt | Retrieval-scores ok men svar fortfarande dåliga → modellproblem |
+| Hög latency | Kolla per-team dashboard, optimera request | Qdrant/vLLM-latency hög för alla team → plattformsproblem |
+| Token-budget | Kolla usage, optimera prompt | Budget nollställd mitt i månaden trots rimlig usage → billing-bugg |
+| Fel/timeout | Kolla felkatalog, retry | Samma fel i > 5 minuter → kolla statussida → eskalera |
+| Kostnader | Identifiera dyra endpoints | Oförklarad kostnadsökning trots oförändrad trafik → gateway-loggning |
+
+**Princip:** Plattformsteamet ska vara *tredje steget*, inte första. Ordningen är: felkatalog → self-service dashboard → Slack-kanal. Varje eskalering som kunde lösts med self-service-verktyg avslöjar en lucka i toolingen.
+
+#### Eskaleringsbrygga: konsument-troubleshooting → incident response (§23.2)
+
+**Problemet:** §23.8 beskriver self-service-felsökning. §23.2 beskriver incident response med SEV1-4. Vad händer i mellanrummet — när self-service inte räcker men det inte är en plattformsincident?
+
+**Flöde:**
+
+```
+Konsument-problem
+    │
+    ├─ Self-service löser det (80% av fallen)
+    │   └─ Inget incident-ärende. Loggas i Langfuse (spårbart).
+    │
+    ├─ Self-service löser det INTE → Eskalering till #bifrost-support
+    │   │
+    │   ├─ Plattformsteam triagerar (< 4h svarstid, arbetsdag)
+    │   │
+    │   ├─ Teamspecifikt? (konfiguration, prompt, data)
+    │   │   └─ Hanteras som support-ärende, INTE som incident
+    │   │       └─ SLA: svar < 4h, lösning < 1 arbetsdag
+    │   │
+    │   └─ Plattformsproblem? (alla/flera team påverkade)
+    │       └─ Eskaleras till incident (§23.2)
+    │           ├─ Ett team → SEV3 (4h SLA)
+    │           ├─ Flera team → SEV2 (1h SLA)
+    │           └─ Alla team → SEV1 (15 min SLA)
+    │
+    └─ Omedelbar incident (plattform uppenbart nere)
+        └─ Hoppa över self-service → §23.2 direkt
+            └─ Konsument rapporterar via statussida/PagerDuty
+```
+
+**Klassificering: support-ärende vs incident**
+
+| Signal | Support-ärende | Incident |
+|--------|---------------|----------|
+| Antal berörda team | 1 | 2+ |
+| Statussida påverkad? | Nej | Ja |
+| SLO påverkad? | Nej (teamets request funkar för andra) | Ja (error budget sjunker) |
+| On-call behövs? | Nej | Ja |
+
+**Princip:** Support-ärenden (teamspecifika) äts inte av on-call-budgeten. De hanteras av plattformsteamet under arbetstid. Incidenter (plattformsbreda) triggar on-call. Distinktionen är viktig — utan den dränks on-call i support-ärenden, och faktiska incidenter drunknar i bruset.
+
+#### Fasning
+
+| Fas | Kapabilitet |
+|-----|------------|
+| **Fas 1** | Felkatalog publicerad i AI Hub. Langfuse traces tillgängliga per team. Grundläggande per-team Grafana dashboard. |
+| **Fas 2** | Retrieval quality dashboard. Prompt playground med version diffing. Self-service kvot-höjning via AI Hub portal. |
+| **Fas 3** | Eval dashboard med regressionsdetektering. AI-assisterad felsökning ("beskriv problemet → agent analyserar traces"). |
+
+### 23.9 Plattforms-evolution — livscykeln efter fas 3
+
+**Varför denna sektion finns:** §23.5 Day-2 Operations beskriver *hur* man uppgraderar enskilda komponenter. Denna sektion adresserar den strategiska frågan: *hur utvecklas plattformens teknologilandskap över tid?* Utan ett ramverk för plattforms-evolution fattas teknikbeslut ad hoc, tech debt ackumuleras tyst, och arkitekturdokumentet blir inaktuellt inom 6 månader.
+
+> Rotorsak (från 4-pass review, pass 3): Alla sessioner hade "framåt"-perspektiv. Ingen session frågade: "vad händer 3 månader efter launch?"
+
+#### Bifrost Tech Radar
+
+**Princip:** Implicita teknikbeslut ackumulerar tech debt. Tech Radarn gör dem explicita.
+
+Modell baserad på ThoughtWorks Tech Radar, anpassad för plattformsteam:
+
+```
+                    ┌─────────────┐
+                    │  DEPRECATING │  ← Aktiv avveckling, migrationsplan krävs
+                ┌───┴─────────────┴───┐
+                │       HOLD          │  ← Använd inte i nya projekt
+            ┌───┴─────────────────────┴───┐
+            │         ASSESS              │  ← Intressant, undersök — ej testat
+        ┌───┴─────────────────────────────┴───┐
+        │           TRIAL                     │  ← Godkänt för pilotprojekt
+    ┌───┴─────────────────────────────────────┴───┐
+    │             ADOPT                           │  ← Standardval, använd aktivt
+    └─────────────────────────────────────────────┘
+
+    Quadrants: Infrastruktur · Inference · Data · Verktyg/DX
+```
+
+**Exempelradar (dag 1):**
+
+| Komponent | Ring | Motivering |
+|-----------|------|------------|
+| vLLM (≥0.11.1) | **Adopt** | Primär inferensmotor, patchad för ShadowMQ (§20.2) |
+| llm-d | **Trial → Adopt (fas 2)** | K8s-nativ disaggregering, v0.5 GA, hyperscaler-backning. Rekommenderad uppgraderingsväg (§7.6) |
+| SGLang | **Hold** | 29% bättre throughput, men opatchade RCE:er (CVE-2026-3059/3060/3989). Bevaka patchstatus kvartalsvis (§7.6) |
+| KServe | **Adopt** | CNCF Incubating, standardval model serving |
+| K8s Inference Gateway | **Trial** | Ny standard för AI-medveten lastbalansering, integreras med llm-d |
+| Envoy AI Gateway | **Assess** | K8s-nativt LiteLLM-alternativ, 30% kostnadsbesparing (§21.1) |
+| HuggingFace TGI | **Hold (deprecated)** | Maintenance mode dec 2025. HF rekommenderar vLLM/SGLang |
+| Qdrant | **Adopt** | Vector DB, Apache 2.0 |
+| Neo4j | **Adopt** (med reservation) | Licensrisk dokumenterad (§21.1), exit-plan finns |
+| LiteLLM | **Adopt** (med reservation) | Supply chain-risk (§21.1), Envoy AI Gateway/Portkey som backup |
+| A-MEM | **Trial** | Research-grade, Mem0/Zep som fallback (§5.6) |
+| MS Agent Governance | **Trial** | 11 dagar gammalt vid införande, mognadsrisk (§12.5) |
+| Kubeflow | **Assess** | Fine-tuning orkestrering, behövs i fas 3 |
+
+**Process:**
+- **Uppdatering:** Kvartalsvis (align med K8s-uppgraderingscykel)
+- **Ägare:** Tjänsteägare + Platform Lead
+- **Input:** CVE:er, community-signaler, benchmark-resultat, team-feedback, leverantörsförändringar
+- **Output:** Uppdaterad radar + beslutlog i Git
+- **Format:** Markdown-tabell i Git (sökbar, versionerad, reviewbar) + visuell rendering i Backstage (fas 2+)
+
+#### Dependency-rotation
+
+§21.1 dokumenterar riskprofil per komponent. Denna sektion definierar *när och hur* rotationsbeslutet fattas.
+
+**Rotation triggers:**
+
+| Trigger | Exempel | Åtgärd |
+|---------|---------|--------|
+| **Säkerhet** | Kritisk CVE utan patch > 30 dagar | Omedelbar utvärdering av alternativ. Eskalera till CISO. |
+| **Licens** | Licens ändras (open source → commercial, ny restriction) | Juridisk review inom 14 dagar. Aktivera exit-plan om behov. |
+| **Abandon** | Maintainers slutar, community krymper, releases stannar | Flytta till **Hold**, aktivera utvärdering av alternativ. |
+| **Bättre alternativ** | Ny teknik med signifikant fördel (>30% performance, bättre DX, starkare community) | Flytta till **Trial**, utvärdera parallellt. Ingen brådska — stabilitet > nyhet. |
+| **End of life** | Upstream deklarerar EOL | Flytta till **Deprecating**, migrationsplan inom 90 dagar. |
+
+**Beslutprocess:**
+
+```
+Trigger identifierad
+    │
+    ├─ Säkerhet/kritisk → Omedelbar eskalering → Tjänsteägare beslutar
+    │
+    └─ Övrigt → Kvartalsvis tech radar-review
+                    │
+                    ├─ Utvärdering (PoC, benchmark, community-analys)
+                    ├─ Beslut (Adopt/Trial/Assess/Hold/Deprecating)
+                    └─ Implementation (migrationsplan om Hold/Deprecating)
+```
+
+#### Konsument-notifiering (deprecation alerts)
+
+**Problemet:** Tech radarn är plattformsteamets verktyg. Konsumerande team ser den inte. Om en komponent flyttas till **Hold** eller **Deprecating** (t.ex. A-MEM → Mem0-migration) måste berörda team veta — annars bygger de vidare på teknik som är på väg bort.
+
+**Notifieringsflöde:**
+
+```
+Tech radar-ändring (Hold/Deprecating)
+    │
+    ├─ Automatiskt: identifiera berörda team
+    │   └─ LiteLLM: vilka virtual keys använder berörd modell/adapter?
+    │   └─ Qdrant: vilka collections använder berörd pipeline?
+    │   └─ SDK: vilka team importerar berört API?
+    │
+    ├─ Notifiering
+    │   ├─ **Hold:** Informativ — "vi rekommenderar inte denna teknik för nya projekt"
+    │   └─ **Deprecating:** Actionable — "migration krävs inom [X] dagar, här är guiden"
+    │
+    └─ Uppföljning
+        ├─ Migrationsguide publicerad i AI Hub
+        ├─ Deprecation-varning i SDK-response headers: `X-Bifrost-Deprecation: <komponent> sunset <datum>`
+        └─ Dashboard: vilka team har migrerat, vilka har inte
+```
+
+| Ring-ändring | Notifieringsnivå | Kanal | Tidslinje |
+|-------------|-----------------|-------|-----------|
+| Adopt → Trial | Ingen (intern plattformsändring) | — | — |
+| Adopt → Hold | **Information** till berörda team | Slack + AI Hub-banner | Vid nästa kvartalsvis review |
+| Adopt/Trial → Deprecating | **Åtgärd krävs** av berörda team | Slack + e-post + AI Hub-banner + SDK-header | 90/60/30d nedräkning |
+| Hold → Deprecating | **Åtgärd krävs** | Slack + e-post | 60/30d nedräkning |
+
+**Princip:** Ingen komponent depreceras utan att berörda team har: (1) fått notifiering, (2) fått en migrationsguide, (3) fått minst 30 dagars migrationstid. Undantag: kritisk säkerhet (CVE, supply chain) kan forcera snabbare tidslinje med Tjänsteägarens godkännande.
+
+#### Arkitektur-review-cykel
+
+**Frekvens:** Var 6:e månad — inte en full omdesign, utan en strukturerad review.
+
+**Frågor som ska besvaras:**
+
+| # | Fråga | Varför |
+|---|-------|--------|
+| 1 | Vilka antaganden i target architecture har förändrats? | Teknik rör sig snabbt — antaganden från dag 1 kan vara felaktiga vid månad 6 |
+| 2 | Vad gick sönder oväntat? | Post-mortems avslöjar arkitekturbrister som inte syns i design |
+| 3 | Vad skalade sämre än väntat? | 5 team ≠ 15 team. Skalningsproblem avslöjas först vid last |
+| 4 | Vilka team använder plattformen *inte*? Varför? | Icke-adoption är en signal om arkitektur- eller DX-problem |
+| 5 | Vad har förändrats i regelverkslandskapet? | EU AI Act enforcement, nya DORA-krav, Schrems III? |
+| 6 | Vad finns på tech radarn som borde flyttas? | Trial → Adopt, Assess → Trial, Adopt → Hold |
+
+**Deltagare:** Tjänsteägare, Platform Lead, CISO-representant, 1-2 champion-representanter (§24.3).
+
+**Output:**
+- Uppdaterad target architecture (ny version)
+- Uppdaterad tech radar
+- Uppdaterad rollout-plan (om ny fas eller nya prioriteringar)
+- Beslutlog (vad beslutades, varför, av vem)
+
+#### Team offboarding
+
+§24 beskriver onboarding. Men team lämnar också — projekt avslutas, team omorganiseras.
+
+| Steg | Vad | Automatiserbart? |
+|------|-----|-----------------|
+| 1 | Verifiera att inga aktiva workloads kör | Ja (API-anrop = 0 i 30 dagar) |
+| 2 | Arkivera RAG-data (Qdrant collection, MinIO bucket) | Delvis (retention per compliance-profil §26.3) |
+| 3 | Radera agent workspaces och PVC:er | Ja (efter arkivering) |
+| 4 | Revoke virtual keys och RBAC | Ja |
+| 5 | Uppdatera kostnadsallokering | Manuell (finance-team) |
+| 6 | Dokumentera i audit trail | Ja |
+
+**Compliance-koppling:** Radering måste följa retention-regler per compliance-profil. DORA-team: 5 års loggretention. GDPR: rätt till radering. Dessa kan stå i konflikt — compliance-profilen avgör.
+
+#### Fasning
+
+| Fas | Kapabilitet |
+|-----|------------|
+| **Fas 1** | Initial tech radar publicerad (Markdown i Git). Dependency-lista med riskprofil (§21.1). |
+| **Fas 2** | Kvartalsvis tech radar-review etablerad. Arkitektur-review var 6:e månad. Team offboarding-process. |
+| **Fas 3** | Tech radar visualiserad i Backstage. Automatiserad dependency-scanning (CVE → alert → radar-uppdatering). |
 
 ---
 
@@ -2451,7 +2992,9 @@ Champions är inte extra arbete — de är teamets röst in i plattformen. Utan 
 
 ## 25. Sammanfattande princip
 
-> Teamet bygger en AI-native Kubernetes-plattform där Docker producerar signerade och attesterade artefakter, Helm uttrycker plattformsavsikt, Kubernetes verkställer policy och resursdisciplin, lokala LLM:er serveras som kontrakterade inferenstjänster med observability, kvotstyrning och adversariell testning, agenter arbetar i isolerade sandboxes med egna identiteter, persistent minne och iterativa workspaces — och kommunicerar via standardiserade protokoll (MCP för verktygsaccess, A2A för agent-samarbete med discovery via Agent Registry), data lever i tre parallella representationer (vektor, graf, objekt) med kryptering och backup — där varje third-party dependency (Qdrant, Neo4j, LiteLLM) har en dokumenterad riskprofil, namngiven alternativkandidat och exit-plan — säkerhet genomsyrar alla lager — från zero trust med agent-identitetslivscykel och nyckelrotation till SOC-integration, vulnerability management och honeypots, observability inkluderar compliance-specifika signaler som matar CISO-dashboarden — drift styrs av SLOs med error budgets, DR-planer, operational readiness reviews och en publik statussida, FinOps säkerställer att kostnad behandlas som designrestriktion med organisatorisk beslutshierarki för alla beslutskategorier (modeller, policy, agenter, compliance, onboarding), SDK:t exponerar rate limit-kvot i realtid — regulatorisk compliance mappar GDPR, EU AI Act, DORA, NIS2 och säkerhetsskyddslagen till konkreta plattformskontroller med kunddata-segregering per uppdrag, en modellval-guide kanaliserar team mot rätt modell per användningsfall och dataklass, en "göra ingenting"-analys visar att avsaknad av plattform kostar 1-3M SEK/år mer — och allt exponeras som en AI Hub med self-service, compliance, modell-livscykelhantering, champion-nätverk och migrationsväg för befintliga lösningar från dag ett.
+> **Not:** För en lättare ingång till dokumentet, se [Executive Summary](#executive-summary) (~10 min). Nedanstående är den fullständiga tekniska principen i en mening.
+
+> Teamet bygger en AI-native Kubernetes-plattform där Docker producerar signerade och attesterade artefakter, Helm uttrycker plattformsavsikt, Kubernetes verkställer policy och resursdisciplin — inference sker via llm-d (rekommenderad, Kubernetes-nativ disaggregerad arkitektur med separerade prefill/decode-pods) ovanpå vLLM, orkestrerad av Kubernetes Inference Gateway med AI-medveten lastbalansering (KV-cache-utnyttjande, ködjup), exponerad genom en LLM Gateway (LiteLLM fas 1, med Envoy AI Gateway som planerat K8s-nativt alternativ fas 2) — inference-motor supply chain-risker (ShadowMQ: 30+ CVE:er) mitigeras genom pinnade versioner (vLLM ≥0.11.1), nätverksisolering och mTLS, SGLang hålls på Hold pga opatchade RCE:er — agenter arbetar i isolerade sandboxes med egna identiteter, persistent minne och iterativa workspaces, kommunicerar via standardiserade protokoll (MCP för verktygsaccess, A2A för agent-samarbete med discovery via Agent Registry), data lever i tre parallella representationer (vektor, graf, objekt) med kryptering och backup — varje third-party dependency (Qdrant, Neo4j, LiteLLM) har en dokumenterad riskprofil, namngiven alternativkandidat och exit-plan — säkerhet genomsyrar alla lager från zero trust med agent-identitetslivscykel och nyckelrotation till SOC-integration, vulnerability management och honeypots, observability inkluderar compliance-specifika signaler som matar CISO-dashboarden — drift styrs av SLOs med error budgets, DR-planer, operational readiness reviews, en publik statussida, standardiserade runbooks med kvartalsvis verifiering och en debugging-guide som ger konsumerande team self-service-felsökning med decision trees och felkatalog — plattformens teknologilandskap styrs av en tech radar (Adopt/Trial/Assess/Hold/Deprecating) med kvartalsvis review, dependency-rotation med definierade triggers och arkitektur-review var sjätte månad, FinOps säkerställer att kostnad behandlas som designrestriktion med organisatorisk beslutshierarki för alla beslutskategorier (modeller, policy, agenter, compliance, onboarding), SDK:t exponerar rate limit-kvot i realtid — prompts versioneras och styrs via Langfuse Prompt Registry med A/B-testning, eval-gate och governance-arbetsflöde, fine-tuning sker via QLoRA med adapter hot-loading i vLLM (med arkitektonisk begränsning: adapter-switch sker mellan requests, inte mitt i kontext — agenter bör batcha per adapter) och full compliance-koppling (DBOM, eval, human oversight per risklass), kontext assembleras från multipla källor (vektor, graf, cache, historik) via en koordinerande abstraktion i SDK:t — regulatorisk compliance mappar GDPR, EU AI Act, DORA, NIS2 och säkerhetsskyddslagen till konkreta plattformskontroller med kunddata-segregering per uppdrag, en modellval-guide kanaliserar team mot rätt modell per användningsfall och dataklass, en "göra ingenting"-analys visar att avsaknad av plattform kostar 1-3M SEK/år mer — och allt exponeras som en AI Hub med self-service, compliance, modell-livscykelhantering, champion-nätverk och migrationsväg för befintliga lösningar från dag ett.
 
 ---
 
@@ -2700,3 +3243,234 @@ Skillnaden: point-in-time kontroll (finns det?) vs continuous evidence (fungerar
 | **Fas 3** | Auto-genererad kvartalsrapport (PDF/Markdown) för CISO och extern audit |
 
 **Princip:** Dashboarden är inte dekoration — den är bevis. Vid extern audit ska dashboarden kunna exportera en compliance-snapshot som visar: "vid denna tidpunkt uppfyllde vi dessa kontroller." Utan det är compliance en påstående, inte ett faktum.
+
+---
+
+## 27. AI-kapabiliteter — Prompt Management, Fine-Tuning & Context Assembly
+
+> Denna sektion adresserar tre kapabiliteter som identifierades som saknade i 4-pass review (pass 0, referensmodell): prompt management/versioning, fine-tuning pipeline och feature store. Research visar att feature store-konceptet har *morfat* för LLM-plattformar — Bifrost har redan Qdrant + RAG self-service (§5.9) som fyller den rollen. Denna sektion specificerar de verkliga luckorna.
+
+### 27.1 Prompt Management — Prompt Registry
+
+**Problemet:** Prompts är kod, men team behandlar dem som strängar i applikationskod. Vid skala leder detta till:
+- "Det fungerade igår" — någon ändrade en system prompt utan versionering
+- Ingen vet vilken prompt som körs i produktion
+- Ingen A/B-testning av prompt-varianter
+- Ingen audit trail för prompt-ändringar (compliance-risk)
+
+**Lösning: Prompt Registry i Langfuse**
+
+Bifrost använder redan Langfuse för observability (§16). Langfuse erbjuder prompt management som naturlig utbyggnad:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    PROMPT REGISTRY                            │
+│                    (Langfuse)                                 │
+│                                                               │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │ Versioning   │  │ A/B Testing  │  │ Governance        │  │
+│  │              │  │              │  │                    │  │
+│  │ v1, v2, v3   │  │ 90% → v2     │  │ Review-krav       │  │
+│  │ Rollback     │  │ 10% → v3     │  │ Godkännande       │  │
+│  │ Diff-vy      │  │ Mät kvalitet │  │ Audit trail       │  │
+│  └──────────────┘  └──────────────┘  └──────────────────┘  │
+│                                                               │
+│  SDK-integration:                                             │
+│  prompt = langfuse.get_prompt("rag-system-v2", type="chat")  │
+│  → Decouplad från applikationskod                            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Principer:**
+
+| Princip | Implementation |
+|---------|----------------|
+| **Prompts decoupled från kod** | Team hämtar prompts via Langfuse API vid inference, inte hårdkodade i applikation |
+| **Versionering** | Varje prompt har versionsnummer. Ändringar skapar ny version, aldrig överskrivning |
+| **Rollback** | En klick i Langfuse UI eller SDK-anrop. Aktiv version kan bytas utan kodändring |
+| **A/B-testning** | Inbyggd i Langfuse (verifierad april 2026). Labla varianter (`prod-a`, `prod-b`), Langfuse trackar metrics per variant (latency, kostnad, eval scores). **Not:** Applikationskoden väljer variant (t.ex. random selection via SDK) — Langfuse trackar och utvärderar, men routar inte trafik automatiskt. Bifrost SDK (§8) bör abstrahera variantval som `bifrost.prompt("namn", variant="auto")` |
+| **Governance** | Produktionspromotion kräver review. Högrisk-prompts (§26.5) kräver human oversight sign-off |
+| **Audit trail** | Varje ändring loggas: vem, när, vad, varför. Exporterbart för compliance |
+| **Eval gate** | Automatisk eval-svit körs innan prompt promotas till produktion. Rött = blockerat |
+
+**Koppling till existerande arkitektur:**
+- §16 Observability: Langfuse traces kopplar prompt-version till request-kvalitet
+- §23.8 Debugging: "Det fungerade igår" → kolla prompt-versionshistorik i Langfuse
+- §26 Compliance: Audit trail för prompt-ändringar satisfierar AI Act transparency-krav
+- §8 AI Hub SDK: `bifrost.prompt("namn")` hämtar aktiv version från Langfuse
+
+**Fasning:**
+
+| Fas | Kapabilitet |
+|-----|------------|
+| **Fas 1** | Prompt management aktiverat i Langfuse. Pilotteam migrerar 1-2 prompts från kod till registry. Grundläggande versionering. |
+| **Fas 2** | Alla produktionsprompter i registry. A/B-testning. Eval gate före production-promotion. Governance-arbetsflöde. |
+| **Fas 3** | Prompt analytics: vilka prompts kostar mest, vilka har lägst kvalitet. Auto-optimering (föreslå förkortningar). |
+
+### 27.2 Fine-Tuning Pipeline
+
+**Problemet:** §9 Modell-livscykelhantering beskriver pipeline (Import → Eval → Stage → Prod → Sunset) och §3c nämner fine-tuning i batch-zonen. Men *designen* för hur fine-tuning utförs saknas: vilken metod, vilken infrastruktur, vilken data, vilken governance.
+
+**Kontext:** Full fine-tuning av stora LLM:er (70B+) kräver multi-GPU och är sällan motiverat. Standarden 2026 är **QLoRA** — adapter-baserad fine-tuning som kräver en bråkdel av resurserna och tillåter adapter hot-loading i vLLM.
+
+#### Arkitektur
+
+```
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│ DATA CURATION│ →  │   TRAINING   │ →  │  EVALUATION  │ →  │  DEPLOYMENT  │
+│              │    │              │    │              │    │              │
+│ Prod-loggar  │    │ QLoRA/LoRA   │    │ Auto-bench   │    │ Adapter      │
+│ Curated sets │    │ HF TRL+PEFT │    │ + Human eval │    │ hot-load     │
+│ PII-rensning │    │ ai-batch zon │    │ MLflow       │    │ i vLLM       │
+│ Format-valid │    │ GPU: H100    │    │ Red-team     │    │ Per-tenant   │
+│ MinIO lagring│    │ MLflow track │    │ Jämför bas   │    │ KServe rev   │
+└──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
+```
+
+#### Data Curation
+
+| Steg | Vad | Verktyg |
+|------|-----|---------|
+| **Insamling** | Produktionsloggar (med consent), curerade instruktionsdataset | Langfuse export → MinIO |
+| **PII-rensning** | All träningsdata passerar PII Gateway (§20) | PII Gateway (samma som inference) |
+| **Kvalitetsfilter** | Ta bort låg-kvalitet, duplicering, irrelevant data | Script + human review |
+| **Formatering** | Konvertera till instruction-format (system/user/assistant) | Automatiskt |
+| **Lagring** | Curated dataset i MinIO med DBOM-metadata (proveniens, dataklass) | MinIO + MLflow |
+
+**Compliance-koppling:** All träningsdata dokumenteras i DBOM Store (§12.2). EU AI Act kräver data governance — detta satisfierar kravet.
+
+#### Training
+
+| Parameter | Standard | Motivation |
+|-----------|----------|------------|
+| **Metod** | QLoRA (4-bit bas + trainable adapter) | Kostnadseffektivt. Full LoRA vid behov för kvalitet. |
+| **Framework** | HuggingFace TRL + PEFT | De facto standard, brett community-stöd |
+| **Alternativ** | Axolotl (config-driven, enklare), LitGPT | Om TRL+PEFT inte räcker |
+| **Orkestrering** | Kubernetes Job i `ai-batch`-zon (§3c) | Kueue för kö- och kvotstyrning |
+| **GPU** | H100 (multi-GPU vid > 70B) från `fine-tune` node pool (§4.2) | Dedikerad pool förhindrar interferens med serving |
+| **Experiment tracking** | MLflow (§9) | Logga hyperparametrar, loss curves, eval-resultat |
+
+**Princip:** Fine-tuning är en *batch-uppgift*, inte en *serving-uppgift*. Den körs i `ai-batch`-zonen med Kueue-styrning och ska aldrig konkurrera om GPU:er med real-time inference.
+
+#### Evaluation
+
+Innan en adapter promotas till produktion:
+
+| Steg | Vad | Gate |
+|------|-----|------|
+| 1 | **Automatisk benchmark** mot standardtest | Score ≥ basmodell |
+| 2 | **Domänspecifik eval** mot curated testfall | Score ≥ basmodell + tröskelvärde |
+| 3 | **Red-team** — prompt injection, jailbreak mot fine-tunad modell | Inga nya sårbarheter |
+| 4 | **Jämförelse** — samma prompts, bas vs fine-tunad, blind review | Fine-tunad inte sämre |
+| 5 | **Human eval** (högrisk) — manuell bedömning vid högrisk-klass (§26.5) | Godkänd av reviewer |
+
+**Koppling till §9:** Evaluation-steget i fine-tuning-pipeline *är* §9.4 (Eval) specialiserat för adapters.
+
+#### Deployment — Adapter Hot-Loading
+
+**Nyckelkapabilitet:** vLLM stödjer adapter hot-loading — byta LoRA-adapter utan att ladda om basmodellen. Det innebär:
+
+- En basmodell (t.ex. Llama 3.x 70B) kör på GPU
+- Flera LoRA-adapters kan laddas/avladdas dynamiskt
+- Per-tenant adapters möjliga (Team A:s fine-tunade version ≠ Team B:s)
+- Inget GPU-slöseri — adaptern är ~1-5% av basmodellens storlek
+
+```
+vLLM Serving
+    │
+    ├── Basmodell: Llama 3.x 70B (permanent i VRAM)
+    │
+    ├── Adapter A: Team Alpha customer-support (hot-loadad)
+    ├── Adapter B: Team Beta code-review (hot-loadad)
+    └── Adapter C: Generell svensk anpassning (hot-loadad)
+```
+
+**Adapter Registry:** MLflow (§9.1) fungerar som register. Varje adapter = en modellversion med metadata (basmodell, träningsdata-DBOM, eval-resultat, godkännande).
+
+**Arkitektonisk begränsning — adapter-switch mitt i kontext:** LoRA hot-loading byter adapter *mellan* requests, inte *mitt i* en request. Om en agent behöver byta adapter mitt i en multi-turn-konversation måste alla kontext-tokens beräknas om med den nya adaptern — detta adderar signifikant latency. **Design-implikation:** Agenter bör batcha requests per adapter. Undvik arkitekturer som switchar adapter per samtalstur.
+
+**Multi-tenant LoRA vid skala (Punica-mönster):** Vid många simultana adapters (10+) ger Punica-mönstret (CUDA kernel batching för multi-LoRA) ~12x throughput och ~2ms extra latency per token. llm-d v0.5 stödjer cache-aware LoRA routing — requests med samma adapter routas till pods som redan har adaptern laddad.
+
+**Nya LoRA-varianter att bevaka:**
+- **DoRA** (Decomposed LoRA) — bättre parametereffektivitet
+- **LoftQ** — quantization-aware fine-tuning (bättre QLoRA)
+- **PiSSA** — parameter-isolated subspace tuning
+
+#### Governance
+
+| Risklass (§26.5) | Krav |
+|-------------------|------|
+| **Minimal** | Automatisk eval-gate, adapter registrerad i MLflow |
+| **Begränsad** | + Red-team, + DBOM för träningsdata |
+| **Högrisk** | + Human eval, + juridisk review av träningsdata, + 90d audit trail |
+
+#### Fasning
+
+| Fas | Kapabilitet |
+|-----|------------|
+| **Post fas 2** | Design klar. Infra förberedd (`fine-tune` node pool, Kueue). Ingen aktiv fine-tuning ännu — fokus på att samla produktionsdata. |
+| **Fas 3** | Första fine-tuning: svensk anpassning av basmodell. QLoRA. Eval-pipeline. Adapter hot-loading i vLLM. |
+| **Post 90d** | Per-tenant adapters. Automatisk re-training vid drift. Prompt-till-fine-tuning pipeline (vanliga prompt-mönster → adapter). |
+
+### 27.3 Context Assembly Layer (LLM-era Feature Store)
+
+**Problemet:** Traditionella ML-plattformar har feature stores (Feast, Tecton) som serverar tabulära features vid inference. LLM-plattformar behöver en analog — men konceptet har *morfat*.
+
+**Insikt:** Bifrost har redan det mesta:
+- **Qdrant** (§5.1) — embedding-baserad retrieval
+- **Neo4j** (§5.2) — relationsbaserad retrieval
+- **Redis** (§5.4) — cache för frekventa queries
+- **RAG self-service** (§5.9) — pipeline för att ladda och fråga data
+- **MinIO** (§5.3) — objektlagring för dokument
+
+Det som *saknas* är inte en ny komponent utan en **koordinerande abstraktion** — en context assembly layer som sammanfogar data från flera källor till en komplett kontext för LLM:en.
+
+#### Vad Context Assembly gör
+
+```
+Användarfråga
+    │
+    ├─ Retrieval: Qdrant (semantisk sökning)     → Top-K chunks
+    ├─ Retrieval: Neo4j (GraphRAG/HippoRAG)      → Relaterade entiteter
+    ├─ Metadata: Redis (sessionskontext, profil)  → Strukturerad data
+    ├─ History: Langfuse (konversationshistorik)   → Tidigare turns
+    │
+    └─ CONTEXT ASSEMBLY
+        │
+        ├─ Ranking: Reranker (cross-encoder) sorterar alla sources
+        ├─ Budget: Fit inom token-budget (modellens max context)
+        ├─ Format: Strukturera som prompt-template (från §27.1)
+        │
+        └─ → Komplett prompt till LLM
+```
+
+#### Skillnad mot traditionell feature store
+
+| Aspekt | Traditionell Feature Store | Context Assembly (Bifrost) |
+|--------|---------------------------|---------------------------|
+| **Data** | Tabulära features (float, int, category) | Text chunks, grafer, metadata, historik |
+| **Latency** | < 10 ms | < 200 ms (inkl. retrieval + reranking) |
+| **Volym per request** | 10-100 features | 1k-50k tokens kontext |
+| **Freshness** | Batch + real-time features | RAG: < 15 min (§23.3 SLO). Cache: < 1s. |
+| **Implementation** | Feast/Tecton | Qdrant + Neo4j + Redis + reranker, orkestrerat av SDK |
+
+#### Behövs en separat feature store?
+
+**Svar:** Inte om Bifrost enbart kör LLM-workloads. Qdrant + Neo4j + Redis + RAG self-service *är* Bifrosts feature store. Om hybrid ML+LLM-workloads tillkommer (t.ex. tabulär bedrägeridetektering, rekommendationssystem), överväg Feast som tillägg — men inte i fas 1-3.
+
+**Placering på Tech Radar (§23.9):**
+
+| Komponent | Ring | Motivering |
+|-----------|------|------------|
+| Feast (feature store) | **Assess** | Relevant vid hybrid ML+LLM. Inte prioriterat för ren LLM-plattform. Bevaka. |
+| Reranker (cross-encoder) | **Trial** | Förbättrar RAG-kvalitet signifikant. Testa i fas 2. |
+| Bytewax (streaming features) | **Assess** | Relevant om real-time feature computation behövs. |
+
+#### Fasning
+
+| Fas | Kapabilitet |
+|-----|------------|
+| **Fas 1** | Qdrant + MinIO + Redis. Enkel retrieval (top-K). Ingen reranking. |
+| **Fas 2** | Reranker tillagd. Context assembly i SDK: multiple sources → ranked → formatted. Neo4j GraphRAG. |
+| **Fas 3** | Full context assembly: alla källor, token-budget-optimering, per-pipeline konfiguration. |
+| **Post 90d** | Om hybrid ML-workloads: utvärdera Feast. Streaming features vid behov. |
