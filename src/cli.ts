@@ -909,6 +909,15 @@ program
     await auroraShowCommand(nodeId);
   });
 
+// aurora:delete <nodeId>
+program
+  .command('aurora:delete <nodeId>')
+  .description('Cascade-delete an Aurora node and all its children')
+  .action(async (nodeId: string) => {
+    const { auroraDeleteCommand } = await import('./commands/aurora-delete.js');
+    await auroraDeleteCommand(nodeId);
+  });
+
 // Obsidian export
 program
   .command('obsidian-export')
