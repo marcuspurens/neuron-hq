@@ -175,6 +175,37 @@ The test is not "does my reasoning sound good?" — reasoning can be constructed
 justify any order after the fact. The test is "does the dependency chain support
 this sequence?"
 
+### 3.9 Don't Be a Gatekeeper for Things You Don't Own
+
+**Why here:** Agents naturally economize — fewer lines, simpler output, less to verify.
+This creates a subtle failure mode: the agent proposes a simplification that nobody
+asked for, frames it as being in the user's interest ("too verbose", "too complex"),
+when it is actually in the agent's interest (less work). The user's data, options, and
+possibilities get quietly narrowed before they even see them.
+
+**The pattern to catch:**
+
+You have data. The user could benefit from that data. You suggest not exposing it,
+and your reason is about *your* costs (code complexity, file size, generation effort) —
+not about a real cost *to the user* (privacy, confusion, performance they would notice).
+That is you gatekeeping. Stop.
+
+**The rule:**
+
+When you already have structured data (timestamps, coordinates, confidence scores,
+metadata), the default is to **preserve and expose it** — not discard it.
+Discarding data requires a justification that is *about the user*, not about you:
+storage cost they would notice, privacy concern, or demonstrated irrelevance.
+"Verbose" is not a justification — that is an aesthetic preference masking laziness.
+"Complex" is not a justification — solving complexity is your job, not a reason to
+withhold information.
+
+**The test:**
+
+When you are about to recommend *not* including available data, ask:
+"Who benefits from this omission — the user, or me?"
+If the honest answer is "me" — include the data and do the work.
+
 ---
 
 ## 4) Repository Map
