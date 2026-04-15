@@ -444,26 +444,38 @@ export async function ingestVideo(
       stepStart = Date.now();
       options?.onProgress?.({ step: 'diarizing', progress: 0, stepElapsedMs: 0 });
 
-      const diarizeResult = await wrapPipelineStep('diarize_audio', async () => {
-        const result = await runWorker(
-          {
-            action: 'diarize_audio',
-            source: audioPath,
-          },
-          { timeout: 1_200_000 }
-        );
-        if (!result.ok) throw new Error(result.error);
-        return result;
-      });
-      const diarizeMeta = diarizeResult.metadata as Record<string, unknown>;
-      speakers = (diarizeMeta.speakers as typeof speakers) ?? [];
-      uniqueSpeakers = [...new Set(speakers.map((s) => s.speaker))];
+      try {
+        const diarizeResult = await wrapPipelineStep('diarize_audio', async () => {
+          const result = await runWorker(
+            {
+              action: 'diarize_audio',
+              source: audioPath,
+            },
+            { timeout: 1_200_000 }
+          );
+          if (!result.ok) throw new Error(result.error);
+          return result;
+        });
+        const diarizeMeta = diarizeResult.metadata as Record<string, unknown>;
+        speakers = (diarizeMeta.speakers as typeof speakers) ?? [];
+        uniqueSpeakers = [...new Set(speakers.map((s) => s.speaker))];
 
-      report.details.diarize = {
-        status: 'ok',
-        duration_s: Math.round((Date.now() - stepStart) / 1000),
-        speakers: uniqueSpeakers.length,
-      };
+        report.details.diarize = {
+          status: 'ok',
+          duration_s: Math.round((Date.now() - stepStart) / 1000),
+          speakers: uniqueSpeakers.length,
+        };
+      } catch (diarizeErr) {
+        const msg = diarizeErr instanceof PipelineError
+          ? diarizeErr.originalError.message
+          : String(diarizeErr);
+        logger.warn(`Diarization failed, continuing without speakers: ${msg}`);
+        report.details.diarize = {
+          status: 'error',
+          duration_s: Math.round((Date.now() - stepStart) / 1000),
+          message: msg,
+        };
+      }
       report.steps_completed++;
 
       options?.onProgress?.({

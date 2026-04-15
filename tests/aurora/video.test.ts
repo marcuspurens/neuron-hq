@@ -945,6 +945,18 @@ describe('Pipeline report', () => {
     expect(result.pipeline_report!.details.diarize?.status).toBe('skipped');
   });
 
+  it('continues pipeline when diarization fails (graceful degradation)', async () => {
+    mockRunWorker.mockResolvedValueOnce(extractVideoResponse);
+    mockRunWorker.mockResolvedValueOnce(transcribeResponse);
+    mockRunWorker.mockResolvedValueOnce({ ok: false, error: 'AudioDecoder ABI mismatch' });
+    const result = await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ', { diarize: true });
+    expect(result.pipeline_report).toBeDefined();
+    expect(result.pipeline_report!.details.diarize?.status).toBe('error');
+    expect(result.pipeline_report!.details.diarize?.message).toContain('AudioDecoder');
+    expect(result.voicePrintsCreated).toBe(1);
+    expect(result.chunksCreated).toBeGreaterThanOrEqual(1);
+  });
+
   it('includes word count in transcribe report details', async () => {
     mockRunWorker.mockResolvedValueOnce(extractVideoResponse);
     mockRunWorker.mockResolvedValueOnce(transcribeResponse);

@@ -19,10 +19,12 @@ def check_deps(source: str, options: dict | None = None) -> dict:
     deps = {
         "faster_whisper": _check_import("faster_whisper"),
         "pyannote_audio": _check_import("pyannote.audio"),
+        "soundfile": _check_import("soundfile"),
         "yt_dlp": _check_import("yt_dlp"),
         "pypdfium2": _check_import("pypdfium2"),
         "trafilatura": _check_import("trafilatura"),
         "deepfilternet": _check_cli("deep-filter"),
+        "torchcodec_abi": _check_torchcodec_abi(),
     }
 
     models: dict = {}
@@ -56,6 +58,28 @@ def check_deps(source: str, options: dict | None = None) -> dict:
             "source_type": "dependency_check",
         },
     }
+
+
+def _check_torchcodec_abi() -> dict:
+    """Verify torchcodec can actually load its native library (ABI compatibility)."""
+    try:
+        import torchcodec  # noqa: F401
+        from torchcodec.decoders import AudioDecoder  # noqa: F401
+
+        version = getattr(torchcodec, "__version__", "unknown")
+        return {"available": True, "version": str(version), "error": None}
+    except ImportError:
+        return {
+            "available": False,
+            "version": None,
+            "error": "torchcodec not installed",
+        }
+    except Exception as e:
+        return {
+            "available": False,
+            "version": None,
+            "error": f"torchcodec ABI mismatch: {e}",
+        }
 
 
 def _check_cli(cmd_name: str) -> dict:
