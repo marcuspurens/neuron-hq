@@ -59,6 +59,13 @@ export function isVideoTranscript(node: AuroraNode): boolean {
   return node.type === 'transcript' && Array.isArray(props.rawSegments);
 }
 
+function extractHashtags(text: string | undefined): string[] {
+  if (!text) return [];
+  const matches = text.match(/#[a-zA-Z]\w*/g);
+  if (!matches) return [];
+  return [...new Set(matches.map((t) => t.slice(1)))];
+}
+
 function formatFrontmatter(node: AuroraNode): string {
   const props = node.properties || {};
   const lines = ['---'];
@@ -72,8 +79,12 @@ function formatFrontmatter(node: AuroraNode): string {
 
   if (props.publishedDate) lines.push(`publicerad: ${props.publishedDate}`);
 
-  const sourceUrl = props.videoUrl ?? props.sourceUrl ?? node.source_url;
-  if (sourceUrl) lines.push(`källa: "${sourceUrl}"`);
+  if (props.videoUrl) {
+    lines.push(`videoUrl: "${props.videoUrl}"`);
+  } else {
+    const sourceUrl = props.sourceUrl ?? node.source_url;
+    if (sourceUrl) lines.push(`källa: "${sourceUrl}"`);
+  }
 
   const language = props.language as string | undefined;
   if (language && language !== 'unknown') lines.push(`språk: ${language}`);
@@ -117,29 +128,40 @@ function formatVideoFrontmatter(node: AuroraNode, _speakers: Map<string, Speaker
 
   if (props.publishedDate) lines.push(`publicerad: ${props.publishedDate}`);
 
-  const sourceUrl = props.videoUrl ?? props.sourceUrl ?? node.source_url;
-  if (sourceUrl) lines.push(`källa: "${sourceUrl}"`);
+  const videoUrl = props.videoUrl ?? props.sourceUrl ?? node.source_url;
+  if (videoUrl) lines.push(`videoUrl: "${videoUrl}"`);
+
+  const channelName = props.channelName as string | undefined;
+  if (channelName) lines.push(`kanal: "${channelName.replace(/"/g, '\\"')}"`);
+
+  const channelHandle = props.channelHandle as string | undefined;
+  if (channelHandle) lines.push(`kanalhandle: "${channelHandle}"`);
 
   const language = props.language as string | undefined;
   if (language && language !== 'unknown') lines.push(`språk: ${language}`);
 
-  const tags = Array.isArray(props.tags) ? (props.tags as string[]) : [];
+  const viewCount = props.viewCount as number | undefined;
+  if (viewCount != null) lines.push(`visningar: ${viewCount}`);
+
+  const likeCount = props.likeCount as number | undefined;
+  if (likeCount != null) lines.push(`likes: ${likeCount}`);
+
+  const followerCount = props.channelFollowerCount as number | undefined;
+  if (followerCount != null) lines.push(`prenumeranter: ${followerCount}`);
+
+  const descriptionTags = extractHashtags(props.videoDescription as string | undefined);
+  const ytTags = Array.isArray(props.ytTags) ? (props.ytTags as string[]) : [];
+  const tags = descriptionTags.length > 0 ? descriptionTags : ytTags;
   if (tags.length > 0) {
     const quoted = tags.map((t) => (t.includes(' ') ? `"${t}"` : t));
     lines.push(`tags: [${quoted.join(', ')}]`);
   }
 
-  const provenance = props.provenance as
-    | { agent?: string; method?: string; model?: string }
-    | undefined;
-  if (provenance) {
-    if (provenance.method) lines.push(`källa_typ: ${provenance.method}`);
-    if (provenance.agent) lines.push(`källa_agent: ${provenance.agent}`);
-    if (provenance.model) lines.push(`källa_modell: ${provenance.model}`);
-  }
-
   const summary = props.summary as string | undefined;
   if (summary) lines.push(`tldr: "${summary.replace(/"/g, '\\"')}"`);
+
+  const thumbnailUrl = props.thumbnailUrl as string | undefined;
+  if (thumbnailUrl) lines.push(`thumbnail: "${thumbnailUrl}"`);
 
   lines.push(`confidence: ${node.confidence}`);
   lines.push(`exported_at: "${new Date().toISOString()}"`);
@@ -502,6 +524,28 @@ export async function obsidianExportCommand(cmdOptions: {
         // Speaker table
         lines.push(...buildSpeakerTable(speakerMap));
         lines.push('');
+
+        // Description (from YouTube)
+        const videoDescription = props.videoDescription as string | undefined;
+        if (videoDescription && videoDescription.trim().length > 0) {
+          lines.push('## Beskrivning', '');
+          lines.push(videoDescription.trim());
+          lines.push('');
+        }
+
+        // Chapters (from YouTube)
+        const chapters = props.chapters as Array<{ start_time: number; title: string; end_time?: number }> | undefined;
+        if (Array.isArray(chapters) && chapters.length > 0) {
+          lines.push('## Kapitel', '');
+          for (const ch of chapters) {
+            const startSec = Math.round(ch.start_time);
+            const hh = String(Math.floor(startSec / 3600)).padStart(2, '0');
+            const mm = String(Math.floor((startSec % 3600) / 60)).padStart(2, '0');
+            const ss = String(startSec % 60).padStart(2, '0');
+            lines.push(`- \`${hh}:${mm}:${ss}\` ${ch.title}`);
+          }
+          lines.push('');
+        }
 
         // Collect annotations from properties
         const highlights = Array.isArray(props.highlights)

@@ -1003,7 +1003,7 @@ describe('obsidian-export', () => {
   });
 
   describe('extended video frontmatter', () => {
-    it('includes källa, språk, tags, publicerad, confidence, and tldr', async () => {
+    it('includes videoUrl, språk, tags, publicerad, and confidence (no provenance or tldr)', async () => {
       const transcriptNode = makeNode({
         id: 'yt-fm-full',
         title: 'Full FM Video',
@@ -1015,9 +1015,11 @@ describe('obsidian-export', () => {
           rawSegments: [{ start_ms: 0, end_ms: 5000, text: 'Hello' }],
           videoUrl: 'https://youtube.com/watch?v=abc',
           language: 'sv',
-          tags: ['AI', 'machine learning'],
+          ytTags: ['AI', 'machine learning'],
+          videoDescription: 'Great video #ai #deeplearning',
           publishedDate: '2026-03-15',
           summary: 'A great video about AI',
+          provenance: { method: 'transcription', agent: 'System', model: 'whisper' },
         },
       });
 
@@ -1043,12 +1045,15 @@ describe('obsidian-export', () => {
       )?.[1];
 
       expect(content).toBeDefined();
-      expect(content).toContain('källa: "https://youtube.com/watch?v=abc"');
+      expect(content).toContain('videoUrl: "https://youtube.com/watch?v=abc"');
       expect(content).toContain('språk: sv');
-      expect(content).toContain('tags: [AI, "machine learning"]');
+      expect(content).toContain('tags: [ai, deeplearning]');
       expect(content).toContain('publicerad: 2026-03-15');
       expect(content).toContain('confidence: 0.92');
       expect(content).toContain('tldr: "A great video about AI"');
+      expect(content).not.toContain('källa_typ:');
+      expect(content).not.toContain('källa_agent:');
+      expect(content).not.toContain('källa_modell:');
     });
 
     it('omits optional fields when not present', async () => {
@@ -1086,7 +1091,7 @@ describe('obsidian-export', () => {
       )?.[1];
 
       expect(content).toBeDefined();
-      expect(content).not.toContain('källa:');
+      expect(content).not.toContain('videoUrl:');
       expect(content).not.toContain('språk:');
       expect(content).not.toContain('tags:');
       expect(content).not.toContain('publicerad:');
@@ -1094,27 +1099,28 @@ describe('obsidian-export', () => {
       expect(content).toContain('confidence: 0.5');
     });
 
-    it('escapes quotes in tldr', async () => {
+    it('prefers hashtags from description over ytTags for tags field', async () => {
       const transcriptNode = makeNode({
-        id: 'yt-fm-escape',
-        title: 'Escape Test Video',
+        id: 'yt-fm-hashtags',
+        title: 'Hashtag Test Video',
         type: 'transcript',
         confidence: 0.8,
         properties: {
           platform: 'youtube',
           duration: 30,
           rawSegments: [{ start_ms: 0, end_ms: 3000, text: 'Hi' }],
-          summary: 'He said "hello" to everyone',
+          ytTags: ['generic', 'youtube tag'],
+          videoDescription: 'Check this out #react #typescript',
         },
       });
 
       const vp = makeNode({
-        id: 'vp-fm-escape',
+        id: 'vp-fm-hashtags',
         type: 'voice_print',
         confidence: 0.7,
         properties: {
           speakerLabel: 'SPEAKER_00',
-          videoNodeId: 'yt-fm-escape',
+          videoNodeId: 'yt-fm-hashtags',
           segments: [{ start_ms: 0, end_ms: 3000 }],
         },
       });
@@ -1126,10 +1132,115 @@ describe('obsidian-export', () => {
       await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
       const content = [...writtenFiles.entries()].find(([p]) =>
-        p.includes('Escape Test Video')
+        p.includes('Hashtag Test Video')
       )?.[1];
 
-      expect(content).toContain('tldr: "He said \\"hello\\" to everyone"');
+      expect(content).toBeDefined();
+      expect(content).toContain('tags: [react, typescript]');
+      expect(content).not.toContain('generic');
+    });
+
+    it('falls back to ytTags when description has no hashtags', async () => {
+      const transcriptNode = makeNode({
+        id: 'yt-fm-notags',
+        title: 'No Hashtags Video',
+        type: 'transcript',
+        confidence: 0.8,
+        properties: {
+          platform: 'youtube',
+          duration: 30,
+          rawSegments: [{ start_ms: 0, end_ms: 3000, text: 'Hi' }],
+          ytTags: ['fallback', 'tags'],
+          videoDescription: 'Just a plain description without hashtags.',
+        },
+      });
+
+      const vp = makeNode({
+        id: 'vp-fm-notags',
+        type: 'voice_print',
+        confidence: 0.7,
+        properties: {
+          speakerLabel: 'SPEAKER_00',
+          videoNodeId: 'yt-fm-notags',
+          segments: [{ start_ms: 0, end_ms: 3000 }],
+        },
+      });
+
+      mockQuery
+        .mockResolvedValueOnce({ rows: [transcriptNode, vp] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
+
+      const content = [...writtenFiles.entries()].find(([p]) =>
+        p.includes('No Hashtags Video')
+      )?.[1];
+
+      expect(content).toBeDefined();
+      expect(content).toContain('tags: [fallback, tags]');
+    });
+
+    it('includes channel, views, likes, subscribers, description, and chapters', async () => {
+      const transcriptNode = makeNode({
+        id: 'yt-fm-rich',
+        title: 'Rich Metadata Video',
+        type: 'transcript',
+        confidence: 0.9,
+        properties: {
+          platform: 'youtube',
+          duration: 120,
+          rawSegments: [{ start_ms: 0, end_ms: 5000, text: 'Hello' }],
+          videoUrl: 'https://youtube.com/watch?v=rich123',
+          channelName: 'IBM Technology',
+          channelHandle: '@IBMTechnology',
+          viewCount: 92445,
+          likeCount: 2689,
+          channelFollowerCount: 1650000,
+          videoDescription: 'Learn about A2A and MCP protocols.',
+          chapters: [
+            { start_time: 0, title: 'Intro' },
+            { start_time: 60, title: 'A2A Protocol' },
+            { start_time: 180, title: 'MCP Protocol' },
+          ],
+          thumbnailUrl: 'https://i.ytimg.com/vi/rich123/maxresdefault.jpg',
+        },
+      });
+
+      const vp = makeNode({
+        id: 'vp-fm-rich',
+        type: 'voice_print',
+        confidence: 0.7,
+        properties: {
+          speakerLabel: 'SPEAKER_00',
+          videoNodeId: 'yt-fm-rich',
+          segments: [{ start_ms: 0, end_ms: 5000 }],
+        },
+      });
+
+      mockQuery
+        .mockResolvedValueOnce({ rows: [transcriptNode, vp] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
+
+      const content = [...writtenFiles.entries()].find(([p]) =>
+        p.includes('Rich Metadata Video')
+      )?.[1];
+
+      expect(content).toBeDefined();
+      expect(content).toContain('videoUrl: "https://youtube.com/watch?v=rich123"');
+      expect(content).toContain('kanal: "IBM Technology"');
+      expect(content).toContain('kanalhandle: "@IBMTechnology"');
+      expect(content).toContain('visningar: 92445');
+      expect(content).toContain('likes: 2689');
+      expect(content).toContain('prenumeranter: 1650000');
+      expect(content).toContain('thumbnail: "https://i.ytimg.com/vi/rich123/maxresdefault.jpg"');
+      expect(content).toContain('## Beskrivning');
+      expect(content).toContain('Learn about A2A and MCP protocols.');
+      expect(content).toContain('## Kapitel');
+      expect(content).toContain('`00:00:00` Intro');
+      expect(content).toContain('`00:01:00` A2A Protocol');
+      expect(content).toContain('`00:03:00` MCP Protocol');
     });
   });
 });

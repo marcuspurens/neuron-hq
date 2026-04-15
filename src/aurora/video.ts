@@ -21,6 +21,7 @@ import { autoTagSpeakers } from './speaker-identity.js';
 import { renameSpeaker } from './voiceprint.js';
 import { polishTranscript } from './transcript-polish.js';
 import { guessSpeakers } from './speaker-guesser.js';
+import { generateTldr } from './transcript-tldr.js';
 import type { SpeakerGuess } from './speaker-guesser.js';
 import { ensureOllama } from '../core/ollama.js';
 
@@ -503,6 +504,10 @@ export async function ingestVideo(
         categories: (extractMeta.categories as string[]) ?? [],
         creators: (extractMeta.creators as string[] | null) ?? null,
         chapters: extractMeta.chapters ?? null,
+        viewCount: (extractMeta.viewCount as number | null) ?? null,
+        likeCount: (extractMeta.likeCount as number | null) ?? null,
+        channelFollowerCount: (extractMeta.channelFollowerCount as number | null) ?? null,
+        thumbnailUrl: (extractMeta.thumbnailUrl as string | null) ?? null,
         ...(referenceSubtitles ? { referenceSubtitles: referenceSubtitles.text } : {}),
         provenance: {
           agent: 'System',
@@ -633,6 +638,41 @@ export async function ingestVideo(
         voicePrintsCreated++;
         newVoicePrintIds.push(vpId);
       }
+    }
+
+    // 7b. Fallback: create a single Speaker_01 when no diarization
+    if (voicePrintsCreated === 0) {
+      const durationMs = typeof extractMeta.duration === 'number' ? extractMeta.duration * 1000 : 0;
+      const fallbackLabel = 'SPEAKER_01';
+      const vpId = `vp-${transcriptNodeId}-${fallbackLabel}`;
+      const vpNode: AuroraNode = {
+        id: vpId,
+        type: 'voice_print',
+        title: `Speaker: ${fallbackLabel}`,
+        properties: {
+          speakerLabel: fallbackLabel,
+          videoId: ytVideoId,
+          videoNodeId: transcriptNodeId,
+          segmentCount: transcribeSegments.length,
+          totalDurationMs: durationMs,
+          segments: [{ start_ms: 0, end_ms: durationMs }],
+        },
+        confidence: 0.5,
+        scope: 'personal',
+        sourceUrl: url,
+        created: now,
+        updated: now,
+      };
+      graph = addAuroraNode(graph, vpNode);
+      allNodeIds.push(vpId);
+      graph = addAuroraEdge(graph, {
+        from: vpId,
+        to: transcriptNodeId,
+        type: 'derived_from',
+        metadata: { createdBy: 'video-intake-fallback' },
+      });
+      voicePrintsCreated = 1;
+      newVoicePrintIds.push(vpId);
     }
 
     // 8. Save & embed
@@ -781,13 +821,34 @@ export async function ingestVideo(
       const graphNode = graph.nodes.find((n) => n.id === transcriptNodeId);
       if (graphNode) {
         graphNode.properties.tags = uniqueTags.slice(0, 20);
-        if (videoDesc) {
-          const sentenceMatch = videoDesc.match(/^[^.!?\n]+[.!?]?/);
-          graphNode.properties.summary = sentenceMatch
-            ? sentenceMatch[0].trim().slice(0, 200)
-            : videoDesc.slice(0, 200).trim();
-        }
         await saveAuroraGraph(graph);
+      }
+    }
+
+    // 11c. Generate LLM tldr summary
+    if (options?.polish !== false) {
+      try {
+        const ollamaReady = await ensureOllama();
+        if (ollamaReady || options?.polishModel === 'claude') {
+          const tldrResult = await generateTldr(
+            transcribeText,
+            {
+              title: extractResult.title,
+              channelName: (extractMeta.channel as string) ?? undefined,
+            },
+            { model: options?.polishModel },
+          );
+          const gNode = graph.nodes.find((n) => n.id === transcriptNodeId);
+          if (gNode && tldrResult.tldr) {
+            gNode.properties.summary = tldrResult.tldr;
+            await saveAuroraGraph(graph);
+            logger.info('Generated LLM tldr', { length: tldrResult.tldr.length });
+          }
+        }
+      } catch (err) {
+        logger.error('[tldr] Skipping', {
+          error: String(err instanceof Error ? err.message : err),
+        });
       }
     }
 

@@ -49,7 +49,7 @@ vi.mock('../../src/aurora/voiceprint.js', () => ({
 }));
 
 vi.mock('../../src/core/ollama.js', () => ({
-  ensureOllama: vi.fn().mockResolvedValue(false),
+  ensureOllama: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock('../../src/aurora/transcript-polish.js', () => ({
@@ -58,6 +58,10 @@ vi.mock('../../src/aurora/transcript-polish.js', () => ({
 
 vi.mock('../../src/aurora/speaker-guesser.js', () => ({
   guessSpeakers: vi.fn().mockResolvedValue({ guesses: [], modelUsed: 'mock' }),
+}));
+
+vi.mock('../../src/aurora/transcript-tldr.js', () => ({
+  generateTldr: vi.fn().mockResolvedValue({ tldr: 'Mock summary of the video.', modelUsed: 'mock' }),
 }));
 
 /* ------------------------------------------------------------------ */
@@ -338,7 +342,7 @@ describe('ingestVideo', () => {
     expect(result.title).toBe('Test Video');
     expect(result.videoId).toBe('dQw4w9WgXcQ');
     expect(result.platform).toBe('youtube');
-    expect(mockSaveAuroraGraph).toHaveBeenCalledTimes(2);
+    expect(mockSaveAuroraGraph).toHaveBeenCalledTimes(3);
     expect(mockAutoEmbedAuroraNodes).toHaveBeenCalledTimes(1);
   });
 
@@ -594,7 +598,7 @@ describe('ingestVideo', () => {
     expect(tags).toContain('demo');
   });
 
-  it('generates summary from video description first sentence', async () => {
+  it('generates LLM summary instead of description first sentence', async () => {
     mockRunWorker
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse);
@@ -607,7 +611,7 @@ describe('ingestVideo', () => {
       (n) => n.id === 'yt-dQw4w9WgXcQ' && n.type === 'transcript' && !n.properties.chunkIndex,
     );
     expect(node).toBeDefined();
-    expect(node!.properties.summary).toBe('This is a test video.');
+    expect(node!.properties.summary).toBe('Mock summary of the video.');
   });
 
   it("saves rawSegments on transcript node from transcribeMeta", async () => {

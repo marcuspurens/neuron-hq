@@ -197,6 +197,10 @@ def extract_video(source: str, options: dict | None = None) -> dict:
         "categories": info.get("categories", []),
         "creators": info.get("creators"),
         "chapters": info.get("chapters"),
+        "viewCount": info.get("view_count"),
+        "likeCount": info.get("like_count"),
+        "channelFollowerCount": info.get("channel_follower_count"),
+        "thumbnailUrl": info.get("thumbnail"),
     }
 
     if subtitles_data:
