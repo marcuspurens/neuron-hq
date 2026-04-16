@@ -34,6 +34,7 @@ export interface TimelineBlock {
   start_ms: number;
   end_ms: number;
   text: string;
+  words?: WhisperWord[];
 }
 
 /** Maximum lines per block before splitting. */
@@ -279,9 +280,22 @@ function splitTextByLines(text: string): string[] {
  * 3. Split blocks exceeding 7 lines (~150 words).
  * 4. Return sorted by start_ms.
  */
+function hitsChapterBreak(
+  blockStartMs: number,
+  prevEndMs: number | undefined,
+  breaks: Set<number>,
+): boolean {
+  for (const b of breaks) {
+    if (Math.abs(b - blockStartMs) < 3000) return true;
+    if (prevEndMs !== undefined && b > prevEndMs && b <= blockStartMs) return true;
+  }
+  return false;
+}
+
 export function buildSpeakerTimeline(
   whisperSegments: WhisperSegment[],
   diarizationSegments: DiarizationSegment[],
+  options?: { chapterBreaksMs?: Set<number> },
 ): TimelineBlock[] {
   if (whisperSegments.length === 0) {
     return [];
@@ -304,17 +318,25 @@ export function buildSpeakerTimeline(
     start_ms: ws.start_ms,
     end_ms: ws.end_ms,
     text: ws.text,
+    words: ws.words,
   }));
 
-  // Step 2: Merge adjacent blocks with the same speaker
+  // Step 2: Merge adjacent blocks with the same speaker (break at chapter boundaries)
+  const chapterBreaks = options?.chapterBreaksMs;
   const merged: TimelineBlock[] = [];
   for (const block of assigned) {
     const prev = merged[merged.length - 1];
-    if (prev && prev.speaker === block.speaker) {
+    const hitsChapter = chapterBreaks
+      ? hitsChapterBreak(block.start_ms, prev?.end_ms, chapterBreaks)
+      : false;
+    if (prev && prev.speaker === block.speaker && !hitsChapter) {
       prev.end_ms = Math.max(prev.end_ms, block.end_ms);
       prev.text = prev.text + ' ' + block.text;
+      if (block.words) {
+        prev.words = [...(prev.words ?? []), ...block.words];
+      }
     } else {
-      merged.push({ ...block });
+      merged.push({ ...block, words: block.words ? [...block.words] : undefined });
     }
   }
 
@@ -330,11 +352,17 @@ export function buildSpeakerTimeline(
       const chunkDuration = duration / chunks.length;
 
       for (let i = 0; i < chunks.length; i++) {
+        const chunkStart = Math.round(block.start_ms + i * chunkDuration);
+        const chunkEnd = Math.round(block.start_ms + (i + 1) * chunkDuration);
+        const chunkWords = block.words?.filter(
+          (w) => w.start_ms >= chunkStart && w.start_ms < chunkEnd,
+        );
         result.push({
           speaker: block.speaker,
-          start_ms: Math.round(block.start_ms + i * chunkDuration),
-          end_ms: Math.round(block.start_ms + (i + 1) * chunkDuration),
+          start_ms: chunkStart,
+          end_ms: chunkEnd,
           text: chunks[i],
+          words: chunkWords && chunkWords.length > 0 ? chunkWords : undefined,
         });
       }
     }

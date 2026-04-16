@@ -545,3 +545,91 @@ describe('splitAtSentenceBoundaries', () => {
     expect(result[1].text).toBe('Then she replied.');
   });
 });
+
+describe('chapter breaks in buildSpeakerTimeline', () => {
+  it('produces 3 blocks that stay separate after step 3 split', () => {
+    const segments: WhisperSegment[] = [
+      { start_ms: 0, end_ms: 5000, text: 'Hello from introduction.' },
+      { start_ms: 60000, end_ms: 120000, text: 'A2A is a protocol for agent communication.' },
+      { start_ms: 180000, end_ms: 240000, text: 'MCP stands for Model Context Protocol.' },
+    ];
+    const diarization: DiarizationSegment[] = [
+      { start_ms: 0, end_ms: 5000, speaker: 'SPEAKER_00' },
+      { start_ms: 60000, end_ms: 120000, speaker: 'SPEAKER_00' },
+      { start_ms: 180000, end_ms: 240000, speaker: 'SPEAKER_00' },
+    ];
+    const chapterBreaksMs = new Set([0, 60000, 180000]);
+    const blocks = buildSpeakerTimeline(segments, diarization, { chapterBreaksMs });
+    expect(blocks.length).toBe(3);
+    expect(blocks[0].text).toContain('introduction');
+    expect(blocks[1].text).toContain('A2A');
+    expect(blocks[2].text).toContain('MCP');
+  });
+});
+
+describe('word-level timecodes propagation', () => {
+  const words: WhisperWord[] = [
+    { start_ms: 0, end_ms: 500, word: 'Hello ' },
+    { start_ms: 500, end_ms: 1000, word: 'world ' },
+    { start_ms: 1000, end_ms: 1500, word: 'from ' },
+    { start_ms: 1500, end_ms: 2000, word: 'speaker' },
+  ];
+
+  const segments: WhisperSegment[] = [
+    { start_ms: 0, end_ms: 2000, text: 'Hello world from speaker', words },
+  ];
+
+  const diarization: DiarizationSegment[] = [
+    { start_ms: 0, end_ms: 2000, speaker: 'SPEAKER_00' },
+  ];
+
+  it('preserves words on timeline blocks', () => {
+    const blocks = buildSpeakerTimeline(segments, diarization);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].words).toBeDefined();
+    expect(blocks[0].words).toHaveLength(4);
+    expect(blocks[0].words![0].start_ms).toBe(0);
+    expect(blocks[0].words![0].word).toBe('Hello ');
+  });
+
+  it('merges words when adjacent same-speaker blocks are merged', () => {
+    const seg1: WhisperSegment = {
+      start_ms: 0, end_ms: 1000, text: 'Hello world',
+      words: [
+        { start_ms: 0, end_ms: 500, word: 'Hello ' },
+        { start_ms: 500, end_ms: 1000, word: 'world ' },
+      ],
+    };
+    const seg2: WhisperSegment = {
+      start_ms: 1000, end_ms: 2000, text: 'from speaker',
+      words: [
+        { start_ms: 1000, end_ms: 1500, word: 'from ' },
+        { start_ms: 1500, end_ms: 2000, word: 'speaker' },
+      ],
+    };
+    const blocks = buildSpeakerTimeline([seg1, seg2], diarization);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].words).toHaveLength(4);
+    expect(blocks[0].words![2].word).toBe('from ');
+  });
+
+  it('splits words across chunks when block exceeds max lines', () => {
+    const longWords: WhisperWord[] = [];
+    const wordTexts: string[] = [];
+    for (let i = 0; i < 200; i++) {
+      longWords.push({ start_ms: i * 100, end_ms: (i + 1) * 100, word: `w${i} ` });
+      wordTexts.push(`w${i}`);
+    }
+    const longSeg: WhisperSegment[] = [{
+      start_ms: 0, end_ms: 20000, text: wordTexts.join(' '),
+      words: longWords,
+    }];
+    const blocks = buildSpeakerTimeline(longSeg, [
+      { start_ms: 0, end_ms: 20000, speaker: 'SP' },
+    ]);
+    expect(blocks.length).toBeGreaterThan(1);
+    const allWords = blocks.flatMap((b) => b.words ?? []);
+    expect(allWords.length).toBeGreaterThan(0);
+    expect(allWords.length).toBeLessThanOrEqual(200);
+  });
+});
