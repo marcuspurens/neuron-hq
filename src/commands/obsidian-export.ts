@@ -186,12 +186,91 @@ function buildSpeakerTable(speakers: Map<string, SpeakerInfo>): string[] {
   return lines;
 }
 
-/** Build timeline section from TimelineBlock array. */
-function buildTimelineSection(blocks: TimelineBlock[]): string[] {
-  const lines: string[] = ['## Tidslinje', ''];
+interface Chapter {
+  start_time: number;
+  title: string;
+  end_time?: number;
+}
+
+const REMERGE_SOFT_LIMIT = 4000;
+
+function remergeSameSpeakerBlocks(
+  blocks: TimelineBlock[],
+  chapters?: Chapter[],
+): TimelineBlock[] {
+  const chapterTimesMs = (chapters ?? []).map((ch) => Math.round(ch.start_time * 1000));
+
+  const merged: TimelineBlock[] = [];
+  let forceNewGroup = false;
   for (const block of blocks) {
-    lines.push(`#### ${formatMs(block.start_ms)} \u2014 ${block.speaker}`);
-    lines.push(block.text);
+    const prev = merged[merged.length - 1];
+    const sameSpeaker = prev && prev.speaker === block.speaker;
+    const hitsChapter = chapterTimesMs.some((chMs) => Math.abs(chMs - block.start_ms) < 3000);
+
+    if (!sameSpeaker || forceNewGroup || hitsChapter) {
+      merged.push({ ...block, words: block.words ? [...block.words] : undefined });
+      forceNewGroup = false;
+      continue;
+    }
+
+    prev.end_ms = Math.max(prev.end_ms, block.end_ms);
+    prev.text = prev.text + ' ' + block.text;
+    if (block.words) {
+      prev.words = [...(prev.words ?? []), ...block.words];
+    }
+
+    if (prev.text.length >= REMERGE_SOFT_LIMIT) {
+      forceNewGroup = true;
+    }
+  }
+  return merged;
+}
+
+function findChapterForBlock(block: TimelineBlock, chapters: Chapter[]): Chapter | undefined {
+  const TOLERANCE_MS = 3000;
+  const found = chapters.find((ch) => {
+    const chMs = Math.round(ch.start_time * 1000);
+    return Math.abs(chMs - block.start_ms) < TOLERANCE_MS
+      || (chMs >= block.start_ms && chMs <= block.end_ms);
+  });
+  return found;
+}
+
+/** Render block text with optional word-level timecode spans. */
+function renderBlockText(block: TimelineBlock): string {
+  if (!block.words || block.words.length === 0) {
+    return block.text;
+  }
+  return block.words
+    .map((w) => `<span data-t="${w.start_ms}">${w.word}</span>`)
+    .join('');
+}
+
+/** Build timeline section from TimelineBlock array. */
+function buildTimelineSection(blocks: TimelineBlock[], chapters?: Chapter[]): string[] {
+  const lines: string[] = ['## Tidslinje', ''];
+  const usedChapters = new Set<string>();
+  let lastSpeaker: string | undefined;
+
+  for (const block of blocks) {
+    const chapter = chapters ? findChapterForBlock(block, chapters) : undefined;
+    const isNewChapter = chapter && !usedChapters.has(chapter.title);
+    const speakerChanged = block.speaker !== lastSpeaker;
+
+    if (isNewChapter) {
+      usedChapters.add(chapter.title);
+      lines.push(`### ${chapter.title}`);
+      lines.push(`> ${formatMs(block.start_ms)} \u00b7 ${block.speaker}`);
+      lastSpeaker = block.speaker;
+    } else if (speakerChanged) {
+      lines.push(`> ${formatMs(block.start_ms)} \u00b7 ${block.speaker}`);
+      lastSpeaker = block.speaker;
+    } else {
+      lines.push(`> ${formatMs(block.start_ms)}`);
+    }
+
+    lines.push('');
+    lines.push(renderBlockText(block));
     lines.push('');
   }
   return lines;
@@ -212,21 +291,21 @@ interface CommentAnnotation {
 function buildTimelineSectionWithAnnotations(
   blocks: TimelineBlock[],
   highlights: HighlightAnnotation[],
-  comments: CommentAnnotation[]
+  comments: CommentAnnotation[],
+  chapters?: Chapter[],
 ): string[] {
-  // If no annotations, delegate to original
   if (highlights.length === 0 && comments.length === 0) {
-    return buildTimelineSection(blocks);
+    return buildTimelineSection(blocks, chapters);
   }
 
   const lines: string[] = ['## Tidslinje', ''];
+  const usedChapters = new Set<string>();
+  let lastSpeaker: string | undefined;
 
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i];
     const isLast = i === blocks.length - 1;
 
-    // Match annotations: start_ms >= block.start_ms && < block.end_ms
-    // For last block: use <= for end_ms
     const matchesBlock = (ms: number): boolean => {
       if (isLast) {
         return ms >= block.start_ms && ms <= block.end_ms;
@@ -237,26 +316,39 @@ function buildTimelineSectionWithAnnotations(
     const blockHighlights = highlights.filter((h) => matchesBlock(h.segment_start_ms));
     const blockComments = comments.filter((c) => matchesBlock(c.segment_start_ms));
 
-    const heading = `#### ${formatMs(block.start_ms)} \u2014 ${block.speaker}`;
+    const chapter = chapters ? findChapterForBlock(block, chapters) : undefined;
+    const isNewChapter = chapter && !usedChapters.has(chapter.title);
+    const speakerChanged = block.speaker !== lastSpeaker;
+
+    if (isNewChapter) {
+      usedChapters.add(chapter.title);
+      lines.push(`### ${chapter.title}`);
+    }
+
+    const showSpeaker = isNewChapter || speakerChanged;
+    const meta = showSpeaker
+      ? `> ${formatMs(block.start_ms)} \u00b7 ${block.speaker}`
+      : `> ${formatMs(block.start_ms)}`;
+    lastSpeaker = block.speaker;
+
+    const renderedText = renderBlockText(block);
 
     if (blockHighlights.length > 0) {
-      // Render as Obsidian callout
       const tag = blockHighlights[0].tag || 'highlight';
       lines.push(`> [!important] #${tag}`);
-      lines.push(`> ${heading}`);
-      // Wrap text lines in callout
-      const textLines = block.text.split('\n');
+      lines.push(meta);
+      const textLines = renderedText.split('\n');
       for (const tl of textLines) {
         lines.push(`> ${tl}`);
       }
       lines.push('');
     } else {
-      lines.push(heading);
-      lines.push(block.text);
+      lines.push(meta);
+      lines.push('');
+      lines.push(renderedText);
       lines.push('');
     }
 
-    // Append comments after the block
     for (const c of blockComments) {
       lines.push(`<!-- kommentar: ${c.text} -->`);
       lines.push('');
@@ -511,7 +603,29 @@ export async function obsidianExportCommand(cmdOptions: {
           words?: Array<{ start_ms: number; end_ms: number; word: string; probability?: number }>;
         }>;
 
-        const timelineBlocks = buildSpeakerTimeline(rawSegments, allDiarizationSegments);
+        const chapters = props.chapters as Chapter[] | undefined;
+
+        const chapterBreaksMs = Array.isArray(chapters)
+          ? new Set(chapters.map((ch) => Math.round(ch.start_time * 1000)))
+          : undefined;
+
+        let timelineBlocks = buildSpeakerTimeline(
+          rawSegments,
+          allDiarizationSegments,
+          chapterBreaksMs ? { chapterBreaksMs } : undefined,
+        );
+
+        timelineBlocks = remergeSameSpeakerBlocks(timelineBlocks, chapters ?? undefined);
+        try {
+          const { ensureOllama } = await import('../core/ollama.js');
+          const ollamaReady = await ensureOllama();
+          if (ollamaReady) {
+            const { semanticSplitTimeline } = await import('../aurora/semantic-split.js');
+            timelineBlocks = await semanticSplitTimeline(timelineBlocks);
+          }
+        } catch {
+          // Ollama unavailable — use mechanical split from buildSpeakerTimeline
+        }
 
         // Frontmatter
         lines.push(formatVideoFrontmatter(node, speakerMap));
@@ -533,8 +647,7 @@ export async function obsidianExportCommand(cmdOptions: {
           lines.push('');
         }
 
-        // Chapters (from YouTube)
-        const chapters = props.chapters as Array<{ start_time: number; title: string; end_time?: number }> | undefined;
+        // Chapter table of contents (links to ### headings in timeline)
         if (Array.isArray(chapters) && chapters.length > 0) {
           lines.push('## Kapitel', '');
           for (const ch of chapters) {
@@ -542,7 +655,7 @@ export async function obsidianExportCommand(cmdOptions: {
             const hh = String(Math.floor(startSec / 3600)).padStart(2, '0');
             const mm = String(Math.floor((startSec % 3600) / 60)).padStart(2, '0');
             const ss = String(startSec % 60).padStart(2, '0');
-            lines.push(`- \`${hh}:${mm}:${ss}\` ${ch.title}`);
+            lines.push(`- [[#${ch.title}|${hh}:${mm}:${ss} · ${ch.title}]]`);
           }
           lines.push('');
         }
@@ -556,7 +669,7 @@ export async function obsidianExportCommand(cmdOptions: {
           : [];
 
         // Timeline (with annotations if present)
-        lines.push(...buildTimelineSectionWithAnnotations(timelineBlocks, highlights, comments));
+        lines.push(...buildTimelineSectionWithAnnotations(timelineBlocks, highlights, comments, chapters ?? undefined));
       } else {
         // --- Standard non-video export (unchanged) ---
         lines.push(formatFrontmatter(node));

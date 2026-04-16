@@ -1189,7 +1189,11 @@ describe('obsidian-export', () => {
         properties: {
           platform: 'youtube',
           duration: 120,
-          rawSegments: [{ start_ms: 0, end_ms: 5000, text: 'Hello' }],
+          rawSegments: [
+            { start_ms: 0, end_ms: 5000, text: 'Hello from introduction.' },
+            { start_ms: 60000, end_ms: 120000, text: 'A2A is a protocol for agent communication.' },
+            { start_ms: 180000, end_ms: 240000, text: 'MCP stands for Model Context Protocol.' },
+          ],
           videoUrl: 'https://youtube.com/watch?v=rich123',
           channelName: 'IBM Technology',
           channelHandle: '@IBMTechnology',
@@ -1213,7 +1217,11 @@ describe('obsidian-export', () => {
         properties: {
           speakerLabel: 'SPEAKER_00',
           videoNodeId: 'yt-fm-rich',
-          segments: [{ start_ms: 0, end_ms: 5000 }],
+          segments: [
+            { start_ms: 0, end_ms: 5000 },
+            { start_ms: 60000, end_ms: 120000 },
+            { start_ms: 180000, end_ms: 240000 },
+          ],
         },
       });
 
@@ -1238,9 +1246,64 @@ describe('obsidian-export', () => {
       expect(content).toContain('## Beskrivning');
       expect(content).toContain('Learn about A2A and MCP protocols.');
       expect(content).toContain('## Kapitel');
-      expect(content).toContain('`00:00:00` Intro');
-      expect(content).toContain('`00:01:00` A2A Protocol');
-      expect(content).toContain('`00:03:00` MCP Protocol');
+      expect(content).toContain('[[#Intro|00:00:00 · Intro]]');
+      expect(content).toContain('[[#A2A Protocol|00:01:00 · A2A Protocol]]');
+      expect(content).toContain('[[#MCP Protocol|00:03:00 · MCP Protocol]]');
+      expect(content).toContain('### Intro');
+      expect(content).toContain('### A2A Protocol');
+      expect(content).toContain('### MCP Protocol');
     });
+  });
+
+  it('renders word-level timecode spans when words are present', async () => {
+    const transcriptNode = makeNode({
+      id: 'yt-wordspans',
+      title: 'Word Spans Test',
+      type: 'transcript',
+      properties: {
+        platform: 'youtube',
+        duration: 10,
+        rawSegments: [
+          {
+            start_ms: 0,
+            end_ms: 3000,
+            text: 'Hello world test',
+            words: [
+              { start_ms: 0, end_ms: 500, word: 'Hello ' },
+              { start_ms: 500, end_ms: 1500, word: 'world ' },
+              { start_ms: 1500, end_ms: 3000, word: 'test' },
+            ],
+          },
+        ],
+      },
+    });
+
+    const voicePrint = makeNode({
+      id: 'vp-yt-wordspans-SPEAKER_00',
+      title: 'Speaker: SPEAKER_00',
+      type: 'voice_print',
+      confidence: 0.7,
+      properties: {
+        speakerLabel: 'SPEAKER_00',
+        videoNodeId: 'yt-wordspans',
+        segments: [{ start_ms: 0, end_ms: 3000 }],
+      },
+    });
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [transcriptNode, voicePrint] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
+
+    const content = [...writtenFiles.entries()].find(([path]) =>
+      path.includes('Word Spans Test')
+    )?.[1];
+
+    expect(content).toBeDefined();
+    expect(content).toContain('## Tidslinje');
+    expect(content).toContain('<span data-t="0">Hello </span>');
+    expect(content).toContain('<span data-t="500">world </span>');
+    expect(content).toContain('<span data-t="1500">test</span>');
   });
 });
