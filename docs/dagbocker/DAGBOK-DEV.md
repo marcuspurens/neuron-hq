@@ -8,6 +8,96 @@
 
 **Historik:** S1–S150 + körningar #1–#183 → `docs/DAGBOK.md`. Handoffs → `docs/handoffs/`. ADR → `docs/adr/`.
 
+## 2026-04-16 (session 20) — Semantic paragraph splitting + Chapter-aware timeline + Word timecodes
+
+### `aurora:delete` CLI
+
+`src/commands/aurora-delete.ts` — thin wrapper around `cascadeDeleteAuroraNode()` from session 17. DB guard (checks node exists before attempting delete), structured output with node type + label. 8 tests. Added to `src/cli.ts` as `aurora:delete` subcommand.
+
+Tradeoff: didn't add `--force` flag. If node doesn't exist, command exits with a clear error, not silently. That's the right behavior for a destructive operation.
+
+### Pyannote AudioDecoder fix — three-layer approach
+
+Root cause: `torchcodec` 0.10.0 ABI mismatch with `torch` 2.11.0. Manifested as `RuntimeError: AudioDecoder` during `pyannote.audio` pipeline execution.
+
+**Layer 1 (Python): Bypass AudioDecoder entirely.**
+`_load_audio()` in `transcribe_audio.py` now: (a) converts m4a→WAV via `subprocess.run(['ffmpeg', ...])`, (b) loads with `soundfile.read()`, (c) passes `{"waveform": tensor, "sample_rate": 16000}` dict directly to pyannote Pipeline instead of a file path. Pyannote accepts both; the dict path skips AudioDecoder.
+
+**Layer 2 (TypeScript): Defensive isolation.**
+`video.ts` diarize step wrapped in try/catch. On failure: `speakers = []`, pipeline continues, `diarized: false` in result. Downgrade, not crash.
+
+**Layer 3 (check_deps.py): Warn early.**
+`soundfile>=0.12.0` check added. Torchcodec ABI version check added. Both print actionable error messages.
+
+E2E verified: 2 speakers on MPS GPU (MacBook Pro M-series). Whisper + pyannote both passing.
+
+### AGENTS.md §3.9
+
+New principle: "Don't Be a Gatekeeper for Things You Don't Own." Born from a specific moment: word-level timecodes existed in the data and an agent initially recommended not surfacing them because they were "verbose." The principle codifies the counter-argument: when you have structured data, the default is to preserve and expose it. The cost of omission is paid by the user, not the agent.
+
+This is documented before the code that uses it because the principle should inform future decisions beyond word timecodes.
+
+### Word-level timecodes in Obsidian
+
+`WhisperWord[]` from session 19 is now propagated through all three pipeline stages: assign, merge, split. Previously the array was dropped during merge/split operations.
+
+`obsidian-export.ts`: timeline blocks render words as `<span data-t="{ms}">{word}</span>` when `words[]` is present. Falls back to plain text for VTT subtitle export (VTT has its own cue timing, doesn't need inline spans). The span tags are invisible in Obsidian reading view; they exist for future click-to-seek functionality.
+
+Performance note: not benchmarked at scale. A 90-minute video with ~8000 words = ~8000 span tags in one Obsidian file. Obsidian renders it fine in testing. Worth monitoring.
+
+### `semantic-split.ts` — new module
+
+`src/aurora/semantic-split.ts` exports `semanticSplit(blocks, options?)` and `mergeRunts(blocks, gapThresholdMs?)`.
+
+**Instruction surface decision:** First attempt passed LLM the full text and asked for character offsets of split points. Gemma3 consistently returned narrative answers. Root cause: char offsets are abstract and LLM-unfriendly. Switched to sentence-number approach: (1) number each sentence in the input, (2) ask LLM to return JSON array of sentence indices to split after. Unambiguous, reliable, and easy to validate.
+
+**`think:false`:** Gemma4:26b defaults to thinking mode — generates a reasoning chain before output. On structured tasks this exhausts the output token budget before the actual JSON is produced. `think: false` in Ollama request params disables this. Drops response time from 8-12min to 2-4s on semantic split.
+
+**Code-fence stripping:** LLM wraps JSON in markdown code blocks despite instructions. `semanticSplit()` strips ` ```json ` fences before parsing. This is standard practice for any Ollama-backed structured output call.
+
+**Post-processing:**
+- Re-merge with soft limit (4000 chars): adjacent same-speaker blocks are merged up to 4000 chars. Prevents the split from producing too many micro-blocks.
+- `mergeRunts()`: blocks shorter than a threshold are merged into the next block. Gap check: if gap between block A end and block B start > 10s, treat as hard boundary. Without this, mergeRunts joined last block of chapter N with first block of chapter N+1 when they shared a speaker.
+
+**Fallback:** if Ollama is unreachable, returns `null`, or returns invalid JSON, `semanticSplit()` returns original blocks unchanged. No crash, no data loss.
+
+### Chapter-aware Obsidian timeline
+
+`speaker-timeline.ts`: chapter boundaries are now hard breaks in `remergeSameSpeakerBlocks()`. The 10s gap check also applies here (same implementation as mergeRunts).
+
+`obsidian-export.ts`: chapters render as `### Title` H3 headers. TOC generated as `[[#ChapterTitle]]` Wikilinks at top of timeline section. Speaker label shown only: (a) at chapter start, or (b) when speaker changes within chapter. This cut the noise significantly — a 30-minute interview with 2 speakers was producing ~120 speaker-label lines per export; now it produces ~15.
+
+### `remergeSameSpeakerBlocks` Set.has() bug
+
+Took ~45 minutes to debug. After semantic split, re-merge produced no merges at all. All blocks stayed separate. The speaker comparison used `Set.has()` with exact string matching. Pyannote labels occasionally have trailing whitespace or minor casing differences. `Set.has()` failed silently — no error, just no merges. Fix: normalize speaker labels (trim + lowercase) before Set insertion and lookup. Oracle identified the pattern.
+
+### Mönster etablerade
+
+- **Sentence-number LLM instructions** over char-index or token-offset for structured split tasks. More reliable, easier to validate.
+- **`think: false` for all structured-output Ollama calls** with gemma4. Document this as a team convention.
+- **Gap-based hard boundary** (10s threshold) in any merge/runt operation to prevent cross-chapter artifacts.
+- **Three-layer fix pattern** for Python dep conflicts: bypass (Python), isolate (TypeScript catch), warn early (check_deps).
+
+| Tid | Typ | Vad |
+|-----|-----|-----|
+| ~11:00 | FEAT | aurora:delete CLI |
+| ~11:45 | FIX | Pyannote AudioDecoder three-layer fix |
+| ~12:30 | DOCS | AGENTS.md §3.9 |
+| ~13:00 | FEAT | Word timecodes propagation + span rendering |
+| ~14:00 | FEAT | semantic-split.ts (first pass — charindex, failed) |
+| ~15:30 | REFACTOR | Switched to sentence-number approach |
+| ~16:00 | DEBUG | Set.has() speaker match bug (Oracle assist) |
+| ~16:45 | DEBUG | console.log spy swallowing test output |
+| ~17:30 | FIX | mergeRunts cross-chapter boundary |
+| ~18:00 | FEAT | Chapter headers + TOC + speaker-only-at-change |
+
+### Baseline
+
+typecheck: clean (1 pre-existing unrelated error).
+tests: ~151 → ~183 (+32).
+
+---
+
 ## 2026-04-15 (session 19) — Word-level speaker alignment + Rich metadata + LLM tldr
 
 ### Word-level speaker alignment

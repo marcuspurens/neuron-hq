@@ -9,6 +9,69 @@ Det här är din personliga projektdagbok. Inga kodsnuttar, inget fackspråk. Ba
 
 **Historik:** Allt som hände _innan_ 2026-03-26 finns i `docs/DAGBOK.md`. Den rör vi inte — det är historien. Vill du ha ännu mer detalj om en specifik session hittar du det i `docs/handoffs/`.
 
+## 2026-04-16 — Session 20: Tidslinjen lär sig läsa — semantiska stycken, kapitel och klickbara ord
+
+### Vad hände?
+
+**1. Semantisk styckesdelning — AI läser och delar upp transkriptet logiskt**
+
+Det här var det stora. Tidigare var tidslinjen i Obsidian en lång rad 3-sekunders fragment — ett för varje Whisper-segment. Läsbart ungefär som att läsa en roman med radbrytning efter varje mening. Nu kör systemet transkriptet genom Gemma4:26b (vår lokala AI-modell) och ber den hitta naturliga brytpunkter. Modellen räknar meningarna, returnerar en lista med vilka meningsnummer den vill dela efter, och vi delar där. Resultatet är stycken som faktiskt hör ihop.
+
+Det är värt att notera att implementationen gjordes vid exporttillfället, inte vid ingestning. Det betyder att databasen aldrig rör sig — vi delar upp texten när du exporterar. Ändrar vi split-parametrarna nästa session behöver vi inte re-ingestera en enda video.
+
+**2. Kapitelrubriker och innehållsförteckning**
+
+Om videon har YouTube-kapitel visas de nu som rubrikavsnitt i Obsidian-filen, med en klickbar innehållsförteckning överst. Istället för en obruten tidslinje ser du nu "## Del 1: Introduction" sedan "## Del 2: Architecture" och så vidare. Talarbyte visas bara när talaren faktiskt byter, inte varje block — det var en av de saker som gjorde tidslinjen pratig och svår att läsa.
+
+**3. Klickbara ord med tidsstämplar**
+
+Varje enskilt ord i tidslinjen är nu taggat med sin exakta tid i millisekunder. Det syns inte visuellt i Obsidian ännu, men grunden för "klicka på ett ord, hoppa i videon" är nu lagd. Vi bygger det faktiska kliket i en framtida session.
+
+**4. `aurora:delete` — äntligen ett CLI-kommando för att ta bort noder**
+
+I session 19 stötte vi på ett problem: för att re-ingestera en video behövde vi öppna databasen manuellt och köra SQL-kommandon. Det var besvärligt. Nu finns `pnpm neuron aurora:delete <nodeId>`. Den raderar noden och alla kopplingar i en operation.
+
+**5. Pyannote-kraschen som hängt sedan session 18 är fixad**
+
+Talaridentifieringen (pyannote) kraschade med ett felmeddelande om `AudioDecoder` på nyare Python-versioner. Det visade sig vara ett bibliotekskonflikt-problem: `torchcodec` version 0.10.0 var inkompatibel med `torch` 2.11.0. Lösningen var att kringgå problemet: Python-koden konverterar nu ljud till WAV-format via ffmpeg och läser det med `soundfile`-biblioteket istället för att låta torchcodec göra det. Talaridentifieringen märker inte skillnaden. Vi testade E2E och fick 2 talare identifierade på MPS GPU (Apple Silicon).
+
+**6. Nytt protokoll i AGENTS.md — "Var inte en grindvakt för data du inte äger"**
+
+Det här kom ur en diskussion under sessionen. Vi hade word-level tidsstämplar tillgängliga och agenten ville initialt inte inkludera dem för att det "var för verbose." Det är fel resonemang: om datan finns och användaren kan ha nytta av den, inkludera den. Kostnaden för att utesluta data bärs av användaren, inte av agenten. Det är nu nedskrivet som ett formellt ingenjörsprincip (§3.9) i AGENTS.md.
+
+### Vad funkade inte?
+
+Det är det mest intressanta att skriva om, så här kommer det ordentligt.
+
+**Gemma3 förstod inte instruktionerna.** Det första försöket på semantisk delning använde Gemma3 och bad modellen returnera teckenpositioner (charindex) för varje brytpunkt. Logiken var: exakt position i texten = vi kan dela precis rätt. I praktiken returnerade Gemma3 konsekvent berättande svar — "Ja, jag tycker du borde dela vid mening 3 för att..." — istället för ett JSON-objekt. Vi skrottade det tillvägagångssättet helt. Lösningen var att byta instruktionstaktik: räkna meningarna, returnera vilka meningsnummer du vill dela efter. Meningsnummer är otvetydiga. Det fungerade direkt.
+
+**Gemma4 fastnade i ett tankesätt.** Gemma4:26b är vår nya modell och den är kraftfullare, men den hade ett standardbeteende vi inte förväntade oss: "thinking mode". Modellen tänker högt internt och skriver ut hela sitt resonemang innan svaret. Det lät bra i teorin, men i praktiken tömde modellen hela sin output-budget på interna tankar och hade ingenting kvar till det faktiska svaret. Vi satt och väntade i 8-12 minuter och fick tomt svar. Lösningen: `think:false` i request-parametrarna. Från 10 minuter till 3 sekunder.
+
+**En bugg som krävde Oracles hjälp.** Efter semantisk delning finns ett re-merge steg som ska slå ihop angränsande block med samma talare. Det fungerade inte. Ingen blockar slogs ihop. Vi debuggade i ~45 minuter innan vi insåg att jämförelsen av talarnamn använde `Set.has()` med exakt strängmatchning. Pyannote-talarnamn kan ha subtila formatskillnader (avslutande mellanslag, varianter i kapsling). Oracle-agenten hjälpte identifiera att vi behövde toleransbaserad jämförelse. En av de svårare buggarna denna session eftersom det inte kastade ett fel, det lyckades tyst och producerade fel resultat.
+
+**Console.log försvann under testning.** En testfil hade satt upp en `jest.spyOn(console, 'log')` som inte städades bort ordentligt mellan tester. Under debuggning av en annan bugg undrade vi varför inga `console.log`-utskrifter dök upp. Tog ungefär 30 minuter att inse att test-setup svalde all debug-output. Fixades med ordentlig `afterEach`-städning.
+
+**mergeRunts (korta block-sammanslågning) gick över kapitelgränser.** Det sista steget i pipelinen slår ihop väldigt korta block med nästa block för att undvika enstaka-ords fragment. Men det slogs ihop block från slutet av ett kapitel med block från börjar av nästa kapitel, om det råkade vara samma talare. Inte bra — kapitelgränser ska vara hårda. Lösningen: om tidsgapet mellan block A och block B är mer än 10 sekunder, behandla det som en hård gräns oavsett talare.
+
+### Vad bestämdes?
+
+| Beslut | Varför |
+|--------|--------|
+| Semantisk delning vid export, inte ingestning | Databasen förblir orörd. Split-logiken kan uppdateras utan re-ingestning. |
+| Meningsnummer-instruktionstaktik istället för charindex | Gemma3/Gemma4 förstår "del efter mening 3" men inte "dela vid teckenposition 847". |
+| `think:false` för strukturerade uppgifter | Thinking mode i Gemma4 äter output-budget utan att producera strukturerat svar. |
+| 10-sekunders gaptröskel för mergeRunts | Förhindrar kapitelöverskridande sammanslagning. |
+| Talarbeteckning bara vid ändring/kapitelstart | Minskar brus. Kapitelrubrik sätter kontext. |
+| §3.9 i AGENTS.md | Kodifierar "inkludera data" som ingenjörsprincip efter diskussion om word-level timecodes. |
+
+### Vad är planen framöver?
+
+1. **LLM-genererade kapitelrubriker** när videon inte har YouTube-kapitel — de flesta inspelningar har det inte.
+2. **Speaker guesser prompt-tuning** (kvarstår sedan session 17 — vi tar oss an det på allvar nästa session).
+3. **Daemon-verifiering** (kvarstår sedan session 17).
+
+---
+
 ## 2026-04-15 — Session 19: Nu vet Obsidian vem som sa vad, hur populär videon är, och vad den handlar om
 
 ### Vad hände?

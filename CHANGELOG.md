@@ -7,6 +7,28 @@ Sessions are listed newest-first.
 
 ---
 
+## [Session 20] — 2026-04-16
+
+### Added
+- `aurora:delete` CLI command — `pnpm neuron aurora:delete <nodeId>` wraps `cascadeDeleteAuroraNode()` with DB guard and formatted output. Enables re-ingestion without manual SQL. 8 new tests.
+- `semantic-split.ts` — `semanticSplit()` and `mergeRunts()`. Ollama (gemma4:26b) numbers sentences in each timeline block and returns split-point sentence indices as JSON. Character-position mapping reconstructs sub-blocks. Code-fence stripping handles LLM markdown wrapping. `mergeRunts()` post-processes short blocks with a 10-second gap check to prevent cross-chapter merging. Graceful fallback to unsplit blocks on Ollama failure or invalid JSON.
+- Chapter-aware Obsidian timeline — YouTube chapters render as `### Title` H3 headers with `[[#link]]` TOC at top of timeline section. Chapter boundaries are hard breaks in `remergeSameSpeakerBlocks`. Speaker label shown only at chapter start or speaker change (not repeated every block).
+- Word-level timecodes in Obsidian timeline — `WhisperWord[]` now propagated through all timeline assign/merge/split operations. Each word rendered as `<span data-t="{ms}">{word}</span>`. Falls back to plain text for VTT subtitle export.
+- Pyannote AudioDecoder fix — three-layer: (1) Python `_load_audio()` converts m4a→WAV via ffmpeg, loads with `soundfile`, passes waveform dict to pyannote to bypass `AudioDecoder`; (2) TypeScript try/catch around diarize step, pipeline continues with `speakers=[]` on failure; (3) `check_deps.py` soundfile and torchcodec ABI version checks.
+- Gemma4:26b model upgrade — replaces gemma3. MoE architecture (~3.8B active / 26B total parameters). ~58 T/s generation on Apple Silicon. `think:false` required for structured-output tasks.
+- AGENTS.md §3.9 "Don't Be a Gatekeeper for Things You Don't Own" — new engineering principle: when structured data exists, default is to preserve and expose it, not discard it.
+- 32 new tests across aurora-delete, semantic-split, speaker-timeline, obsidian-export.
+
+### Changed
+- `remergeSameSpeakerBlocks` — now respects chapter hard boundaries (10-second gap check). Normalizes speaker label before comparison to handle pyannote trailing-whitespace variants.
+- Obsidian timeline export — speaker label suppressed when unchanged from previous block (within same chapter).
+
+### Fixed
+- Pyannote crash on torchcodec 0.10.0 + torch 2.11.0 ABI mismatch — `AudioDecoder` no longer used in the audio loading path.
+- `mergeRunts` merging across chapter boundaries when last/first blocks shared a speaker — gap threshold check prevents cross-chapter merging.
+
+---
+
 ## [Session 19] — 2026-04-15
 
 ### Added

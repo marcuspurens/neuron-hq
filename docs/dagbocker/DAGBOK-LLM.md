@@ -22,6 +22,26 @@
 
 ---
 
+## 2026-04-16 — Session 20
+
+**Changes**: `src/commands/aurora-delete.ts`: NEW — CLI wrapper for `cascadeDeleteAuroraNode()`; `aurora-workers/transcribe_audio.py`: `_load_audio()` m4a→WAV+soundfile, bypasses AudioDecoder; `src/aurora/video.ts`: try/catch around diarize, continues with `speakers=[]`; `aurora-workers/check_deps.py`: +soundfile + torchcodec ABI checks; `AGENTS.md`: §3.9 Don't Be a Gatekeeper; `src/aurora/speaker-timeline.ts`: `WhisperWord[]` propagated through merge/split, chapter hard-break, speaker-at-change-only; `src/commands/obsidian-export.ts`: `<span data-t="ms">` per-word, `###` chapter headers, `[[#]]` TOC; `src/aurora/semantic-split.ts`: NEW — sentence-number LLM split, mergeRunts, code-fence strip, fallback
+
+**New interfaces**: `semanticSplit(blocks: TimelineBlock[], options?: SplitOptions): Promise<TimelineBlock[]>`; `mergeRunts(blocks: TimelineBlock[], gapThresholdMs?: number): TimelineBlock[]`; `SplitOptions {model?, softLimit?, think?}`
+
+**Decisions**: export-time split (DB stays raw); sentence-number LLM instructions (charindex failed with gemma3); `think:false` for gemma4 structured tasks (thinking mode caused 10min timeouts); 10s gap = hard boundary in mergeRunts; speaker label only at change or chapter start; fallback to unsplit on Ollama failure
+
+**Gotchas**: `Set.has()` exact match in `remergeSameSpeakerBlocks` — pyannote labels may have trailing whitespace/casing diffs; normalize before Set insert/lookup. Gemma4 `think:false` is mandatory for structured output — without it, model exhausts output budget on reasoning chain. `mergeRunts` without gap check merges across chapter boundaries silently.
+
+**Dead ends**: charindex-based LLM split instructions (gemma3 returned narrative answers). Gemma4 default thinking mode (8-12min timeouts on structured tasks).
+
+**Tests**: ~151 → ~183 (+32: aurora-delete +8, semantic-split +14, speaker-timeline +6, obsidian-export +4). typecheck: clean (1 pre-existing unrelated error unchanged).
+
+**Next**: LLM chapter title generation (no YouTube chapters); speaker guesser prompt-tuning (deferred S17); daemon verification (deferred S17); word-span rendering optimization; Ollama version check in check_deps.py
+
+Handoff: `docs/handoffs/HANDOFF-2026-04-16-opencode-session20-semantic-timeline.md`
+
+---
+
 ## 2026-04-15 — Session 19
 
 **Changes**: `transcribe_audio.py`: `word_timestamps=True`, words array in segment output; `extract_video.py`: +`viewCount`, `likeCount`, `channelFollowerCount`, `thumbnailUrl`; `speaker-timeline.ts`: +`WhisperWord` interface, +`splitAtWordBoundaries()`, `buildSpeakerTimeline()` prefers word-split; `transcript-tldr.ts`: NEW — `generateTldr()` Ollama/Claude; `video.ts`: propagate new yt-dlp fields, LLM tldr step (11c), fallback Speaker_01 (7b), removed description-summary; `obsidian-export.ts`: `källa:`→`videoUrl:`, +kanal/visningar/likes/prenumeranter/thumbnail, +`extractHashtags()`, +description+chapters body sections, removed provenance, restored tldr (now LLM)
