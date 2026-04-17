@@ -147,6 +147,7 @@ export async function polishBatch(
         { role: 'user', content: userMessage },
       ],
       stream: false,
+      think: false,
     }),
   });
 

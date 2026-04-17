@@ -108,6 +108,7 @@ export async function analyzeImage(
         { role: 'user', content: prompt, images: [base64Image] },
       ],
       stream: false,
+      think: false,
       keep_alive: '10m',
       options: { num_predict: 1200, temperature: 0 },
     }),

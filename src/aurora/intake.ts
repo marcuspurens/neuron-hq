@@ -97,6 +97,7 @@ Respond with ONLY a JSON object, nothing else. Example:
         model,
         messages: [{ role: 'user', content: prompt }],
         stream: false,
+        think: false,
       }),
       signal: AbortSignal.timeout(45_000),
     });
@@ -590,6 +591,7 @@ export async function processExtractedText(
         model: ollamaModel,
         messages: [{ role: 'user', content: extractionPrompt }],
         stream: false,
+        think: false,
       }),
       signal: AbortSignal.timeout(45_000),
     });

@@ -219,6 +219,144 @@ async function getSplitPointsOllama(
     .filter((v): v is number => v !== undefined && v > 0);
 }
 
+const CHAPTER_TITLE_SYSTEM = `You generate short chapter titles for transcript segments.
+
+Input: numbered transcript excerpts, e.g. [1] ... [2] ...
+Output: a JSON array of strings — one short title (3-6 words) per excerpt.
+
+Rules:
+- Return ONLY a JSON array of strings, e.g. ["Introduction to AI", "How Models Learn"]
+- Each title should capture the main topic of that excerpt.
+- Use title case.
+- The number of titles MUST equal the number of excerpts.
+- Do NOT number the titles. Do NOT include timestamps.`;
+
+const TARGET_CHAPTERS_MIN = 3;
+const TARGET_CHAPTERS_MAX = 8;
+const CHAPTER_SAMPLE_CHARS = 600;
+
+export interface GeneratedChapter {
+  start_time: number;
+  title: string;
+}
+
+export async function generateChapterTitles(
+  blocks: TimelineBlock[],
+  options?: SemanticSplitOptions,
+): Promise<GeneratedChapter[]> {
+  if (blocks.length < 2) return [];
+
+  const groups = groupBlocksIntoChapters(blocks);
+  if (groups.length < 2) return [];
+
+  const excerpts = groups
+    .map((g, i) => {
+      const text = g.map((b) => b.text).join(' ').slice(0, CHAPTER_SAMPLE_CHARS);
+      return `[${i + 1}] ${text}`;
+    })
+    .join('\n\n');
+
+  const model = options?.ollamaModel ?? getConfig().OLLAMA_MODEL_POLISH;
+
+  try {
+    await ensureOllama(model);
+  } catch {
+    return [];
+  }
+
+  const baseUrl = getOllamaUrl();
+  let resp: Response;
+  try {
+    resp = await fetch(`${baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: CHAPTER_TITLE_SYSTEM },
+          { role: 'user', content: excerpts },
+        ],
+        stream: false,
+        format: 'json',
+        think: false,
+      }),
+    });
+  } catch (err) {
+    logger.warn('Chapter title generation failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return [];
+  }
+
+  if (!resp.ok) {
+    logger.warn('Chapter title Ollama call failed', { status: resp.status });
+    return [];
+  }
+
+  const data = (await resp.json()) as { message?: { content?: string } };
+  const content = (data.message?.content ?? '').trim();
+
+  logger.info('Chapter title response', { length: content.length, raw: content.slice(0, 300) });
+
+  const titles = parseChapterTitles(content);
+  if (titles.length !== groups.length) {
+    logger.warn('Title count mismatch', { expected: groups.length, got: titles.length });
+    return [];
+  }
+
+  return groups.map((g, i) => ({
+    start_time: g[0].start_ms / 1000,
+    title: titles[i],
+  }));
+}
+
+export function groupBlocksIntoChapters(blocks: TimelineBlock[]): TimelineBlock[][] {
+  const totalChars = blocks.reduce((sum, b) => sum + b.text.length, 0);
+  const targetGroups = Math.min(
+    TARGET_CHAPTERS_MAX,
+    Math.max(TARGET_CHAPTERS_MIN, Math.round(totalChars / 2000)),
+  );
+  const charsPerGroup = Math.ceil(totalChars / targetGroups);
+
+  const groups: TimelineBlock[][] = [];
+  let current: TimelineBlock[] = [];
+  let currentChars = 0;
+
+  for (const block of blocks) {
+    current.push(block);
+    currentChars += block.text.length;
+    if (currentChars >= charsPerGroup && groups.length < targetGroups - 1) {
+      groups.push(current);
+      current = [];
+      currentChars = 0;
+    }
+  }
+  if (current.length > 0) groups.push(current);
+
+  return groups;
+}
+
+export function parseChapterTitles(raw: string): string[] {
+  try {
+    const cleaned = raw.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim();
+    const parsed: unknown = JSON.parse(cleaned);
+    let arr: unknown[] | null = null;
+    if (Array.isArray(parsed)) {
+      arr = parsed;
+    } else if (parsed && typeof parsed === 'object') {
+      const values = Object.values(parsed as Record<string, unknown>);
+      arr = values.find((v) => Array.isArray(v)) as unknown[] | undefined ?? null;
+    }
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter((v): v is string => typeof v === 'string' && v.length > 0)
+      .map((s) => s.slice(0, 80));
+  } catch {
+    logger.warn('Failed to parse chapter titles', { raw: raw.slice(0, 200) });
+  }
+  return [];
+}
+
 function parseSentenceNumbers(raw: string, maxSentence: number): number[] {
   try {
     const cleaned = raw.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim();

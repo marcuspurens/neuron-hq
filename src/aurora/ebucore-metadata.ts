@@ -22,17 +22,32 @@ export const EBUCORE_MAPPINGS: Record<string, Record<string, string>> = {
     'ebucore:numberOfSegments': 'segmentCount',
   },
   speaker_identity: {
-    'ebucore:personName': 'name',
+    'ebucore:givenName': 'givenName',
+    'ebucore:familyName': 'familyName',
+    'ebucore:personName': 'displayName',
     'ebucore:role': 'role',
-    'ebucore:personTitle': 'title',
-    'ebucore:organisationName': 'organization',
+    'ebucore:occupation': 'occupation',
+    'ebucore:organisationName': 'affiliation.organizationName',
+    'ebucore:organisationDepartment': 'affiliation.department',
+    'ebucore:entityId': 'entityId',
+    'ebucore:agentWikidata': 'wikidata',
+    'ebucore:agentWikipedia': 'wikipedia',
+    'ebucore:agentImdb': 'imdb',
+    'ebucore:agentLinkedIn': 'linkedIn',
   },
 };
 
-/**
- * Return a new node enriched with ebucore:* properties based on EBUCORE_MAPPINGS.
- * Does NOT mutate the input node.
- */
+function resolveNestedValue(obj: Record<string, unknown>, path: string): unknown {
+  if (!path.includes('.')) return obj[path];
+  const parts = path.split('.');
+  let current: unknown = obj;
+  for (const part of parts) {
+    if (current === null || current === undefined || typeof current !== 'object') return undefined;
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+}
+
 export function enrichWithEbucore(node: AuroraNode): AuroraNode {
   const mapping = EBUCORE_MAPPINGS[node.type];
   if (!mapping) return { ...node, properties: { ...node.properties } };
@@ -40,11 +55,10 @@ export function enrichWithEbucore(node: AuroraNode): AuroraNode {
   const enriched: Record<string, unknown> = { ...node.properties };
 
   for (const [ebucoreKey, sourceKey] of Object.entries(mapping)) {
-    // Special case: ebucore:title uses node.title, not node.properties.title
     if (ebucoreKey === 'ebucore:title') {
       enriched[ebucoreKey] = node.title;
     } else {
-      const value = node.properties[sourceKey];
+      const value = resolveNestedValue(node.properties, sourceKey);
       if (value !== undefined && value !== null) {
         enriched[ebucoreKey] = value;
       }
@@ -71,7 +85,6 @@ export function getEbucoreMetadata(node: AuroraNode): Record<string, unknown> {
 
   if (hasExisting) return existingEbucore;
 
-  // Apply mapping on-the-fly
   const mapping = EBUCORE_MAPPINGS[node.type];
   if (!mapping) return {};
 
@@ -80,7 +93,7 @@ export function getEbucoreMetadata(node: AuroraNode): Record<string, unknown> {
     if (ebucoreKey === 'ebucore:title') {
       result[ebucoreKey] = node.title;
     } else {
-      const value = node.properties[sourceKey];
+      const value = resolveNestedValue(node.properties, sourceKey);
       if (value !== undefined && value !== null) {
         result[ebucoreKey] = value;
       }
@@ -107,9 +120,8 @@ export function validateEbucoreCompleteness(node: AuroraNode): {
     if (ebucoreKey === 'ebucore:title') {
       if (!node.title) missing.push(ebucoreKey);
     } else {
-      // Check both enriched (ebucore:*) and source properties
       const ebucoreValue = node.properties[ebucoreKey];
-      const sourceValue = node.properties[sourceKey];
+      const sourceValue = resolveNestedValue(node.properties, sourceKey);
       if (
         (ebucoreValue === undefined || ebucoreValue === null) &&
         (sourceValue === undefined || sourceValue === null)

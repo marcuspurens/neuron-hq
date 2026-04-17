@@ -8,29 +8,90 @@ import {
 } from './aurora-graph.js';
 import type { AuroraNode } from './aurora-schema.js';
 
-/** Represents a confirmed or candidate speaker identity. */
+/**
+ * Speaker affiliation — links a person to an organisation.
+ * Aligned with EBUCore+ ec:Affiliation.
+ */
+export interface SpeakerAffiliation {
+  organizationName: string;
+  organizationId?: string;
+  department?: string;
+  role?: string;
+  periodStart?: string;
+  periodEnd?: string;
+}
+
+/**
+ * Represents a confirmed or candidate speaker identity.
+ * Field names follow EBUCore+ ec:Person ontology (Tech 3397).
+ */
 export interface SpeakerIdentity {
   id: string;
-  name: string;
+
+  givenName: string;
+  familyName: string;
+  displayName: string;
+
+  role: string;
+  occupation: string;
+
+  affiliation: SpeakerAffiliation | null;
+
+  entityId: string;
+  wikidata: string;
+  wikipedia: string;
+  imdb: string;
+  linkedIn: string;
+
   confirmations: number;
   confidence: number;
   autoTagThreshold: number;
   confirmedVoicePrints: string[];
-  metadata: Record<string, unknown>;
   created: string;
   updated: string;
 }
 
-/** Convert an AuroraNode to a SpeakerIdentity. */
 function nodeToIdentity(node: AuroraNode): SpeakerIdentity {
+  const p = node.properties;
+  const givenName = (p.givenName as string) || '';
+  const familyName = (p.familyName as string) || '';
+
+  const legacyName = (p.name as string) || node.title;
+  const displayName = (p.displayName as string)
+    || (givenName && familyName ? `${givenName} ${familyName}` : '')
+    || legacyName;
+
+  const rawAffiliation = p.affiliation as Record<string, unknown> | null | undefined;
+  const affiliation: SpeakerAffiliation | null = rawAffiliation
+    ? {
+        organizationName: (rawAffiliation.organizationName as string) || '',
+        organizationId: (rawAffiliation.organizationId as string) || undefined,
+        department: (rawAffiliation.department as string) || undefined,
+        role: (rawAffiliation.role as string) || undefined,
+        periodStart: (rawAffiliation.periodStart as string) || undefined,
+        periodEnd: (rawAffiliation.periodEnd as string) || undefined,
+      }
+    : (p.organization as string)
+      ? { organizationName: p.organization as string }
+      : null;
+
   return {
     id: node.id,
-    name: (node.properties.name as string) || node.title,
-    confirmations: (node.properties.confirmations as number) || 0,
+    givenName,
+    familyName,
+    displayName,
+    role: (p.role as string) || '',
+    occupation: (p.occupation as string) || (p.title as string) || '',
+    affiliation,
+    entityId: (p.entityId as string) || '',
+    wikidata: (p.wikidata as string) || '',
+    wikipedia: (p.wikipedia as string) || '',
+    imdb: (p.imdb as string) || '',
+    linkedIn: (p.linkedIn as string) || '',
+    confirmations: (p.confirmations as number) || 0,
     confidence: node.confidence,
-    autoTagThreshold: (node.properties.autoTagThreshold as number) || 0.9,
-    confirmedVoicePrints: (node.properties.confirmedVoicePrints as string[]) || [],
-    metadata: (node.properties.metadata as Record<string, unknown>) || {},
+    autoTagThreshold: (p.autoTagThreshold as number) || 0.9,
+    confirmedVoicePrints: (p.confirmedVoicePrints as string[]) || [],
     created: node.created,
     updated: node.updated,
   };
@@ -49,17 +110,30 @@ export async function createSpeakerIdentity(
   const id = `speaker-${name.toLowerCase().replace(/\s+/g, '-')}`;
   const now = new Date().toISOString();
 
+  const nameParts = name.trim().split(/\s+/);
+  const givenName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : name;
+  const familyName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+
   const node: AuroraNode = {
     id,
     type: 'speaker_identity',
     title: name,
     properties: {
       name,
-      role: 'unknown',
+      givenName,
+      familyName,
+      displayName: name,
+      role: '',
+      occupation: '',
+      affiliation: null,
+      entityId: '',
+      wikidata: '',
+      wikipedia: '',
+      imdb: '',
+      linkedIn: '',
       confirmations: 1,
       confirmedVoicePrints: [voicePrintId],
       autoTagThreshold: 0.9,
-      metadata: {},
     },
     confidence: 0.5,
     scope: 'personal',
@@ -206,12 +280,12 @@ export async function suggestIdentity(voicePrintId: string): Promise<IdentitySug
     if (
       speakerLabel &&
       !speakerLabel.startsWith('SPEAKER_') &&
-      speakerLabel.toLowerCase() === identity.name.toLowerCase()
+      speakerLabel.toLowerCase() === identity.displayName.toLowerCase()
     ) {
       suggestions.push({
         identity,
         confidence: identity.confidence,
-        reason: `Name match: ${identity.name}`,
+        reason: `Name match: ${identity.displayName}`,
         autoTagEligible: identity.confidence >= identity.autoTagThreshold,
       });
       continue;
@@ -254,9 +328,27 @@ export interface AutoTagResult {
  * @param voicePrintIds - Array of voice print IDs to process
  * @returns Array of results indicating what action was taken for each voice print
  */
+export interface SpeakerMetadataUpdate {
+  givenName?: string;
+  familyName?: string;
+  displayName?: string;
+  role?: string;
+  occupation?: string;
+  affiliation?: SpeakerAffiliation | null;
+  entityId?: string;
+  wikidata?: string;
+  wikipedia?: string;
+  imdb?: string;
+  linkedIn?: string;
+  /** @deprecated Use givenName/familyName. Kept for backward compat with old import data. */
+  title?: string;
+  /** @deprecated Use affiliation.organizationName. Kept for backward compat. */
+  organization?: string;
+}
+
 export async function updateSpeakerMetadata(
   identityId: string,
-  metadata: { title?: string; organization?: string; role?: string }
+  metadata: SpeakerMetadataUpdate
 ): Promise<void> {
   let graph = await loadAuroraGraph();
   const node = graph.nodes.find((n) => n.id === identityId);
@@ -265,9 +357,31 @@ export async function updateSpeakerMetadata(
   }
 
   const updates: Record<string, unknown> = { ...node.properties };
-  if (metadata.title !== undefined) updates.title = metadata.title;
-  if (metadata.organization !== undefined) updates.organization = metadata.organization;
+
+  if (metadata.givenName !== undefined) updates.givenName = metadata.givenName;
+  if (metadata.familyName !== undefined) updates.familyName = metadata.familyName;
+  if (metadata.displayName !== undefined) updates.displayName = metadata.displayName;
   if (metadata.role !== undefined) updates.role = metadata.role;
+  if (metadata.occupation !== undefined) updates.occupation = metadata.occupation;
+  if (metadata.affiliation !== undefined) updates.affiliation = metadata.affiliation;
+  if (metadata.entityId !== undefined) updates.entityId = metadata.entityId;
+  if (metadata.wikidata !== undefined) updates.wikidata = metadata.wikidata;
+  if (metadata.wikipedia !== undefined) updates.wikipedia = metadata.wikipedia;
+  if (metadata.imdb !== undefined) updates.imdb = metadata.imdb;
+  if (metadata.linkedIn !== undefined) updates.linkedIn = metadata.linkedIn;
+
+  if (metadata.title !== undefined) updates.occupation = updates.occupation || metadata.title;
+  if (metadata.organization !== undefined && !updates.affiliation) {
+    updates.affiliation = { organizationName: metadata.organization };
+  }
+
+  if (metadata.givenName !== undefined || metadata.familyName !== undefined) {
+    const gn = (updates.givenName as string) || '';
+    const fn = (updates.familyName as string) || '';
+    if (!updates.displayName && gn && fn) {
+      updates.displayName = `${gn} ${fn}`;
+    }
+  }
 
   graph = updateAuroraNode(graph, identityId, { properties: updates });
   await saveAuroraGraph(graph);
@@ -294,7 +408,7 @@ export async function autoTagSpeakers(voicePrintIds: string[]): Promise<AutoTagR
     results.push({
       voicePrintId: vpId,
       identityId: best.identity.id,
-      identityName: best.identity.name,
+      identityName: best.identity.displayName,
       confidence: best.confidence,
       action: best.autoTagEligible ? 'auto_tagged' : 'suggestion',
     });

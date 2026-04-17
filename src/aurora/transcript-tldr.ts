@@ -60,6 +60,7 @@ async function callOllama(
         { role: 'user', content: userMessage },
       ],
       stream: false,
+      think: false,
     }),
   });
 

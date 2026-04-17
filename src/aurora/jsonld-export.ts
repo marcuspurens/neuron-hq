@@ -121,6 +121,9 @@ export function nodeToJsonLd(
         ...buildTranscriptJsonLd(node, includeEbucore),
       };
       break;
+    case 'speaker_identity':
+      result = { ...result, ...buildSpeakerIdentityJsonLd(node) };
+      break;
     default:
       result = { ...result, ...buildGenericJsonLd(node) };
       break;
@@ -208,7 +211,46 @@ function buildTranscriptJsonLd(
   return result;
 }
 
-/** Build JSON-LD for a generic node (schema:Thing). */
+function buildSpeakerIdentityJsonLd(node: AuroraNode): Record<string, unknown> {
+  const p = node.properties;
+  const result: Record<string, unknown> = {
+    '@type': 'schema:Person',
+    '@id': `urn:aurora:speaker:${node.id}`,
+    'schema:givenName': p.givenName || undefined,
+    'schema:familyName': p.familyName || undefined,
+    'name': p.displayName || node.title,
+    'schema:jobTitle': p.occupation || undefined,
+    'dateCreated': node.created,
+    'dateModified': node.updated,
+  };
+
+  if (p.role) result['schema:roleName'] = p.role;
+
+  const aff = p.affiliation as Record<string, unknown> | null | undefined;
+  if (aff?.organizationName) {
+    const org: Record<string, unknown> = {
+      '@type': 'schema:Organization',
+      'name': aff.organizationName,
+    };
+    if (aff.department) org['schema:department'] = aff.department;
+    result['schema:affiliation'] = org;
+  }
+
+  const sameAs: object[] = [];
+  if (p.wikidata) sameAs.push({ '@id': String(p.wikidata) });
+  if (p.wikipedia) sameAs.push({ '@id': String(p.wikipedia) });
+  if (p.imdb) sameAs.push({ '@id': String(p.imdb) });
+  if (p.linkedIn) sameAs.push({ '@id': String(p.linkedIn) });
+  if (p.entityId) sameAs.push({ '@id': String(p.entityId) });
+  if (sameAs.length > 0) result['sameAs'] = sameAs;
+
+  for (const key of Object.keys(result)) {
+    if (result[key] === undefined) delete result[key];
+  }
+
+  return result;
+}
+
 function buildGenericJsonLd(node: AuroraNode): Record<string, unknown> {
   return {
     '@type': 'schema:Thing',

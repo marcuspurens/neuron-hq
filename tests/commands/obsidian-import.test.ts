@@ -170,8 +170,8 @@ describe('obsidian-import', () => {
 
     await obsidianImportCommand({ vault: '/test-vault' });
 
-    // Should have loaded graph
-    expect(mockLoadAuroraGraph).toHaveBeenCalledOnce();
+    // Should have loaded graph (may be called more than once due to speaker metadata updates)
+    expect(mockLoadAuroraGraph).toHaveBeenCalled();
 
     // Should have updated the node with highlights and comments
     expect(mockUpdateAuroraNode).toHaveBeenCalledOnce();

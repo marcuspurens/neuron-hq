@@ -36,11 +36,16 @@ interface AuroraEdge {
 
 interface SpeakerInfo {
   label: string;
-  name: string;
-  title: string;
-  organization: string;
-  confidence: number;
+  givenName: string;
+  familyName: string;
+  displayName: string;
   role: string;
+  occupation: string;
+  organizationName: string;
+  department: string;
+  wikidata: string;
+  linkedIn: string;
+  confidence: number;
   segments: Array<{ start_ms: number; end_ms: number }>;
 }
 
@@ -172,16 +177,19 @@ function formatVideoFrontmatter(node: AuroraNode, _speakers: Map<string, Speaker
 function buildSpeakerTable(speakers: Map<string, SpeakerInfo>): string[] {
   const lines: string[] = [
     '## Talare',
-    '| Label | Namn | Titel | Organisation | Roll | Konfidenspoäng |',
-    '|-------|------|-------|--------------|------|----------------|',
+    '| Label | Förnamn | Efternamn | Roll | Titel | Organisation | Avdelning | Wikidata | LinkedIn |',
+    '|-------|---------|-----------|------|-------|--------------|-----------|----------|----------|',
   ];
   for (const [label, info] of speakers) {
-    const name = info.name || '';
-    const title = info.title || '';
-    const org = info.organization || '';
+    const gn = info.givenName || '';
+    const fn = info.familyName || '';
     const role = info.role || '';
-    const conf = String(info.confidence);
-    lines.push(`| ${label} | ${name} | ${title} | ${org} | ${role} | ${conf} |`);
+    const occ = info.occupation || '';
+    const org = info.organizationName || '';
+    const dept = info.department || '';
+    const wiki = info.wikidata || '';
+    const li = info.linkedIn || '';
+    lines.push(`| ${label} | ${gn} | ${fn} | ${role} | ${occ} | ${org} | ${dept} | ${wiki} | ${li} |`);
   }
   return lines;
 }
@@ -246,11 +254,18 @@ function renderBlockText(block: TimelineBlock): string {
     .join('');
 }
 
+/** Count unique speakers across all timeline blocks. */
+function countUniqueSpeakers(blocks: TimelineBlock[]): number {
+  const speakers = new Set(blocks.map((b) => b.speaker));
+  return speakers.size;
+}
+
 /** Build timeline section from TimelineBlock array. */
 function buildTimelineSection(blocks: TimelineBlock[], chapters?: Chapter[]): string[] {
   const lines: string[] = ['## Tidslinje', ''];
   const usedChapters = new Set<string>();
   let lastSpeaker: string | undefined;
+  const showSpeakers = countUniqueSpeakers(blocks) > 1;
 
   for (const block of blocks) {
     const chapter = chapters ? findChapterForBlock(block, chapters) : undefined;
@@ -260,10 +275,14 @@ function buildTimelineSection(blocks: TimelineBlock[], chapters?: Chapter[]): st
     if (isNewChapter) {
       usedChapters.add(chapter.title);
       lines.push(`### ${chapter.title}`);
-      lines.push(`> ${formatMs(block.start_ms)} \u00b7 ${block.speaker}`);
+      if (showSpeakers) {
+        lines.push(`> ${formatMs(block.start_ms)} · ${block.speaker}`);
+      } else {
+        lines.push(`> ${formatMs(block.start_ms)}`);
+      }
       lastSpeaker = block.speaker;
-    } else if (speakerChanged) {
-      lines.push(`> ${formatMs(block.start_ms)} \u00b7 ${block.speaker}`);
+    } else if (speakerChanged && showSpeakers) {
+      lines.push(`> ${formatMs(block.start_ms)} · ${block.speaker}`);
       lastSpeaker = block.speaker;
     } else {
       lines.push(`> ${formatMs(block.start_ms)}`);
@@ -301,6 +320,7 @@ function buildTimelineSectionWithAnnotations(
   const lines: string[] = ['## Tidslinje', ''];
   const usedChapters = new Set<string>();
   let lastSpeaker: string | undefined;
+  const showSpeakers = countUniqueSpeakers(blocks) > 1;
 
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i];
@@ -325,9 +345,9 @@ function buildTimelineSectionWithAnnotations(
       lines.push(`### ${chapter.title}`);
     }
 
-    const showSpeaker = isNewChapter || speakerChanged;
+    const showSpeaker = showSpeakers && (isNewChapter || speakerChanged);
     const meta = showSpeaker
-      ? `> ${formatMs(block.start_ms)} \u00b7 ${block.speaker}`
+      ? `> ${formatMs(block.start_ms)} · ${block.speaker}`
       : `> ${formatMs(block.start_ms)}`;
     lastSpeaker = block.speaker;
 
@@ -445,9 +465,16 @@ function buildSpeakerMap(
       ? (vp.properties.segments as Array<{ start_ms: number; end_ms: number }>)
       : [];
 
-    let title = '';
-    let organization = '';
+    let givenName = '';
+    let familyName = '';
+    let displayName = label.startsWith('SPEAKER_') ? '' : label;
     let role = '';
+    let occupation = '';
+    let organizationName = '';
+    let department = '';
+    let wikidata = '';
+    let linkedIn = '';
+
     const identityEdge = edges.find(
       (e) =>
         e.to_id === vp.id &&
@@ -456,19 +483,34 @@ function buildSpeakerMap(
     if (identityEdge) {
       const identityNode = allNodes.find((n) => n.id === identityEdge.from_id);
       if (identityNode) {
-        title = (identityNode.properties.title as string) || '';
-        organization = (identityNode.properties.organization as string) || '';
-        role = (identityNode.properties.role as string) || '';
+        const p = identityNode.properties;
+        givenName = (p.givenName as string) || '';
+        familyName = (p.familyName as string) || '';
+        displayName = (p.displayName as string) || displayName;
+        role = (p.role as string) || '';
+        occupation = (p.occupation as string) || (p.title as string) || '';
+        const aff = p.affiliation as Record<string, unknown> | null | undefined;
+        organizationName = aff
+          ? (aff.organizationName as string) || ''
+          : (p.organization as string) || '';
+        department = aff ? (aff.department as string) || '' : '';
+        wikidata = (p.wikidata as string) || '';
+        linkedIn = (p.linkedIn as string) || '';
       }
     }
 
     map.set(label, {
       label,
-      name: label.startsWith('SPEAKER_') ? '' : label,
-      title,
-      organization,
-      confidence: vp.confidence ?? 0,
+      givenName,
+      familyName,
+      displayName,
       role,
+      occupation,
+      organizationName,
+      department,
+      wikidata,
+      linkedIn,
+      confidence: vp.confidence ?? 0,
       segments,
     });
   }
@@ -616,12 +658,24 @@ export async function obsidianExportCommand(cmdOptions: {
         );
 
         timelineBlocks = remergeSameSpeakerBlocks(timelineBlocks, chapters ?? undefined);
+        let effectiveChapters = chapters;
         try {
           const { ensureOllama } = await import('../core/ollama.js');
           const ollamaReady = await ensureOllama();
           if (ollamaReady) {
-            const { semanticSplitTimeline } = await import('../aurora/semantic-split.js');
+            const { semanticSplitTimeline, generateChapterTitles } = await import('../aurora/semantic-split.js');
             timelineBlocks = await semanticSplitTimeline(timelineBlocks);
+
+            if (!Array.isArray(chapters) || chapters.length === 0) {
+              const generated = await generateChapterTitles(timelineBlocks);
+              if (generated.length > 0) {
+                effectiveChapters = generated;
+                timelineBlocks = remergeSameSpeakerBlocks(
+                  timelineBlocks,
+                  effectiveChapters,
+                );
+              }
+            }
           }
         } catch {
           // Ollama unavailable — use mechanical split from buildSpeakerTimeline
@@ -647,10 +701,10 @@ export async function obsidianExportCommand(cmdOptions: {
           lines.push('');
         }
 
-        // Chapter table of contents (links to ### headings in timeline)
-        if (Array.isArray(chapters) && chapters.length > 0) {
+        // Chapter table of contents
+        if (Array.isArray(effectiveChapters) && effectiveChapters.length > 0) {
           lines.push('## Kapitel', '');
-          for (const ch of chapters) {
+          for (const ch of effectiveChapters) {
             const startSec = Math.round(ch.start_time);
             const hh = String(Math.floor(startSec / 3600)).padStart(2, '0');
             const mm = String(Math.floor((startSec % 3600) / 60)).padStart(2, '0');
@@ -669,7 +723,7 @@ export async function obsidianExportCommand(cmdOptions: {
           : [];
 
         // Timeline (with annotations if present)
-        lines.push(...buildTimelineSectionWithAnnotations(timelineBlocks, highlights, comments, chapters ?? undefined));
+        lines.push(...buildTimelineSectionWithAnnotations(timelineBlocks, highlights, comments, effectiveChapters ?? undefined));
       } else {
         // --- Standard non-video export (unchanged) ---
         lines.push(formatFrontmatter(node));

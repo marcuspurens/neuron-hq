@@ -12,7 +12,7 @@ export async function auroraSpeakerIdentitiesCommand(): Promise<void> {
     console.log('════════════════════════\n');
     identities.forEach((identity, i) => {
       const autoTag = identity.confidence >= identity.autoTagThreshold ? '✅' : `❌ (need ${Math.ceil((identity.autoTagThreshold - identity.confidence) / 0.1)} more)`;
-      console.log(`  ${i + 1}. ${identity.name} (${identity.id})`);
+      console.log(`  ${i + 1}. ${identity.displayName} (${identity.id})`);
       console.log(`     Confirmations: ${identity.confirmations} · Confidence: ${identity.confidence.toFixed(2)} · Auto-tag: ${autoTag}`);
       console.log(`     Voice prints: ${identity.confirmedVoicePrints.length}\n`);
     });

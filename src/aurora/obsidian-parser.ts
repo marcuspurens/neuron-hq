@@ -13,10 +13,15 @@ const logger = createLogger('obsidian:parser');
 export interface ParsedSpeaker {
   label: string;
   name: string;
-  title: string;
-  organization: string;
-  confidence: number;
+  givenName: string;
+  familyName: string;
   role: string;
+  occupation: string;
+  organizationName: string;
+  department: string;
+  wikidata: string;
+  linkedIn: string;
+  confidence: number;
 }
 
 export interface Highlight {
@@ -121,10 +126,15 @@ export function extractSpeakers(frontmatter: Record<string, unknown>): ParsedSpe
     result.push({
       label,
       name: typeof v.name === 'string' ? v.name : '',
-      title: typeof v.title === 'string' ? v.title : '',
-      organization: typeof v.organization === 'string' ? v.organization : '',
-      confidence: typeof v.confidence === 'number' ? v.confidence : 0,
+      givenName: typeof v.givenName === 'string' ? v.givenName : '',
+      familyName: typeof v.familyName === 'string' ? v.familyName : '',
       role: typeof v.role === 'string' ? v.role : '',
+      occupation: typeof v.occupation === 'string' ? (v.occupation as string) : (typeof v.title === 'string' ? v.title : ''),
+      organizationName: typeof v.organizationName === 'string' ? v.organizationName : (typeof v.organization === 'string' ? v.organization : ''),
+      department: typeof v.department === 'string' ? v.department : '',
+      wikidata: typeof v.wikidata === 'string' ? v.wikidata : '',
+      linkedIn: typeof v.linkedIn === 'string' ? v.linkedIn : '',
+      confidence: typeof v.confidence === 'number' ? v.confidence : 0,
     });
   }
   return result;
@@ -144,35 +154,53 @@ export function extractSpeakersFromTable(markdownBody: string): ParsedSpeaker[] 
     .map((c) => c.trim().toLowerCase())
     .filter(Boolean);
 
-  const colIndex = {
-    label: headerCells.indexOf('label'),
-    namn: headerCells.indexOf('namn'),
-    titel: headerCells.indexOf('titel'),
-    organisation: headerCells.indexOf('organisation'),
-    roll: headerCells.indexOf('roll'),
-    konfidenspoäng: headerCells.indexOf('konfidenspoäng'),
-  };
+  const col = (name: string): number => headerCells.indexOf(name);
+  const labelCol = col('label');
+  if (labelCol === -1) return [];
 
-  if (colIndex.label === -1) return [];
+  const förnamn = col('förnamn');
+  const efternamn = col('efternamn');
+  const rollCol = col('roll');
+  const titelCol = col('titel');
+  const orgCol = col('organisation');
+  const avdelningCol = col('avdelning');
+  const wikidataCol = col('wikidata');
+  const linkedInCol = col('linkedin');
+  const konfCol = col('konfidenspoäng');
+
+  const namnCol = col('namn');
 
   const result: ParsedSpeaker[] = [];
   for (let i = 2; i < lines.length; i++) {
     const rawCells = lines[i].split('|');
     const cells = rawCells.slice(1, -1).map((c) => c.trim());
 
-    const label = cells[colIndex.label]?.trim() ?? '';
+    const label = cells[labelCol]?.trim() ?? '';
     if (!label) continue;
 
-    const confStr = colIndex.konfidenspoäng >= 0 ? (cells[colIndex.konfidenspoäng] ?? '') : '';
+    const cell = (idx: number): string => (idx >= 0 ? (cells[idx] ?? '') : '');
+    const confStr = cell(konfCol);
     const confidence = confStr ? Number(confStr) : 0;
+
+    const givenName = cell(förnamn);
+    const familyName = cell(efternamn);
+    const legacyName = cell(namnCol);
+    const displayName = givenName && familyName
+      ? `${givenName} ${familyName}`
+      : legacyName;
 
     result.push({
       label,
-      name: colIndex.namn >= 0 ? (cells[colIndex.namn] ?? '') : '',
-      title: colIndex.titel >= 0 ? (cells[colIndex.titel] ?? '') : '',
-      organization: colIndex.organisation >= 0 ? (cells[colIndex.organisation] ?? '') : '',
+      name: displayName,
+      givenName,
+      familyName,
+      role: cell(rollCol),
+      occupation: cell(titelCol),
+      organizationName: cell(orgCol),
+      department: cell(avdelningCol),
+      wikidata: cell(wikidataCol),
+      linkedIn: cell(linkedInCol),
       confidence: isNaN(confidence) ? 0 : confidence,
-      role: colIndex.roll >= 0 ? (cells[colIndex.roll] ?? '') : '',
     });
   }
   return result;

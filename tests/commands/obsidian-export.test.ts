@@ -21,6 +21,11 @@ vi.mock('../../src/core/db.js', () => ({
   }),
 }));
 
+vi.mock('../../src/core/ollama.js', () => ({
+  ensureOllama: vi.fn().mockResolvedValue(false),
+  getOllamaUrl: vi.fn().mockReturnValue('http://localhost:11434'),
+}));
+
 import { obsidianExportCommand } from '../../src/commands/obsidian-export.js';
 
 // Helper: build a minimal AuroraNode row
@@ -215,7 +220,118 @@ describe('obsidian-export', () => {
     expect(content).toContain('duration: "01:02:03"');
     expect(content).not.toContain('speakers:');
     expect(content).toContain('| SPEAKER_00 |');
-    expect(content).toContain('0.85');
+    expect(content).toContain('| Label | Förnamn | Efternamn | Roll | Titel | Organisation | Avdelning | Wikidata | LinkedIn |');
+  });
+
+  it('suppresses speaker labels in timeline when only 1 unique speaker', async () => {
+    const transcriptNode = makeNode({
+      id: 'yt-singlespeaker',
+      title: 'Single Speaker Test',
+      type: 'transcript',
+      properties: {
+        platform: 'youtube',
+        duration: 300,
+        rawSegments: [
+          { start_ms: 0, end_ms: 5000, text: 'First segment text.' },
+          { start_ms: 60000, end_ms: 120000, text: 'Second segment text.' },
+          { start_ms: 180000, end_ms: 240000, text: 'Third segment text.' },
+        ],
+        chapters: [
+          { start_time: 0, title: 'Chapter One' },
+          { start_time: 60, title: 'Chapter Two' },
+          { start_time: 180, title: 'Chapter Three' },
+        ],
+      },
+    });
+
+    const voicePrint = makeNode({
+      id: 'vp-yt-singlespeaker-SPEAKER_00',
+      type: 'voice_print',
+      confidence: 0.9,
+      properties: {
+        speakerLabel: 'SPEAKER_00',
+        videoNodeId: 'yt-singlespeaker',
+        segments: [
+          { start_ms: 0, end_ms: 5000 },
+          { start_ms: 60000, end_ms: 120000 },
+          { start_ms: 180000, end_ms: 240000 },
+        ],
+      },
+    });
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [transcriptNode, voicePrint] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
+
+    const content = [...writtenFiles.entries()].find(([path]) =>
+      path.includes('Single Speaker Test')
+    )?.[1];
+
+    expect(content).toBeDefined();
+
+    expect(content).toContain('### Chapter One');
+    expect(content).toContain('### Chapter Two');
+    expect(content).toContain('### Chapter Three');
+
+    expect(content).not.toContain('· SPEAKER_00');
+
+    expect(content).toContain('> 00:00:00');
+  });
+
+  it('shows speaker labels when 2+ unique speakers exist', async () => {
+    const transcriptNode = makeNode({
+      id: 'yt-multispeaker',
+      title: 'Multi Speaker Test',
+      type: 'transcript',
+      properties: {
+        platform: 'youtube',
+        duration: 20,
+        rawSegments: [
+          { start_ms: 0, end_ms: 5000, text: 'Speaker zero talking.' },
+          { start_ms: 5000, end_ms: 10000, text: 'Speaker one talking.' },
+        ],
+      },
+    });
+
+    const vp0 = makeNode({
+      id: 'vp-yt-multispeaker-S00',
+      type: 'voice_print',
+      confidence: 0.9,
+      properties: {
+        speakerLabel: 'SPEAKER_00',
+        videoNodeId: 'yt-multispeaker',
+        segments: [{ start_ms: 0, end_ms: 5000 }],
+      },
+    });
+
+    const vp1 = makeNode({
+      id: 'vp-yt-multispeaker-S01',
+      type: 'voice_print',
+      confidence: 0.8,
+      properties: {
+        speakerLabel: 'SPEAKER_01',
+        videoNodeId: 'yt-multispeaker',
+        segments: [{ start_ms: 5000, end_ms: 10000 }],
+      },
+    });
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [transcriptNode, vp0, vp1] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
+
+    const content = [...writtenFiles.entries()].find(([path]) =>
+      path.includes('Multi Speaker Test')
+    )?.[1];
+
+    expect(content).toBeDefined();
+
+    // Speaker labels SHOULD appear when multiple speakers
+    expect(content).toContain('· SPEAKER_00');
+    expect(content).toContain('· SPEAKER_01');
   });
 
   it('excludes chunk nodes for non-video document nodes', async () => {

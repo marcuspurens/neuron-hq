@@ -97,7 +97,7 @@ export function registerAuroraSpeakersTool(server: McpServer): void {
             }
             const identities = await listSpeakerIdentities();
             const existing = identities.find(
-              (i) => i.name.toLowerCase() === args.identityName!.toLowerCase(),
+              (i) => i.displayName.toLowerCase() === args.identityName!.toLowerCase(),
             );
             if (existing) {
               result = await confirmSpeaker(existing.id, args.voicePrintId);

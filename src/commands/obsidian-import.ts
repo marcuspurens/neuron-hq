@@ -25,12 +25,17 @@ interface SpeakerRename {
   newName: string;
 }
 
-interface SpeakerMetadataUpdate {
+interface PendingSpeakerMetadata {
   speakerName: string;
   voicePrintId: string;
-  title: string;
-  organization: string;
+  givenName: string;
+  familyName: string;
   role: string;
+  occupation: string;
+  organizationName: string;
+  department: string;
+  wikidata: string;
+  linkedIn: string;
 }
 
 export interface ObsidianImportResult {
@@ -176,7 +181,7 @@ export async function obsidianImportCommand(options: {
   let totalTagsUpdated = 0;
   let totalSegmentReassignments = 0;
   const pendingRenames: SpeakerRename[] = [];
-  const pendingMetadataUpdates: SpeakerMetadataUpdate[] = [];
+  const pendingMetadataUpdates: PendingSpeakerMetadata[] = [];
 
   // 4. Process each file
   for (const filePath of filePaths) {
@@ -355,13 +360,22 @@ export async function obsidianImportCommand(options: {
         newName,
       });
 
-      if (speaker.title || speaker.organization) {
+      const hasMetadata = speaker.givenName || speaker.familyName
+        || speaker.occupation || speaker.organizationName
+        || speaker.wikidata || speaker.linkedIn
+        || speaker.role || speaker.department;
+      if (hasMetadata) {
         pendingMetadataUpdates.push({
           speakerName: newName,
           voicePrintId: vpNode.id,
-          title: speaker.title,
-          organization: speaker.organization,
+          givenName: speaker.givenName,
+          familyName: speaker.familyName,
           role: speaker.role,
+          occupation: speaker.occupation,
+          organizationName: speaker.organizationName,
+          department: speaker.department,
+          wikidata: speaker.wikidata,
+          linkedIn: speaker.linkedIn,
         });
       }
     }
@@ -586,7 +600,6 @@ export async function obsidianImportCommand(options: {
     }
   }
 
-  // 7. Process speaker metadata updates (title, organization, role)
   for (const update of pendingMetadataUpdates) {
     try {
       const identityId = `speaker-${update.speakerName.toLowerCase().replace(/\s+/g, '-')}`;
@@ -594,19 +607,26 @@ export async function obsidianImportCommand(options: {
         (n) => n.id === identityId && n.type === 'speaker_identity'
       );
 
+      const meta = {
+        givenName: update.givenName || undefined,
+        familyName: update.familyName || undefined,
+        role: update.role || undefined,
+        occupation: update.occupation || undefined,
+        wikidata: update.wikidata || undefined,
+        linkedIn: update.linkedIn || undefined,
+        affiliation: update.organizationName
+          ? {
+              organizationName: update.organizationName,
+              department: update.department || undefined,
+            }
+          : undefined,
+      };
+
       if (identityExists) {
-        await updateSpeakerMetadata(identityId, {
-          title: update.title,
-          organization: update.organization,
-          role: update.role,
-        });
+        await updateSpeakerMetadata(identityId, meta);
       } else if (update.speakerName) {
         const identity = await createSpeakerIdentity(update.speakerName, update.voicePrintId);
-        await updateSpeakerMetadata(identity.id, {
-          title: update.title,
-          organization: update.organization,
-          role: update.role,
-        });
+        await updateSpeakerMetadata(identity.id, meta);
       }
     } catch (err) {
       logger.warn('Failed to update speaker metadata', {

@@ -275,6 +275,7 @@ async function callOllama(
       ],
       stream: false,
       format: 'json',
+      think: false,
     }),
   });
 

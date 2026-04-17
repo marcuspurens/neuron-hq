@@ -129,12 +129,29 @@ describe('extractSpeakers', () => {
       {
         label: 'SPEAKER_00',
         name: 'Marcus',
-        title: '',
-        organization: '',
-        confidence: 0.85,
+        givenName: '',
+        familyName: '',
         role: 'host',
+        occupation: '',
+        organizationName: '',
+        department: '',
+        wikidata: '',
+        linkedIn: '',
+        confidence: 0.85,
       },
-      { label: 'SPEAKER_01', name: '', title: '', organization: '', confidence: 0.72, role: '' },
+      {
+        label: 'SPEAKER_01',
+        name: '',
+        givenName: '',
+        familyName: '',
+        role: '',
+        occupation: '',
+        organizationName: '',
+        department: '',
+        wikidata: '',
+        linkedIn: '',
+        confidence: 0.72,
+      },
     ]);
   });
 
@@ -159,7 +176,19 @@ describe('extractSpeakers', () => {
     };
     const result = extractSpeakers(frontmatter);
     expect(result).toEqual([
-      { label: 'SPEAKER_00', name: '', title: '', organization: '', confidence: 0, role: '' },
+      {
+        label: 'SPEAKER_00',
+        name: '',
+        givenName: '',
+        familyName: '',
+        role: '',
+        occupation: '',
+        organizationName: '',
+        department: '',
+        wikidata: '',
+        linkedIn: '',
+        confidence: 0,
+      },
     ]);
   });
 
@@ -177,13 +206,13 @@ describe('extractSpeakers', () => {
 });
 
 describe('extractSpeakersFromTable', () => {
-  it('extracts speakers from 6-column table', () => {
+  it('extracts speakers from new-format table', () => {
     const body = [
       '## Talare',
-      '| Label | Namn | Titel | Organisation | Roll | Konfidenspoäng |',
-      '|-------|------|-------|--------------|------|----------------|',
-      '| SPEAKER_00 |  |  |  |  | 0.7 |',
-      '| SPEAKER_01 | Anna Svensson | Journalist | SVT | Intervjuare | 0.9 |',
+      '| Label | Förnamn | Efternamn | Roll | Titel | Organisation | Avdelning | Wikidata | LinkedIn |',
+      '|-------|---------|-----------|------|-------|--------------|-----------|----------|----------|',
+      '| SPEAKER_00 |  |  |  |  |  |  |  |  |',
+      '| SPEAKER_01 | Anna | Svensson | Intervjuare | Journalist | SVT |  |  |  |',
       '',
       '## Tidslinje',
     ].join('\n');
@@ -192,18 +221,28 @@ describe('extractSpeakersFromTable', () => {
     expect(result[0]).toEqual({
       label: 'SPEAKER_00',
       name: '',
-      title: '',
-      organization: '',
-      confidence: 0.7,
+      givenName: '',
+      familyName: '',
       role: '',
+      occupation: '',
+      organizationName: '',
+      department: '',
+      wikidata: '',
+      linkedIn: '',
+      confidence: 0,
     });
     expect(result[1]).toEqual({
       label: 'SPEAKER_01',
       name: 'Anna Svensson',
-      title: 'Journalist',
-      organization: 'SVT',
+      givenName: 'Anna',
+      familyName: 'Svensson',
       role: 'Intervjuare',
-      confidence: 0.9,
+      occupation: 'Journalist',
+      organizationName: 'SVT',
+      department: '',
+      wikidata: '',
+      linkedIn: '',
+      confidence: 0,
     });
   });
 
@@ -225,36 +264,41 @@ describe('extractSpeakersFromTable', () => {
   it('handles mixed identified and unidentified speakers', () => {
     const body = [
       '## Talare',
-      '| Label | Namn | Titel | Organisation | Roll | Konfidenspoäng |',
-      '|-------|------|-------|--------------|------|----------------|',
-      '| Marcus | Marcus Persson | VD | Neuron | Värd | 0.95 |',
-      '| SPEAKER_01 |  |  |  |  | 0.5 |',
+      '| Label | Förnamn | Efternamn | Roll | Titel | Organisation | Avdelning | Wikidata | LinkedIn |',
+      '|-------|---------|-----------|------|-------|--------------|-----------|----------|----------|',
+      '| Marcus | Marcus | Persson | Värd | VD | Neuron |  |  |  |',
+      '| SPEAKER_01 |  |  |  |  |  |  |  |  |',
     ].join('\n');
     const result = extractSpeakersFromTable(body);
     expect(result).toHaveLength(2);
     expect(result[0].label).toBe('Marcus');
     expect(result[0].name).toBe('Marcus Persson');
-    expect(result[0].organization).toBe('Neuron');
+    expect(result[0].organizationName).toBe('Neuron');
     expect(result[1].name).toBe('');
-    expect(result[1].confidence).toBe(0.5);
+    expect(result[1].confidence).toBe(0);
   });
 
   it('trims whitespace from all fields', () => {
     const body = [
       '## Talare',
-      '| Label | Namn | Titel | Organisation | Roll | Konfidenspoäng |',
-      '|-------|------|-------|--------------|------|----------------|',
-      '|  SPEAKER_00  |  Anna  |  Dr  |  KI  |  Gäst  |  0.8  |',
+      '| Label | Förnamn | Efternamn | Roll | Titel | Organisation | Avdelning | Wikidata | LinkedIn |',
+      '|-------|---------|-----------|------|-------|--------------|-----------|----------|----------|',
+      '|  SPEAKER_00  |  Anna  |  Karlsson  |  Gäst  |  Dr  |  KI  |  Inst  |  Q1  |  anna  |',
     ].join('\n');
     const result = extractSpeakersFromTable(body);
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({
       label: 'SPEAKER_00',
-      name: 'Anna',
-      title: 'Dr',
-      organization: 'KI',
+      name: 'Anna Karlsson',
+      givenName: 'Anna',
+      familyName: 'Karlsson',
       role: 'Gäst',
-      confidence: 0.8,
+      occupation: 'Dr',
+      organizationName: 'KI',
+      department: 'Inst',
+      wikidata: 'Q1',
+      linkedIn: 'anna',
+      confidence: 0,
     });
   });
 });
@@ -472,18 +516,28 @@ describe('parseObsidianFile', () => {
     expect(result!.speakers[0]).toEqual({
       label: 'SPEAKER_00',
       name: 'Marcus',
-      title: '',
-      organization: '',
-      confidence: 0.85,
+      givenName: '',
+      familyName: '',
       role: 'host',
+      occupation: '',
+      organizationName: '',
+      department: '',
+      wikidata: '',
+      linkedIn: '',
+      confidence: 0.85,
     });
     expect(result!.speakers[1]).toEqual({
       label: 'SPEAKER_01',
       name: '',
-      title: '',
-      organization: '',
-      confidence: 0.72,
+      givenName: '',
+      familyName: '',
       role: '',
+      occupation: '',
+      organizationName: '',
+      department: '',
+      wikidata: '',
+      linkedIn: '',
+      confidence: 0.72,
     });
     expect(result!.highlights).toEqual([
       { segment_start_ms: 105000, tag: 'highlight' },
@@ -540,9 +594,9 @@ describe('parseObsidianFile', () => {
       '---',
       '',
       '## Talare',
-      '| Label | Namn | Titel | Organisation | Roll | Konfidenspoäng |',
-      '|-------|------|-------|--------------|------|----------------|',
-      '| SPEAKER_00 | New Name | Dr | KI | Värd | 0.95 |',
+      '| Label | Förnamn | Efternamn | Roll | Titel | Organisation | Avdelning | Wikidata | LinkedIn |',
+      '|-------|---------|-----------|------|-------|--------------|-----------|----------|----------|',
+      '| SPEAKER_00 | New | Name | Värd | Dr | KI |  |  |  |',
       '',
       '## Tidslinje',
     ].join('\n');
@@ -553,10 +607,15 @@ describe('parseObsidianFile', () => {
     expect(result!.speakers[0]).toEqual({
       label: 'SPEAKER_00',
       name: 'New Name',
-      title: 'Dr',
-      organization: 'KI',
+      givenName: 'New',
+      familyName: 'Name',
       role: 'Värd',
-      confidence: 0.95,
+      occupation: 'Dr',
+      organizationName: 'KI',
+      department: '',
+      wikidata: '',
+      linkedIn: '',
+      confidence: 0,
     });
   });
 

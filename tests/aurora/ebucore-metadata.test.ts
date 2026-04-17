@@ -79,16 +79,38 @@ describe('enrichWithEbucore', () => {
     expect(enriched.properties['ebucore:numberOfSegments']).toBe(3);
   });
 
-  // Test 3: speaker_identity node — maps name, role
-  it('enriches speaker_identity nodes with name and role', () => {
+  // Test 3: speaker_identity node — maps EBUCore+ fields
+  it('enriches speaker_identity nodes with displayName, givenName, familyName, and role', () => {
     const node = makeNode({
       type: 'speaker_identity',
-      properties: { name: 'Dr. Smith', role: 'host' },
+      properties: {
+        displayName: 'Dr. Smith',
+        givenName: 'John',
+        familyName: 'Smith',
+        role: 'host',
+        occupation: 'Professor',
+        affiliation: { organizationName: 'KTH', department: 'CS' },
+        entityId: 'entity-1',
+        wikidata: 'Q12345',
+        wikipedia: 'https://en.wikipedia.org/wiki/John_Smith',
+        imdb: 'nm0001',
+        linkedIn: 'johnsmith',
+      },
     });
 
     const enriched = enrichWithEbucore(node);
     expect(enriched.properties['ebucore:personName']).toBe('Dr. Smith');
+    expect(enriched.properties['ebucore:givenName']).toBe('John');
+    expect(enriched.properties['ebucore:familyName']).toBe('Smith');
     expect(enriched.properties['ebucore:role']).toBe('host');
+    expect(enriched.properties['ebucore:occupation']).toBe('Professor');
+    expect(enriched.properties['ebucore:organisationName']).toBe('KTH');
+    expect(enriched.properties['ebucore:organisationDepartment']).toBe('CS');
+    expect(enriched.properties['ebucore:entityId']).toBe('entity-1');
+    expect(enriched.properties['ebucore:agentWikidata']).toBe('Q12345');
+    expect(enriched.properties['ebucore:agentWikipedia']).toBe('https://en.wikipedia.org/wiki/John_Smith');
+    expect(enriched.properties['ebucore:agentImdb']).toBe('nm0001');
+    expect(enriched.properties['ebucore:agentLinkedIn']).toBe('johnsmith');
   });
 
   // Test 4: unknown type returns node unchanged (copy)
@@ -158,7 +180,7 @@ describe('enrichWithEbucore', () => {
   it('maps speaker_identity with role unknown correctly', () => {
     const node = makeNode({
       type: 'speaker_identity',
-      properties: { name: 'Speaker 1', role: 'unknown' },
+      properties: { displayName: 'Speaker 1', role: 'unknown' },
     });
 
     const enriched = enrichWithEbucore(node);
@@ -290,7 +312,19 @@ describe('validateEbucoreCompleteness', () => {
     const node = makeNode({
       type: 'speaker_identity',
       title: 'Alice',
-      properties: { name: 'Alice', role: 'host', title: 'PhD', organization: 'KTH' },
+      properties: {
+        givenName: 'Alice',
+        familyName: 'Smith',
+        displayName: 'Alice Smith',
+        role: 'host',
+        occupation: 'PhD',
+        affiliation: { organizationName: 'KTH', department: 'CS' },
+        entityId: 'entity-1',
+        wikidata: 'Q12345',
+        wikipedia: 'https://en.wikipedia.org/wiki/Alice',
+        imdb: 'nm0001',
+        linkedIn: 'alicesmith',
+      },
     });
 
     const result = validateEbucoreCompleteness(node);
@@ -309,10 +343,18 @@ describe('validateEbucoreCompleteness', () => {
       type: 'speaker_identity',
       title: 'Alice',
       properties: {
-        'ebucore:personName': 'Alice',
+        'ebucore:givenName': 'Alice',
+        'ebucore:familyName': 'Smith',
+        'ebucore:personName': 'Alice Smith',
         'ebucore:role': 'host',
-        'ebucore:personTitle': 'PhD',
+        'ebucore:occupation': 'PhD',
         'ebucore:organisationName': 'KTH',
+        'ebucore:organisationDepartment': 'CS',
+        'ebucore:entityId': 'entity-1',
+        'ebucore:agentWikidata': 'Q12345',
+        'ebucore:agentWikipedia': 'https://en.wikipedia.org/wiki/Alice',
+        'ebucore:agentImdb': 'nm0001',
+        'ebucore:agentLinkedIn': 'alicesmith',
       },
     });
 

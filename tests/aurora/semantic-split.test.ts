@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyCharSplitPoints } from '../../src/aurora/semantic-split.js';
+import { applyCharSplitPoints, groupBlocksIntoChapters, parseChapterTitles } from '../../src/aurora/semantic-split.js';
 import type { TimelineBlock } from '../../src/aurora/speaker-timeline.js';
 
 describe('applyCharSplitPoints', () => {
@@ -88,6 +88,76 @@ describe('applyCharSplitPoints', () => {
     expect(result).toHaveLength(2);
     expect(result[0].words).toBeUndefined();
     expect(result[1].words).toBeUndefined();
+  });
+});
+
+describe('groupBlocksIntoChapters', () => {
+  function mkBlock(text: string, startMs: number): TimelineBlock {
+    return { speaker: 'S', start_ms: startMs, end_ms: startMs + 5000, text };
+  }
+
+  it('returns empty for single block', () => {
+    expect(groupBlocksIntoChapters([mkBlock('short', 0)])).toHaveLength(1);
+  });
+
+  it('groups small blocks into 3-8 chapters', () => {
+    const blocks = Array.from({ length: 20 }, (_, i) =>
+      mkBlock('A'.repeat(500), i * 5000),
+    );
+    const groups = groupBlocksIntoChapters(blocks);
+    expect(groups.length).toBeGreaterThanOrEqual(3);
+    expect(groups.length).toBeLessThanOrEqual(8);
+    const totalBlocks = groups.reduce((sum, g) => sum + g.length, 0);
+    expect(totalBlocks).toBe(20);
+  });
+
+  it('preserves block order within groups', () => {
+    const blocks = Array.from({ length: 10 }, (_, i) =>
+      mkBlock(`block-${i}`, i * 5000),
+    );
+    const groups = groupBlocksIntoChapters(blocks);
+    const flat = groups.flat();
+    for (let i = 0; i < flat.length; i++) {
+      expect(flat[i].text).toBe(`block-${i}`);
+    }
+  });
+
+  it('returns single group for very short total text', () => {
+    const blocks = [mkBlock('hi', 0), mkBlock('bye', 5000)];
+    const groups = groupBlocksIntoChapters(blocks);
+    expect(groups.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('parseChapterTitles', () => {
+  it('parses JSON array of strings', () => {
+    const result = parseChapterTitles('["Intro", "Main Topic", "Conclusion"]');
+    expect(result).toEqual(['Intro', 'Main Topic', 'Conclusion']);
+  });
+
+  it('strips code fences', () => {
+    const result = parseChapterTitles('```json\n["One", "Two"]\n```');
+    expect(result).toEqual(['One', 'Two']);
+  });
+
+  it('extracts array from object wrapper', () => {
+    const result = parseChapterTitles('{"titles": ["A", "B"]}');
+    expect(result).toEqual(['A', 'B']);
+  });
+
+  it('returns empty for invalid JSON', () => {
+    expect(parseChapterTitles('not json at all')).toEqual([]);
+  });
+
+  it('filters out non-string values', () => {
+    const result = parseChapterTitles('[123, "Valid", null, "Also Valid"]');
+    expect(result).toEqual(['Valid', 'Also Valid']);
+  });
+
+  it('truncates titles longer than 80 chars', () => {
+    const long = 'A'.repeat(100);
+    const result = parseChapterTitles(`["${long}"]`);
+    expect(result[0].length).toBe(80);
   });
 });
 
