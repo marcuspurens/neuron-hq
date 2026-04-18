@@ -123,7 +123,11 @@ function formatFrontmatter(node: AuroraNode): string {
 }
 
 /** Build frontmatter for video transcript with timeline speaker data. */
-function formatVideoFrontmatter(node: AuroraNode, _speakers: Map<string, SpeakerInfo>): string {
+function formatVideoFrontmatter(
+  node: AuroraNode,
+  _speakers: Map<string, SpeakerInfo>,
+  additionalTags?: string[],
+): string {
   const props = node.properties || {};
   const durationMs = typeof props.duration === 'number' ? props.duration * 1000 : 0;
   const lines = ['---', `id: ${node.id}`, `type: transcript`];
@@ -156,9 +160,12 @@ function formatVideoFrontmatter(node: AuroraNode, _speakers: Map<string, Speaker
 
   const descriptionTags = extractHashtags(props.videoDescription as string | undefined);
   const ytTags = Array.isArray(props.ytTags) ? (props.ytTags as string[]) : [];
-  const tags = descriptionTags.length > 0 ? descriptionTags : ytTags;
-  if (tags.length > 0) {
-    const quoted = tags.map((t) => (t.includes(' ') ? `"${t}"` : t));
+  const baseTags = descriptionTags.length > 0 ? descriptionTags : ytTags;
+  const allTags = additionalTags && additionalTags.length > 0
+    ? [...new Set([...baseTags, ...additionalTags].map((t) => t.toLowerCase().trim()))].filter((t) => t.length > 0)
+    : baseTags;
+  if (allTags.length > 0) {
+    const quoted = allTags.map((t) => (t.includes(' ') ? `"${t}"` : t));
     lines.push(`tags: [${quoted.join(', ')}]`);
   }
 
@@ -269,8 +276,20 @@ function countUniqueSpeakers(blocks: TimelineBlock[]): number {
   return substantive;
 }
 
-/** Build timeline section from TimelineBlock array. */
-function buildTimelineSection(blocks: TimelineBlock[], chapters?: Chapter[]): string[] {
+function resolveSpeakerName(label: string, speakerMap?: Map<string, SpeakerInfo>): string {
+  if (!speakerMap) return label;
+  const info = speakerMap.get(label);
+  if (!info) return label;
+  if (info.displayName) return info.displayName;
+  if (info.givenName) return info.givenName;
+  return label;
+}
+
+function buildTimelineSection(
+  blocks: TimelineBlock[],
+  chapters?: Chapter[],
+  speakerMap?: Map<string, SpeakerInfo>,
+): string[] {
   const lines: string[] = ['## Tidslinje', ''];
   const usedChapters = new Set<string>();
   let lastSpeaker: string | undefined;
@@ -284,20 +303,15 @@ function buildTimelineSection(blocks: TimelineBlock[], chapters?: Chapter[]): st
     if (isNewChapter) {
       usedChapters.add(chapter.title);
       lines.push(`### ${chapter.title}`);
-      if (showSpeakers) {
-        lines.push(`> ${formatMs(block.start_ms)} · ${block.speaker}`);
-      } else {
-        lines.push(`> ${formatMs(block.start_ms)}`);
-      }
-      lastSpeaker = block.speaker;
-    } else if (speakerChanged && showSpeakers) {
-      lines.push(`> ${formatMs(block.start_ms)} · ${block.speaker}`);
-      lastSpeaker = block.speaker;
-    } else {
-      lines.push(`> ${formatMs(block.start_ms)}`);
     }
 
-    lines.push('');
+    const name = resolveSpeakerName(block.speaker, speakerMap);
+    if (showSpeakers && (isNewChapter || speakerChanged)) {
+      lines.push(`**${name}** ${formatMs(block.start_ms)}`);
+      lastSpeaker = block.speaker;
+    } else {
+      lines.push(formatMs(block.start_ms));
+    }
     lines.push(renderBlockText(block));
     lines.push('');
   }
@@ -315,15 +329,15 @@ interface CommentAnnotation {
   text: string;
 }
 
-/** Build timeline section with highlight callouts and comment annotations. */
 function buildTimelineSectionWithAnnotations(
   blocks: TimelineBlock[],
   highlights: HighlightAnnotation[],
   comments: CommentAnnotation[],
   chapters?: Chapter[],
+  speakerMap?: Map<string, SpeakerInfo>,
 ): string[] {
   if (highlights.length === 0 && comments.length === 0) {
-    return buildTimelineSection(blocks, chapters);
+    return buildTimelineSection(blocks, chapters, speakerMap);
   }
 
   const lines: string[] = ['## Tidslinje', ''];
@@ -355,9 +369,10 @@ function buildTimelineSectionWithAnnotations(
     }
 
     const showSpeaker = showSpeakers && (isNewChapter || speakerChanged);
+    const name = resolveSpeakerName(block.speaker, speakerMap);
     const meta = showSpeaker
-      ? `> ${formatMs(block.start_ms)} · ${block.speaker}`
-      : `> ${formatMs(block.start_ms)}`;
+      ? `**${name}** ${formatMs(block.start_ms)}`
+      : formatMs(block.start_ms);
     lastSpeaker = block.speaker;
 
     const renderedText = renderBlockText(block);
@@ -365,7 +380,7 @@ function buildTimelineSectionWithAnnotations(
     if (blockHighlights.length > 0) {
       const tag = blockHighlights[0].tag || 'highlight';
       lines.push(`> [!important] #${tag}`);
-      lines.push(meta);
+      lines.push(`> ${meta}`);
       const textLines = renderedText.split('\n');
       for (const tl of textLines) {
         lines.push(`> ${tl}`);
@@ -373,7 +388,6 @@ function buildTimelineSectionWithAnnotations(
       lines.push('');
     } else {
       lines.push(meta);
-      lines.push('');
       lines.push(renderedText);
       lines.push('');
     }
@@ -668,11 +682,12 @@ export async function obsidianExportCommand(cmdOptions: {
 
         timelineBlocks = remergeSameSpeakerBlocks(timelineBlocks, chapters ?? undefined);
         let effectiveChapters = chapters;
+        let generatedTopicTags: string[] = [];
         try {
           const { ensureOllama } = await import('../core/ollama.js');
           const ollamaReady = await ensureOllama();
           if (ollamaReady) {
-            const { semanticSplitTimeline, generateChapterTitles } = await import('../aurora/semantic-split.js');
+            const { semanticSplitTimeline, generateChapterTitles, generateTopicTags } = await import('../aurora/semantic-split.js');
             timelineBlocks = await semanticSplitTimeline(timelineBlocks);
 
             if (!Array.isArray(chapters) || chapters.length === 0) {
@@ -685,13 +700,18 @@ export async function obsidianExportCommand(cmdOptions: {
                 );
               }
             }
+
+            const title = node.title || '';
+            const tldr = (props.summary as string) || '';
+            const existingTags = Array.isArray(props.ytTags) ? (props.ytTags as string[]) : [];
+            generatedTopicTags = await generateTopicTags(title, tldr, existingTags);
           }
         } catch {
           // Ollama unavailable — use mechanical split from buildSpeakerTimeline
         }
 
         // Frontmatter
-        lines.push(formatVideoFrontmatter(node, speakerMap));
+        lines.push(formatVideoFrontmatter(node, speakerMap, generatedTopicTags));
         lines.push('');
 
         // Title
@@ -732,7 +752,7 @@ export async function obsidianExportCommand(cmdOptions: {
           : [];
 
         // Timeline (with annotations if present)
-        lines.push(...buildTimelineSectionWithAnnotations(timelineBlocks, highlights, comments, effectiveChapters ?? undefined));
+        lines.push(...buildTimelineSectionWithAnnotations(timelineBlocks, highlights, comments, effectiveChapters ?? undefined, speakerMap));
       } else {
         // --- Standard non-video export (unchanged) ---
         lines.push(formatFrontmatter(node));

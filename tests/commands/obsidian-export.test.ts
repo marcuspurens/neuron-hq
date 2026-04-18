@@ -275,9 +275,11 @@ describe('obsidian-export', () => {
     expect(content).toContain('### Chapter Two');
     expect(content).toContain('### Chapter Three');
 
-    expect(content).not.toContain('· SPEAKER_00');
+    const timeline = content!.split('## Tidslinje')[1] ?? '';
+    expect(timeline).not.toContain('SPEAKER_00');
+    expect(timeline).not.toContain('**');
 
-    expect(content).toContain('> 00:00:00');
+    expect(content).toContain('00:00:00');
   });
 
   it('shows speaker labels when 2+ unique speakers exist', async () => {
@@ -329,9 +331,9 @@ describe('obsidian-export', () => {
 
     expect(content).toBeDefined();
 
-    // Speaker labels SHOULD appear when multiple speakers
-    expect(content).toContain('· SPEAKER_00');
-    expect(content).toContain('· SPEAKER_01');
+    // Speaker labels SHOULD appear when multiple speakers (bold format)
+    expect(content).toContain('**SPEAKER_00**');
+    expect(content).toContain('**SPEAKER_01**');
   });
 
   it('excludes chunk nodes for non-video document nodes', async () => {

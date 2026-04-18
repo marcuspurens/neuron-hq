@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyCharSplitPoints, groupBlocksIntoChapters, parseChapterTitles } from '../../src/aurora/semantic-split.js';
+import { applyCharSplitPoints, groupBlocksIntoChapters, parseChapterTitles, parseTopicTags, mergeTopicTags } from '../../src/aurora/semantic-split.js';
 import type { TimelineBlock } from '../../src/aurora/speaker-timeline.js';
 
 describe('applyCharSplitPoints', () => {
@@ -158,6 +158,85 @@ describe('parseChapterTitles', () => {
     const long = 'A'.repeat(100);
     const result = parseChapterTitles(`["${long}"]`);
     expect(result[0].length).toBe(80);
+  });
+});
+
+describe('parseTopicTags', () => {
+  it('parses JSON array of strings', () => {
+    const result = parseTopicTags('["machine learning", "neural networks", "training"]');
+    expect(result).toEqual(['machine learning', 'neural networks', 'training']);
+  });
+
+  it('lowercases all tags', () => {
+    const result = parseTopicTags('["Machine Learning", "AI"]');
+    expect(result).toEqual(['machine learning', 'ai']);
+  });
+
+  it('strips code fences', () => {
+    const result = parseTopicTags('```json\n["one", "two"]\n```');
+    expect(result).toEqual(['one', 'two']);
+  });
+
+  it('extracts array from object wrapper', () => {
+    const result = parseTopicTags('{"tags": ["alpha", "beta"]}');
+    expect(result).toEqual(['alpha', 'beta']);
+  });
+
+  it('returns empty for invalid JSON', () => {
+    expect(parseTopicTags('not json')).toEqual([]);
+  });
+
+  it('filters out non-string and empty values', () => {
+    const result = parseTopicTags('[123, "valid", null, "", "  ", "also valid"]');
+    expect(result).toEqual(['valid', 'also valid']);
+  });
+
+  it('truncates tags longer than 60 chars', () => {
+    const long = 'a'.repeat(80);
+    const result = parseTopicTags(`["${long}"]`);
+    expect(result[0].length).toBe(60);
+  });
+
+  it('trims whitespace from tags', () => {
+    const result = parseTopicTags('["  padded  ", "ok"]');
+    expect(result).toEqual(['padded', 'ok']);
+  });
+});
+
+describe('mergeTopicTags', () => {
+  it('merges generated and existing tags', () => {
+    const result = mergeTopicTags(['ai', 'ml'], ['python', 'data']);
+    expect(result).toEqual(['python', 'data', 'ai', 'ml']);
+  });
+
+  it('deduplicates case-insensitively', () => {
+    const result = mergeTopicTags(['AI', 'machine learning'], ['ai', 'python']);
+    expect(result).toEqual(['ai', 'python', 'machine learning']);
+  });
+
+  it('puts existing tags first', () => {
+    const result = mergeTopicTags(['new'], ['existing']);
+    expect(result[0]).toBe('existing');
+    expect(result[1]).toBe('new');
+  });
+
+  it('caps at 20 total tags', () => {
+    const existing = Array.from({ length: 15 }, (_, i) => `existing-${i}`);
+    const generated = Array.from({ length: 10 }, (_, i) => `generated-${i}`);
+    const result = mergeTopicTags(generated, existing);
+    expect(result.length).toBe(20);
+    expect(result[0]).toBe('existing-0');
+  });
+
+  it('handles empty inputs', () => {
+    expect(mergeTopicTags([], [])).toEqual([]);
+    expect(mergeTopicTags(['a'], [])).toEqual(['a']);
+    expect(mergeTopicTags([], ['b'])).toEqual(['b']);
+  });
+
+  it('filters empty strings after trimming', () => {
+    const result = mergeTopicTags(['  ', ''], ['valid']);
+    expect(result).toEqual(['valid']);
   });
 });
 

@@ -357,6 +357,131 @@ export function parseChapterTitles(raw: string): string[] {
   return [];
 }
 
+const TOPIC_TAGS_SYSTEM = `You generate topic tags for a video based on its title and summary.
+
+Input: a video title and a short summary (TL;DR).
+Output: a JSON array of 5-10 lowercase topic tags that capture the main subjects discussed.
+
+Rules:
+- Return ONLY a JSON array of lowercase strings, e.g. ["machine learning", "neural networks", "training data"]
+- Tags should be specific and descriptive, not generic (avoid "video", "discussion", "interesting")
+- Use 1-3 words per tag
+- Return between 5 and 10 tags
+- All tags must be lowercase`;
+
+const MAX_TOPIC_TAGS = 20;
+
+/**
+ * Generate topic tags from a video's title and TL;DR using Ollama.
+ * Returns [] on any failure (Ollama down, parse error, etc).
+ */
+export async function generateTopicTags(
+  title: string,
+  tldr: string,
+  existingTags: string[],
+  ollamaModel?: string,
+): Promise<string[]> {
+  if (!title && !tldr) return [];
+
+  const model = ollamaModel ?? getConfig().OLLAMA_MODEL_POLISH;
+
+  try {
+    await ensureOllama(model);
+  } catch {
+    return [];
+  }
+
+  const baseUrl = getOllamaUrl();
+  let resp: Response;
+  try {
+    resp = await fetch(`${baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: TOPIC_TAGS_SYSTEM },
+          { role: 'user', content: `Title: ${title}\nSummary: ${tldr}` },
+        ],
+        stream: false,
+        format: 'json',
+        think: false,
+      }),
+    });
+  } catch (err) {
+    logger.warn('Topic tag generation failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return [];
+  }
+
+  if (!resp.ok) {
+    logger.warn('Topic tag Ollama call failed', { status: resp.status });
+    return [];
+  }
+
+  const data = (await resp.json()) as { message?: { content?: string } };
+  const content = (data.message?.content ?? '').trim();
+
+  logger.info('Topic tag response', { length: content.length, raw: content.slice(0, 300) });
+
+  const generated = parseTopicTags(content);
+  return mergeTopicTags(generated, existingTags);
+}
+
+/**
+ * Parse LLM response into topic tag strings.
+ * Handles JSON arrays, object wrappers, and code fences.
+ */
+export function parseTopicTags(raw: string): string[] {
+  try {
+    const cleaned = raw.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim();
+    const parsed: unknown = JSON.parse(cleaned);
+    let arr: unknown[] | null = null;
+    if (Array.isArray(parsed)) {
+      arr = parsed;
+    } else if (parsed && typeof parsed === 'object') {
+      const values = Object.values(parsed as Record<string, unknown>);
+      arr = values.find((v) => Array.isArray(v)) as unknown[] | undefined ?? null;
+    }
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+      .map((s) => s.toLowerCase().trim().slice(0, 60));
+  } catch {
+    logger.warn('Failed to parse topic tags', { raw: raw.slice(0, 200) });
+  }
+  return [];
+}
+
+/**
+ * Merge generated tags with existing tags. Deduplicate (lowercase), cap at MAX_TOPIC_TAGS.
+ */
+export function mergeTopicTags(generated: string[], existing: string[]): string[] {
+  const seen = new Set<string>();
+  const merged: string[] = [];
+
+  // Existing tags first (preserve order)
+  for (const tag of existing) {
+    const key = tag.toLowerCase().trim();
+    if (key.length > 0 && !seen.has(key)) {
+      seen.add(key);
+      merged.push(key);
+    }
+  }
+
+  // Then generated tags
+  for (const tag of generated) {
+    const key = tag.toLowerCase().trim();
+    if (key.length > 0 && !seen.has(key)) {
+      seen.add(key);
+      merged.push(key);
+    }
+  }
+
+  return merged.slice(0, MAX_TOPIC_TAGS);
+}
+
 function parseSentenceNumbers(raw: string, maxSentence: number): number[] {
   try {
     const cleaned = raw.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim();
