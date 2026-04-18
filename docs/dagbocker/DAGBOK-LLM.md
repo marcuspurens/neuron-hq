@@ -796,6 +796,24 @@ Handoff: `docs/handoffs/HANDOFF-2026-04-10T0930-opencode-session15-fuzzy-scoring
 
 Handoff: `docs/handoffs/HANDOFF-2026-04-13-opencode-session17-youtube-subtitle-obsidian-sync.md`
 
+## 2026-04-18 — Session 21
+
+**Changes**: `speaker-identity.ts`: SpeakerIdentity → EBUCore+ ec:Person (givenName/familyName/displayName/role/occupation/affiliation/entityId/wikidata/wikipedia/imdb/linkedIn), SpeakerAffiliation interface, SpeakerMetadataUpdate with deprecated compat, nodeToIdentity legacy fallback; `ebucore-metadata.ts`: 12 speaker mappings + resolveNestedValue for dotted paths; `jsonld-export.ts`: +buildSpeakerIdentityJsonLd → schema:Person with sameAs; `obsidian-export.ts`: SpeakerInfo EBUCore+, Label→ID, resolveSpeakerName, compact timeline (**Name** HH:MM:SS), countUniqueSpeakers ghost filter, generateTopicTags integration, formatVideoFrontmatter additionalTags; `obsidian-import.ts`: removed renameSpeaker, PendingSpeakerMetadata EBUCore+, Förnamn/Efternamn → speaker_identity; `obsidian-parser.ts`: ParsedSpeaker EBUCore+, id/label column fallback; `semantic-split.ts`: +generateChapterTitles, +groupBlocksIntoChapters, +parseChapterTitles, +generateTopicTags, +parseTopicTags, +mergeTopicTags; `obsidian-daemon.ts`: node --import tsx instead of tsx shell wrapper; 6 files: +think:false on all Ollama calls; 3 CLI/MCP files: .name→.displayName.
+
+**New interfaces**: `SpeakerAffiliation { organizationName, organizationId?, department?, role?, periodStart?, periodEnd? }`; `SpeakerMetadataUpdate`; `GeneratedChapter { start_time, title }`.
+
+**Decisions**: EBUCore+ from start (Marcus: "jag har jobbat med mediasystem hela livet"); ID column read-only (prevent accidental label overwrite); renameSpeaker removed (voice_print.speakerLabel is immutable technical ID); export-time LLM generation for chapters+tags (not ingestion — regeneratable); think:false mandatory for gemma4:26b; node --import tsx bypasses shell wrapper for launchd path-with-spaces.
+
+**Gotchas**: faster-whisper CTranslate2 does NOT support Apple MPS — CPU float32 only. Whisper large times out after 30min on CPU. `.env` WHISPER_MODEL propagates to Python via process.env spread in worker-bridge.ts but model download cache may serve wrong model. Daemon fires twice per edit (WatchPaths includes Aurora/ which export writes to — ThrottleInterval prevents loop but wastes a cycle).
+
+**Dead ends**: Tried WHISPER_MODEL=large in .env — env var propagated correctly but CTranslate2 still fell back to CPU float32 (no MPS). Explicit --whisper-model large timed out after 30min. Need WhisperX or mlx-whisper for GPU.
+
+**Tests**: 221 (+26 new). typecheck: clean (1 pre-existing video.ts).
+
+**Next**: MCP-first worker architecture (Marcus directive: "allt som kan vara MCP ska vara MCP"). WhisperX/mlx-whisper with Apple MPS for GPU transcription. Re-transcribe Pi video to verify quality.
+
+Handoff: `docs/handoffs/HANDOFF-2026-04-18-opencode-session21-ebucore-speaker-timeline.md`
+
 ## 2026-04-13 — Session 16
 
 **Changes**: `ontology.ts`: +`compiledArticleId/compiledAt/compiledStale` on ConceptProperties, staleness trigger with circular guard in `linkArticleToConcepts`; `knowledge-library.ts`: +`compileConceptArticle()` (250 lines, 14-step pipeline), +imports `updateAuroraNode`/`getConcept`; `intake.ts`: concept extraction via Ollama `concept-extraction.md` replaces tags-as-concepts, steps 7→8; `ask.ts`: +`saveAsArticle` option; `index.ts`: +export; `mcp/tools/knowledge-library.ts`: +`compile_concept`/`concept_article`/`concept_index` actions; `mcp/tools/aurora-ask.ts`: +`learn`/`save_as_article` params; `prompts/concept-compile.md`: NEW; `concept-compile-lint.test.ts`: NEW; `AGENTS.md`: +depth.md first in §7 Orient; `ROADMAP-AURORA.md`: WP1-5 complete + summary sludge risk.

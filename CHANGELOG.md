@@ -7,6 +7,34 @@ Sessions are listed newest-first.
 
 ---
 
+## [Session 21] — 2026-04-18
+
+### Added
+- EBUCore+ speaker identity schema — `givenName`, `familyName`, `displayName`, `role`, `occupation`, `affiliation` (with `organizationName`, `department`), `entityId`, `wikidata`, `wikipedia`, `imdb`, `linkedIn`. Full round-trip through Obsidian export/import, JSON-LD export as `schema:Person`, EBUCore metadata mappings.
+- LLM-generated chapter titles — videos without YouTube chapters get auto-generated `###` headings + `## Kapitel` TOC via Ollama gemma4:26b at export time. 3-8 chapters per video based on text length.
+- LLM-generated topic tags — videos get 5-10 AI-generated topic tags from title + TL;DR. Merged with YouTube tags, deduplicated, capped at 20. Fixes missing topic coverage.
+- Speaker dedup — single-speaker videos suppress redundant `SPEAKER_00` labels. Filters out `UNKNOWN` and ghost speakers (<50 chars total text).
+- Compact Copilot-style timeline — `**Speaker Name** HH:MM:SS` with text directly below. Single blank line between blocks. No more blockquote `>` wrapper.
+- `resolveSpeakerName()` — timeline renders `displayName` from speaker_identity instead of raw `SPEAKER_XX` labels.
+- `buildSpeakerIdentityJsonLd()` — speaker_identity nodes export as `schema:Person` with `schema:affiliation`, `sameAs` links to Wikidata/Wikipedia/IMDB/LinkedIn.
+- 26 new tests across semantic-split, obsidian-export, ebucore-metadata, obsidian-parser, obsidian-import.
+
+### Changed
+- Speaker table column `Label` → `ID` (read-only). Users set names via `Förnamn`/`Efternamn` columns. Import creates/updates `speaker_identity` nodes instead of renaming voice_print labels.
+- `renameSpeaker` removed from import pipeline — voice_print `speakerLabel` is now an immutable technical identifier.
+- `think: false` added to all 7 Ollama API calls (6 files). Prevents gemma4:26b from generating hundreds of thinking tokens (10min+ timeouts).
+- `WHISPER_MODEL=large` added to `.env` (pending GPU backend migration in session 22).
+
+### Fixed
+- Daemon exit 126 — `tsx` shell wrapper fails under launchd when project path contains spaces. Fixed by calling `node --import tsx/esm/index.cjs` directly.
+- Speaker dedup false negatives — `countUniqueSpeakers()` now ignores `UNKNOWN` labels and speakers with <50 chars total text (pyannote ghost speakers).
+- Obsidian export tests mocked Ollama — prevents real LLM calls during test runs (17ms vs 14s).
+
+### Removed
+- `docs/projekt-bifrost/` — 58 files (-10,002 lines), moved to separate repo.
+
+---
+
 ## [Session 20] — 2026-04-16
 
 ### Added

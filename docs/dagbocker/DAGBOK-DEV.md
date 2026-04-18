@@ -1276,3 +1276,73 @@ JSON-block returnerar `relatedConcepts` (inte `concepts`) — bara koncept som I
 
 typecheck: clean
 tests: 4062/4062 (+35 new). 299 test files.
+
+---
+
+## 2026-04-18 (session 21) — EBUCore+ speaker schema + timeline UX
+
+### EBUCore+ migration
+
+Full schema change across 12 files. `SpeakerIdentity` went from flat `{name, title, organization}` to EBUCore+ ec:Person: `{givenName, familyName, displayName, role, occupation, affiliation: {organizationName, department}, entityId, wikidata, wikipedia, imdb, linkedIn}`.
+
+Key pattern: `nodeToIdentity()` reads new fields first, falls back to legacy. `updateSpeakerMetadata()` accepts deprecated `title`/`organization` params and converts internally. This means old graph data still works.
+
+`resolveNestedValue(obj, "affiliation.organizationName")` added to `ebucore-metadata.ts` for dotted path resolution in the EBUCore mapping table.
+
+JSON-LD export: `buildSpeakerIdentityJsonLd()` → `schema:Person` with `schema:affiliation` (nested `schema:Organization`), `sameAs` array for Wikidata/Wikipedia/IMDB/LinkedIn URIs.
+
+### Speaker table ID column
+
+The "Label" column became "ID" — voice_print.speakerLabel is now immutable. `renameSpeaker` was completely removed from the import pipeline. Users set names via Förnamn/Efternamn → creates speaker_identity node → linked to voice_print via edge.
+
+This was a design fix driven by user confusion: Marcus typed "Anna Gutowska" in the Label column expecting it to be a name field, which overwrote the technical SPEAKER_00 ID.
+
+### Compact timeline format
+
+Old: `> HH:MM:SS · SPEAKER_00` (blockquote, `·` separator, blank line, text, blank line)
+New: `**Anna Gutowska** HH:MM:SS` (bold name, text immediately below, single blank line)
+
+`resolveSpeakerName()` looks up speaker_identity displayName via speakerMap. Falls back to raw label.
+
+`countUniqueSpeakers()` now filters UNKNOWN labels and speakers with <50 chars total text (pyannote ghost speakers from short audio artifacts).
+
+### LLM chapter titles + topic tags
+
+Both generated at export time via Ollama gemma4:26b. `generateChapterTitles()` groups blocks into 3-8 chapters proportionally, sends excerpt to LLM. `generateTopicTags()` sends title + TL;DR, asks for 5-10 topic tags. Both use `think: false`, `format: 'json'`, and have tolerant parsers that handle code fences and object wrappers.
+
+`formatVideoFrontmatter()` accepts optional `additionalTags` param. Tags merged with YouTube tags, deduped case-insensitively, capped at 20.
+
+### Daemon fix
+
+Exit 126 cause: `tsx` npm binary is a `/bin/sh` script that calls `basedir=$(dirname ...)`. Under launchd's restricted sandbox, `/bin/sh` fails `getcwd()` when path contains spaces. Fix: call `node --import tsx/dist/esm/index.cjs` directly, bypassing the shell wrapper.
+
+### Whisper GPU issue (unresolved)
+
+faster-whisper uses CTranslate2 which does NOT support Apple MPS. Falls back to CPU float32. Whisper large timed out after 30 min on CPU. Marcus has 46GB VRAM unused. Needs WhisperX (PyTorch MPS backend) or mlx-whisper (Apple Metal native).
+
+Marcus directive: all workers should be MCP tools, not subprocess pipes. Current `worker-bridge.ts` → `spawn(python)` pattern is legacy.
+
+### Mönster etablerade
+
+- `think: false` mandatory on all Ollama calls with gemma4:26b thinking models
+- Export-time LLM generation (not ingestion) for chapter titles and topic tags — regeneratable without re-ingestion
+- voice_print.speakerLabel is immutable technical ID, display names live on speaker_identity
+- `resolveNestedValue()` for dotted path access in object hierarchies
+
+| Tid   | Typ     | Vad                                           |
+| ----- | ------- | --------------------------------------------- |
+| 05:30 | FEATURE | Speaker dedup + think:false audit              |
+| 05:42 | FEATURE | LLM chapter titles                             |
+| 06:00 | FEATURE | EBUCore+ speaker identity schema (12 files)    |
+| 06:27 | TEST    | Fix 13 failing tests for EBUCore+ migration    |
+| 06:30 | FEATURE | JSON-LD schema:Person export                   |
+| 06:36 | FEATURE | Compact timeline + speaker displayName          |
+| 06:39 | FEATURE | LLM topic tags                                 |
+| 06:57 | REFACTOR| Speaker table ID read-only, remove renameSpeaker|
+| 07:11 | FIX     | Daemon node --import tsx                        |
+| 07:56 | RESEARCH| Whisper model/GPU investigation                 |
+
+### Baseline
+
+typecheck: clean (1 pre-existing video.ts)
+tests: 221 (+26 new)

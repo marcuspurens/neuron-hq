@@ -684,6 +684,43 @@ Det var en ganska hård session. Flera saker gick snett längs vägen.
 
 ---
 
+## 2026-04-18 — Session 21: Talarna fick riktiga namn
+
+### Vad hände?
+
+**1. Talartabellen blev professionell.** Tidigare hade tabellen kolumner som "Label", "Namn", "Titel" — ett hemmasnickrat schema utan standard bakom. Nu följer den EBUCore+, som är mediestandarden (samma som SVT, BBC, EBU använder). Förnamn, Efternamn, Roll, Titel, Organisation, Avdelning, Wikidata, LinkedIn. Du kan fylla i allt i Obsidian och det sparas automatiskt. Och viktigt: det tekniska ID:t (SPEAKER_00) är nu skrivskyddat — du kan inte av misstag radera det genom att skriva ett namn i fel kolumn.
+
+**2. Tidslinjen blev läsbar.** Formatet var glest — varje textblock hade en grå ruta med timestamp, sedan en tom rad, sedan text, sedan en tom rad. Tre rader luft mellan varje stycke. Nu ser det ut ungefär som Copilots transkriptioner: talarnamn i fetstil, timestamp bredvid, text direkt under. Mycket lättare att skanna igenom.
+
+**3. Videor utan YouTube-kapitel fick automatiska rubriker.** Ollama analyserar transkriptionen och skapar 3-8 kapitelrubriker. Pi-videon (Mario Zechner) fick t.ex. "The Origins of Pi", "Building For Extreme Extensibility", "The Necessity of Human Agency". Plus en klickbar innehållsförteckning överst.
+
+**4. Ämnestaggar genereras automatiskt.** A2A-videon hade bara taggarna `a2a, aiagents, aiworkflows` från YouTube — trots att halva videon handlade om MCP. Nu lägger Ollama till `mcp, model context protocol, multi-agent orchestration` etc.
+
+**5. Obsidian-daemon fungerar äntligen.** Den hade kraschat med felkod 126 sedan session 17. Orsaken var ett mellanslag i sökvägen (`VS Code/neuron-hq`). Nu körs den — fyll i namn i Obsidian, vänta 10 sekunder, och namnen dyker upp i tidslinjen.
+
+### Vad funkade inte?
+
+**Whisper large är för långsam på CPU.** Vi testade Pi-videon med Whisper small — transkriptionen var fragmenterad och delvis obegriplig ("tragedy in to a bunch of that a"). Vi ändrade till Whisper large, men det timade ut efter 30 minuter. Orsaken: faster-whisper (CTranslate2) kan inte använda din Macs GPU. Pyannote kör på GPU utan problem, men Whisper gör det inte. Du har 46GB VRAM som inte utnyttjas.
+
+**Du påpekade att allt borde vara MCP.** Det är det inte — Whisper, pyannote och vision körs fortfarande som Python-subprocesser. Det var en viktig insikt: vi bygger ett MCP-system men har kvar legacykopplingar under ytan.
+
+### Vad bestämdes?
+
+| Beslut | Varför |
+| ------ | ------ |
+| EBUCore+ talarschemat från dag 1 | Du har jobbat med mediasystem hela livet — gör det rätt från början |
+| ID-kolumnen skrivskyddad | Förhindrar att tekniska ID:n försvinner när man fyller i namn |
+| Alla workers ska bli MCP-tools | Marcus-direktivet: "allt som kan vara MCP ska vara MCP" |
+| WhisperX-migration session 22 | GPU-stöd + sentence segmentering + bättre diarisation |
+
+### Vad är planen framöver?
+
+1. **MCP-first architecture** — Whisper, pyannote, vision som MCP-tools istället för subprocesser
+2. **WhisperX med GPU** — mlx-whisper eller WhisperX med MPS-backend. Large-modell på din GPU.
+3. **Re-transkribera Pi-videon** — verifiera att large + GPU ger läsbar text
+
+---
+
 ## 2026-04-13 — Session 16: Konceptartiklarna blev verklighet
 
 ### Vad hände?
