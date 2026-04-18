@@ -254,10 +254,19 @@ function renderBlockText(block: TimelineBlock): string {
     .join('');
 }
 
-/** Count unique speakers across all timeline blocks. */
+const MIN_SPEAKER_CHARS = 50;
+
 function countUniqueSpeakers(blocks: TimelineBlock[]): number {
-  const speakers = new Set(blocks.map((b) => b.speaker));
-  return speakers.size;
+  const charsBySpeaker = new Map<string, number>();
+  for (const b of blocks) {
+    if (b.speaker === 'UNKNOWN') continue;
+    charsBySpeaker.set(b.speaker, (charsBySpeaker.get(b.speaker) ?? 0) + b.text.length);
+  }
+  let substantive = 0;
+  for (const chars of charsBySpeaker.values()) {
+    if (chars >= MIN_SPEAKER_CHARS) substantive++;
+  }
+  return substantive;
 }
 
 /** Build timeline section from TimelineBlock array. */

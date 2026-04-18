@@ -289,8 +289,8 @@ describe('obsidian-export', () => {
         platform: 'youtube',
         duration: 20,
         rawSegments: [
-          { start_ms: 0, end_ms: 5000, text: 'Speaker zero talking.' },
-          { start_ms: 5000, end_ms: 10000, text: 'Speaker one talking.' },
+          { start_ms: 0, end_ms: 5000, text: 'Speaker zero talking at length about the importance of multi-agent orchestration in modern systems.' },
+          { start_ms: 5000, end_ms: 10000, text: 'Speaker one responding with detailed thoughts on how model context protocol complements agent communication.' },
         ],
       },
     });
