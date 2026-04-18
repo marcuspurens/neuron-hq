@@ -13,7 +13,8 @@ function getPlistPath(): string {
 
 function buildPlist(projectDir: string, vaultPath: string, nodeDir: string): string {
   const logDir = join(projectDir, 'logs');
-  const tsxPath = join(projectDir, 'node_modules', '.bin', 'tsx');
+  const nodePath = join(nodeDir, 'node');
+  const tsxLoader = join(projectDir, 'node_modules', 'tsx', 'dist', 'esm', 'index.cjs');
   const cliPath = join(projectDir, 'src', 'cli.ts');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -25,7 +26,9 @@ function buildPlist(projectDir: string, vaultPath: string, nodeDir: string): str
 
   <key>ProgramArguments</key>
   <array>
-    <string>${tsxPath}</string>
+    <string>${nodePath}</string>
+    <string>--import</string>
+    <string>${tsxLoader}</string>
     <string>${cliPath}</string>
     <string>obsidian-export</string>
     <string>--vault</string>
