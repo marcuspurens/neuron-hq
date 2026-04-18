@@ -220,7 +220,7 @@ describe('obsidian-export', () => {
     expect(content).toContain('duration: "01:02:03"');
     expect(content).not.toContain('speakers:');
     expect(content).toContain('| SPEAKER_00 |');
-    expect(content).toContain('| Label | Förnamn | Efternamn | Roll | Titel | Organisation | Avdelning | Wikidata | LinkedIn |');
+    expect(content).toContain('| ID | Förnamn | Efternamn | Roll | Titel | Organisation | Avdelning | Wikidata | LinkedIn |');
   });
 
   it('suppresses speaker labels in timeline when only 1 unique speaker', async () => {

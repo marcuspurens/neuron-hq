@@ -155,7 +155,8 @@ export function extractSpeakersFromTable(markdownBody: string): ParsedSpeaker[] 
     .filter(Boolean);
 
   const col = (name: string): number => headerCells.indexOf(name);
-  const labelCol = col('label');
+  const idCol = col('id');
+  const labelCol = idCol >= 0 ? idCol : col('label');
   if (labelCol === -1) return [];
 
   const förnamn = col('förnamn');

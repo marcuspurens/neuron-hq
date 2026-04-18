@@ -10,7 +10,6 @@ import {
   type Comment,
 } from '../aurora/obsidian-parser.js';
 import { loadAuroraGraph, updateAuroraNode, saveAuroraGraph } from '../aurora/aurora-graph.js';
-import { renameSpeaker } from '../aurora/voiceprint.js';
 import { createSpeakerIdentity, updateSpeakerMetadata } from '../aurora/speaker-identity.js';
 import { getPool } from '../core/db.js';
 import { isVideoTranscript } from './obsidian-export.js';
@@ -19,11 +18,6 @@ import { cascadeDeleteAuroraNode } from '../aurora/cascade-delete.js';
 const logger = createLogger('obsidian:import');
 
 const DEFAULT_VAULT = '/Users/mpmac/Documents/Neuron Lab';
-
-interface SpeakerRename {
-  voicePrintId: string;
-  newName: string;
-}
 
 interface PendingSpeakerMetadata {
   speakerName: string;
@@ -180,7 +174,6 @@ export async function obsidianImportCommand(options: {
   let totalConflictWarnings = 0;
   let totalTagsUpdated = 0;
   let totalSegmentReassignments = 0;
-  const pendingRenames: SpeakerRename[] = [];
   const pendingMetadataUpdates: PendingSpeakerMetadata[] = [];
 
   // 4. Process each file
@@ -303,46 +296,16 @@ export async function obsidianImportCommand(options: {
     // ONE single updateAuroraNode call — never call it twice for the same node
     graph = updateAuroraNode(graph, node.id, nodeUpdates);
 
-    // Collect speaker renames.
-    // Two rename paths:
-    //   A) User fills in the Namn column → speaker.name is set, match by label
-    //   B) User edits the Label column directly → speaker.label is no longer
-    //      a SPEAKER_XX auto-label, speaker.name is empty. Match by position
-    //      among the video's voice_print nodes (sorted by first segment time).
-    const videoVoicePrints = graph.nodes
-      .filter(
-        (n) =>
-          n.type === 'voice_print' && n.properties.videoNodeId === parsed.id
-      )
-      .sort((a, b) => {
-        const aSegs = a.properties.segments as Array<{ start_ms: number }> | undefined;
-        const bSegs = b.properties.segments as Array<{ start_ms: number }> | undefined;
-        const aStart = aSegs?.[0]?.start_ms ?? Infinity;
-        const bStart = bSegs?.[0]?.start_ms ?? Infinity;
-        return aStart - bStart;
-      });
-
-    for (let si = 0; si < parsed.speakers.length; si++) {
-      const speaker = parsed.speakers[si];
-      const effectiveName = speaker.name || '';
-
-      // Path A: Namn column has a value → match voice_print by label
-      let vpNode = graph.nodes.find(
+    for (const speaker of parsed.speakers) {
+      const vpNode = graph.nodes.find(
         (n) =>
           n.type === 'voice_print' &&
           n.properties.videoNodeId === parsed.id &&
           n.properties.speakerLabel === speaker.label
       );
 
-      // Path B: Label column was edited (no longer matches any speakerLabel)
-      // and Namn is empty → the label IS the new name. Match by table position.
-      const isAutoLabel = speaker.label.startsWith('SPEAKER_');
-      if (!vpNode && !isAutoLabel && !effectiveName) {
-        vpNode = videoVoicePrints[si];
-      }
-
       if (!vpNode) {
-        logger.warn('Voice print not found for speaker rename', {
+        logger.warn('Voice print not found for speaker metadata', {
           file: filePath,
           label: speaker.label,
           transcriptId: parsed.id,
@@ -350,23 +313,16 @@ export async function obsidianImportCommand(options: {
         continue;
       }
 
-      const newName = effectiveName || speaker.label;
-      const currentLabel = vpNode.properties.speakerLabel as string;
-
-      if (!newName || currentLabel === newName) continue;
-
-      pendingRenames.push({
-        voicePrintId: vpNode.id,
-        newName,
-      });
-
       const hasMetadata = speaker.givenName || speaker.familyName
         || speaker.occupation || speaker.organizationName
         || speaker.wikidata || speaker.linkedIn
         || speaker.role || speaker.department;
       if (hasMetadata) {
+        const displayName = speaker.givenName && speaker.familyName
+          ? `${speaker.givenName} ${speaker.familyName}`
+          : speaker.givenName || speaker.familyName || speaker.name;
         pendingMetadataUpdates.push({
-          speakerName: newName,
+          speakerName: displayName || speaker.label,
           voicePrintId: vpNode.id,
           givenName: speaker.givenName,
           familyName: speaker.familyName,
@@ -585,20 +541,7 @@ export async function obsidianImportCommand(options: {
   // 5. Save graph once
   await saveAuroraGraph(graph);
 
-  // 6. Process speaker renames (each does its own load/save)
   let speakersRenamed = 0;
-  for (const rename of pendingRenames) {
-    try {
-      await renameSpeaker(rename.voicePrintId, rename.newName);
-      speakersRenamed++;
-    } catch (err) {
-      logger.warn('Failed to rename speaker', {
-        voicePrintId: rename.voicePrintId,
-        newName: rename.newName,
-        error: String(err),
-      });
-    }
-  }
 
   for (const update of pendingMetadataUpdates) {
     try {

@@ -184,8 +184,8 @@ function formatVideoFrontmatter(
 function buildSpeakerTable(speakers: Map<string, SpeakerInfo>): string[] {
   const lines: string[] = [
     '## Talare',
-    '| Label | Förnamn | Efternamn | Roll | Titel | Organisation | Avdelning | Wikidata | LinkedIn |',
-    '|-------|---------|-----------|------|-------|--------------|-----------|----------|----------|',
+    '| ID | Förnamn | Efternamn | Roll | Titel | Organisation | Avdelning | Wikidata | LinkedIn |',
+    '|----|---------|-----------|------|-------|--------------|-----------|----------|----------|',
   ];
   for (const [label, info] of speakers) {
     const gn = info.givenName || '';

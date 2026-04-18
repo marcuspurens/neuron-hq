@@ -186,8 +186,8 @@ describe('obsidian-import', () => {
     // Should have saved graph once
     expect(mockSaveAuroraGraph).toHaveBeenCalledOnce();
 
-    // Should have renamed speaker (SPEAKER_00 → Alice)
-    expect(mockRenameSpeaker).toHaveBeenCalledWith('vp-1', 'Alice');
+    // Speaker rename no longer triggered from table — only metadata updates
+    expect(mockRenameSpeaker).not.toHaveBeenCalled();
   });
 
   it('skips file when node not found in graph', async () => {
@@ -470,20 +470,19 @@ describe('obsidian-import', () => {
     expect(mockRenameSpeaker).not.toHaveBeenCalled();
   });
 
-  it('renames speaker when user edits the Label column directly', async () => {
+  it('ignores edits to ID column — no rename triggered', async () => {
     mockStat.mockResolvedValue({ isDirectory: () => true });
     mockReaddir.mockResolvedValue([makeDirent('label-rename.md', false)]);
 
-    // User changed Label column from SPEAKER_00 → Alice, left Namn empty
     const mdContent = [
       '---',
       'id: trans-6',
       '---',
       '',
       '## Talare',
-      '| Label | Namn | Titel | Organisation | Roll | Konfidenspoäng |',
-      '|-------|------|-------|--------------|------|----------------|',
-      '| Alice |      |       |              |      | 0.7            |',
+      '| ID | Förnamn | Efternamn | Roll | Titel | Organisation | Avdelning | Wikidata | LinkedIn |',
+      '|----|---------|-----------|------|-------|--------------|-----------|----------|----------|',
+      '| Alice |      |       |              |      |  |  |  |  |',
       '',
       '#### 00:00:10 \u2014 Alice',
       'Some text',
@@ -516,7 +515,7 @@ describe('obsidian-import', () => {
 
     await obsidianImportCommand({ vault: '/test-vault' });
 
-    expect(mockRenameSpeaker).toHaveBeenCalledWith('vp-4', 'Alice');
+    expect(mockRenameSpeaker).not.toHaveBeenCalled();
   });
 
   it('processes multiple files in vault and saves graph once', async () => {
