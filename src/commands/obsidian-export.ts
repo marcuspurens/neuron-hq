@@ -44,6 +44,8 @@ interface SpeakerInfo {
   organizationName: string;
   department: string;
   wikidata: string;
+  wikipedia: string;
+  imdb: string;
   linkedIn: string;
   confidence: number;
   segments: Array<{ start_ms: number; end_ms: number }>;
@@ -127,10 +129,12 @@ function formatVideoFrontmatter(
   node: AuroraNode,
   _speakers: Map<string, SpeakerInfo>,
   additionalTags?: string[],
+  wordsFile?: string,
 ): string {
   const props = node.properties || {};
   const durationMs = typeof props.duration === 'number' ? props.duration * 1000 : 0;
   const lines = ['---', `id: ${node.id}`, `type: transcript`];
+  if (wordsFile) lines.push(`words_file: "${wordsFile}"`);
 
   if (props.platform) lines.push(`platform: ${props.platform}`);
   lines.push(`duration: "${formatMs(durationMs)}"`);
@@ -184,8 +188,8 @@ function formatVideoFrontmatter(
 function buildSpeakerTable(speakers: Map<string, SpeakerInfo>): string[] {
   const lines: string[] = [
     '## Talare',
-    '| ID | Förnamn | Efternamn | Roll | Titel | Organisation | Avdelning | Wikidata | LinkedIn |',
-    '|----|---------|-----------|------|-------|--------------|-----------|----------|----------|',
+    '| ID | Förnamn | Efternamn | Roll | Titel | Organisation | Avdelning | Wikidata | Wikipedia | IMDb | LinkedIn |',
+    '|----|---------|-----------|------|-------|--------------|-----------|----------|-----------|------|----------|',
   ];
   for (const [label, info] of speakers) {
     const gn = info.givenName || '';
@@ -195,8 +199,10 @@ function buildSpeakerTable(speakers: Map<string, SpeakerInfo>): string[] {
     const org = info.organizationName || '';
     const dept = info.department || '';
     const wiki = info.wikidata || '';
+    const wp = info.wikipedia || '';
+    const imdb = info.imdb || '';
     const li = info.linkedIn || '';
-    lines.push(`| ${label} | ${gn} | ${fn} | ${role} | ${occ} | ${org} | ${dept} | ${wiki} | ${li} |`);
+    lines.push(`| ${label} | ${gn} | ${fn} | ${role} | ${occ} | ${org} | ${dept} | ${wiki} | ${wp} | ${imdb} | ${li} |`);
   }
   return lines;
 }
@@ -256,9 +262,62 @@ function renderBlockText(block: TimelineBlock): string {
   if (!block.words || block.words.length === 0) {
     return block.text;
   }
-  return block.words
-    .map((w) => `<span data-t="${w.start_ms}">${w.word}</span>`)
-    .join('');
+  return block.words.map((w) => w.word).join(' ');
+}
+
+interface WordProvenance {
+  text: string;
+  start: number;
+  end: number;
+  speaker: string;
+  confidence: number;
+}
+
+interface WordsSidecar {
+  version: 1;
+  sourceId: string;
+  videoUrl: string;
+  generated: string;
+  speakers: Record<string, string>;
+  words: WordProvenance[];
+}
+
+function buildWordsSidecar(
+  blocks: TimelineBlock[],
+  sourceId: string,
+  videoUrl: string,
+  speakerMap?: Map<string, SpeakerInfo>,
+): WordsSidecar {
+  const speakers: Record<string, string> = {};
+  const words: WordProvenance[] = [];
+
+  for (const block of blocks) {
+    const speakerId = block.speaker ?? 'UNKNOWN';
+    if (!(speakerId in speakers)) {
+      speakers[speakerId] = resolveSpeakerName(speakerId, speakerMap);
+    }
+
+    if (block.words && block.words.length > 0) {
+      for (const w of block.words) {
+        words.push({
+          text: w.word,
+          start: w.start_ms / 1000,
+          end: w.end_ms / 1000,
+          speaker: speakerId,
+          confidence: w.probability ?? 0,
+        });
+      }
+    }
+  }
+
+  return {
+    version: 1,
+    sourceId,
+    videoUrl,
+    generated: new Date().toISOString(),
+    speakers,
+    words,
+  };
 }
 
 const MIN_SPEAKER_CHARS = 50;
@@ -285,20 +344,46 @@ function resolveSpeakerName(label: string, speakerMap?: Map<string, SpeakerInfo>
   return label;
 }
 
+function formatTimestampLink(ms: number, videoUrl?: string): string {
+  const display = formatMs(ms);
+  if (!videoUrl) return display;
+  const seconds = Math.floor(ms / 1000);
+  const separator = videoUrl.includes('?') ? '&' : '?';
+  return `[${display}](${videoUrl}${separator}t=${seconds})`;
+}
+
 function buildTimelineSection(
   blocks: TimelineBlock[],
   chapters?: Chapter[],
   speakerMap?: Map<string, SpeakerInfo>,
+  videoUrl?: string,
 ): string[] {
   const lines: string[] = ['## Tidslinje', ''];
   const usedChapters = new Set<string>();
   let lastSpeaker: string | undefined;
   const showSpeakers = countUniqueSpeakers(blocks) > 1;
 
+  let paragraphParts: string[] = [];
+  let paragraphTimestamp = '';
+
+  const flushParagraph = () => {
+    if (paragraphParts.length === 0) return;
+    lines.push(`${paragraphTimestamp}`);
+    lines.push(paragraphParts.join(' '));
+    lines.push('');
+    paragraphParts = [];
+    paragraphTimestamp = '';
+  };
+
   for (const block of blocks) {
     const chapter = chapters ? findChapterForBlock(block, chapters) : undefined;
     const isNewChapter = chapter && !usedChapters.has(chapter.title);
     const speakerChanged = block.speaker !== lastSpeaker;
+    const needsBreak = isNewChapter || (showSpeakers && speakerChanged);
+
+    if (needsBreak) {
+      flushParagraph();
+    }
 
     if (isNewChapter) {
       usedChapters.add(chapter.title);
@@ -306,15 +391,18 @@ function buildTimelineSection(
     }
 
     const name = resolveSpeakerName(block.speaker, speakerMap);
+    const tsLink = formatTimestampLink(block.start_ms, videoUrl);
     if (showSpeakers && (isNewChapter || speakerChanged)) {
-      lines.push(`**${name}** ${formatMs(block.start_ms)}`);
+      paragraphTimestamp = `**${name}** ${tsLink}`;
       lastSpeaker = block.speaker;
-    } else {
-      lines.push(formatMs(block.start_ms));
+    } else if (paragraphParts.length === 0) {
+      paragraphTimestamp = tsLink;
     }
-    lines.push(renderBlockText(block));
-    lines.push('');
+
+    paragraphParts.push(renderBlockText(block));
   }
+  flushParagraph();
+
   return lines;
 }
 /** Highlight annotation on a timeline segment. */
@@ -335,9 +423,10 @@ function buildTimelineSectionWithAnnotations(
   comments: CommentAnnotation[],
   chapters?: Chapter[],
   speakerMap?: Map<string, SpeakerInfo>,
+  videoUrl?: string,
 ): string[] {
   if (highlights.length === 0 && comments.length === 0) {
-    return buildTimelineSection(blocks, chapters, speakerMap);
+    return buildTimelineSection(blocks, chapters, speakerMap, videoUrl);
   }
 
   const lines: string[] = ['## Tidslinje', ''];
@@ -370,9 +459,8 @@ function buildTimelineSectionWithAnnotations(
 
     const showSpeaker = showSpeakers && (isNewChapter || speakerChanged);
     const name = resolveSpeakerName(block.speaker, speakerMap);
-    const meta = showSpeaker
-      ? `**${name}** ${formatMs(block.start_ms)}`
-      : formatMs(block.start_ms);
+    const tsLink = formatTimestampLink(block.start_ms, videoUrl);
+    const meta = showSpeaker ? `**${name}** ${tsLink}` : tsLink;
     lastSpeaker = block.speaker;
 
     const renderedText = renderBlockText(block);
@@ -488,6 +576,8 @@ function buildSpeakerMap(
       ? (vp.properties.segments as Array<{ start_ms: number; end_ms: number }>)
       : [];
 
+    const guessedName = (vp.properties.guessedName as string) || '';
+    const guessedRole = (vp.properties.guessedRole as string) || '';
     let givenName = '';
     let familyName = '';
     let displayName = label.startsWith('SPEAKER_') ? '' : label;
@@ -496,7 +586,21 @@ function buildSpeakerMap(
     let organizationName = '';
     let department = '';
     let wikidata = '';
+    let wikipedia = '';
+    let imdb = '';
     let linkedIn = '';
+
+    if (guessedName && !displayName) {
+      displayName = guessedName;
+      const parts = guessedName.split(' ');
+      if (parts.length >= 2) {
+        givenName = parts[0];
+        familyName = parts.slice(1).join(' ');
+      } else {
+        givenName = guessedName;
+      }
+      if (guessedRole) role = guessedRole;
+    }
 
     const identityEdge = edges.find(
       (e) =>
@@ -518,6 +622,8 @@ function buildSpeakerMap(
           : (p.organization as string) || '';
         department = aff ? (aff.department as string) || '' : '';
         wikidata = (p.wikidata as string) || '';
+        wikipedia = (p.wikipedia as string) || '';
+        imdb = (p.imdb as string) || '';
         linkedIn = (p.linkedIn as string) || '';
       }
     }
@@ -532,6 +638,8 @@ function buildSpeakerMap(
       organizationName,
       department,
       wikidata,
+      wikipedia,
+      imdb,
       linkedIn,
       confidence: vp.confidence ?? 0,
       segments,
@@ -630,6 +738,7 @@ export async function obsidianExportCommand(cmdOptions: {
     }
 
     let written = 0;
+    const sidecarMap = new Map<string, WordsSidecar>();
     for (const node of nodes) {
       if (skipChunkIds.has(node.id)) continue;
       if (node.id.includes('_chunk_')) continue;
@@ -683,35 +792,49 @@ export async function obsidianExportCommand(cmdOptions: {
         timelineBlocks = remergeSameSpeakerBlocks(timelineBlocks, chapters ?? undefined);
         let effectiveChapters = chapters;
         let generatedTopicTags: string[] = [];
+
+        const targetDir = subdir ? join(nodesDir, subdir) : nodesDir;
+        const filePath = join(targetDir, `${filename}.md`);
+        let existingFile: string | undefined;
         try {
-          const { ensureOllama } = await import('../core/ollama.js');
-          const ollamaReady = await ensureOllama();
-          if (ollamaReady) {
-            const { semanticSplitTimeline, generateChapterTitles, generateTopicTags } = await import('../aurora/semantic-split.js');
-            timelineBlocks = await semanticSplitTimeline(timelineBlocks);
-
-            if (!Array.isArray(chapters) || chapters.length === 0) {
-              const generated = await generateChapterTitles(timelineBlocks);
-              if (generated.length > 0) {
-                effectiveChapters = generated;
-                timelineBlocks = remergeSameSpeakerBlocks(
-                  timelineBlocks,
-                  effectiveChapters,
-                );
-              }
-            }
-
-            const title = node.title || '';
-            const tldr = (props.summary as string) || '';
-            const existingTags = Array.isArray(props.ytTags) ? (props.ytTags as string[]) : [];
-            generatedTopicTags = await generateTopicTags(title, tldr, existingTags);
-          }
+          existingFile = await readFile(filePath, 'utf-8');
         } catch {
-          // Ollama unavailable — use mechanical split from buildSpeakerTimeline
+          /* file doesn't exist yet */
+        }
+        const isFirstExport = !existingFile;
+
+        if (isFirstExport) {
+          try {
+            const { ensureOllama } = await import('../core/ollama.js');
+            const ollamaReady = await ensureOllama();
+            if (ollamaReady) {
+              const { semanticSplitTimeline, generateChapterTitles, generateTopicTags } = await import('../aurora/semantic-split.js');
+              timelineBlocks = await semanticSplitTimeline(timelineBlocks);
+
+              if (!Array.isArray(chapters) || chapters.length === 0) {
+                const generated = await generateChapterTitles(timelineBlocks);
+                if (generated.length > 0) {
+                  effectiveChapters = generated;
+                  timelineBlocks = remergeSameSpeakerBlocks(
+                    timelineBlocks,
+                    effectiveChapters,
+                  );
+                }
+              }
+
+              const title = node.title || '';
+              const tldr = (props.summary as string) || '';
+              const existingTags = Array.isArray(props.ytTags) ? (props.ytTags as string[]) : [];
+              generatedTopicTags = await generateTopicTags(title, tldr, existingTags);
+            }
+          } catch {
+            /* Ollama unavailable — use mechanical split */
+          }
         }
 
         // Frontmatter
-        lines.push(formatVideoFrontmatter(node, speakerMap, generatedTopicTags));
+        const wordsFilename = `${filename}.words.json`;
+        lines.push(formatVideoFrontmatter(node, speakerMap, generatedTopicTags, wordsFilename));
         lines.push('');
 
         // Title
@@ -751,8 +874,10 @@ export async function obsidianExportCommand(cmdOptions: {
           ? (props.comments as Array<{ segment_start_ms: number; text: string }>)
           : [];
 
-        // Timeline (with annotations if present)
-        lines.push(...buildTimelineSectionWithAnnotations(timelineBlocks, highlights, comments, effectiveChapters ?? undefined, speakerMap));
+        const videoUrl = (props.videoUrl ?? props.sourceUrl ?? node.source_url) as string | undefined;
+        lines.push(...buildTimelineSectionWithAnnotations(timelineBlocks, highlights, comments, effectiveChapters ?? undefined, speakerMap, videoUrl));
+
+        sidecarMap.set(node.id, buildWordsSidecar(timelineBlocks, node.id, videoUrl ?? '', speakerMap));
       } else {
         // --- Standard non-video export (unchanged) ---
         lines.push(formatFrontmatter(node));
@@ -810,10 +935,35 @@ export async function obsidianExportCommand(cmdOptions: {
         }
       }
 
-      const targetDir = subdir ? join(nodesDir, subdir) : nodesDir;
-      const filePath = join(targetDir, `${filename}.md`);
-      await writeFile(filePath, lines.join('\n'), 'utf-8');
-      written++;
+      const outDir = subdir ? join(nodesDir, subdir) : nodesDir;
+      const outPath = join(outDir, `${filename}.md`);
+      const newContent = lines.join('\n');
+      let prevContent: string | undefined;
+      try {
+        prevContent = await readFile(outPath, 'utf-8');
+      } catch {
+        /* file doesn't exist yet */
+      }
+      const stripVolatile = (s: string) => s.replace(/^exported_at:.*$/m, '').replace(/^generated:.*$/m, '');
+      if (!prevContent || stripVolatile(prevContent) !== stripVolatile(newContent)) {
+        await writeFile(outPath, newContent, 'utf-8');
+        written++;
+      }
+
+      const sidecar = sidecarMap.get(node.id);
+      if (sidecar) {
+        const sidecarPath = join(outDir, `${filename}.words.json`);
+        const sidecarContent = JSON.stringify(sidecar, null, 2);
+        let prevSidecar: string | undefined;
+        try {
+          prevSidecar = await readFile(sidecarPath, 'utf-8');
+        } catch {
+          /* file doesn't exist yet */
+        }
+        if (!prevSidecar || stripVolatile(prevSidecar) !== stripVolatile(sidecarContent)) {
+          await writeFile(sidecarPath, sidecarContent, 'utf-8');
+        }
+      }
     }
 
     const exportedByDir = new Map<string, Set<string>>();

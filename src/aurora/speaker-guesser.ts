@@ -1,5 +1,5 @@
 import type Anthropic from '@anthropic-ai/sdk';
-import { loadAuroraGraph } from './aurora-graph.js';
+import { loadAuroraGraph, saveAuroraGraph } from './aurora-graph.js';
 import { ensureOllama, getOllamaUrl } from '../core/ollama.js';
 import { getConfig } from '../core/config.js';
 import { createAgentClient } from '../core/agent-client.js';
@@ -290,7 +290,6 @@ async function callOllama(
   return { guesses: parseGuesses(content), modelUsed: model };
 }
 
-/** Call Claude/Anthropic for speaker guessing. */
 async function callClaude(userMessage: string): Promise<SpeakerGuessResult> {
   const config = {
     ...DEFAULT_MODEL_CONFIG,
@@ -313,4 +312,39 @@ async function callClaude(userMessage: string): Promise<SpeakerGuessResult> {
     .join('');
 
   return { guesses: parseGuesses(content), modelUsed: model };
+}
+
+export async function applyGuessesToGraph(
+  transcriptNodeId: string,
+  guesses: SpeakerGuess[],
+): Promise<void> {
+  const graph = await loadAuroraGraph();
+
+  const voicePrintIds = graph.edges
+    .filter((e) => e.type === 'derived_from' && e.to === transcriptNodeId)
+    .map((e) => e.from);
+
+  for (const guess of guesses) {
+    if (!guess.name) continue;
+
+    const vpNode = graph.nodes.find(
+      (n) => voicePrintIds.includes(n.id) && n.properties.speakerLabel === guess.speakerLabel,
+    );
+    if (vpNode) {
+      vpNode.properties.guessedName = guess.name;
+      vpNode.properties.guessedRole = guess.role;
+      vpNode.properties.guessConfidence = guess.confidence;
+      vpNode.title = `Speaker: ${guess.name}`;
+    }
+
+    const transcriptNode = graph.nodes.find((n) => n.id === transcriptNodeId);
+    if (transcriptNode) {
+      const existingGuesses = (transcriptNode.properties.speakerGuesses as SpeakerGuess[] | undefined) ?? [];
+      const updated = existingGuesses.filter((g) => g.speakerLabel !== guess.speakerLabel);
+      updated.push(guess);
+      transcriptNode.properties.speakerGuesses = updated;
+    }
+  }
+
+  await saveAuroraGraph(graph);
 }
