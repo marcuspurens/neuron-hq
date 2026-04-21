@@ -5,7 +5,7 @@
  */
 
 import { createHash } from 'crypto';
-import { runWorker } from './worker-bridge.js';
+import { callMediaTool } from './media-client.js';
 import { PipelineError, wrapPipelineStep } from './pipeline-errors.js';
 import { chunkText } from './chunker.js';
 import {
@@ -268,12 +268,10 @@ export async function ingestVideo(
     options?.onProgress?.({ step: 'downloading', progress: 0, stepElapsedMs: 0 });
 
     const extractResult = await wrapPipelineStep('extract_video', async () => {
-      const result = await runWorker(
-        {
-          action: 'extract_video',
-          source: url,
-        },
-        { timeout: 600_000 }
+      const result = await callMediaTool(
+        'extract_video',
+        { url },
+        { timeout: 600_000 },
       );
       if (!result.ok) throw new Error(result.error);
       return result;
@@ -308,12 +306,10 @@ export async function ingestVideo(
       options?.onProgress?.({ step: 'denoising', progress: 0, stepElapsedMs: 0 });
 
       const denoiseResult = await wrapPipelineStep('denoise_audio', async () => {
-        const result = await runWorker(
-          {
-            action: 'denoise_audio',
-            source: audioPath,
-          },
-          { timeout: 600_000 }
+        const result = await callMediaTool(
+          'denoise_audio',
+          { audio_path: audioPath },
+          { timeout: 600_000 },
         );
         if (!result.ok) throw new Error(result.error);
         return result;
@@ -395,13 +391,14 @@ export async function ingestVideo(
       }
 
       const transcribeResult = await wrapPipelineStep('transcribe_audio', async () => {
-        const result = await runWorker(
+        const result = await callMediaTool(
+          'transcribe_audio',
           {
-            action: 'transcribe_audio',
-            source: audioPath,
-            ...(Object.keys(transcribeOptions).length > 0 ? { options: transcribeOptions } : {}),
+            audio_path: audioPath,
+            ...(transcribeOptions.whisper_model ? { whisper_model: transcribeOptions.whisper_model } : {}),
+            ...(transcribeOptions.language ? { language: transcribeOptions.language } : {}),
           },
-          { timeout: 1_800_000 }
+          { timeout: 1_800_000 },
         );
         if (!result.ok) throw new Error(result.error);
         return result;
@@ -446,12 +443,10 @@ export async function ingestVideo(
 
       try {
         const diarizeResult = await wrapPipelineStep('diarize_audio', async () => {
-          const result = await runWorker(
-            {
-              action: 'diarize_audio',
-              source: audioPath,
-            },
-            { timeout: 1_200_000 }
+          const result = await callMediaTool(
+            'diarize_audio',
+            { audio_path: audioPath },
+            { timeout: 1_200_000 },
           );
           if (!result.ok) throw new Error(result.error);
           return result;
@@ -864,9 +859,9 @@ export async function ingestVideo(
       }
     }
 
-    // 12. Optional: Identify speakers via LLM
+    // 12. Identify speakers via LLM (runs even without diarization — uses title + description)
     let speakerGuesses: SpeakerGuess[] | null = null;
-    if (options?.identifySpeakers !== false && options?.diarize) {
+    if (options?.identifySpeakers !== false) {
       stepStart = Date.now();
       options?.onProgress?.({ step: 'identifying', progress: 0, stepElapsedMs: 0 });
       try {
@@ -876,6 +871,15 @@ export async function ingestVideo(
             model: options?.polishModel,
           });
           speakerGuesses = guessResult.guesses;
+
+          if (speakerGuesses && speakerGuesses.length > 0) {
+            const { applyGuessesToGraph } = await import('./speaker-guesser.js');
+            await applyGuessesToGraph(transcriptNodeId, speakerGuesses);
+            logger.info('Applied speaker guesses to graph', {
+              count: speakerGuesses.length,
+              names: speakerGuesses.map((g) => g.name).filter(Boolean),
+            });
+          }
         }
       } catch (err) {
         logger.error('[identify-speakers] Skipping', {

@@ -8,6 +8,17 @@
         "PATH": "/opt/homebrew/opt/node@20/bin:/usr/local/bin:/usr/bin:/bin",
         "DATABASE_URL": "postgresql://localhost:5432/neuron"
       }
+    },
+    "aurora-media": {
+      "command": "/opt/homebrew/Caskroom/miniconda/base/envs/aurora/bin/python3",
+      "args": ["aurora-workers/mcp_server.py"],
+      "cwd": "/Users/mpmac/Documents/VS Code/neuron-hq",
+      "env": {
+        "WHISPER_MODEL": "large-v3-turbo",
+        "WHISPER_BATCH_SIZE": "8",
+        "WHISPER_THREADS": "8",
+        "PYANNOTE_TOKEN": "hf_YOUR_TOKEN_HERE"
+      }
     }
   }
 }

@@ -11,6 +11,11 @@ vi.mock('../../src/aurora/worker-bridge.js', () => ({
   isWorkerAvailable: vi.fn().mockResolvedValue(true),
 }));
 
+const mockCallMediaTool = vi.fn();
+vi.mock('../../src/aurora/media-client.js', () => ({
+  callMediaTool: (...args: unknown[]) => mockCallMediaTool(...args),
+}));
+
 const mockLoadAuroraGraph = vi.fn();
 const mockSaveAuroraGraph = vi.fn();
 const mockAutoEmbedAuroraNodes = vi.fn();
@@ -250,7 +255,7 @@ describe('ingestUrl auto cross-ref', () => {
 
 describe('ingestVideo auto cross-ref', () => {
   it('creates cross-refs for transcript node', async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce({
         ok: true,
         title: 'Test Video',
@@ -284,7 +289,7 @@ describe('ingestVideo auto cross-ref', () => {
   });
 
   it('returns cross-ref info in result', async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce({
         ok: true,
         title: 'Video Title',

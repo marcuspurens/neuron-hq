@@ -13,6 +13,10 @@ vi.mock('../../src/aurora/worker-bridge.js', () => ({
   runWorker: vi.fn(),
 }));
 
+vi.mock('../../src/aurora/media-client.js', () => ({
+  callMediaTool: vi.fn(),
+}));
+
 vi.mock('../../src/aurora/video.js', () => ({
   videoNodeId: vi.fn((url: string) => `vid-${url.slice(-8)}`),
 }));

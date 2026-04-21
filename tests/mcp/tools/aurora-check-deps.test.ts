@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockRunWorker = vi.fn();
-vi.mock('../../../src/aurora/worker-bridge.js', () => ({
-  runWorker: (...args: unknown[]) => mockRunWorker(...args),
+const mockCallMediaTool = vi.fn();
+vi.mock('../../../src/aurora/media-client.js', () => ({
+  callMediaTool: (...args: unknown[]) => mockCallMediaTool(...args),
 }));
 
 import { registerAuroraCheckDepsTool } from '../../../src/mcp/tools/aurora-check-deps.js';
@@ -25,7 +25,7 @@ const mockServer = {
 
 describe('aurora_check_deps MCP tool', () => {
   beforeEach(() => {
-    mockRunWorker.mockReset();
+    mockCallMediaTool.mockReset();
     mockServer.tool.mockClear();
     registerAuroraCheckDepsTool(mockServer);
   });
@@ -36,7 +36,7 @@ describe('aurora_check_deps MCP tool', () => {
   });
 
   it('returns dependency info on success', async () => {
-    mockRunWorker.mockResolvedValue({
+    mockCallMediaTool.mockResolvedValue({
       ok: true,
       title: '',
       text: '',
@@ -54,7 +54,7 @@ describe('aurora_check_deps MCP tool', () => {
   });
 
   it('returns error when worker reports failure', async () => {
-    mockRunWorker.mockResolvedValue({
+    mockCallMediaTool.mockResolvedValue({
       ok: false,
       error: 'Python not found',
     });
@@ -67,7 +67,7 @@ describe('aurora_check_deps MCP tool', () => {
   });
 
   it('handles thrown errors', async () => {
-    mockRunWorker.mockRejectedValue(new Error('spawn failed'));
+    mockCallMediaTool.mockRejectedValue(new Error('spawn failed'));
 
     const result = await toolHandlers['aurora_check_deps']({
       preload_models: false,
@@ -76,8 +76,8 @@ describe('aurora_check_deps MCP tool', () => {
     expect(result.content[0].text).toContain('spawn failed');
   });
 
-  it('passes preload_models option to runWorker', async () => {
-    mockRunWorker.mockResolvedValue({
+  it('passes preload_models option to callMediaTool', async () => {
+    mockCallMediaTool.mockResolvedValue({
       ok: true,
       title: '',
       text: '',
@@ -86,10 +86,9 @@ describe('aurora_check_deps MCP tool', () => {
 
     await toolHandlers['aurora_check_deps']({ preload_models: true });
 
-    expect(mockRunWorker).toHaveBeenCalledWith({
-      action: 'check_deps',
-      source: '',
-      options: { preload_models: true },
-    });
+    expect(mockCallMediaTool).toHaveBeenCalledWith(
+      'check_deps',
+      { preload_models: true },
+    );
   });
 });

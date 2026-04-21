@@ -9,6 +9,11 @@ vi.mock('../../src/aurora/worker-bridge.js', () => ({
   runWorker: (...args: unknown[]) => mockRunWorker(...args),
 }));
 
+const mockCallMediaTool = vi.fn();
+vi.mock('../../src/aurora/media-client.js', () => ({
+  callMediaTool: (...args: unknown[]) => mockCallMediaTool(...args),
+}));
+
 const mockLoadAuroraGraph = vi.fn();
 const mockSaveAuroraGraph = vi.fn();
 const mockAutoEmbedAuroraNodes = vi.fn();
@@ -90,7 +95,7 @@ function emptyGraph() {
 }
 
 function setupSuccessfulIngest() {
-  mockRunWorker
+  mockCallMediaTool
     .mockResolvedValueOnce({
       ok: true,
       title: 'Test Video',
@@ -121,6 +126,7 @@ function setupSuccessfulIngest() {
 describe('onProgress callback', () => {
   beforeEach(() => {
     mockRunWorker.mockReset();
+    mockCallMediaTool.mockReset();
     mockLoadAuroraGraph.mockReset();
     mockSaveAuroraGraph.mockReset();
     mockAutoEmbedAuroraNodes.mockReset();

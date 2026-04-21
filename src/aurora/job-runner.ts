@@ -8,6 +8,7 @@ import { fork, type ChildProcess } from 'child_process';
 import { resolve } from 'path';
 import { getPool } from '../core/db.js';
 import { runWorker } from './worker-bridge.js';
+import { callMediaTool } from './media-client.js';
 import { videoNodeId } from './video.js';
 import { loadAuroraGraph } from './aurora-graph.js';
 
@@ -193,9 +194,10 @@ export async function startVideoIngestJob(
   let videoTitle: string | null = null;
   let videoDurationSec: number | null = null;
   try {
-    const metaResult = await runWorker(
-      { action: 'extract_video_metadata', source: url },
-      { timeout: 10_000 }
+    const metaResult = await callMediaTool(
+      'extract_video_metadata',
+      { url },
+      { timeout: 10_000 },
     );
     if (metaResult.ok) {
       videoTitle = metaResult.title ?? null;

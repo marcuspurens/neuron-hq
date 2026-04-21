@@ -1,8 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { runWorker } from '../../aurora/worker-bridge.js';
+import { callMediaTool } from '../../aurora/media-client.js';
 
-/** Register the aurora_check_deps MCP tool on the given server. */
 export function registerAuroraCheckDepsTool(server: McpServer): void {
   server.tool(
     'aurora_check_deps',
@@ -13,11 +12,10 @@ export function registerAuroraCheckDepsTool(server: McpServer): void {
     },
     async (args) => {
       try {
-        const result = await runWorker({
-          action: 'check_deps',
-          source: '',
-          options: { preload_models: args.preload_models },
-        });
+        const result = await callMediaTool(
+          'check_deps',
+          { preload_models: args.preload_models },
+        );
         if (!result.ok) {
           return {
             content: [{

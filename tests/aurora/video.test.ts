@@ -7,9 +7,9 @@ import type { ProgressUpdate } from '../../src/aurora/video.js';
 /*  Mocks                                                              */
 /* ------------------------------------------------------------------ */
 
-const mockRunWorker = vi.fn();
-vi.mock('../../src/aurora/worker-bridge.js', () => ({
-  runWorker: (...args: unknown[]) => mockRunWorker(...args),
+const mockCallMediaTool = vi.fn();
+vi.mock('../../src/aurora/media-client.js', () => ({
+  callMediaTool: (...args: unknown[]) => mockCallMediaTool(...args),
 }));
 
 const mockLoadAuroraGraph = vi.fn();
@@ -319,7 +319,7 @@ describe('videoNodeId', () => {
 
 describe('ingestVideo', () => {
   beforeEach(() => {
-    mockRunWorker.mockReset();
+    mockCallMediaTool.mockReset();
     mockLoadAuroraGraph.mockReset();
     mockSaveAuroraGraph.mockReset();
     mockAutoEmbedAuroraNodes.mockReset();
@@ -329,7 +329,7 @@ describe('ingestVideo', () => {
   });
 
   it('creates transcript node + chunks for YouTube URL', async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse);
 
@@ -347,7 +347,7 @@ describe('ingestVideo', () => {
   });
 
   it('creates transcript node for non-YouTube URL', async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractSvtResponse)
       .mockResolvedValueOnce(transcribeResponse);
 
@@ -361,7 +361,7 @@ describe('ingestVideo', () => {
   });
 
   it('with diarize creates voice_print nodes', async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse)
       .mockResolvedValueOnce(diarizeResponse);
@@ -398,7 +398,7 @@ describe('ingestVideo', () => {
       'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     );
 
-    expect(mockRunWorker).not.toHaveBeenCalled();
+    expect(mockCallMediaTool).not.toHaveBeenCalled();
     expect(result.chunksCreated).toBe(0);
     expect(result.title).toBe('Existing Video');
   });
@@ -428,12 +428,12 @@ describe('ingestVideo', () => {
 
     const result = await ingestVideo(svtUrl);
 
-    expect(mockRunWorker).not.toHaveBeenCalled();
+    expect(mockCallMediaTool).not.toHaveBeenCalled();
     expect(result.chunksCreated).toBe(0);
   });
 
   it('handles worker error gracefully (throws PipelineError)', async () => {
-    mockRunWorker.mockResolvedValueOnce({
+    mockCallMediaTool.mockResolvedValueOnce({
       ok: false,
       error: 'download failed',
     });
@@ -444,30 +444,26 @@ describe('ingestVideo', () => {
   });
 
   it('sends extract_video action to worker', async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse);
 
     await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
 
-    expect(mockRunWorker).toHaveBeenCalledWith(
-      {
-        action: 'extract_video',
-        source: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-      },
+    expect(mockCallMediaTool).toHaveBeenCalledWith(
+      'extract_video',
+      { url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
       { timeout: 600_000 },
     );
-    expect(mockRunWorker).toHaveBeenCalledWith(
-      {
-        action: 'transcribe_audio',
-        source: '/tmp/audio.m4a',
-      },
+    expect(mockCallMediaTool).toHaveBeenCalledWith(
+      'transcribe_audio',
+      { audio_path: '/tmp/audio.m4a' },
       { timeout: 1_800_000 },
     );
   });
 
   it('passes whisperModel to transcribe worker options', async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse);
 
@@ -475,18 +471,15 @@ describe('ingestVideo', () => {
       whisperModel: 'large',
     });
 
-    expect(mockRunWorker).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: 'transcribe_audio',
-        source: '/tmp/audio.m4a',
-        options: { whisper_model: 'large' },
-      }),
+    expect(mockCallMediaTool).toHaveBeenCalledWith(
+      'transcribe_audio',
+      { audio_path: '/tmp/audio.m4a', whisper_model: 'large' },
       { timeout: 1_800_000 },
     );
   });
 
   it('passes language to transcribe worker options', async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse);
 
@@ -494,18 +487,15 @@ describe('ingestVideo', () => {
       language: 'sv',
     });
 
-    expect(mockRunWorker).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: 'transcribe_audio',
-        source: '/tmp/audio.m4a',
-        options: { language: 'sv' },
-      }),
+    expect(mockCallMediaTool).toHaveBeenCalledWith(
+      'transcribe_audio',
+      { audio_path: '/tmp/audio.m4a', language: 'sv' },
       { timeout: 1_800_000 },
     );
   });
 
   it('passes both whisperModel and language when both specified', async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse);
 
@@ -514,28 +504,27 @@ describe('ingestVideo', () => {
       language: 'sv',
     });
 
-    expect(mockRunWorker).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: 'transcribe_audio',
-        source: '/tmp/audio.m4a',
-        options: { whisper_model: 'large', language: 'sv' },
-      }),
+    expect(mockCallMediaTool).toHaveBeenCalledWith(
+      'transcribe_audio',
+      { audio_path: '/tmp/audio.m4a', whisper_model: 'large', language: 'sv' },
       { timeout: 1_800_000 },
     );
   });
 
   it('does not include options key when no whisperModel or language', async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse);
 
     await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
 
-    const transcribeCall = mockRunWorker.mock.calls.find(
-      (call: unknown[]) => (call[0] as Record<string, unknown>).action === 'transcribe_audio',
+    const transcribeCall = mockCallMediaTool.mock.calls.find(
+      (call: unknown[]) => call[0] === 'transcribe_audio',
     );
     expect(transcribeCall).toBeDefined();
-    expect(transcribeCall![0]).not.toHaveProperty('options');
+    const transcribeArgs = transcribeCall![1] as Record<string, unknown>;
+    expect(transcribeArgs).not.toHaveProperty('whisper_model');
+    expect(transcribeArgs).not.toHaveProperty('language');
   });
 
   it('includes modelUsed in result when returned by worker', async () => {
@@ -546,7 +535,7 @@ describe('ingestVideo', () => {
         model_used: 'KBLab/kb-whisper-large',
       },
     };
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponseWithModel);
 
@@ -555,7 +544,7 @@ describe('ingestVideo', () => {
   });
 
   it('stores rich metadata on transcript node', async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse);
 
@@ -578,7 +567,7 @@ describe('ingestVideo', () => {
   });
 
   it('generates tags from ytTags, categories, and domain', async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse);
 
@@ -599,7 +588,7 @@ describe('ingestVideo', () => {
   });
 
   it('generates LLM summary instead of description first sentence', async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse);
 
@@ -615,7 +604,7 @@ describe('ingestVideo', () => {
   });
 
   it("saves rawSegments on transcript node from transcribeMeta", async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse);
 
@@ -653,7 +642,7 @@ describe('ingestVideo', () => {
       },
     };
 
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeWithWords);
 
@@ -671,7 +660,7 @@ describe('ingestVideo', () => {
   });
 
   it("saves segments (start_ms/end_ms only) on voice_print nodes", async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse)
       .mockResolvedValueOnce(diarizeResponse);
@@ -747,7 +736,7 @@ const extractWithManualSubsResponse = {
 
 describe('Subtitle-based transcription', () => {
   beforeEach(() => {
-    mockRunWorker.mockReset();
+    mockCallMediaTool.mockReset();
     mockLoadAuroraGraph.mockReset();
     mockSaveAuroraGraph.mockReset();
     mockAutoEmbedAuroraNodes.mockReset();
@@ -757,27 +746,27 @@ describe('Subtitle-based transcription', () => {
   });
 
   it('skips Whisper when manual subtitles are present', async () => {
-    mockRunWorker.mockResolvedValueOnce(extractWithManualSubsResponse);
+    mockCallMediaTool.mockResolvedValueOnce(extractWithManualSubsResponse);
 
     const result = await ingestVideo('https://www.youtube.com/watch?v=sub1234567x');
 
     expect(result.transcriptNodeId).toBe('yt-sub1234567x');
     expect(result.transcriptionSource).toBe('subtitles:manual');
-    expect(mockRunWorker).toHaveBeenCalledTimes(1);
-    const actions = mockRunWorker.mock.calls.map((c: unknown[]) => (c[0] as Record<string, unknown>).action);
+    expect(mockCallMediaTool).toHaveBeenCalledTimes(1);
+    const actions = mockCallMediaTool.mock.calls.map((c: unknown[]) => c[0]);
     expect(actions).not.toContain('transcribe_audio');
   });
 
   it('runs Whisper despite auto-subs and saves reference', async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractWithSubtitlesResponse)
       .mockResolvedValueOnce(transcribeResponse);
 
     const result = await ingestVideo('https://www.youtube.com/watch?v=sub1234567x');
 
     expect(result.transcriptionSource).toBe('whisper+reference');
-    expect(mockRunWorker).toHaveBeenCalledTimes(2);
-    const actions = mockRunWorker.mock.calls.map((c: unknown[]) => (c[0] as Record<string, unknown>).action);
+    expect(mockCallMediaTool).toHaveBeenCalledTimes(2);
+    const actions = mockCallMediaTool.mock.calls.map((c: unknown[]) => c[0]);
     expect(actions).toContain('transcribe_audio');
 
     const savedGraph = mockSaveAuroraGraph.mock.calls[0][0] as AuroraGraph;
@@ -791,7 +780,7 @@ describe('Subtitle-based transcription', () => {
   });
 
   it('stores manual subtitle segments as rawSegments on transcript node', async () => {
-    mockRunWorker.mockResolvedValueOnce(extractWithManualSubsResponse);
+    mockCallMediaTool.mockResolvedValueOnce(extractWithManualSubsResponse);
 
     await ingestVideo('https://www.youtube.com/watch?v=sub1234567x');
 
@@ -807,7 +796,7 @@ describe('Subtitle-based transcription', () => {
   });
 
   it('sets provenance method to subtitles:manual for manual subs', async () => {
-    mockRunWorker.mockResolvedValueOnce(extractWithManualSubsResponse);
+    mockCallMediaTool.mockResolvedValueOnce(extractWithManualSubsResponse);
 
     await ingestVideo('https://www.youtube.com/watch?v=sub1234567x');
 
@@ -821,7 +810,7 @@ describe('Subtitle-based transcription', () => {
   });
 
   it('sets confidence to 0.95 for manual subtitle transcripts', async () => {
-    mockRunWorker.mockResolvedValueOnce(extractWithManualSubsResponse);
+    mockCallMediaTool.mockResolvedValueOnce(extractWithManualSubsResponse);
 
     await ingestVideo('https://www.youtube.com/watch?v=sub1234567x');
 
@@ -833,7 +822,7 @@ describe('Subtitle-based transcription', () => {
   });
 
   it('sets confidence to 0.9 for auto-subs (Whisper used)', async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractWithSubtitlesResponse)
       .mockResolvedValueOnce(transcribeResponse);
 
@@ -847,20 +836,20 @@ describe('Subtitle-based transcription', () => {
   });
 
   it('falls back to Whisper when no subtitles in extract result', async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse);
 
     const result = await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
 
     expect(result.transcriptionSource).toBe('whisper');
-    expect(mockRunWorker).toHaveBeenCalledTimes(2);
-    const actions = mockRunWorker.mock.calls.map((c: unknown[]) => (c[0] as Record<string, unknown>).action);
+    expect(mockCallMediaTool).toHaveBeenCalledTimes(2);
+    const actions = mockCallMediaTool.mock.calls.map((c: unknown[]) => c[0]);
     expect(actions).toContain('transcribe_audio');
   });
 
   it('reports subtitles:manual in pipeline_report for manual subs', async () => {
-    mockRunWorker.mockResolvedValueOnce(extractWithManualSubsResponse);
+    mockCallMediaTool.mockResolvedValueOnce(extractWithManualSubsResponse);
 
     const result = await ingestVideo('https://www.youtube.com/watch?v=sub1234567x');
 
@@ -874,7 +863,7 @@ describe('Subtitle-based transcription', () => {
 
 describe('PipelineError handling', () => {
   beforeEach(() => {
-    mockRunWorker.mockReset();
+    mockCallMediaTool.mockReset();
     mockLoadAuroraGraph.mockReset();
     mockSaveAuroraGraph.mockReset();
     mockAutoEmbedAuroraNodes.mockReset();
@@ -884,7 +873,7 @@ describe('PipelineError handling', () => {
   });
 
   it('throws PipelineError with Swedish message when extract_video fails', async () => {
-    mockRunWorker.mockResolvedValueOnce({ ok: false, error: 'yt-dlp not found' });
+    mockCallMediaTool.mockResolvedValueOnce({ ok: false, error: 'yt-dlp not found' });
     try {
       await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
       expect.fail('Should have thrown');
@@ -898,9 +887,9 @@ describe('PipelineError handling', () => {
 
   it('throws PipelineError when transcribe_audio fails', async () => {
     // First call: extract succeeds
-    mockRunWorker.mockResolvedValueOnce(extractVideoResponse);
+    mockCallMediaTool.mockResolvedValueOnce(extractVideoResponse);
     // Second call: transcribe fails
-    mockRunWorker.mockResolvedValueOnce({ ok: false, error: 'Whisper OOM' });
+    mockCallMediaTool.mockResolvedValueOnce({ ok: false, error: 'Whisper OOM' });
     try {
       await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
       expect.fail('Should have thrown');
@@ -917,7 +906,7 @@ describe('PipelineError handling', () => {
 
 describe('Pipeline report', () => {
   beforeEach(() => {
-    mockRunWorker.mockReset();
+    mockCallMediaTool.mockReset();
     mockLoadAuroraGraph.mockReset();
     mockSaveAuroraGraph.mockReset();
     mockAutoEmbedAuroraNodes.mockReset();
@@ -927,9 +916,9 @@ describe('Pipeline report', () => {
   });
 
   it('includes pipeline_report in successful result', async () => {
-    mockRunWorker.mockResolvedValueOnce(extractVideoResponse);
-    mockRunWorker.mockResolvedValueOnce(transcribeResponse);
-    mockRunWorker.mockResolvedValueOnce(diarizeResponse);
+    mockCallMediaTool.mockResolvedValueOnce(extractVideoResponse);
+    mockCallMediaTool.mockResolvedValueOnce(transcribeResponse);
+    mockCallMediaTool.mockResolvedValueOnce(diarizeResponse);
     const result = await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ', { diarize: true });
     expect(result.pipeline_report).toBeDefined();
     expect(result.pipeline_report!.details.download?.status).toBe('ok');
@@ -938,17 +927,17 @@ describe('Pipeline report', () => {
   });
 
   it('marks diarize as skipped when diarize option is false', async () => {
-    mockRunWorker.mockResolvedValueOnce(extractVideoResponse);
-    mockRunWorker.mockResolvedValueOnce(transcribeResponse);
+    mockCallMediaTool.mockResolvedValueOnce(extractVideoResponse);
+    mockCallMediaTool.mockResolvedValueOnce(transcribeResponse);
     const result = await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
     expect(result.pipeline_report).toBeDefined();
     expect(result.pipeline_report!.details.diarize?.status).toBe('skipped');
   });
 
   it('continues pipeline when diarization fails (graceful degradation)', async () => {
-    mockRunWorker.mockResolvedValueOnce(extractVideoResponse);
-    mockRunWorker.mockResolvedValueOnce(transcribeResponse);
-    mockRunWorker.mockResolvedValueOnce({ ok: false, error: 'AudioDecoder ABI mismatch' });
+    mockCallMediaTool.mockResolvedValueOnce(extractVideoResponse);
+    mockCallMediaTool.mockResolvedValueOnce(transcribeResponse);
+    mockCallMediaTool.mockResolvedValueOnce({ ok: false, error: 'AudioDecoder ABI mismatch' });
     const result = await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ', { diarize: true });
     expect(result.pipeline_report).toBeDefined();
     expect(result.pipeline_report!.details.diarize?.status).toBe('error');
@@ -958,8 +947,8 @@ describe('Pipeline report', () => {
   });
 
   it('includes word count in transcribe report details', async () => {
-    mockRunWorker.mockResolvedValueOnce(extractVideoResponse);
-    mockRunWorker.mockResolvedValueOnce(transcribeResponse);
+    mockCallMediaTool.mockResolvedValueOnce(extractVideoResponse);
+    mockCallMediaTool.mockResolvedValueOnce(transcribeResponse);
     const result = await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
     expect(result.pipeline_report!.details.transcribe?.words).toBeGreaterThan(0);
   });
@@ -971,7 +960,7 @@ describe('Pipeline report', () => {
 
 describe('Progress metadata', () => {
   beforeEach(() => {
-    mockRunWorker.mockReset();
+    mockCallMediaTool.mockReset();
     mockLoadAuroraGraph.mockReset();
     mockSaveAuroraGraph.mockReset();
     mockAutoEmbedAuroraNodes.mockReset();
@@ -982,9 +971,9 @@ describe('Progress metadata', () => {
 
   it('onProgress receives stepNumber and metadata', async () => {
     const progressUpdates: ProgressUpdate[] = [];
-    mockRunWorker.mockResolvedValueOnce(extractVideoResponse);
-    mockRunWorker.mockResolvedValueOnce(transcribeResponse);
-    mockRunWorker.mockResolvedValueOnce(diarizeResponse);
+    mockCallMediaTool.mockResolvedValueOnce(extractVideoResponse);
+    mockCallMediaTool.mockResolvedValueOnce(transcribeResponse);
+    mockCallMediaTool.mockResolvedValueOnce(diarizeResponse);
     await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ', {
       diarize: true,
       onProgress: (u) => progressUpdates.push(u),
@@ -996,8 +985,8 @@ describe('Progress metadata', () => {
 
   it('onProgress totalSteps is 7', async () => {
     const progressUpdates: ProgressUpdate[] = [];
-    mockRunWorker.mockResolvedValueOnce(extractVideoResponse);
-    mockRunWorker.mockResolvedValueOnce(transcribeResponse);
+    mockCallMediaTool.mockResolvedValueOnce(extractVideoResponse);
+    mockCallMediaTool.mockResolvedValueOnce(transcribeResponse);
     await ingestVideo('https://www.youtube.com/watch?v=dQw4w9WgXcQ', {
       onProgress: (u) => progressUpdates.push(u),
     });
@@ -1021,7 +1010,7 @@ describe('Progress metadata', () => {
       },
     };
 
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(denoiseResponse)
       .mockResolvedValueOnce(transcribeResponse);
@@ -1032,13 +1021,11 @@ describe('Progress metadata', () => {
     );
 
     expect(result.denoised).toBe(true);
-    expect(mockRunWorker).toHaveBeenCalledTimes(3);
-    const denoiseCall = mockRunWorker.mock.calls[1][0];
-    expect(denoiseCall.action).toBe('denoise_audio');
-    expect(denoiseCall.source).toBe('/tmp/audio.m4a');
-    const transcribeCall = mockRunWorker.mock.calls[2][0];
-    expect(transcribeCall.action).toBe('transcribe_audio');
-    expect(transcribeCall.source).toBe('/tmp/audio_denoised.wav');
+    expect(mockCallMediaTool).toHaveBeenCalledTimes(3);
+    expect(mockCallMediaTool.mock.calls[1][0]).toBe('denoise_audio');
+    expect((mockCallMediaTool.mock.calls[1][1] as Record<string, unknown>).audio_path).toBe('/tmp/audio.m4a');
+    expect(mockCallMediaTool.mock.calls[2][0]).toBe('transcribe_audio');
+    expect((mockCallMediaTool.mock.calls[2][1] as Record<string, unknown>).audio_path).toBe('/tmp/audio_denoised.wav');
   });
 
   it('denoise: true with fallback passes original audio path to transcribe', async () => {
@@ -1055,7 +1042,7 @@ describe('Progress metadata', () => {
       },
     };
 
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(denoiseFallbackResponse)
       .mockResolvedValueOnce(transcribeResponse);
@@ -1066,12 +1053,11 @@ describe('Progress metadata', () => {
     );
 
     expect(result.denoised).toBe(false);
-    const transcribeCall = mockRunWorker.mock.calls[2][0];
-    expect(transcribeCall.source).toBe('/tmp/audio.m4a');
+    expect((mockCallMediaTool.mock.calls[2][1] as Record<string, unknown>).audio_path).toBe('/tmp/audio.m4a');
   });
 
   it('denoise: false skips denoise step entirely', async () => {
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(transcribeResponse);
 
@@ -1080,8 +1066,8 @@ describe('Progress metadata', () => {
     );
 
     expect(result.denoised).toBe(false);
-    expect(mockRunWorker).toHaveBeenCalledTimes(2);
-    const actions = mockRunWorker.mock.calls.map((c: unknown[]) => (c[0] as Record<string, string>).action);
+    expect(mockCallMediaTool).toHaveBeenCalledTimes(2);
+    const actions = mockCallMediaTool.mock.calls.map((c: unknown[]) => c[0]);
     expect(actions).not.toContain('denoise_audio');
   });
 
@@ -1099,7 +1085,7 @@ describe('Progress metadata', () => {
       },
     };
 
-    mockRunWorker
+    mockCallMediaTool
       .mockResolvedValueOnce(extractVideoResponse)
       .mockResolvedValueOnce(denoiseResponse)
       .mockResolvedValueOnce(transcribeResponse)
@@ -1112,9 +1098,7 @@ describe('Progress metadata', () => {
 
     expect(result.denoised).toBe(true);
     expect(result.voicePrintsCreated).toBe(2);
-    const transcribeCall = mockRunWorker.mock.calls[2][0];
-    const diarizeCall = mockRunWorker.mock.calls[3][0];
-    expect(transcribeCall.source).toBe('/tmp/audio_denoised.wav');
-    expect(diarizeCall.source).toBe('/tmp/audio_denoised.wav');
+    expect((mockCallMediaTool.mock.calls[2][1] as Record<string, unknown>).audio_path).toBe('/tmp/audio_denoised.wav');
+    expect((mockCallMediaTool.mock.calls[3][1] as Record<string, unknown>).audio_path).toBe('/tmp/audio_denoised.wav');
   });
 });
