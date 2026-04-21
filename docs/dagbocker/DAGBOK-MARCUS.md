@@ -752,3 +752,42 @@ Jag uppgraderade WP5 till riktig Ollama concept extraction. Det tog 15 minuter e
 1. **YT-video transkribering med VoicePrint** — nästa session, ditt önskemål
 2. **Prompt-tuning** — testa kompilerade artiklar mot riktiga koncept, iterera prompten
 3. P3 (vision prompt tuning) och JSON-LD export ligger kvar
+
+---
+
+## 2026-04-21 — Session 22: Transkriptionerna fungerar äntligen, och texten är ren
+
+### Vad hände?
+
+**1. Python-arbetarna blev en riktig server.** Förut startade systemet en ny Python-process varje gång det behövde transkribera ljud — ladda Whisper-modellen (30 sekunder), köra transkriptionen, stänga processen, och börja om nästa gång. Nu startar en MCP-server en gång, laddar modellerna, och håller dem varma. Nästa transkription börjar direkt utan väntetid. Det följer ditt direktiv: "allt som kan vara MCP ska vara MCP".
+
+**2. Pi-videon transkriberades perfekt.** Session 21:s Whisper small på CPU gav oläslig text ("tragedy in to a bunch of that a"). Nu med WhisperX large-v3-turbo: "Hi, my name is Mario. I hail from the land of Arnold Schwarzenegger, which you probably haven't noticed yet based on my very good English." 27 minuters video, 4564 ord, varje ord med exakt timestamp och confidence-score.
+
+**3. Obsidian-texten är nu ren — ingen kod synlig.** Du klagade (med rätta) på att HTML-koden syntes i Live Preview och att man inte kunde markera/kopiera text. Nu ser du bara vanlig text med klickbara tidskoder — klicka på `[00:02:18]` och YouTube hoppar till rätt sekund. All metadata (vem som sa varje ord, exakt tid, källa) ligger i en separat `.words.json`-fil bredvid. Standoff-annotation heter mönstret — samma som W3C, Google, Microsoft och alla NLP-system använder.
+
+**4. Systemet gissar nu vem som pratar.** Förut stod det bara "SPEAKER_01" i talartabellen. Nu analyserar AI:n videotiteln ("Mario Zechner") och beskrivningen och fyller i namn och roll automatiskt. Du kan ändra i Obsidian om den gissar fel.
+
+**5. Obsidian slutade hoppa till toppen.** Du märkte att Obsidian scrollade tillbaka till toppen medan du läste — det var för att daemonen skrev om filerna varje 10 sekunder, även om inget ändrats. Nu jämför exporten innehållet först och skippar filer som inte ändrats.
+
+### Vad funkade inte?
+
+**Oracle-konsultationen timade ut.** Jag frågade Oracle om den bästa MCP-arkitekturen (tre alternativ med olika tradeoffs). Den tänkte i 30 minuter och fick timeout utan svar. Jag fattade beslutet själv baserat på researchresultaten — Option B (TypeScript som MCP-klient till Python-servern) var det enda som bevarade video.ts:s sekventiella pipeline.
+
+**Diarization fungerar inte via WhisperX.** `whisperx.DiarizationPipeline` finns inte i den installerade versionen. Pyannote fungerar separat men WhisperX:s wrapper behöver fixas. Inte kritiskt för Pi-videon (en talare) men behövs för flertalar-videor.
+
+**GPU-acceleration saknas fortfarande för själva transkriptionen.** CTranslate2 (som WhisperX använder) stödjer inte Apple MPS. Transkriptionen kör på CPU. Alignment och diarization kör däremot på GPU. Full GPU kräver MLX-backend — ett framtida steg.
+
+### Vad bestämdes?
+
+| Beslut | Varför |
+|--------|--------|
+| Option B: Python MCP-server som intern service, TS som klient | video.ts orkestrerar 5 steg sekventiellt — kan inte flytta logiken till LLM (Option A). Option C (hybrid) kräver SSE-transport, onödig komplexitet. |
+| Standoff annotation (.md + .words.json) istället för inline HTML | Obsidian saniterar data-attribut, Live Preview bryter med HTML-spans. W3C, BRAT, STAM, Microsoft, alla separerar text från metadata. |
+| Idempotent export (jämför innan skrivning) | Daemonen triggar exporten som skriver till Aurora/ som daemonen bevakar — loop. Jämförelse bryter loopen. |
+| Speaker-gissning körs alltid, inte bara med diarization | guessSpeakers behöver bara titel + beskrivning, inte voice prints. Mest nytta för single-speaker-videor. |
+
+### Vad är planen framöver?
+
+1. **Fixa diarization** — antingen pincha WhisperX-version eller anropa pyannote direkt
+2. **Testa multi-speaker** — A2A-videon har 2 talare, bra testfall
+3. **Daemon-dubbeltrigger** — låg prioritet nu pga idempotent export, men bör fixas

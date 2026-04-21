@@ -7,6 +7,29 @@ Sessions are listed newest-first.
 
 ---
 
+## [Session 22] — 2026-04-21
+
+### Added
+- MCP-first media pipeline — new Python MCP server (`aurora-workers/mcp_server.py`) with FastMCP, 6 tools (`transcribe_audio`, `diarize_audio`, `denoise_audio`, `extract_video`, `extract_video_metadata`, `check_deps`). Models loaded once in lifespan, kept warm between calls. TypeScript MCP client (`media-client.ts`) with lazy singleton connection.
+- WhisperX transcription — replaces faster-whisper. `large-v3-turbo` model with wav2vec2 word-level alignment. Pi video (27 min) transcribed: 292 segments, 4564 words, per-word confidence scores.
+- Standoff annotation — Obsidian export produces clean markdown text (no HTML spans) + `.words.json` sidecar with full per-word provenance (`{text, start, end, speaker, confidence}`). Based on W3C Web Annotation / BRAT standoff pattern.
+- Clickable YouTube timestamps — timeline timestamps are `[HH:MM:SS](url?t=N)` links that jump to the video position.
+- Speaker auto-guess at ingest — `guessSpeakers()` now runs on all video ingests (not just with diarization). Results saved to voice_print nodes via `applyGuessesToGraph()`.
+- `words_file` frontmatter field — links `.md` to its `.words.json` sidecar in YAML frontmatter.
+- `Wikipedia` and `IMDb` columns in speaker table — completes EBUCore+ ec:Person coverage.
+
+### Changed
+- `video.ts`, `job-runner.ts`, `aurora-check-deps.ts`: `runWorker()` → `callMediaTool()` for all media operations.
+- Obsidian export is now idempotent — content compared before writing (ignoring `exported_at`). LLM operations (semantic split, chapter titles, topic tags) only run on first export.
+- Speaker guess condition relaxed — no longer requires `options?.diarize` flag.
+
+### Fixed
+- Obsidian scroll-to-top — daemon re-exports no longer rewrite unchanged files.
+- Timeline text spacing — `join('')` → `join(' ')` between word spans (before standoff migration).
+- Timeline paragraph structure — blocks under same chapter merged into flowing paragraphs instead of one-line-per-segment.
+
+---
+
 ## [Session 21] — 2026-04-18
 
 ### Added

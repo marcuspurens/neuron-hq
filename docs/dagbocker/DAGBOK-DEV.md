@@ -1346,3 +1346,83 @@ Marcus directive: all workers should be MCP tools, not subprocess pipes. Current
 
 typecheck: clean (1 pre-existing video.ts)
 tests: 221 (+26 new)
+
+---
+
+## 2026-04-21 (session 22) — MCP-first media pipeline + standoff annotation
+
+### Worker → MCP architecture shift
+
+`worker-bridge.ts` spawned Python per-call (model loaded every time, ~30s overhead). New architecture:
+
+```
+video.ts → callMediaTool('transcribe_audio', {audio_path}) 
+  → media-client.ts (singleton MCP Client) 
+  → stdio → mcp_server.py (FastMCP, models in lifespan)
+  → response
+```
+
+Key patterns:
+- **Lazy singleton**: `getMediaClient()` spawns Python MCP server on first call, reuses connection. Server stays alive, models warm.
+- **Drop-in replacement**: `callMediaTool(action, args, options)` returns same `WorkerResponse` shape as `runWorker()`. Call signature changed from `(requestObj, optionsObj)` to `(action, args, options)`.
+- **Stderr forwarding**: Transport stderr piped to Node logger — server logs visible in TS process.
+- **worker-bridge.ts retained**: `intake.ts` still uses `runWorker()` for URL/PDF extraction. Can't remove yet.
+
+### Standoff annotation for Obsidian
+
+Problem: `<span data-t="2636" data-s="SPEAKER_01">Hi,</span>` breaks Obsidian Live Preview. `data-*` attributes stripped by DOMPurify sanitizer.
+
+Research showed unanimous industry answer: **separate text from annotations**.
+
+Implementation: `.md` has clean text + clickable YouTube timestamp links. `.words.json` sidecar has full provenance per word.
+
+```typescript
+// obsidian-export.ts — renderBlockText now returns plain text
+function renderBlockText(block: TimelineBlock): string {
+  return block.words.map(w => w.word).join(' ');
+}
+
+// Sidecar written alongside .md
+interface WordsSidecar {
+  version: 1; sourceId: string; videoUrl: string;
+  speakers: Record<string, string>; // speakerId → resolved name
+  words: Array<{ text: string; start: number; end: number; speaker: string; confidence: number }>;
+}
+```
+
+### Idempotent export
+
+Problem: daemon watches `Aurora/` → export writes to `Aurora/` → triggers daemon → re-export → Obsidian reloads → scroll to top.
+
+Two fixes:
+1. Content comparison before write (strip `exported_at` timestamp)
+2. LLM operations (`semanticSplitTimeline`, `generateChapterTitles`, `generateTopicTags`) only run on first export — `isFirstExport = !existingFile`
+
+Result: second export writes 0 files.
+
+### Speaker auto-guess
+
+`guessSpeakers()` existed but gated behind `options?.diarize`. Removed gate — now runs on all ingests. New `applyGuessesToGraph()` writes `guessedName`/`guessedRole` to voice_print nodes. `buildSpeakerMap()` in export falls back to guessed names when no confirmed `speaker_identity` exists.
+
+### EBUCore+ table completion
+
+Added `Wikipedia` and `IMDb` columns to speaker table. Full ec:Person coverage now matches `SpeakerIdentity` interface in `speaker-identity.ts`.
+
+| Tid   | Typ      | Vad                                              |
+|-------|----------|--------------------------------------------------|
+| 00:00 | RESEARCH | Explore worker-bridge, MCP SDK, video.ts pipeline |
+| 00:30 | BESLUT   | Option B (TS as MCP client) — Oracle timed out   |
+| 01:00 | FEATURE  | mcp_server.py + media-client.ts                  |
+| 02:00 | REFACTOR | video.ts, job-runner.ts → callMediaTool          |
+| 02:30 | FIX      | Test mock migration (73 occurrences)             |
+| 03:00 | FEATURE  | WhisperX install + live transcription test        |
+| 04:00 | FEATURE  | Full Pi video ingest pipeline                    |
+| 05:00 | FIX      | Obsidian export — mellanslag, scroll-to-top      |
+| 06:00 | RESEARCH | Standoff annotation (W3C, BRAT, STAM, Marginalia)|
+| 07:00 | FEATURE  | Clean text + .words.json sidecar                 |
+| 08:00 | FEATURE  | Speaker auto-guess, EBUCore+ table completion    |
+
+### Baseline
+
+typecheck: clean (1 pre-existing video.ts:811)
+tests: 4162 pass / 13 fail (all pre-existing)

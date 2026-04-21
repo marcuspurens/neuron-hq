@@ -831,3 +831,21 @@ Handoff: `docs/handoffs/HANDOFF-2026-04-18-opencode-session21-ebucore-speaker-ti
 **Next**: YT video transcription with VoicePrint (Marcus request). Check `src/aurora/video.ts` + `identify-speakers` skill.
 
 Handoff: `docs/handoffs/HANDOFF-2026-04-13-opencode-session16-compiled-concept-articles.md`
+
+## 2026-04-21 — Session 22
+
+**Changes**: `aurora-workers/mcp_server.py`: NEW Python MCP server (FastMCP, 6 tools, lifespan model loading); `src/aurora/media-client.ts`: NEW TS MCP client singleton; `src/aurora/video.ts`: 4× runWorker→callMediaTool, speaker guess unconditional, saves to graph; `src/aurora/job-runner.ts`: extract_video_metadata→callMediaTool; `src/aurora/speaker-guesser.ts`: +applyGuessesToGraph; `src/commands/obsidian-export.ts`: standoff annotation (.md+.words.json), idempotent writes, clickable YouTube timestamps, speaker guess fallback, +Wikipedia/IMDb columns; `src/mcp/tools/aurora-check-deps.ts`: →callMediaTool; 5 test files: mock migration.
+
+**New interfaces**: `WordsSidecar` + `WordProvenance` in `obsidian-export.ts` — sidecar schema v1. `callMediaTool()` + `MediaAction` in `media-client.ts`. `applyGuessesToGraph()` in `speaker-guesser.ts`.
+
+**Decisions**: Option B (TS as MCP client to Python server): pipeline orchestration stays in video.ts, not exposed to LLM. Standoff annotation (.md+.words.json): Obsidian sanitizes data-* attrs, Live Preview breaks with HTML — industry consensus (W3C, BRAT, GraphRAG). Idempotent export: daemon loop fix. Speaker guess unconditional: only needs title+description.
+
+**Gotchas**: `worker-bridge.ts` still used by `intake.ts` — cannot remove. WhisperX `DiarizationPipeline` wrapper missing in installed version. CTranslate2 does not support MPS — ASR on CPU, alignment on MPS. `.env` has `WHISPER_MODEL=large` not `large-v3-turbo`. `think: false` required on all Ollama calls.
+
+**Dead ends**: Oracle consultation on MCP architecture timed out after 30 min. Inline `%%` comments in Obsidian — work in Reading view but not Live Preview. HTML spans with CSS hiding — Obsidian DOMPurify strips data-* attributes entirely.
+
+**Tests**: 4162/4162 pass, 13 fail (pre-existing). typecheck: clean (1 pre-existing).
+
+**Next**: Fix diarization (pin WhisperX version or call pyannote directly). Test multi-speaker (A2A video). Daemon double-trigger (low priority — neutralized by idempotent export).
+
+Handoff: `docs/handoffs/HANDOFF-2026-04-21-opencode-session22-mcp-whisperx-standoff.md`
