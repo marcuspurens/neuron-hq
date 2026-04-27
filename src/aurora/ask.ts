@@ -1,6 +1,9 @@
+import path from 'path';
+import fs from 'fs/promises';
 import type Anthropic from '@anthropic-ai/sdk';
 import { searchAurora, type SearchResult } from './search.js';
 import { createAgentClient } from '../core/agent-client.js';
+import { AURORA_MODELS, AURORA_TOKENS, AURORA_SIMILARITY } from './llm-defaults.js';
 import {
   resolveModelConfig,
   DEFAULT_MODEL_CONFIG,
@@ -13,6 +16,17 @@ import { importArticle } from './knowledge-library.js';
 
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:ask');
+
+const _promptCache = new Map<string, string>();
+async function loadPrompt(name: string): Promise<string> {
+  let text = _promptCache.get(name);
+  if (!text) {
+    const p = path.resolve(import.meta.dirname ?? '.', `../../prompts/${name}.md`);
+    text = await fs.readFile(p, 'utf-8');
+    _promptCache.set(name, text);
+  }
+  return text;
+}
 
 export interface AskOptions {
   maxSources?: number; // Default: 10
@@ -44,14 +58,7 @@ export interface Citation {
   similarity: number;
 }
 
-const SYSTEM_PROMPT = `Du är Aurora, en personlig kunskapsassistent. Du svarar på frågor baserat på dokumenten i din kunskapsbas. Svara alltid på samma språk som frågan.
 
-Regler:
-- Basera ditt svar ENBART på de källor som ges nedan
-- Om källorna inte innehåller tillräcklig information, säg det tydligt
-- Referera till källor med [Source N] i ditt svar
-- Var koncis men grundlig
-- Om frågan är på svenska, svara på svenska`;
 
 /**
  * Format search results into a numbered context string for the LLM prompt.
@@ -87,7 +94,7 @@ function getAskModelConfig(): ModelConfig {
     logger.error('[ask] ask query failed', { error: String(err) });
     return {
       ...DEFAULT_MODEL_CONFIG,
-      model: 'claude-haiku-4-5-20251001',
+      model: AURORA_MODELS.fast,
     };
   }
 }
@@ -98,7 +105,7 @@ function getAskModelConfig(): ModelConfig {
 function getLearnModelConfig(): ModelConfig {
   return {
     ...DEFAULT_MODEL_CONFIG,
-    model: 'claude-haiku-4-5-20251001',
+    model: AURORA_MODELS.fast,
     maxTokens: 1024,
   };
 }
@@ -111,19 +118,15 @@ async function learnFromAnswer(answer: string): Promise<RememberResult[]> {
   const config = getLearnModelConfig();
   const { client, model } = createAgentClient(config);
 
+  const learnPrompt = (await loadPrompt('ask-learn-facts')).replace('{{answer}}', answer);
+
   const response = await client.messages.create({
     model,
-    max_tokens: 512,
+    max_tokens: AURORA_TOKENS.medium,
     messages: [
       {
         role: 'user',
-        content: `Extrahera de viktigaste fakta från detta svar som korta, oberoende påståenden.
-Returnera som JSON-array: ["faktum 1", "faktum 2", ...]
-Max 5 fakta. Bara fakta som faktiskt finns i svaret, inga spekulationer.
-Om svaret inte innehåller tydliga fakta, returnera en tom array.
-
-Svar att extrahera från:
-${answer}`,
+        content: learnPrompt,
       },
     ],
   });
@@ -169,7 +172,7 @@ export async function ask(
   // Step 1: Search for relevant sources
   const results = await searchAurora(question, {
     limit: options?.maxSources ?? 10,
-    minSimilarity: options?.minSimilarity ?? 0.3,
+    minSimilarity: options?.minSimilarity ?? AURORA_SIMILARITY.searchLoose,
     type: options?.type,
     scope: options?.scope,
     includeRelated: false,
@@ -214,7 +217,7 @@ export async function ask(
     const response = await client.messages.create({
       model,
       max_tokens: options?.maxTokens ?? 1024,
-      system: SYSTEM_PROMPT,
+      system: await loadPrompt('ask-system'),
       messages: [{ role: 'user', content: userMessage }],
     });
 

@@ -1,8 +1,11 @@
+import path from 'path';
+import fs from 'fs/promises';
 import type Anthropic from '@anthropic-ai/sdk';
 import { loadAuroraGraph, saveAuroraGraph, updateAuroraNode } from './aurora-graph.js';
 import { ensureOllama, getOllamaUrl } from '../core/ollama.js';
 import { getConfig } from '../core/config.js';
 import { createAgentClient } from '../core/agent-client.js';
+import { AURORA_MODELS, AURORA_TOKENS } from './llm-defaults.js';
 import { DEFAULT_MODEL_CONFIG } from '../core/model-registry.js';
 import type { AuroraNode } from './aurora-schema.js';
 
@@ -30,7 +33,14 @@ interface OllamaChatResponse {
 
 // --- System prompt ---
 
-const SYSTEM_PROMPT = `You are a transcript editor. Fix spelling errors, proper nouns, technical terms, punctuation, and remove excessive filler words. Preserve the original meaning. Return ONLY the corrected text for each numbered segment, one per line, prefixed with the segment number.`;
+let _systemPrompt: string | null = null;
+async function getSystemPrompt(): Promise<string> {
+  if (!_systemPrompt) {
+    const p = path.resolve(import.meta.dirname ?? '.', '../../prompts/transcript-polish.md');
+    _systemPrompt = await fs.readFile(p, 'utf-8');
+  }
+  return _systemPrompt;
+}
 
 // --- Helpers ---
 
@@ -115,13 +125,13 @@ export async function polishBatch(
   const backend = options?.polishModel ?? 'ollama';
 
   if (backend === 'claude') {
-    const config = { ...DEFAULT_MODEL_CONFIG, model: 'claude-haiku-4-5-20251001' };
+    const config = { ...DEFAULT_MODEL_CONFIG, model: AURORA_MODELS.fast };
     const { client, model } = createAgentClient(config);
 
     const response = await client.messages.create({
       model,
-      max_tokens: 2048,
-      system: SYSTEM_PROMPT,
+      max_tokens: AURORA_TOKENS.extended,
+      system: await getSystemPrompt(),
       messages: [{ role: 'user', content: userMessage }],
     });
 
@@ -143,7 +153,7 @@ export async function polishBatch(
     body: JSON.stringify({
       model: ollamaModel,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: await getSystemPrompt() },
         { role: 'user', content: userMessage },
       ],
       stream: false,

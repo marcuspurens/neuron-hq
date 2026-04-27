@@ -1,9 +1,12 @@
+import path from 'path';
+import fs from 'fs/promises';
 import { recall } from './memory.js';
 import { searchAurora } from './search.js';
 import { getGaps } from './knowledge-gaps.js';
 import { unifiedSearch } from './cross-ref.js';
 import { checkCrossRefIntegrity, type IntegrityIssue } from './cross-ref.js';
 import { createAgentClient } from '../core/agent-client.js';
+import { AURORA_MODELS, AURORA_TOKENS, AURORA_SIMILARITY } from './llm-defaults.js';
 import {
   resolveModelConfig,
   DEFAULT_MODEL_CONFIG,
@@ -15,6 +18,15 @@ import type Anthropic from '@anthropic-ai/sdk';
 
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:briefing');
+
+let _briefingSummaryPrompt: string | null = null;
+async function getBriefingSummaryPrompt(): Promise<string> {
+  if (!_briefingSummaryPrompt) {
+    const p = path.resolve(import.meta.dirname ?? '.', '../../prompts/briefing-summary.md');
+    _briefingSummaryPrompt = await fs.readFile(p, 'utf-8');
+  }
+  return _briefingSummaryPrompt;
+}
 
 // --- Interfaces ---
 
@@ -80,7 +92,7 @@ function getModelConfig(): ModelConfig {
     logger.error('[briefing] briefing generation failed', { error: String(err) });
     return {
       ...DEFAULT_MODEL_CONFIG,
-      model: 'claude-haiku-4-5-20251001',
+      model: AURORA_MODELS.fast,
     };
   }
 }
@@ -100,7 +112,7 @@ export async function briefing(
   const maxTimeline = options?.maxTimeline ?? 10;
   const maxGaps = options?.maxGaps ?? 5;
   const maxCrossRefs = options?.maxCrossRefs ?? 5;
-  const minSimilarity = options?.minSimilarity ?? 0.3;
+  const minSimilarity = options?.minSimilarity ?? AURORA_SIMILARITY.searchLoose;
 
   // Step 1: Run 4 searches in parallel
   const [recallResult, searchResult, gapsResult, crossRefResult] =
@@ -209,9 +221,8 @@ export async function briefing(
 
   const response = await client.messages.create({
     model,
-    max_tokens: 512,
-    system:
-      'Du sammanfattar en kunskapsrapport. Svara på svenska. Var koncis. Nämn antal källor, kunskapsluckor, och kopplingar.',
+    max_tokens: AURORA_TOKENS.medium,
+    system: await getBriefingSummaryPrompt(),
     messages: [
       {
         role: 'user',

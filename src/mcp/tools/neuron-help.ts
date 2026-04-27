@@ -4,6 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { createLogger } from '../../core/logger.js';
+import { AURORA_MODELS } from '../../aurora/llm-defaults.js';
 import { TOOL_CATALOG, type ToolEntry } from '../tool-catalog.js';
 
 const logger = createLogger('mcp:neuron-help');
@@ -24,7 +25,6 @@ export interface HelpResult {
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 
-const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 const HAIKU_TIMEOUT_MS = 15_000;
 const HAIKU_MAX_TOKENS = 512;
 
@@ -125,7 +125,7 @@ async function callHaiku(question: string, tools: ToolEntry[]): Promise<Array<{ 
   try {
     const response = await client.messages.create(
       {
-        model: HAIKU_MODEL,
+        model: AURORA_MODELS.fast,
         max_tokens: HAIKU_MAX_TOKENS,
         messages: [{ role: 'user', content: prompt }],
       },

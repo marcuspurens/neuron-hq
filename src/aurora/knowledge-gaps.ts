@@ -11,6 +11,7 @@ import {
 import { searchAurora } from './search.js';
 import type { AuroraNode } from './aurora-schema.js';
 import { createAgentClient } from '../core/agent-client.js';
+import { AURORA_MODELS, AURORA_TOKENS, AURORA_SIMILARITY, AURORA_CONFIDENCE } from './llm-defaults.js';
 import {
   resolveModelConfig,
   DEFAULT_MODEL_CONFIG,
@@ -72,7 +73,7 @@ export async function recordGap(question: string): Promise<void> {
     const results = await searchAurora(question, {
       type: 'research',
       limit: 3,
-      minSimilarity: 0.7,
+      minSimilarity: AURORA_SIMILARITY.crossref,
     });
 
     // Find the first result that is actually a gap node
@@ -115,7 +116,7 @@ export async function recordGap(question: string): Promise<void> {
       gapType: 'unanswered',
       frequency: 1,
     },
-    confidence: 0.5,
+    confidence: AURORA_CONFIDENCE.initial,
     scope: 'personal',
     created: now,
     updated: now,
@@ -201,7 +202,7 @@ function getEmergentModelConfig(): ModelConfig {
     logger.error('[knowledge-gaps] knowledge gap analysis failed', { error: String(err) });
     return {
       ...DEFAULT_MODEL_CONFIG,
-      model: 'claude-haiku-4-5-20251001',
+      model: AURORA_MODELS.fast,
     };
   }
 }
@@ -252,7 +253,7 @@ export async function extractEmergentGaps(input: {
 
     const response = await client.messages.create({
       model,
-      max_tokens: 1024,
+      max_tokens: AURORA_TOKENS.long,
       messages: [{ role: 'user', content: promptTemplate }],
     });
 
@@ -286,7 +287,7 @@ export async function extractEmergentGaps(input: {
         const similar = await searchAurora(question, {
           type: 'research',
           limit: 3,
-          minSimilarity: 0.85,
+          minSimilarity: AURORA_SIMILARITY.dedup,
         });
         if (similar.length > 0) {
           isDuplicate = true;
@@ -305,7 +306,7 @@ export async function extractEmergentGaps(input: {
       question,
       source: 'emergent' as const,
       chainedFrom: input.chainedFromGapId,
-      confidence: 0.7,
+      confidence: AURORA_CONFIDENCE.verified,
     }));
   } catch (err) {
     logger.error('[knowledge-gaps] knowledge gap save failed', { error: String(err) });

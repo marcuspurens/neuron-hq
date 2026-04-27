@@ -14,6 +14,7 @@ import { recall } from './memory.js';
 import { getGaps } from './knowledge-gaps.js';
 import type { AuroraNode } from './aurora-schema.js';
 import { createAgentClient } from '../core/agent-client.js';
+import { AURORA_MODELS, AURORA_TOKENS, AURORA_SIMILARITY, AURORA_CONFIDENCE } from './llm-defaults.js';
 import {
   resolveModelConfig,
   DEFAULT_MODEL_CONFIG,
@@ -145,7 +146,7 @@ function getSynthesisModelConfig(modelOverride?: string): ModelConfig {
     return resolveModelConfig('librarian');
   } catch (err) {
     logger.error('[knowledge-library] loading knowledge entry failed', { error: String(err) });
-    return { ...DEFAULT_MODEL_CONFIG, model: 'claude-haiku-4-5-20251001' };
+    return { ...DEFAULT_MODEL_CONFIG, model: AURORA_MODELS.fast };
   }
 }
 
@@ -189,7 +190,7 @@ export async function createArticle(input: {
       wordCount: countWords(content),
       abstract,
     },
-    confidence: 0.8,
+    confidence: AURORA_CONFIDENCE.confirmed,
     scope: 'personal',
     created: now,
     updated: now,
@@ -291,7 +292,7 @@ export async function searchArticles(
   options?: { limit?: number; minSimilarity?: number },
 ): Promise<ArticleSearchResult[]> {
   const limit = options?.limit ?? 10;
-  const minSimilarity = options?.minSimilarity ?? 0.3;
+  const minSimilarity = options?.minSimilarity ?? AURORA_SIMILARITY.searchLoose;
 
   const results = await semanticSearch(query, {
     table: 'aurora_nodes',
@@ -385,7 +386,7 @@ export async function updateArticle(
       wordCount: countWords(content),
       abstract,
     },
-    confidence: 0.8,
+    confidence: AURORA_CONFIDENCE.confirmed,
     scope: oldArticle.scope,
     created: now,
     updated: now,
@@ -485,7 +486,7 @@ export async function importArticle(input: {
       const { client, model } = createAgentClient(modelConfig);
       const response = await client.messages.create({
         model,
-        max_tokens: 1024,
+        max_tokens: AURORA_TOKENS.long,
         messages: [{ role: 'user', content: extractionPrompt }],
       });
       const responseText = response.content

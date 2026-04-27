@@ -1,8 +1,11 @@
 import crypto from 'crypto';
+import path from 'path';
+import fs from 'fs/promises';
 import { getGaps, type KnowledgeGap } from './knowledge-gaps.js';
 import { recall } from './memory.js';
 import { searchAurora } from './search.js';
 import { createAgentClient } from '../core/agent-client.js';
+import { AURORA_MODELS, AURORA_TOKENS } from './llm-defaults.js';
 import {
   resolveModelConfig,
   DEFAULT_MODEL_CONFIG,
@@ -14,6 +17,17 @@ import type Anthropic from '@anthropic-ai/sdk';
 
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:gap-brief');
+
+const _promptCache = new Map<string, string>();
+async function loadPrompt(name: string): Promise<string> {
+  let text = _promptCache.get(name);
+  if (!text) {
+    const p = path.resolve(import.meta.dirname ?? '.', `../../prompts/${name}.md`);
+    text = await fs.readFile(p, 'utf-8');
+    _promptCache.set(name, text);
+  }
+  return text;
+}
 
 // --- Interfaces ---
 
@@ -54,7 +68,7 @@ function getModelConfig(): ModelConfig {
     logger.error('[gap-brief] loading gap briefs failed', { error: String(err) });
     return {
       ...DEFAULT_MODEL_CONFIG,
-      model: 'claude-haiku-4-5-20251001',
+      model: AURORA_MODELS.fast,
     };
   }
 }
@@ -219,23 +233,17 @@ async function generateBrief(
   const config = getModelConfig();
   const { client, model } = createAgentClient(config);
 
-  const prompt = `Given this knowledge gap and context, generate a research brief.
+  const prompt = (await loadPrompt('gap-brief-user'))
+    .replace('{{primaryGap}}', primaryGap.question)
+    .replace('{{relatedGaps}}', relatedGaps.map((g) => `"${g.question}"`).join(', ') || 'None')
+    .replace('{{knownFacts}}', JSON.stringify(knownFacts, null, 2));
 
-Primary gap: "${primaryGap.question}"
-Related gaps: ${relatedGaps.map((g) => `"${g.question}"`).join(', ') || 'None'}
-Known facts: ${JSON.stringify(knownFacts, null, 2)}
-
-Respond with JSON:
-{
-  "background": "2-3 sentences summarizing known facts",
-  "gap": "formulate what is missing based on the gaps",
-  "suggestions": ["3-5 concrete research actions"]
-}`;
+  const systemPrompt = await loadPrompt('gap-brief-system');
 
   const response = await client.messages.create({
     model,
-    max_tokens: 512,
-    system: 'You are a research assistant. Respond only with valid JSON. No markdown.',
+    max_tokens: AURORA_TOKENS.medium,
+    system: systemPrompt,
     messages: [{ role: 'user', content: prompt }],
   });
 

@@ -1,8 +1,11 @@
+import path from 'path';
+import fs from 'fs/promises';
 import type Anthropic from '@anthropic-ai/sdk';
 import { loadAuroraGraph, saveAuroraGraph } from './aurora-graph.js';
 import { ensureOllama, getOllamaUrl } from '../core/ollama.js';
 import { getConfig } from '../core/config.js';
 import { createAgentClient } from '../core/agent-client.js';
+import { AURORA_MODELS, AURORA_TOKENS } from './llm-defaults.js';
 import { DEFAULT_MODEL_CONFIG } from '../core/model-registry.js';
 import type { AuroraNode } from './aurora-schema.js';
 
@@ -36,13 +39,14 @@ export interface SpeakerContext {
 
 // --- Constants ---
 
-const SYSTEM_PROMPT = `You are analyzing a video transcript to identify speakers. Based on the video title, channel name, video description, and transcript content, guess who each speaker is.
-
-Pay close attention to the video description — it often names the speakers explicitly (e.g. "Cedric Clyburn breaks down..." means a speaker is Cedric Clyburn). Also check for creator/host names mentioned in the channel name or description.
-
-Return a JSON array with objects: { "speakerLabel": "SPEAKER_00", "name": "Full Name or empty string", "confidence": 0-100, "role": "description", "reason": "why you think this" }
-
-Only return the JSON array, nothing else.`;
+let _systemPrompt: string | null = null;
+async function getSystemPrompt(): Promise<string> {
+  if (!_systemPrompt) {
+    const p = path.resolve(import.meta.dirname ?? '.', '../../prompts/speaker-guesser.md');
+    _systemPrompt = await fs.readFile(p, 'utf-8');
+  }
+  return _systemPrompt;
+}
 
 const MAX_SAMPLE_TEXT_LENGTH = 500;
 
@@ -270,7 +274,7 @@ async function callOllama(
     body: JSON.stringify({
       model,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: await getSystemPrompt() },
         { role: 'user', content: userMessage },
       ],
       stream: false,
@@ -293,7 +297,7 @@ async function callOllama(
 async function callClaude(userMessage: string): Promise<SpeakerGuessResult> {
   const config = {
     ...DEFAULT_MODEL_CONFIG,
-    model: 'claude-haiku-4-5-20251001',
+    model: AURORA_MODELS.fast,
     maxTokens: 1024,
   };
 
@@ -301,8 +305,8 @@ async function callClaude(userMessage: string): Promise<SpeakerGuessResult> {
 
   const response = await client.messages.create({
     model,
-    max_tokens: 1024,
-    system: SYSTEM_PROMPT,
+    max_tokens: AURORA_TOKENS.long,
+    system: await getSystemPrompt(),
     messages: [{ role: 'user', content: userMessage }],
   });
 

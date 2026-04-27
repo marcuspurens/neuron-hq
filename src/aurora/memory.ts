@@ -1,4 +1,6 @@
 import crypto from 'crypto';
+import path from 'path';
+import fs from 'fs/promises';
 import {
   loadAuroraGraph,
   saveAuroraGraph,
@@ -11,6 +13,7 @@ import {
 import { searchAurora } from './search.js';
 import type { AuroraNode, AuroraGraph, AuroraEdgeType } from './aurora-schema.js';
 import { createAgentClient } from '../core/agent-client.js';
+import { AURORA_MODELS, AURORA_TOKENS, AURORA_SIMILARITY, AURORA_CONFIDENCE } from './llm-defaults.js';
 import {
   resolveModelConfig,
   DEFAULT_MODEL_CONFIG,
@@ -20,6 +23,15 @@ import type Anthropic from '@anthropic-ai/sdk';
 
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:memory');
+
+let _contradictionPrompt: string | null = null;
+async function getContradictionPrompt(): Promise<string> {
+  if (!_contradictionPrompt) {
+    const p = path.resolve(import.meta.dirname ?? '.', '../../prompts/memory-contradiction.md');
+    _contradictionPrompt = await fs.readFile(p, 'utf-8');
+  }
+  return _contradictionPrompt;
+}
 
 // --- Interfaces ---
 
@@ -146,7 +158,7 @@ function getContradictionModelConfig(): ModelConfig {
     logger.error('[memory] memory load failed', { error: String(err) });
     return {
       ...DEFAULT_MODEL_CONFIG,
-      model: 'claude-haiku-4-5-20251001',
+      model: AURORA_MODELS.fast,
     };
   }
 }
@@ -174,18 +186,17 @@ async function checkContradictions(
       typeof node.properties.text === 'string' ? node.properties.text : node.title;
 
     try {
+      const promptText = (await getContradictionPrompt())
+        .replace('{{newText}}', text)
+        .replace('{{existingText}}', existingText);
+
       const response = await client.messages.create({
         model,
-        max_tokens: 256,
+        max_tokens: AURORA_TOKENS.short,
         messages: [
           {
             role: 'user',
-            content: `Jämför dessa två påståenden. Motsäger de varandra?
-
-Nytt: "${text}"
-Befintligt: "${existingText}"
-
-Svara med JSON: { "contradicts": true/false, "reason": "kort förklaring" }`,
+            content: promptText,
           },
         ],
       });
@@ -228,7 +239,7 @@ Svara med JSON: { "contradicts": true/false, "reason": "kort förklaring" }`,
 export async function remember(text: string, options?: RememberOptions): Promise<RememberResult> {
   const type = options?.type ?? 'fact';
   const scope = options?.scope ?? 'personal';
-  const dedupThreshold = options?.dedupThreshold ?? 0.85;
+  const dedupThreshold = options?.dedupThreshold ?? AURORA_SIMILARITY.dedup;
 
   // Step 1: Dedup search
   let candidates: { id: string; similarity: number | null }[] = [];
@@ -237,7 +248,7 @@ export async function remember(text: string, options?: RememberOptions): Promise
     const searchResults = await searchAurora(text, {
       type,
       limit: 5,
-      minSimilarity: 0.5,
+      minSimilarity: AURORA_SIMILARITY.search,
     });
     candidates = searchResults.map((r) => ({
       id: r.id,
@@ -256,7 +267,7 @@ export async function remember(text: string, options?: RememberOptions): Promise
   // Step 2: Check best candidate
   const best = candidates[0];
   if (best && best.similarity !== null) {
-    if (best.similarity >= 0.95) {
+    if (best.similarity >= AURORA_SIMILARITY.exactDup) {
       return {
         action: 'duplicate',
         nodeId: best.id,
@@ -310,7 +321,7 @@ export async function remember(text: string, options?: RememberOptions): Promise
         timestamp: now,
       },
     },
-    confidence: 0.7,
+    confidence: AURORA_CONFIDENCE.verified,
     scope,
     created: now,
     updated: now,
@@ -320,7 +331,7 @@ export async function remember(text: string, options?: RememberOptions): Promise
 
   // Step 4: Check for contradictions and create edges
   const relatedCandidates = candidates.filter(
-    (c) => c.similarity !== null && c.similarity >= 0.5 && c.similarity < dedupThreshold
+    (c) => c.similarity !== null && c.similarity >= AURORA_SIMILARITY.search && c.similarity < dedupThreshold
   );
 
   let contradictions: Contradiction[] | undefined;
@@ -379,7 +390,7 @@ export async function remember(text: string, options?: RememberOptions): Promise
  */
 export async function recall(query: string, options?: RecallOptions): Promise<RecallResult> {
   const limit = options?.limit ?? 10;
-  const minSimilarity = options?.minSimilarity ?? 0.3;
+  const minSimilarity = options?.minSimilarity ?? AURORA_SIMILARITY.searchLoose;
 
   const searchResults = await searchAurora(query, {
     type: options?.type,

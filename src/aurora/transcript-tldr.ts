@@ -1,7 +1,10 @@
+import path from 'path';
+import fs from 'fs/promises';
 import type Anthropic from '@anthropic-ai/sdk';
 import { ensureOllama, getOllamaUrl } from '../core/ollama.js';
 import { getConfig } from '../core/config.js';
 import { createAgentClient } from '../core/agent-client.js';
+import { AURORA_MODELS, AURORA_TOKENS } from './llm-defaults.js';
 import { DEFAULT_MODEL_CONFIG } from '../core/model-registry.js';
 
 import { createLogger } from '../core/logger.js';
@@ -17,7 +20,14 @@ export interface TldrResult {
   modelUsed: string;
 }
 
-const SYSTEM_PROMPT = `You are a concise summarizer. Given a video transcript, write a 2-3 sentence summary that captures the main topic, key points discussed, and any conclusions. Write in the same language as the transcript. Do not start with "This video" or "In this video" — go straight to the substance. Return ONLY the summary text, nothing else.`;
+let _systemPrompt: string | null = null;
+async function getSystemPrompt(): Promise<string> {
+  if (!_systemPrompt) {
+    const p = path.resolve(import.meta.dirname ?? '.', '../../prompts/transcript-tldr.md');
+    _systemPrompt = await fs.readFile(p, 'utf-8');
+  }
+  return _systemPrompt;
+}
 
 const MAX_TRANSCRIPT_CHARS = 8000;
 
@@ -56,7 +66,7 @@ async function callOllama(
     body: JSON.stringify({
       model,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: await getSystemPrompt() },
         { role: 'user', content: userMessage },
       ],
       stream: false,
@@ -79,16 +89,16 @@ async function callOllama(
 async function callClaude(userMessage: string): Promise<TldrResult> {
   const config = {
     ...DEFAULT_MODEL_CONFIG,
-    model: 'claude-haiku-4-5-20251001',
-    maxTokens: 256,
+    model: AURORA_MODELS.fast,
+    maxTokens: AURORA_TOKENS.short,
   };
 
   const { client, model } = createAgentClient(config);
 
   const response = await client.messages.create({
     model,
-    max_tokens: 256,
-    system: SYSTEM_PROMPT,
+    max_tokens: AURORA_TOKENS.short,
+    system: await getSystemPrompt(),
     messages: [{ role: 'user', content: userMessage }],
   });
 
