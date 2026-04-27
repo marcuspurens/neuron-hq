@@ -849,3 +849,21 @@ Handoff: `docs/handoffs/HANDOFF-2026-04-13-opencode-session16-compiled-concept-a
 **Next**: Fix diarization (pin WhisperX version or call pyannote directly). Test multi-speaker (A2A video). Daemon double-trigger (low priority — neutralized by idempotent export).
 
 Handoff: `docs/handoffs/HANDOFF-2026-04-21-opencode-session22-mcp-whisperx-standoff.md`
+
+## 2026-04-27 — Session 23
+
+**Changes**: `aurora-workers/mcp_server.py`: 3 new params on `transcribe_audio` (compute_type, beam_size, initial_prompt), default float32, MediaState.whisper_compute_type tracking, new `extract_entities` tool (Gemma 4 via Ollama); `src/aurora/media-client.ts`: wrapper updates + `extractEntities()`; `docs/aurora-media-mcp-{LLM,DEV,MARCUS,WORKSHOP}.md`: 4 new doc variants
+
+**New interfaces**: `extractEntities(text, options?)` in `media-client.ts`. `extract_entities` MCP tool returns `{ok, title, text (initial_prompt string), metadata: {entities[], entity_count, model_used}}`. `transcribeAudio()` options extended with `computeType`, `beamSize`, `initialPrompt`.
+
+**Decisions**: float32 default: user wants quality over speed; Gemma 4 over GLiNER: already installed, context-aware, no new deps; pipeline-as-skill not code: user philosophy that LLM behavior should be editable .md files; MiroFish kept as fork reference only: Zep Cloud dependency unsuitable for local use
+
+**Gotchas**: iCloud silently deletes files in Neuron Lab/Aurora/ after 2-3s — write to vault root or new folders instead. initial_prompt 224-char limit is estimated not verified. Ollama must be running for extract_entities. Node/pnpm not available in shell — LSP diagnostics used instead of typecheck.
+
+**Dead ends**: Obsidian iCloud write attempts (3 methods tried before discovering the deletion pattern). GLiNER research (good Swedish F1 but Gemma 4 is better for this use case). `transcribe_audio_smart` wrapper (rejected in favor of skill-based orchestration).
+
+**Tests**: No new tests. Python syntax OK. LSP diagnostics clean.
+
+**Next**: Test extract_entities live. Create `.claude/skills/transkribera/SKILL.md`. Begin Tier 1 skills extraction (ask.ts, semantic-split.ts, vision.ts, intake.ts). Create `config/llm-defaults.yaml`.
+
+Handoff: `docs/handoffs/HANDOFF-2026-04-27-opencode-session23-whisper-params-entities-skills.md`

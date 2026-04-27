@@ -7,6 +7,20 @@ Sessions are listed newest-first.
 
 ---
 
+## [Session 23] — 2026-04-27
+
+### Added
+- Three new MCP parameters on `transcribe_audio`: `compute_type` (float32/float16/int8), `beam_size` (search width), `initial_prompt` (domain terms for decoder guidance). Default compute_type changed from int8 to float32 for maximum quality.
+- New MCP tool `extract_entities` — calls Gemma 4 (26B) via Ollama to extract proper nouns, abbreviations, and technical terms from text. Returns a ready-to-use `initial_prompt` string for two-pass transcription.
+- Four documentation variants for Aurora Media MCP: LLM reference, developer reference, user guide (Swedish), and workshop explainer with Mermaid diagrams.
+- Skills-refactoring audit: identified 16 files with hardcoded LLM prompts/pipelines that should be editable .md skill files. Tiered plan in handoff.
+
+### Changed
+- `MediaState` now tracks `whisper_compute_type` — model only reloads when model ID or compute_type actually changes (was reloading on every non-int8 call).
+- `media-client.ts` `transcribeAudio()` options extended with `computeType`, `beamSize`, `initialPrompt`. New `extractEntities()` wrapper added.
+
+---
+
 ## [Session 22] — 2026-04-21
 
 ### Added

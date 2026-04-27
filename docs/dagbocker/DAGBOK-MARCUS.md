@@ -791,3 +791,35 @@ Jag uppgraderade WP5 till riktig Ollama concept extraction. Det tog 15 minuter e
 1. **Fixa diarization** — antingen pincha WhisperX-version eller anropa pyannote direkt
 2. **Testa multi-speaker** — A2A-videon har 2 talare, bra testfall
 3. **Daemon-dubbeltrigger** — låg prioritet nu pga idempotent export, men bör fixas
+
+## 2026-04-27 — Session 23: Whisper lärde sig lyssna bättre
+
+### Vad hände?
+
+1. **Transkriberingen blev styrbar.** Tidigare var alla Whisper-inställningar låsta i koden. Nu kan man styra tre saker direkt genom att beskriva vad man vill: kvalitetsnivå, sökbredd, och — den viktigaste — domäntermer. Om du berättar att inspelningen handlar om "AUTOSAR, ImobMgr, SecOC" så stavar Whisper rätt istället för att gissa. Skillnaden är enorm: "Imob manager" → "ImobMgr", "Marcus Perens" → "Marcus Purens".
+
+2. **Automatisk termigenkänning.** Ett nytt verktyg (extract_entities) kan köra en snabb grov transkribering, låta Gemma 4 plocka ut alla namn och tekniska termer, och sedan transkribera om med dessa som ledtrådar. Systemet kan alltså förbättra sig själv utan att användaren behöver veta vilka termer som förekommer.
+
+3. **Workshop-material.** Vi jobbade med ett AUTOSAR-workshop-repo (TReqs immobilizer-modell), gjorde en UNECE R155 impact analysis med graf-traversering och Mermaid-diagram, och satte upp ett separat repo (sw-trace) för en Python-pipeline som gör AI-driven kravspårning.
+
+4. **En insikt om arkitekturen.** Under sessionen insåg vi att tvåstegs-pipeline (draft → entities → full) inte bör vara kod — den bör vara en skill-fil (.md) som AI:n läser och följer. Det ledde till en bredare audit: vi hittade 16 filer i kodbasen där LLM-beteende styrs av hårdkodad TypeScript istället för editerbara textfiler. En plan för att åtgärda detta finns i handoffen.
+
+### Vad funkade inte?
+
+Obsidian-vaultet (Neuron Lab) ligger på en iCloud-synkad disk. Filer vi skrev dit försvann efter 2-3 sekunder — iCloud raderade dem tyst. Vi jagade problemet i 10 minuter innan vi förstod orsaken. Aurora/-mappen var värst — Vault-roten och nya mappar fungerade. Workshop-filen hamnade till slut i rätt plats.
+
+### Vad bestämdes?
+
+| Beslut | Varför |
+|---|---|
+| Default compute_type = float32 | Marcus vill ha kvalitet, bryr sig inte om hastighet |
+| Gemma 4 för entity extraction, inte GLiNER | Redan installerad lokalt, förstår kontext bättre, inget nytt beroende |
+| Pipeline-logik som skills (.md), inte kod-wrappers | LLM:en kan anpassa sig — hoppa över steg, lägga till steg. En textfil kan redigeras av vem som helst. |
+| MiroFish behålls som fork-referens, installeras ej | Zep Cloud-beroende gör det olämpligt för lokal körning |
+
+### Vad är planen framöver?
+
+1. **Testa extract_entities** mot Ollama med riktigt transkript
+2. **Skapa transkribera-skill** — tvåstegs-pipelinen som .md
+3. **Skills-refactoring** — börja med aurora/ask.ts (enklast) och video.ts (mest impact)
+4. **config/llm-defaults.yaml** — samla modellval och parametrar på ett ställe

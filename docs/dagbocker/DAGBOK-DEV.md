@@ -1426,3 +1426,53 @@ Added `Wikipedia` and `IMDb` columns to speaker table. Full ec:Person coverage n
 
 typecheck: clean (1 pre-existing video.ts:811)
 tests: 4162 pass / 13 fail (all pre-existing)
+
+## 2026-04-27 (session 23) — WhisperX param exposure + entity extraction + skills audit
+
+### WhisperX parametrar
+
+`mcp_server.py` `transcribe_audio` fick `compute_type`, `beam_size`, `initial_prompt`. Default ändrad int8→float32.
+
+Viktigt: `MediaState` trackar nu `whisper_compute_type` för att undvika onödig reload. Utan det: varje float32-anrop → 10-30s modell-laddning.
+
+`initial_prompt` är den mest impactfulla parametern. Whisper är en autoregressive decoder — prompten injiceras som fake-redan-genererad text i kontextfönstret. Dekodern väljer sedan samma subword-tokens vid samma ljud. Effektivt en "stavningsguide".
+
+Gräns: ~224 tecken (448 tokens / 2). Inte verifierad mot WhisperX-källkod.
+
+### Entity extraction MCP tool
+
+`extract_entities` anropar Gemma 4 (26B) via Ollama HTTP API (`/api/generate`). Prompten kräver JSON-svar (`format: "json"`). Fallback: rad-extraktion om JSON-parse misslyckas.
+
+Design: `urllib.request` istället för `requests`/`httpx` — inga nya Python-beroenden. 120s timeout.
+
+GLiNER (knowledgator/gliner-x-large, 0.86 F1 svenska) utreddes som alternativ men avfärdades — Gemma 4 förstår kontext bättre och är redan installerad.
+
+### Skills audit
+
+16 filer med hardkodade LLM-promptar identifierade. Befintligt mönster (`readFileSync(promptPath)`) i 3 filer visar vägen. Plan i handoff: Tier 1 (5 filer, nästa session), Tier 2 (8 filer, session efter), Tier 3 (llm-defaults.yaml).
+
+Filosofisk insikt: pipeline-logik (tvåstegs-transkribering) bör vara skills (.md), inte Python-wrappers. LLM:en kan resonera om stegordning — kod kan det inte.
+
+### Mönster etablerade
+
+- `MediaState`-caching: tracka alla dimensioner som påverkar modell-laddning (model_id + compute_type). Jämför innan reload.
+- MCP-tool → Ollama: `urllib.request` + `format: "json"` + `temperature: 0.0`. Inget nytt beroende.
+- Dokumentation i fyra varianter: LLM, DEV, MARCUS, WORKSHOP. Var och en har distinkt målgrupp och detaljeringsnivå.
+
+| Tid   | Typ      | Vad                                              |
+|-------|----------|--------------------------------------------------|
+| 00:30 | RESEARCH | Workshop-repo (TReqs GAIA), graph-traversering   |
+| 01:00 | FEATURE  | UNECE R155 impact analysis + Mermaid subgraph    |
+| 01:30 | REPO     | sw-trace repo, gaia-workshop cleanup             |
+| 02:00 | RESEARCH | MiroFish (swarm intelligence), Zep Cloud-analys  |
+| 02:30 | FEATURE  | mcp_server.py — 3 nya params + compute_type tracking |
+| 03:00 | FEATURE  | extract_entities MCP tool                        |
+| 03:30 | DOCS     | 4 dokumentationsvarianter                        |
+| 04:00 | AUDIT    | Skills-refactoring audit (16 filer)              |
+| 04:30 | DOCS     | Handoff, dagböcker, release notes                |
+
+### Baseline
+
+typecheck: LSP clean (node ej tillgänglig i shell)
+tests: ej körda (node ej tillgänglig i shell)
+Python syntax: ast.parse OK
