@@ -3,8 +3,10 @@ import { getFreshnessReport } from './freshness.js';
 import { resolveModelConfig } from '../core/model-registry.js';
 import { createAgentClient } from '../core/agent-client.js';
 import { createLogger } from '../core/logger.js';
+import { AURORA_TOKENS } from './llm-defaults.js';
 import type Anthropic from '@anthropic-ai/sdk';
 import { readdir, readFile, mkdir, writeFile, access } from 'fs/promises';
+import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -12,6 +14,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const logger = createLogger('aurora:morning-briefing');
+
+let _questionsPrompt: string | null = null;
+async function getQuestionsPrompt(): Promise<string> {
+  if (!_questionsPrompt) {
+    const p = path.resolve(import.meta.dirname ?? '.', '../../prompts/morning-briefing-questions.md');
+    _questionsPrompt = await fs.readFile(p, 'utf-8');
+  }
+  return _questionsPrompt;
+}
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -319,23 +330,17 @@ async function generateQuestionsWithAI(
   const timeout = setTimeout(() => controller.abort(), 30_000);
 
   try {
+    const promptText = (await getQuestionsPrompt())
+      .replace('{{candidates}}', JSON.stringify(candidates));
+
     const response = await client.messages.create(
       {
         model,
-        max_tokens: 1024,
+        max_tokens: AURORA_TOKENS.long,
         messages: [
           {
             role: 'user',
-            content: `Du är Aurora, ett kunskapssystem. Baserat på följande data, formulera exakt 3 frågor
-till Marcus (ägaren) på svenska. Varje fråga ska:
-- Vara konkret och besvarbar med ett kort svar
-- Referera till specifik data (namn, titel, datum)
-- Sluta med en rekommendation
-
-Data:
-${JSON.stringify(candidates)}
-
-Svara som JSON-array: [{"question": "...", "source_node_id": "...", "category": "gap|stale|idea"}]`,
+            content: promptText,
           },
         ],
       },

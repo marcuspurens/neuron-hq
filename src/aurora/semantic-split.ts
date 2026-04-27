@@ -1,3 +1,5 @@
+import path from 'path';
+import fs from 'fs/promises';
 import { ensureOllama, getOllamaUrl } from '../core/ollama.js';
 import { getConfig } from '../core/config.js';
 import { createLogger } from '../core/logger.js';
@@ -5,21 +7,16 @@ import type { TimelineBlock, WhisperWord } from './speaker-timeline.js';
 
 const logger = createLogger('aurora:semantic-split');
 
-const SYSTEM_PROMPT = `You split numbered transcript sentences into coherent topical paragraphs.
-
-Input: sentences numbered [1], [2], [3], etc.
-Output: a JSON array of sentence numbers where a NEW paragraph starts.
-
-Rules:
-- Return ONLY a JSON array of sentence numbers, e.g. [3, 7, 12]
-- Sentence 1 always starts the first paragraph, so do NOT include 1.
-- Aim for 3-8 paragraphs. Fewer for short texts.
-- Each paragraph should cover one topic or narrative beat.
-- Return [] if the text is too short to split.
-
-Example input:
-[1] Dogs are great pets. [2] They are loyal. [3] Cats are independent. [4] They like to sleep.
-Example output: [3]`;
+const _promptCache = new Map<string, string>();
+async function loadPrompt(name: string): Promise<string> {
+  let text = _promptCache.get(name);
+  if (!text) {
+    const p = path.resolve(import.meta.dirname ?? '.', `../../prompts/${name}.md`);
+    text = await fs.readFile(p, 'utf-8');
+    _promptCache.set(name, text);
+  }
+  return text;
+}
 
 const MAX_TEXT_CHARS = 12000;
 
@@ -194,7 +191,7 @@ async function getSplitPointsOllama(
     body: JSON.stringify({
       model,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: await loadPrompt('semantic-split') },
         { role: 'user', content: numbered },
       ],
       stream: false,
@@ -219,17 +216,7 @@ async function getSplitPointsOllama(
     .filter((v): v is number => v !== undefined && v > 0);
 }
 
-const CHAPTER_TITLE_SYSTEM = `You generate short chapter titles for transcript segments.
 
-Input: numbered transcript excerpts, e.g. [1] ... [2] ...
-Output: a JSON array of strings — one short title (3-6 words) per excerpt.
-
-Rules:
-- Return ONLY a JSON array of strings, e.g. ["Introduction to AI", "How Models Learn"]
-- Each title should capture the main topic of that excerpt.
-- Use title case.
-- The number of titles MUST equal the number of excerpts.
-- Do NOT number the titles. Do NOT include timestamps.`;
 
 const TARGET_CHAPTERS_MIN = 3;
 const TARGET_CHAPTERS_MAX = 8;
@@ -273,7 +260,7 @@ export async function generateChapterTitles(
       body: JSON.stringify({
         model,
         messages: [
-          { role: 'system', content: CHAPTER_TITLE_SYSTEM },
+          { role: 'system', content: await loadPrompt('chapter-titles') },
           { role: 'user', content: excerpts },
         ],
         stream: false,
@@ -357,17 +344,7 @@ export function parseChapterTitles(raw: string): string[] {
   return [];
 }
 
-const TOPIC_TAGS_SYSTEM = `You generate topic tags for a video based on its title and summary.
 
-Input: a video title and a short summary (TL;DR).
-Output: a JSON array of 5-10 lowercase topic tags that capture the main subjects discussed.
-
-Rules:
-- Return ONLY a JSON array of lowercase strings, e.g. ["machine learning", "neural networks", "training data"]
-- Tags should be specific and descriptive, not generic (avoid "video", "discussion", "interesting")
-- Use 1-3 words per tag
-- Return between 5 and 10 tags
-- All tags must be lowercase`;
 
 const MAX_TOPIC_TAGS = 20;
 
@@ -400,7 +377,7 @@ export async function generateTopicTags(
       body: JSON.stringify({
         model,
         messages: [
-          { role: 'system', content: TOPIC_TAGS_SYSTEM },
+          { role: 'system', content: await loadPrompt('topic-tags') },
           { role: 'user', content: `Title: ${title}\nSummary: ${tldr}` },
         ],
         stream: false,

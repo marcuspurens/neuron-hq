@@ -3,8 +3,9 @@
  * Uses PaddleOCR via Python worker bridge.
  */
 
+import path from 'path';
 import { extname, resolve, basename } from 'path';
-import { writeFile, unlink } from 'fs/promises';
+import { readFile as readFileFs, writeFile, unlink } from 'fs/promises';
 import { runWorker } from './worker-bridge.js';
 import { processExtractedText, type IngestOptions, type IngestResult } from './intake.js';
 import { analyzeImage, isVisionAvailable } from './vision.js';
@@ -189,21 +190,14 @@ export async function ingestImageBatch(
 /*  Rich PDF Ingest (OCR + Vision)                                     */
 /* ------------------------------------------------------------------ */
 
-export const PDF_VISION_PROMPT = `Analyze this PDF page.
-
-If the page contains ONLY plain text with no visual elements, respond with exactly: TEXT_ONLY
-
-Otherwise, describe the visual content:
-
-1. PAGE TYPE: table / bar chart / line chart / pie chart / diagram / infographic / mixed
-2. TITLE: The heading or title of this page, exactly as shown.
-3. DATA: List ALL numbers, percentages, and labels visible. Preserve exact values.
-   Format tables as: | Column1 | Column2 | ... |
-   Format chart data as: Label: Value
-4. KEY FINDING: One sentence summarizing the main takeaway of this page.
-5. LANGUAGE: The language used in the document (e.g. Swedish, English).
-
-Be precise with numbers. "67%" means 67%, not "about two-thirds".`;
+let _pdfVisionPrompt: string | null = null;
+export async function getPdfVisionPrompt(): Promise<string> {
+  if (!_pdfVisionPrompt) {
+    const p = path.resolve(import.meta.dirname ?? '.', '../../prompts/pdf-vision.md');
+    _pdfVisionPrompt = await readFileFs(p, 'utf-8');
+  }
+  return _pdfVisionPrompt;
+}
 
 /** Per-page diagnostic data from the PDF ingest pipeline. */
 export interface PageDigest {
@@ -324,7 +318,7 @@ export async function ingestPdfRich(
         tempImagePath = renderResult.metadata.output_path as string;
 
         const { description, modelUsed } = await analyzeImage(tempImagePath, {
-          prompt: PDF_VISION_PROMPT,
+          prompt: await getPdfVisionPrompt(),
         });
 
         if (description && !description.includes('TEXT_ONLY')) {
@@ -519,7 +513,7 @@ export async function diagnosePdfPage(
         if (renderResult.ok) {
           tempImagePath = renderResult.metadata.output_path as string;
           const { description, modelUsed } = await analyzeImage(tempImagePath, {
-            prompt: options?.visionPrompt ?? PDF_VISION_PROMPT,
+            prompt: options?.visionPrompt ?? await getPdfVisionPrompt(),
           });
           visionModel = modelUsed;
           if (description && !description.includes('TEXT_ONLY')) {

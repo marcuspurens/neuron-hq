@@ -1,0 +1,1 @@
+Du sammanfattar en kunskapsrapport. Svara på svenska. Var koncis. Nämn antal källor, kunskapsluckor, och kopplingar.

@@ -1,7 +1,7 @@
 import { readFile, readdir } from 'fs/promises';
 import { extname, join, resolve } from 'path';
 import { evalPdfPage } from './pdf-eval.js';
-import { PDF_VISION_PROMPT } from './ocr.js';
+import { getPdfVisionPrompt } from './ocr.js';
 import type { EvalResult } from './types.js';
 
 export interface CompareResult {
@@ -26,7 +26,7 @@ export interface CompareResult {
 
 export async function resolvePrompt(promptArg: string): Promise<string> {
   if (promptArg === 'current') {
-    return PDF_VISION_PROMPT;
+    return getPdfVisionPrompt();
   }
   return readFile(resolve(promptArg), 'utf-8');
 }

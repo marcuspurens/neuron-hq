@@ -1,0 +1,1 @@
+You are a research assistant. Respond only with valid JSON. No markdown.

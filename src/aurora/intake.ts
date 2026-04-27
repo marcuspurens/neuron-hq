@@ -5,6 +5,8 @@
  */
 
 import { createHash } from 'crypto';
+import path from 'path';
+import fs from 'fs/promises';
 import { extname, resolve } from 'path';
 import { runWorker } from './worker-bridge.js';
 import { chunkText } from './chunker.js';
@@ -26,9 +28,19 @@ import type { PipelineReport } from './pipeline-errors.js';
 import { findSimilarNodes } from '../core/semantic-search.js';
 import { resolveGap } from './knowledge-gaps.js';
 import type { AuroraGraph } from './aurora-schema.js';
+import { AURORA_SIMILARITY, AURORA_CONFIDENCE } from './llm-defaults.js';
 
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:intake');
+
+let _intakeMetadataPrompt: string | null = null;
+async function getIntakeMetadataPrompt(): Promise<string> {
+  if (!_intakeMetadataPrompt) {
+    const p = path.resolve(import.meta.dirname ?? '.', '../../prompts/intake-metadata.md');
+    _intakeMetadataPrompt = await fs.readFile(p, 'utf-8');
+  }
+  return _intakeMetadataPrompt;
+}
 
 interface OllamaChatResponse {
   message: { role: string; content: string };
@@ -72,17 +84,8 @@ async function generateMetadata(
   if (sourceUrl) contextParts.push(`Source: ${sourceUrl}`);
   if (crossRefTitles.length > 0) contextParts.push(`Related topics: ${crossRefTitles.join(', ')}`);
 
-  const prompt = `Analyze this document and return a JSON object with these fields:
-- "tags": 5-10 keyword tags (lowercase, max 2 words each, in the content's language). Include the core subject matter, key concepts, named people/organizations, and activities described (e.g. if the text is about writing code, include "code" or "programming").
-- "language": the language of the content (e.g. "english", "svenska", "deutsch"). Use the full language name.
-- "author": the author's full name if identifiable from the text, byline, or source URL, otherwise null.
-- "content_type": one of "webbartikel", "forskningsartikel", "bloggpost", "nyhetsartikel", "dokumentation", "transkript", "rapport", "annat".
-- "summary": 1-2 sentences describing what this is about, written directly (NOT "this article discusses..." — just state the core idea), in the same language as the content.
-
-${contextParts.join('\n')}
-
-Respond with ONLY a JSON object, nothing else. Example:
-{"tags": ["energi", "vätgas", "göteborg"], "language": "svenska", "author": "Anna Svensson", "content_type": "nyhetsartikel", "summary": "Artikeln handlar om Sveriges satsning på vätgas som energikälla."}`;
+  const prompt = (await getIntakeMetadataPrompt())
+    .replace('{{context}}', contextParts.join('\n'));
 
   try {
     const { ensureOllama, getOllamaUrl } = await import('../core/ollama.js');
@@ -427,7 +430,7 @@ export async function processExtractedText(
         timestamp: now,
       },
     },
-    confidence: 0.5,
+    confidence: AURORA_CONFIDENCE.initial,
     scope: options.scope ?? 'personal',
     sourceUrl: sourceUrl ?? undefined,
     created: now,
@@ -458,7 +461,7 @@ export async function processExtractedText(
         wordCount: chunk.wordCount,
         parentId: docId,
       },
-      confidence: 0.5,
+      confidence: AURORA_CONFIDENCE.initial,
       scope: options.scope ?? 'personal',
       sourceUrl: sourceUrl ?? undefined,
       created: now,
@@ -506,11 +509,11 @@ export async function processExtractedText(
   try {
     const matches = await findNeuronMatchesForAurora(docId, {
       limit: 5,
-      minSimilarity: 0.5,
+      minSimilarity: AURORA_SIMILARITY.search,
     });
 
     for (const match of matches) {
-      if (match.similarity >= 0.7) {
+      if (match.similarity >= AURORA_SIMILARITY.crossref) {
         await createCrossRef(
           match.node.id,
           docId,

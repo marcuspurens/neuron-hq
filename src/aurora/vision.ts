@@ -1,4 +1,5 @@
 import { readFile, stat } from 'fs/promises';
+import path from 'path';
 import { extname, resolve, basename } from 'path';
 import { processExtractedText, type IngestOptions, type IngestResult } from './intake.js';
 import { isModelAvailable, getOllamaUrl } from '../core/ollama.js';
@@ -48,25 +49,16 @@ interface OllamaChatResponse {
 
 const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp', '.gif'];
 
-const VISION_SYSTEM_MESSAGE = `You are a precise document analysis model. Your job is to describe visual content for a knowledge graph.
-
-Rules:
-- Report EXACTLY what you see. Never infer, guess, or add information not visible in the image.
-- Preserve all numbers, percentages, dates, and proper nouns exactly as shown.
-- If text is partially obscured or unclear, mark it as [unclear] rather than guessing.
-- Use the language of the document for labels and headings. Use English for your structural descriptions.
-- Be concise. Do not repeat yourself.`;
-
-const DEFAULT_PROMPT = `Describe this image for indexing in a knowledge graph.
-
-For each element you see, report:
-1. LAYOUT: What type of content is this? (photograph, diagram, chart, table, text page, mixed)
-2. TEXT: Transcribe all visible text exactly as shown.
-3. DATA: If there are numbers, percentages, or data points, list them precisely.
-4. STRUCTURE: If there is a table or chart, describe its axes, columns, rows, and key values.
-5. CONTEXT: What is the subject matter? Who/what is depicted?
-
-If the image is purely decorative (logos, backgrounds), respond with: DECORATIVE`;
+const _promptCache = new Map<string, string>();
+async function loadPrompt(name: string): Promise<string> {
+  let text = _promptCache.get(name);
+  if (!text) {
+    const p = path.resolve(import.meta.dirname ?? '.', `../../prompts/${name}.md`);
+    text = await readFile(p, 'utf-8');
+    _promptCache.set(name, text);
+  }
+  return text;
+}
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB safety limit
 
@@ -96,7 +88,7 @@ export async function analyzeImage(
 
   const baseUrl = getOllamaUrl();
   const model = options?.model ?? getConfig().OLLAMA_MODEL_VISION;
-  const prompt = options?.prompt ?? DEFAULT_PROMPT;
+  const prompt = options?.prompt ?? await loadPrompt('vision-default');
 
   const resp = await fetch(`${baseUrl}/api/chat`, {
     method: 'POST',
@@ -104,7 +96,7 @@ export async function analyzeImage(
     body: JSON.stringify({
       model,
       messages: [
-        { role: 'system', content: VISION_SYSTEM_MESSAGE },
+        { role: 'system', content: await loadPrompt('vision-system') },
         { role: 'user', content: prompt, images: [base64Image] },
       ],
       stream: false,
