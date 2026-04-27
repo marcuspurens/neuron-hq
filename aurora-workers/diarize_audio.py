@@ -150,8 +150,9 @@ def diarize_audio(source: str) -> dict:
     waveform, sample_rate = _load_audio(source)
 
     token = os.environ.get("PYANNOTE_TOKEN")
+    pyannote_model = os.environ.get("PYANNOTE_MODEL", "pyannote/speaker-diarization-3.1")
     pipeline = Pipeline.from_pretrained(
-        "pyannote/speaker-diarization-3.1",
+        pyannote_model,
         token=token,
     )
 
