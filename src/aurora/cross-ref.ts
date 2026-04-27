@@ -1,5 +1,6 @@
 import { getPool } from '../core/db.js';
 import { semanticSearch } from '../core/semantic-search.js';
+import { AURORA_SIMILARITY, AURORA_CONFIDENCE } from './llm-defaults.js';
 
 // --- Interfaces ---
 
@@ -74,7 +75,7 @@ export async function unifiedSearch(
   options?: UnifiedSearchOptions,
 ): Promise<UnifiedSearchResult> {
   const limit = options?.limit ?? 10;
-  const minSimilarity = options?.minSimilarity ?? 0.3;
+  const minSimilarity = options?.minSimilarity ?? AURORA_SIMILARITY.searchLoose;
   const type = options?.type;
 
   // Run both searches in parallel
@@ -217,7 +218,7 @@ export async function findAuroraMatchesForNeuron(
   options?: { limit?: number; minSimilarity?: number },
 ): Promise<CrossRefMatch[]> {
   const limit = options?.limit ?? 5;
-  const minSimilarity = options?.minSimilarity ?? 0.5;
+  const minSimilarity = options?.minSimilarity ?? AURORA_SIMILARITY.search;
   const pool = getPool();
 
   const result = await pool.query(
@@ -252,7 +253,7 @@ export async function findNeuronMatchesForAurora(
   options?: { limit?: number; minSimilarity?: number },
 ): Promise<CrossRefMatch[]> {
   const limit = options?.limit ?? 5;
-  const minSimilarity = options?.minSimilarity ?? 0.5;
+  const minSimilarity = options?.minSimilarity ?? AURORA_SIMILARITY.search;
   const pool = getPool();
 
   const result = await pool.query(
@@ -325,7 +326,7 @@ export async function checkCrossRefIntegrity(options?: {
   limit?: number;
 }): Promise<IntegrityIssue[]> {
   const pool = getPool();
-  const threshold = options?.confidenceThreshold ?? 0.5;
+  const threshold = options?.confidenceThreshold ?? AURORA_CONFIDENCE.initial;
   const limit = options?.limit ?? 20;
 
   const { rows } = await pool.query(`

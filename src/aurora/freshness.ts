@@ -1,4 +1,5 @@
 import { getPool } from '../core/db.js';
+import { AURORA_FRESHNESS } from './llm-defaults.js';
 
 export interface FreshnessInfo {
   nodeId: string;
@@ -36,8 +37,8 @@ export function freshnessStatus(
   lastVerified: Date | null,
 ): 'fresh' | 'aging' | 'stale' | 'unverified' {
   if (!lastVerified) return 'unverified';
-  if (score >= 0.7) return 'fresh';
-  if (score >= 0.3) return 'aging';
+  if (score >= AURORA_FRESHNESS.fresh) return 'fresh';
+  if (score >= AURORA_FRESHNESS.aging) return 'aging';
   return 'stale';
 }
 

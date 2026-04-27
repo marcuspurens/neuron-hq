@@ -5,6 +5,7 @@ import {
   removeAuroraNode,
   findAuroraNodes,
 } from './aurora-graph.js';
+import { AURORA_SIMILARITY } from './llm-defaults.js';
 
 /**
  * Rename a speaker's voice print label and title.
@@ -125,7 +126,7 @@ export async function suggestSpeakerMatches(
     reason: string;
   }>
 > {
-  const threshold = options?.threshold ?? 0.7;
+  const threshold = options?.threshold ?? AURORA_SIMILARITY.crossref;
   const graph = await loadAuroraGraph();
   const voicePrints = findAuroraNodes(graph, { type: 'voice_print' });
 

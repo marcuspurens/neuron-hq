@@ -9,6 +9,7 @@ import {
 import { semanticSearch } from '../core/semantic-search.js';
 import type { AuroraNode } from './aurora-schema.js';
 import { lookupExternalIds } from './external-ids.js';
+import { AURORA_SIMILARITY, AURORA_CONFIDENCE } from './llm-defaults.js';
 
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:ontology');
@@ -99,7 +100,7 @@ export async function getOrCreateConcept(input: {
       table: 'aurora_nodes',
       type: 'concept',
       limit: 5,
-      minSimilarity: 0.85,
+      minSimilarity: AURORA_SIMILARITY.dedup,
     });
     if (hits.length > 0) {
       const graph = await loadAuroraGraph();
@@ -189,7 +190,7 @@ export async function getOrCreateConcept(input: {
       depth: 0,
       ...(input.standardRefs ? { standardRefs: input.standardRefs } : {}),
     },
-    confidence: 0.8,
+    confidence: AURORA_CONFIDENCE.confirmed,
     scope: 'personal',
     created: now,
     updated: now,
@@ -417,7 +418,7 @@ export async function searchConcepts(
     table: 'aurora_nodes',
     type: 'concept',
     limit,
-    minSimilarity: 0.3,
+    minSimilarity: AURORA_SIMILARITY.searchLoose,
   });
 
   const graph = await loadAuroraGraph();
@@ -468,7 +469,7 @@ export async function linkArticleToConcepts(
         table: 'aurora_nodes',
         type: 'concept',
         limit: 1,
-        minSimilarity: 0.85,
+        minSimilarity: AURORA_SIMILARITY.dedup,
       });
       existed = hits.length > 0;
     } catch (err) {
@@ -641,7 +642,7 @@ export async function suggestMerges(): Promise<
         table: 'aurora_nodes',
         type: 'concept',
         limit: 10,
-        minSimilarity: 0.8,
+        minSimilarity: AURORA_SIMILARITY.highRelevance,
       });
     } catch (err) {
       logger.error('[ontology] ontology merge failed', { error: String(err) });
@@ -650,7 +651,7 @@ export async function suggestMerges(): Promise<
 
     for (const hit of hits) {
       if (hit.id === concept.id) continue;
-      if (hit.similarity >= 0.85) continue; // already deduped threshold
+      if (hit.similarity >= AURORA_SIMILARITY.dedup) continue; // already deduped threshold
 
       const pairKey = [concept.id, hit.id].sort().join('::');
       if (seen.has(pairKey)) continue;

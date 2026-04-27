@@ -8,6 +8,7 @@
 import { loadAuroraGraph, saveAuroraGraph, addAuroraNode, addAuroraEdge, findAuroraNodes } from './aurora-graph.js';
 import type { AuroraNode, AuroraEdge } from './aurora-schema.js';
 import crypto from 'crypto';
+import { AURORA_CONFIDENCE } from './llm-defaults.js';
 
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:crossref');
@@ -346,7 +347,7 @@ export async function ingestFromDOI(doi: string): Promise<{
       type: work.type,
       standardRefs: { doi: work.doi },
     },
-    confidence: 0.9,
+    confidence: AURORA_CONFIDENCE.high,
     scope: 'shared',
     sourceUrl: work.url,
     created: now,

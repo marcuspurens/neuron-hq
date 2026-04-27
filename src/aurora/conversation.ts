@@ -1,4 +1,5 @@
 import { remember, recall } from './memory.js';
+import { AURORA_SIMILARITY, AURORA_CONFIDENCE } from './llm-defaults.js';
 
 // --- Interfaces ---
 
@@ -126,7 +127,7 @@ export async function learnFromConversation(
     dryRun?: boolean;
   },
 ): Promise<ConversationLearningResult> {
-  const minConfidence = options?.minConfidence ?? 0.5;
+  const minConfidence = options?.minConfidence ?? AURORA_CONFIDENCE.initial;
   const dryRun = options?.dryRun ?? false;
 
   // Step 1: Extract items
@@ -146,7 +147,7 @@ export async function learnFromConversation(
     const isDuplicate =
       topMemory?.similarity !== null &&
       topMemory?.similarity !== undefined &&
-      topMemory.similarity >= 0.8;
+      topMemory.similarity >= AURORA_SIMILARITY.highRelevance;
 
     if (isDuplicate) {
       itemsDuplicate++;

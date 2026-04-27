@@ -7,6 +7,7 @@ import {
   updateAuroraNode,
 } from './aurora-graph.js';
 import type { AuroraNode } from './aurora-schema.js';
+import { AURORA_SIMILARITY, AURORA_CONFIDENCE } from './llm-defaults.js';
 
 /**
  * Speaker affiliation — links a person to an organisation.
@@ -90,7 +91,7 @@ function nodeToIdentity(node: AuroraNode): SpeakerIdentity {
     linkedIn: (p.linkedIn as string) || '',
     confirmations: (p.confirmations as number) || 0,
     confidence: node.confidence,
-    autoTagThreshold: (p.autoTagThreshold as number) || 0.9,
+    autoTagThreshold: (p.autoTagThreshold as number) || AURORA_SIMILARITY.speakerAutoTag,
     confirmedVoicePrints: (p.confirmedVoicePrints as string[]) || [],
     created: node.created,
     updated: node.updated,
@@ -133,9 +134,9 @@ export async function createSpeakerIdentity(
       linkedIn: '',
       confirmations: 1,
       confirmedVoicePrints: [voicePrintId],
-      autoTagThreshold: 0.9,
+      autoTagThreshold: AURORA_SIMILARITY.speakerAutoTag,
     },
-    confidence: 0.5,
+    confidence: AURORA_CONFIDENCE.initial,
     scope: 'personal',
     sourceUrl: null,
     created: now,

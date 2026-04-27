@@ -2,6 +2,7 @@ import { semanticSearch } from '../core/semantic-search.js';
 import { loadAuroraGraph, findAuroraNodes, traverseAurora } from './aurora-graph.js';
 import { personalizedPageRank } from '../core/ppr.js';
 import type { AuroraGraph, AuroraNodeType, AuroraScope } from './aurora-schema.js';
+import { AURORA_SIMILARITY } from './llm-defaults.js';
 
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:search');
@@ -160,7 +161,7 @@ export async function searchAurora(
   options?: SearchOptions
 ): Promise<SearchResult[]> {
   const limit = options?.limit ?? 10;
-  const minSimilarity = options?.minSimilarity ?? 0.3;
+  const minSimilarity = options?.minSimilarity ?? AURORA_SIMILARITY.searchLoose;
   const includeRelated = options?.includeRelated ?? true;
   const traversalDepth = options?.traversalDepth ?? 1;
   const type = options?.type;

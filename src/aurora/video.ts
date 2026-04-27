@@ -24,6 +24,7 @@ import { guessSpeakers } from './speaker-guesser.js';
 import { generateTldr } from './transcript-tldr.js';
 import type { SpeakerGuess } from './speaker-guesser.js';
 import { ensureOllama } from '../core/ollama.js';
+import { AURORA_SIMILARITY, AURORA_CONFIDENCE } from './llm-defaults.js';
 
 import { createLogger } from '../core/logger.js';
 const logger = createLogger('aurora:video');
@@ -525,7 +526,7 @@ export async function ingestVideo(
           timestamp: now,
         },
       },
-      confidence: hasManualSubs ? 0.95 : 0.9,
+      confidence: hasManualSubs ? AURORA_CONFIDENCE.highest : AURORA_CONFIDENCE.high,
       scope: options?.scope ?? 'personal',
       sourceUrl: url,
       created: now,
@@ -567,7 +568,7 @@ export async function ingestVideo(
             : null,
           'ebucore:partNumber': chunk.index,
         },
-        confidence: 0.9,
+        confidence: AURORA_CONFIDENCE.high,
         scope: options?.scope ?? 'personal',
         sourceUrl: url,
         created: now,
@@ -627,7 +628,7 @@ export async function ingestVideo(
             totalDurationMs,
             segments: speakerSegments.map((s) => ({ start_ms: s.start_ms, end_ms: s.end_ms })),
           },
-          confidence: 0.7,
+          confidence: AURORA_CONFIDENCE.verified,
           scope: 'personal',
           sourceUrl: url,
           created: now,
@@ -664,7 +665,7 @@ export async function ingestVideo(
           totalDurationMs: durationMs,
           segments: [{ start_ms: 0, end_ms: durationMs }],
         },
-        confidence: 0.5,
+        confidence: AURORA_CONFIDENCE.initial,
         scope: 'personal',
         sourceUrl: url,
         created: now,
@@ -738,12 +739,12 @@ export async function ingestVideo(
       const matches = await wrapPipelineStep('findNeuronMatchesForAurora', async () => {
         return findNeuronMatchesForAurora(transcriptNodeId, {
           limit: 5,
-          minSimilarity: 0.5,
+          minSimilarity: AURORA_SIMILARITY.search,
         });
       });
 
       for (const match of matches) {
-        if (match.similarity >= 0.7) {
+        if (match.similarity >= AURORA_SIMILARITY.crossref) {
           await createCrossRef(
             match.node.id,
             transcriptNodeId,
