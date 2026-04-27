@@ -64,6 +64,7 @@ class MediaState:
     """Holds pre-loaded models for the server lifetime."""
     whisper_model: Any = None           # FasterWhisperPipeline (WhisperX)
     whisper_model_id: str = ""
+    whisper_compute_type: str = "float32"
     align_models: dict = field(default_factory=dict)  # lang → (model, metadata)
     diarize_pipeline: Any = None
     device: str = "cpu"                 # CTranslate2 device (always cpu for MPS)
@@ -93,7 +94,7 @@ async def lifespan(server: FastMCP) -> AsyncIterator[MediaState]:
         return whisperx.load_model(
             DEFAULT_MODEL,
             device="cpu",
-            compute_type="int8",
+            compute_type="float32",
             threads=THREADS,
             asr_options={"word_timestamps": True},
         )
@@ -171,6 +172,9 @@ async def transcribe_audio(
     whisper_model: str | None = None,
     batch_size: int | None = None,
     align: bool = True,
+    compute_type: str | None = None,
+    beam_size: int | None = None,
+    initial_prompt: str | None = None,
     ctx: Context = None,
 ) -> dict:
     """Transcribe audio with word-level timestamps using WhisperX.
@@ -181,6 +185,14 @@ async def transcribe_audio(
         whisper_model: Override model ID. None = use server default.
         batch_size: Inference batch size. None = use server default.
         align: Whether to run word-level alignment (default True).
+        compute_type: CTranslate2 quantization — 'float32' (best quality,
+            default), 'float16' (nearly identical quality, faster), or
+            'int8' (fastest, lower quality). Use int8 only for quick drafts.
+        beam_size: Beam search width. Higher = better quality, slower.
+            Default 5. Use 1 for fast draft transcriptions.
+        initial_prompt: Domain-specific terms to guide Whisper's decoder,
+            e.g. 'AUTOSAR, immobilizer, ECU' to improve spelling of
+            technical terms. Comma-separated or natural language.
 
     Returns:
         Dict with title, text, metadata (segments with word timestamps).
@@ -191,51 +203,61 @@ async def transcribe_audio(
     state: MediaState = ctx.request_context.lifespan_context
     loop = asyncio.get_running_loop()
     bs = batch_size or BATCH_SIZE
+    ct = compute_type or "float32"
 
     await ctx.info(f"Transcribing: {os.path.basename(audio_path)}")
 
-    # If a different model is requested, we need to load it
     model = state.whisper_model
     model_id = state.whisper_model_id
-    if whisper_model and whisper_model != state.whisper_model_id:
-        await ctx.info(f"Loading requested model: {whisper_model}")
+    needs_reload = (
+        (whisper_model and whisper_model != state.whisper_model_id)
+        or (ct != state.whisper_compute_type)
+    )
+    if needs_reload:
+        load_model_id = whisper_model or state.whisper_model_id
+        await ctx.info(f"Loading model: {load_model_id} (compute_type={ct})")
         import whisperx
         def _load():
             return whisperx.load_model(
-                whisper_model,
+                load_model_id,
                 device=state.device,
-                compute_type="int8",
+                compute_type=ct,
                 threads=THREADS,
             )
         model = await loop.run_in_executor(None, _load)
-        model_id = whisper_model
+        model_id = load_model_id
+        state.whisper_model = model
+        state.whisper_model_id = model_id
+        state.whisper_compute_type = ct
 
-    # If language specified, check for language-specific model
-    if language and not whisper_model:
+    if language and not whisper_model and not needs_reload:
         lang_model = LANG_MODEL_MAP.get(language)
         if lang_model and lang_model != state.whisper_model_id:
-            await ctx.info(f"Loading language-specific model: {lang_model}")
+            await ctx.info(f"Loading language-specific model: {lang_model} (compute_type={ct})")
             import whisperx
             def _load_lang():
                 return whisperx.load_model(
                     lang_model,
                     device=state.device,
-                    compute_type="int8",
+                    compute_type=ct,
                     threads=THREADS,
                 )
             model = await loop.run_in_executor(None, _load_lang)
             model_id = lang_model
+            state.whisper_model = model
+            state.whisper_model_id = model_id
+            state.whisper_compute_type = ct
 
     # Step 1: Transcribe
     await ctx.info("Running ASR ...")
 
-    def _progress(pct: float):
-        asyncio.run_coroutine_threadsafe(
-            ctx.report_progress(progress=pct, total=100.0),
-            loop,
-        )
-
     import whisperx
+
+    asr_options: dict[str, Any] = {}
+    if beam_size is not None:
+        asr_options["beam_size"] = beam_size
+    if initial_prompt is not None:
+        asr_options["initial_prompt"] = initial_prompt
 
     def _transcribe():
         return model.transcribe(
@@ -243,6 +265,7 @@ async def transcribe_audio(
             batch_size=bs,
             language=language,
             print_progress=False,
+            **asr_options,
         )
 
     result = await loop.run_in_executor(None, _transcribe)
@@ -315,6 +338,9 @@ async def transcribe_audio(
             "segment_count": len(output_segments),
             "language": detected_lang,
             "model_used": model_id,
+            "compute_type": ct,
+            "beam_size": beam_size,
+            "initial_prompt": initial_prompt,
             "source_type": "audio_transcription",
             "aligned": align and bool(segments),
         },
@@ -542,6 +568,117 @@ async def extract_video_metadata(
 
     result = await loop.run_in_executor(None, _fetch)
     return {"ok": True, **result}
+
+
+# ---------------------------------------------------------------------------
+#  Tool: extract_entities
+# ---------------------------------------------------------------------------
+
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gemma4:26b")
+
+ENTITY_EXTRACTION_PROMPT = """\
+Extract all proper nouns, technical terms, abbreviations, and named entities from the following transcript.
+
+Return ONLY a JSON object with this exact shape:
+{"entities": ["term1", "term2", ...]}
+
+Rules:
+- Include: person names, organization names, place names, product names, technical terms, abbreviations, acronyms
+- Exclude: common words, verbs, adjectives, generic nouns
+- Preserve original spelling and capitalization exactly as written
+- Deduplicate: if a term appears multiple times, include it once
+- If the transcript contains no entities, return {"entities": []}
+
+Transcript:
+"""
+
+
+@mcp.tool()
+async def extract_entities(
+    text: str,
+    model: str | None = None,
+    ctx: Context = None,
+) -> dict:
+    """Extract named entities and technical terms from text using a local LLM.
+
+    Designed to produce an initial_prompt for Whisper re-transcription:
+    run a fast draft transcription first, extract entities, then re-transcribe
+    with the entities as initial_prompt for better spelling accuracy.
+
+    Args:
+        text: Text to extract entities from (typically a draft transcript).
+        model: Ollama model to use. Default: gemma4:26b.
+
+    Returns:
+        Dict with entities list and a ready-to-use initial_prompt string.
+    """
+    import json as _json
+    import urllib.request
+
+    loop = asyncio.get_running_loop()
+    use_model = model or OLLAMA_MODEL
+
+    await ctx.info(f"Extracting entities via {use_model} ...")
+
+    def _call_ollama():
+        payload = _json.dumps({
+            "model": use_model,
+            "prompt": ENTITY_EXTRACTION_PROMPT + text,
+            "stream": False,
+            "format": "json",
+            "options": {"temperature": 0.0},
+        }).encode()
+
+        req = urllib.request.Request(
+            f"{OLLAMA_BASE_URL}/api/generate",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            return _json.loads(resp.read())
+
+    try:
+        result = await loop.run_in_executor(None, _call_ollama)
+    except Exception as e:
+        raise ValueError(f"Ollama call failed: {e}")
+
+    raw_response = result.get("response", "")
+
+    try:
+        parsed = _json.loads(raw_response)
+        entities = parsed.get("entities", [])
+    except _json.JSONDecodeError:
+        log.warning(f"Failed to parse Ollama JSON response, attempting line extraction")
+        entities = [line.strip().strip('"-,') for line in raw_response.splitlines() if line.strip()]
+
+    entities = [e for e in entities if isinstance(e, str) and len(e) >= 2]
+    seen: set[str] = set()
+    unique: list[str] = []
+    for e in entities:
+        key = e.lower()
+        if key not in seen:
+            seen.add(key)
+            unique.append(e)
+
+    initial_prompt = ", ".join(unique)
+    if len(initial_prompt) > 224:
+        initial_prompt = initial_prompt[:224].rsplit(", ", 1)[0]
+
+    await ctx.info(f"Extracted {len(unique)} entities")
+
+    return {
+        "ok": True,
+        "title": "entity_extraction",
+        "text": initial_prompt,
+        "metadata": {
+            "entities": unique,
+            "entity_count": len(unique),
+            "model_used": use_model,
+            "source_type": "entity_extraction",
+        },
+    }
 
 
 # ---------------------------------------------------------------------------

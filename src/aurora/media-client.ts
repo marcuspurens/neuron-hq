@@ -33,6 +33,7 @@ export type MediaAction =
   | 'denoise_audio'
   | 'extract_video'
   | 'extract_video_metadata'
+  | 'extract_entities'
   | 'check_deps';
 
 interface MediaToolCallOptions {
@@ -155,7 +156,13 @@ export async function callMediaTool(
  */
 export function transcribeAudio(
   audioPath: string,
-  options?: { whisperModel?: string; language?: string },
+  options?: {
+    whisperModel?: string;
+    language?: string;
+    computeType?: 'int8' | 'float16' | 'float32';
+    beamSize?: number;
+    initialPrompt?: string;
+  },
   callOptions?: MediaToolCallOptions,
 ): Promise<WorkerResponse> {
   return callMediaTool(
@@ -164,6 +171,9 @@ export function transcribeAudio(
       audio_path: audioPath,
       whisper_model: options?.whisperModel ?? null,
       language: options?.language ?? null,
+      compute_type: options?.computeType ?? null,
+      beam_size: options?.beamSize ?? null,
+      initial_prompt: options?.initialPrompt ?? null,
     },
     callOptions,
   );
@@ -211,6 +221,25 @@ export function extractVideo(
     'extract_video',
     { url },
     callOptions,
+  );
+}
+
+/**
+ * Extract named entities and technical terms from text using a local LLM (Gemma 4).
+ * Use the returned initial_prompt for high-quality re-transcription.
+ */
+export function extractEntities(
+  text: string,
+  options?: { model?: string },
+  callOptions?: MediaToolCallOptions,
+): Promise<WorkerResponse> {
+  return callMediaTool(
+    'extract_entities',
+    {
+      text,
+      model: options?.model ?? null,
+    },
+    { timeout: callOptions?.timeout ?? 120_000 },
   );
 }
 

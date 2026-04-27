@@ -26,6 +26,13 @@ dist/
 # Runtime artifacts
 runs/*/
 workspaces/*/
+logs/
+
+# Local model configs
+ollama/
+
+# Downloaded media files
+*.vtt
 
 # Logs
 *.log
