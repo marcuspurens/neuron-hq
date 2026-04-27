@@ -14,6 +14,7 @@
 
 import Langfuse from 'langfuse';
 import { getConfig } from './config.js';
+import { DEFAULT_MODEL_CONFIG } from './model-registry.js';
 import type { eventBus as EventBusType } from './event-bus.js';
 
 type LangfuseTrace = ReturnType<Langfuse['trace']>;
@@ -114,7 +115,7 @@ export function registerEventBusListeners(bus: typeof EventBusType): void {
 
     parent.generation({
       name: `${data.agent}-llm`,
-      model: data.model || 'claude-sonnet-4-5-20250929',
+      model: data.model || DEFAULT_MODEL_CONFIG.model,
       usage: {
         input: data.input,
         output: data.output,

@@ -1,10 +1,11 @@
 import fs from 'fs/promises';
 import { type Usage, type RunId } from './types.js';
+import { DEFAULT_MODEL_CONFIG } from './model-registry.js';
 
 export class UsageTracker {
   private usage: Usage;
 
-  constructor(runid: RunId, model: string = 'claude-sonnet-4-5-20250929') {
+  constructor(runid: RunId, model: string = DEFAULT_MODEL_CONFIG.model) {
     this.usage = {
       runid,
       model,
