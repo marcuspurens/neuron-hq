@@ -823,3 +823,57 @@ Obsidian-vaultet (Neuron Lab) ligger på en iCloud-synkad disk. Filer vi skrev d
 2. **Skapa transkribera-skill** — tvåstegs-pipelinen som .md
 3. **Skills-refactoring** — börja med aurora/ask.ts (enklast) och video.ts (mest impact)
 4. **config/llm-defaults.yaml** — samla modellval och parametrar på ett ställe
+
+---
+
+## 2026-04-28 — Session 24: Koden slutade gömma sina inställningar
+
+### Vad hände?
+
+**1. Session 23:s bedömning var fel — med faktor tre.**
+
+Session 23 hade identifierat 16 ställen med hårdkodad LLM-logik. Vi startade session 24 med att låta tre agenter granska hela kodbasen parallellt. Resultatet: 46 ställen med hårdkodade konfigurationsvärden och 17 hårdkodade promptar i 12 filer. Det var ett ögonblick av "okej, det här är mycket mer jobb än vi trodde." Och det var ju det som var viktigt att ta reda på — bättre att veta nu än att halvfärdigställa något.
+
+**2. Vad är problemet egentligen?**
+
+Tänk dig att systemet bestämmer "hög likhet = 0.75". Det talet stod på 45 olika ställen i koden, inbakat i logik, utan namn. Om du vill sänka tröskeln till 0.72 — kanske för att sökningen är för snäv — måste du hitta alla 45 ställen och ändra var och en. Missar du ett enda ändras beteendet på ett inkonsekvent sätt. Och du vet aldrig om du hittade alla.
+
+**3. Beslutet: TypeScript-konstanter, inte YAML.**
+
+Vi konsulterade Oracle om fyra olika lösningar. Alternativen var en YAML-fil, att utöka den befintliga konfigurationsfilen, en hybrid, eller en ny TypeScript-fil med namngivna konstanter. Oracle rekommenderade det sista. Anledningen: TypeScript-konstanter ger full typ-säkerhet (IDE:n varnar om du stavar fel), noll overhead, och Marcus kan fortfarande redigera filen precis som en konfigurationsfil. Ingen ny byggprocess, inget nytt format att lära sig.
+
+**4. Resultatet: `llm-defaults.ts`.**
+
+En enda ny fil med sex grupper av inställningar: modellnamn, token-gränser, likhets-trösklar, konfidenströsklar, färskhetsgränser och diverse begränsningar. Sen gick vi igenom ~25 filer och ersatte alla råsiffror med namngivna referenser. Istället för `max_tokens: 1024` heter det nu `AURORA_TOKENS.medium`. Istället för `similarity >= 0.75` heter det `AURORA_SIMILARITY.medium`.
+
+**5. 17 promptar blev textfiler.**
+
+Systemets AI-instruktioner var inbakade i TypeScript-kod. Nu är de `.md`-filer i `prompts/`-mappen. Du kan öppna dem i Obsidian och se exakt vad systemet frågar AI:n — och ändra om du inte gillar hur det formuleras. Ändringen märks nästa gång du kör något.
+
+**6. Testerna var ett rörigt arv.**
+
+Vid sessionens start hade testerna 24 fel. Tjugo av dem var kvarglömda från tidigare sessioner — modellnamn som byttes men testerna glömdes. Fyra nya kom från att vi bytte hur promptar exporteras från TypeScript (en sträng-konstant blev en asynkron funktion). Vi rättade alla 24. Testsviten är nu grön: 4 254 tester, noll fel.
+
+### Vad funkade inte?
+
+Det mesta gick faktiskt rätt smidigt tekniskt sett — den tyngsta delen var att det var mer arbete än estimerat. Men ett ärligt erkännande:
+
+**Scopen krympade bort från det ursprungliga målet.** Det vi egentligen ville göra i session 23 — skapa en `transkribera`-skill som en textfil AI:n kan läsa och följa — är fortfarande inte gjort. Session 23 körde förbi det, och session 24 tog upp en bredare infrastrukturupgift istället. Arbetet som gjordes är viktigt och nödvändigt. Men transkribera-skillet är uppskjutet för tredje gången. Det är nästa sessions prioritet nummer ett.
+
+**De 10 talen vi lät vara.** Inte allt som verkar hårdkodat bör centraliseras. PPR-sökmotorn använder vikter som `* 0.3` i beräkningar — de är matematiska formler, inte konfiguration. Att sätta ett namn på dem skulle göra koden svårare att följa, inte enklare. Det krävdes omdöme att särskilja de 46 som borde centraliseras från de ~10 som borde lämnas.
+
+### Vad bestämdes?
+
+| Beslut | Varför |
+|---|---|
+| TypeScript `as const` istället för YAML | Typ-säkerhet, IDE-autocomplete, noll overhead. YAML väljs bara om ett grafiskt gränssnitt för inställningar behövs. |
+| Grupperat per concern, inte per modul | `AURORA_TOKENS` inte `ASK_TOKENS` plus `VISION_TOKENS`. Lättare att tuna ett koncept på ett ställe. |
+| Formelkoefficienter lämnas kvar i koden | De är matematik, inte konfiguration. Att flytta dem skulle dölja intention. |
+| Lazy caching för promptfiler | Läser filen en gång, håller den i minnet. Uppdateras vid omstart. |
+
+### Vad är planen framöver?
+
+1. **Skapa `transkribera`-skill** — det är det viktigaste. Tvåstegs-pipelinen (snabb draft → entity extraction → full kvalitet) som en `.md`-fil AI:n kan läsa och följa.
+2. **Testa `extract_entities` live** mot Ollama med ett riktigt transkript.
+3. **Städa `video.ts` rad 812** — en oanvänd variabel som hängt kvar sedan tidigare sessioner.
+4. **Tier 2-skills** om tid finns — `briefing.ts` och `memory.ts`.

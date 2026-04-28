@@ -7,6 +7,25 @@ Sessions are listed newest-first.
 
 ---
 
+## [Session 24] — 2026-04-28
+
+### Added
+- `src/aurora/llm-defaults.ts` — single source of truth for all tunable LLM parameters. Six exported `as const` objects: `AURORA_MODELS`, `AURORA_TOKENS`, `AURORA_SIMILARITY`, `AURORA_CONFIDENCE`, `AURORA_FRESHNESS`, `AURORA_LIMITS`.
+- 15 new prompt files in `prompts/` — all previously inline TypeScript strings now live as editable `.md` files: `aurora-ask.md`, `aurora-vision.md`, `aurora-intake.md`, `semantic-split.md`, `semantic-chapters.md`, `semantic-tags.md`, `transcript-polish.md`, `transcript-tldr.md`, `speaker-guesser.md`, `memory-contradiction.md`, `ocr-vision.md`, `auto-cross-ref.md`, `consolidation.md`, `source-tracker.md`, `briefing-narrative.md`.
+- `tests/prompts/prompt-lint.test.ts` — 17 tests verifying each prompt file exists and is non-empty.
+- `PYANNOTE_MODEL` environment variable override in `aurora-workers/diarize_audio.py`.
+
+### Changed
+- 66+ call sites across ~25 files migrated from magic numbers to named `llm-defaults` constants (model names, token limits, similarity thresholds, confidence scores, freshness periods, search limits).
+- `src/aurora/ocr.ts` — `PDF_VISION_PROMPT` const replaced with `getPdfVisionPrompt()` async function.
+- `src/aurora/langfuse.ts` and `src/aurora/usage.ts` — stale `'claude-sonnet-4-5-20250929'` model reference replaced with `DEFAULT_MODEL_CONFIG.model`.
+- `src/mcp/tools/pdf-eval-compare.ts` — updated for new async `getPdfVisionPrompt()` signature.
+
+### Fixed
+- 24 test failures resolved: model name drift (`gemma3` → `gemma4:26b` in 4 files), speaker field rename (`.name` → `.displayName` in 3 files), async prompt API update, fetch mock timeout, obsidian-export sidecar/speaker column alignment. Test suite: 319 files, 4254 tests, 0 failures.
+
+---
+
 ## [Session 23] — 2026-04-27
 
 ### Added

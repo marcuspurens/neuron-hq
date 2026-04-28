@@ -867,3 +867,23 @@ Handoff: `docs/handoffs/HANDOFF-2026-04-21-opencode-session22-mcp-whisperx-stand
 **Next**: Test extract_entities live. Create `.claude/skills/transkribera/SKILL.md`. Begin Tier 1 skills extraction (ask.ts, semantic-split.ts, vision.ts, intake.ts). Create `config/llm-defaults.yaml`.
 
 Handoff: `docs/handoffs/HANDOFF-2026-04-27-opencode-session23-whisper-params-entities-skills.md`
+
+---
+
+## 2026-04-28 — Session 24
+
+**Changes**: `src/aurora/llm-defaults.ts`: NEW — 6 `as const` objects (`AURORA_MODELS`, `AURORA_TOKENS`, `AURORA_SIMILARITY`, `AURORA_CONFIDENCE`, `AURORA_FRESHNESS`, `AURORA_LIMITS`); `src/aurora/{ask,semantic-split,vision,intake,transcript-polish,transcript-tldr,speaker-guesser,memory,auto-cross-ref,consolidation,source-tracker,briefing,gap-brief,search,ppr,knowledge-gaps,emergent-gaps,morning-briefing}.ts`: hardcoded model/token/threshold values → llm-defaults constants; same files + ocr.ts: inline prompts → external .md files with async lazy cache; `src/aurora/langfuse.ts` + `usage.ts`: stale model `'claude-sonnet-4-5-20250929'` → `DEFAULT_MODEL_CONFIG.model`; `aurora-workers/diarize_audio.py`: `PYANNOTE_MODEL` env override; `src/mcp/tools/pdf-eval-compare.ts`: `PDF_VISION_PROMPT` → `getPdfVisionPrompt()`; `tests/prompts/prompt-lint.test.ts`: NEW 17 lint tests; 15 new files in `prompts/`
+
+**New interfaces**: `AURORA_MODELS | AURORA_TOKENS | AURORA_SIMILARITY | AURORA_CONFIDENCE | AURORA_FRESHNESS | AURORA_LIMITS` in `llm-defaults.ts`. `getPdfVisionPrompt(): Promise<string>` in `ocr.ts` (breaking change from `PDF_VISION_PROMPT: string`).
+
+**Decisions**: TypeScript `as const` over YAML (type safety, zero overhead, IDE completion); grouped by concern not module (one place to change "what is medium tokens?"); per-call-site override preserved via `options?.x ?? AURORA_TOKENS.medium`; ~10 formula weights NOT centralized (math, not config); async lazy cache for prompt files (one readFile per process lifetime); `{{placeholder}}` substitution (no templating lib).
+
+**Gotchas**: `ocr.ts` export shape change (`const` → `async function`) is a breaking change — check `lsp_find_references` before changing any exported symbol. `AURORA_MODELS.fast === AURORA_MODELS.quality` intentionally (future routing split). Prompt cache is process-scoped — daemon won't pick up edited prompts without restart. 20 of the 24 fixed test failures were pre-existing from previous sessions (model name drift, `.name`→`.displayName`). Session 23 estimated 16 hardcoded locations; actual count was 46 — factor-of-3 underestimate.
+
+**Dead ends**: YAML config (Option A — runtime parser, no type safety, rejected). Expanding `config.ts` (Option B — env-var config mixed with behavior defaults, rejected). Hybrid (Option C — two sources of truth, rejected).
+
+**Tests**: 319 files, 4254 tests, 0 failures. Was 24 failures at session start (20 pre-existing + 4 from prompt extraction). typecheck: PASS.
+
+**Next**: Create `.claude/skills/transkribera/SKILL.md` (deferred from S23 AND S24 — must be first task in S25). Test `extract_entities` live against Ollama. Fix `video.ts:812` unused `videoDesc` variable. Begin Tier 2 skills (briefing pipeline, memory contradiction prompt) if time.
+
+Handoff: `docs/handoffs/HANDOFF-2026-04-28-opencode-session24-llm-config-centralization.md`

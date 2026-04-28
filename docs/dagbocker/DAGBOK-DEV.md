@@ -1476,3 +1476,139 @@ Filosofisk insikt: pipeline-logik (tvåstegs-transkribering) bör vara skills (.
 typecheck: LSP clean (node ej tillgänglig i shell)
 tests: ej körda (node ej tillgänglig i shell)
 Python syntax: ast.parse OK
+
+---
+
+## 2026-04-28 (session 24) — LLM config centralization + prompt externalization
+
+### Scope discovery: 46 not 16
+
+Started session by firing 3 parallel explore agents over the entire codebase. Session 23 had estimated 16 hardcoded config locations. Actual count: 46 config values + 17 inline prompts across 12 files + 4 already-externalized prompts as the reference pattern.
+
+The session 23 audit had found prompt strings but missed most numeric thresholds. The numeric thresholds are scattered across search, PPR, consolidation, memory, source-tracker — modules that don't look like "LLM code" at a glance but all have magic numbers that tune LLM behavior.
+
+### Oracle consultation: TypeScript const wins
+
+Evaluated 4 options. Oracle recommended TypeScript `as const` (Option D). Key arguments:
+
+- YAML (Option A): needs runtime parser, no type safety, separate toolchain
+- Expand `config.ts` (Option B): config.ts handles env vars + process config, not behavior defaults — mixing concerns
+- Hybrid (Option C): two sources of truth for the same class of value
+- TypeScript const (Option D): zero overhead, keyof typeof gives IDE completion, `as const` ensures literal narrowing, Marcus can edit it like a config file
+
+Decision: `src/aurora/llm-defaults.ts` with 6 exported `as const` objects.
+
+### `llm-defaults.ts` structure
+
+Six concerns, not modules:
+
+```typescript
+AURORA_MODELS     // model IDs by use case
+AURORA_TOKENS     // max_tokens by response size class
+AURORA_SIMILARITY // similarity thresholds by confidence level
+AURORA_CONFIDENCE // confidence scores for graph edges
+AURORA_FRESHNESS  // staleness thresholds in days
+AURORA_LIMITS     // search result caps, batch sizes, etc.
+```
+
+Intentionally NOT centralized (~10 values):
+- PPR formula weights (`* 0.3`, `* 0.7`) — these are math, not config
+- Computed values derived from other constants
+- Test-specific values in test files
+
+Rule: if changing the value means "I want to tune LLM behavior", centralize. If changing it means "I'm changing the algorithm", don't.
+
+### Migration pattern at call sites
+
+```typescript
+// Before
+const response = await callOllama(model, prompt, { max_tokens: 1024 });
+if (result.similarity >= 0.75) { ... }
+
+// After
+import { AURORA_TOKENS, AURORA_SIMILARITY } from './llm-defaults.js';
+const response = await callOllama(AURORA_MODELS.fast, prompt, { max_tokens: AURORA_TOKENS.medium });
+if (result.similarity >= AURORA_SIMILARITY.medium) { ... }
+```
+
+Per-call-site override is preserved via nullish coalescing:
+```typescript
+const maxTokens = options?.maxTokens ?? AURORA_TOKENS.medium;
+```
+No breaking changes to public APIs.
+
+### Stale model fix: langfuse.ts + usage.ts
+
+Both had `'claude-sonnet-4-5-20250929'` — a model that no longer exists in the LiteLLM routing table. Silent failures or routing errors in prod. Fixed to `DEFAULT_MODEL_CONFIG.model`. This was discovered during the audit, not originally planned.
+
+### Prompt externalization pattern
+
+Existing pattern (found in `knowledge-gaps.ts`, `emergent-gaps.ts`, `gap-brief.ts`, `morning-briefing.ts`):
+
+```typescript
+const promptPath = resolve(__dirname, '../../prompts/knowledge-gaps.md');
+const systemPrompt = readFileSync(promptPath, 'utf-8');
+```
+
+Upgraded pattern for new extractions (async + cache):
+
+```typescript
+const promptPath = resolve(__dirname, '../../prompts/aurora-ask.md');
+let cachedPrompt: string | undefined;
+async function getSystemPrompt(): Promise<string> {
+  if (!cachedPrompt) {
+    cachedPrompt = await readFile(promptPath, 'utf-8');
+  }
+  return cachedPrompt;
+}
+```
+
+Dynamic prompts use `{{placeholder}}` substitution — no templating library:
+
+```typescript
+const template = await getTemplate();
+const prompt = template.replace('{{transcript}}', transcriptText);
+```
+
+### ocr.ts export change — breaking
+
+`ocr.ts` changed `export const PDF_VISION_PROMPT: string` to `export async function getPdfVisionPrompt(): Promise<string>`. This broke `pdf-eval-compare.ts` which imported the const directly. Updated to call the function. Also broke `pdf-eval-compare.test.ts` — required async handling in test setup.
+
+Lesson: externalizing a prompt that was exported as a constant is a breaking change. Future migrations should check for external importers via LSP find-references before changing the export shape.
+
+### Test repair: 24 failures to 0
+
+Pre-session failures were in two categories:
+
+**Pre-existing (20):** Model name drift. Tests had `gemma3` but codebase had moved to `gemma4:26b`. Also `.name` → `.displayName` in speaker objects from session 21 EBUCore migration. These were never fixed because sessions skipped running the full test suite.
+
+**New (4):** From this session's prompt extraction — `PDF_VISION_PROMPT` const → async function, obsidian-export sidecar behavior, auto-cross-ref fetch mock timing.
+
+17 new prompt lint tests added in `tests/prompts/prompt-lint.test.ts`. These are intentionally simple: `expect(fs.existsSync(path)).toBe(true)` and `expect(content.length).toBeGreaterThan(10)`. The point is to make accidental prompt deletion a failing test, not a silent behavioral regression.
+
+### Mönster etablerade
+
+- **`as const` config file**: single exported file, grouped by concern, imported where needed. Not a class, not a singleton, just a module.
+- **Async lazy prompt cache**: `let cached: string | undefined; async function get() { if (!cached) cached = await readFile(...); return cached; }` — now the standard for all prompt files.
+- **`{{placeholder}}` substitution**: no templating library. `template.replace('{{x}}', value)`. Works for 1-3 substitutions; if you need more, use a proper template engine.
+- **Prompt lint test**: one test per prompt file, checks existence and minimum length. Run in CI, catches silent deletions.
+- **Check LSP references before changing export shape**: `lsp_find_references` before renaming any exported symbol that could be imported by other modules.
+
+| Tid | Typ | Vad |
+|-----|-----|-----|
+| 00:30 | COMMITS | Session 23 catch-up commits (4) |
+| 01:00 | AUDIT | 3x parallel explore agents — full codebase scan |
+| 02:00 | DESIGN | Oracle consultation on config architecture |
+| 02:30 | FEAT | `llm-defaults.ts` — create + structure |
+| 03:30 | REFACTOR | 66+ call site migration across ~25 files |
+| 05:00 | FIX | Stale model refs (langfuse.ts, usage.ts) |
+| 05:15 | FEAT | PYANNOTE_MODEL env override (diarize_audio.py) |
+| 05:30 | REFACTOR | 17 prompts → external .md files |
+| 07:00 | FIX | 24 test failures — model names, displayName, async prompts, mocks |
+| 07:30 | FEAT | prompt-lint.test.ts (17 new tests) |
+| 08:00 | DOCS | Handoff, release notes, diary entries |
+
+### Baseline
+
+typecheck: PASS — 0 errors
+tests: PASS — 319 files, 4254 tests, 0 failures (was 24 failures at session start)
