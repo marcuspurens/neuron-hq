@@ -134,7 +134,7 @@ describe('polishBatch (Ollama)', () => {
     );
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(body.model).toBe('gemma3');
+    expect(body.model).toBe('gemma4:26b');
     expect(body.stream).toBe(false);
     expect(body.messages).toHaveLength(2);
     expect(body.messages[0].role).toBe('system');

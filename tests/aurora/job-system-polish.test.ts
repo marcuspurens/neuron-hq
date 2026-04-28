@@ -145,8 +145,7 @@ describe('onProgress callback', () => {
       (c: [ProgressUpdate]) => ({ step: c[0].step, progress: c[0].progress }),
     );
 
-    // Should have start (0) and end (1.0) for: downloading, transcribing, chunking, embedding, polishing
-    const expectedSteps = ['downloading', 'transcribing', 'chunking', 'embedding', 'polishing'];
+    const expectedSteps = ['downloading', 'transcribing', 'chunking', 'embedding', 'polishing', 'identifying'];
     for (const step of expectedSteps) {
       const stepCalls = calls.filter((c: { step: string }) => c.step === step);
       expect(stepCalls.length).toBeGreaterThanOrEqual(2);
@@ -154,8 +153,8 @@ describe('onProgress callback', () => {
       expect(stepCalls[stepCalls.length - 1].progress).toBe(1.0);
     }
 
-    // Total calls: 5 steps x 2 (start + end) = 10
-    expect(progressSpy).toHaveBeenCalledTimes(10);
+    // Total calls: 6 steps x 2 (start + end) = 12
+    expect(progressSpy).toHaveBeenCalledTimes(12);
   });
 
   it('onProgress is optional — ingest works without it', async () => {

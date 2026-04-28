@@ -130,9 +130,11 @@ describe('obsidian-export', () => {
 
     await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
-    // voice_print nodes are skipped — only transcript gets exported
-    expect(writtenFiles.size).toBe(1);
-    const [[transcriptPath, transcriptContent]] = [...writtenFiles.entries()];
+    // voice_print nodes are skipped — transcript md + words.json sidecar
+    expect(writtenFiles.size).toBe(2);
+    const mdEntry = [...writtenFiles.entries()].find(([p]) => p.endsWith('.md'));
+    expect(mdEntry).toBeDefined();
+    const [transcriptPath, transcriptContent] = mdEntry!;
 
     expect(transcriptPath).toContain('/Aurora/Video/Test Video Transcript.md');
     expect(transcriptContent).toBeDefined();
@@ -174,8 +176,8 @@ describe('obsidian-export', () => {
 
     await obsidianExportCommand({ vault: '/tmp/vault', skipImport: true });
 
-    // Only 1 file should be written (transcript), not the chunk
-    expect(writtenFiles.size).toBe(1);
+    // Only transcript md + words.json sidecar, not the chunk
+    expect(writtenFiles.size).toBe(2);
     const paths = [...writtenFiles.keys()];
     expect(paths.some((p) => p.includes('chunk'))).toBe(false);
   });
@@ -220,7 +222,7 @@ describe('obsidian-export', () => {
     expect(content).toContain('duration: "01:02:03"');
     expect(content).not.toContain('speakers:');
     expect(content).toContain('| SPEAKER_00 |');
-    expect(content).toContain('| ID | Förnamn | Efternamn | Roll | Titel | Organisation | Avdelning | Wikidata | LinkedIn |');
+    expect(content).toContain('| ID | Förnamn | Efternamn | Roll | Titel | Organisation | Avdelning | Wikidata | Wikipedia | IMDb | LinkedIn |');
   });
 
   it('suppresses speaker labels in timeline when only 1 unique speaker', async () => {
@@ -1420,8 +1422,18 @@ describe('obsidian-export', () => {
 
     expect(content).toBeDefined();
     expect(content).toContain('## Tidslinje');
-    expect(content).toContain('<span data-t="0">Hello </span>');
-    expect(content).toContain('<span data-t="500">world </span>');
-    expect(content).toContain('<span data-t="1500">test</span>');
+    expect(content).toContain('Hello');
+    expect(content).toContain('world');
+    expect(content).toContain('test');
+    expect(content).toContain('words_file:');
+
+    const sidecarEntry = [...writtenFiles.entries()].find(([p]) => p.endsWith('.words.json'));
+    expect(sidecarEntry).toBeDefined();
+    const sidecarData = JSON.parse(sidecarEntry![1]);
+    expect(sidecarData.words).toBeDefined();
+    expect(sidecarData.words.length).toBe(3);
+    expect(sidecarData.words[0].start).toBe(0);
+    expect(sidecarData.words[1].start).toBe(0.5);
+    expect(sidecarData.words[2].start).toBe(1.5);
   });
 });

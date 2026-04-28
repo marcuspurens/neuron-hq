@@ -51,6 +51,12 @@ vi.mock('../../src/core/ollama.js', () => ({
   getOllamaUrl: vi.fn().mockReturnValue('http://localhost:11434'),
 }));
 
+const mockFetch = vi.fn().mockResolvedValue({
+  ok: true,
+  json: async () => ({ message: { role: 'assistant', content: '{}' }, done: true }),
+});
+vi.stubGlobal('fetch', mockFetch);
+
 vi.mock('../../src/aurora/transcript-polish.js', () => ({
   polishTranscript: vi.fn().mockResolvedValue({ rawText: '', correctedText: '', batchCount: 0 }),
 }));

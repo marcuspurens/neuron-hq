@@ -30,10 +30,10 @@ describe('auroraConfirmSpeakerCommand', () => {
 
   it('shows confirmation with updated confidence', async () => {
     mockListSpeakerIdentities.mockResolvedValue([
-      { id: 'speaker-marcus', name: 'Marcus', confidence: 0.6, confirmations: 2, autoTagThreshold: 0.90, confirmedVoicePrints: ['vp-1'] },
+      { id: 'speaker-marcus', displayName: 'Marcus', confidence: 0.6, confirmations: 2, autoTagThreshold: 0.90, confirmedVoicePrints: ['vp-1'] },
     ]);
     mockConfirmSpeaker.mockResolvedValue({
-      identity: { id: 'speaker-marcus', name: 'Marcus', confidence: 0.7, confirmations: 3, autoTagThreshold: 0.90, confirmedVoicePrints: ['vp-1', 'vp-2'] },
+      identity: { id: 'speaker-marcus', displayName: 'Marcus', confidence: 0.7, confirmations: 3, autoTagThreshold: 0.90, confirmedVoicePrints: ['vp-1', 'vp-2'] },
       newConfidence: 0.7,
     });
 
@@ -47,7 +47,7 @@ describe('auroraConfirmSpeakerCommand', () => {
   it('creates new identity on first confirmation', async () => {
     mockListSpeakerIdentities.mockResolvedValue([]);
     mockCreateSpeakerIdentity.mockResolvedValue({
-      id: 'speaker-anna', name: 'Anna', confidence: 0.5, confirmations: 1, autoTagThreshold: 0.90, confirmedVoicePrints: ['vp-3'],
+      id: 'speaker-anna', displayName: 'Anna', confidence: 0.5, confirmations: 1, autoTagThreshold: 0.90, confirmedVoicePrints: ['vp-3'],
       created: new Date().toISOString(), updated: new Date().toISOString(), metadata: {},
     });
 
@@ -60,10 +60,10 @@ describe('auroraConfirmSpeakerCommand', () => {
 
   it('shows auto-tag status', async () => {
     mockListSpeakerIdentities.mockResolvedValue([
-      { id: 'speaker-marcus', name: 'Marcus', confidence: 0.9, confirmations: 5, autoTagThreshold: 0.90, confirmedVoicePrints: [] },
+      { id: 'speaker-marcus', displayName: 'Marcus', confidence: 0.9, confirmations: 5, autoTagThreshold: 0.90, confirmedVoicePrints: [] },
     ]);
     mockConfirmSpeaker.mockResolvedValue({
-      identity: { id: 'speaker-marcus', name: 'Marcus', confidence: 0.95, confirmations: 6, autoTagThreshold: 0.90, confirmedVoicePrints: [] },
+      identity: { id: 'speaker-marcus', displayName: 'Marcus', confidence: 0.95, confirmations: 6, autoTagThreshold: 0.90, confirmedVoicePrints: [] },
       newConfidence: 0.95,
     });
 

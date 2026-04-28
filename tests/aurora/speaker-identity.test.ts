@@ -145,7 +145,7 @@ describe('speaker-identity', () => {
     const list = await listSpeakerIdentities();
     expect(list).toHaveLength(2);
     // Both have same confidence 0.5, so order may vary; just check both present
-    const names = list.map(i => i.name);
+    const names = list.map(i => i.displayName);
     expect(names).toContain('Marcus');
     expect(names).toContain('Anna');
   });

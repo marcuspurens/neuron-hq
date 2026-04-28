@@ -13,7 +13,7 @@ vi.mock('../../src/aurora/ocr.js', async (importOriginal) => {
 });
 
 import { resolvePrompt, comparePrompts, formatCompareResult } from '../../src/aurora/pdf-eval-compare.js';
-import { PDF_VISION_PROMPT } from '../../src/aurora/ocr.js';
+import { getPdfVisionPrompt } from '../../src/aurora/ocr.js';
 import type { PageDigest } from '../../src/aurora/ocr.js';
 
 function makeDigest(page: number, visionDesc: string): PageDigest {
@@ -38,9 +38,10 @@ function makeDigest(page: number, visionDesc: string): PageDigest {
 }
 
 describe('resolvePrompt', () => {
-  it('returns PDF_VISION_PROMPT for "current"', async () => {
+  it('returns getPdfVisionPrompt() for "current"', async () => {
     const prompt = await resolvePrompt('current');
-    expect(prompt).toBe(PDF_VISION_PROMPT);
+    const expected = await getPdfVisionPrompt();
+    expect(prompt).toBe(expected);
     expect(prompt).toContain('Analyze this PDF page');
   });
 

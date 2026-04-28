@@ -298,7 +298,7 @@ describe('guessSpeakers', () => {
     const result = await guessSpeakers('transcript-1');
 
     expect(result.guesses).toEqual([]);
-    expect(result.modelUsed).toBe('gemma3');
+    expect(result.modelUsed).toBe('gemma4:26b');
   });
 
   it('extracts JSON array from wrapped response text', async () => {

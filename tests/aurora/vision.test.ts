@@ -56,7 +56,14 @@ beforeEach(() => {
   delete process.env.OLLAMA_MODEL_VISION;
   resetConfig();
 
-  mockReadFile.mockResolvedValue(Buffer.from('fake-image-data'));
+  mockReadFile.mockImplementation((_path: string, encoding?: string) => {
+    if (encoding === 'utf-8') {
+      // Prompt file reads — return a realistic prompt string
+      return Promise.resolve('Describe this image for indexing in a knowledge graph.');
+    }
+    // Image file reads — return binary data
+    return Promise.resolve(Buffer.from('fake-image-data'));
+  });
   mockStat.mockResolvedValue({ size: 1024 });
 
   mockProcessExtractedText.mockResolvedValue({
@@ -103,7 +110,7 @@ describe('analyzeImage', () => {
     expect(body.messages).toHaveLength(2);
     expect(body.messages[0].role).toBe('system');
     expect(body.messages[1].images).toHaveLength(1);
-    expect(body.messages[1].content).toContain('Describe this image');
+    expect(body.messages[1].content).toContain('Describe this image for indexing');
     expect(body.options.temperature).toBe(0);
 
     expect(result.description).toBe('A cat sitting on a mat');

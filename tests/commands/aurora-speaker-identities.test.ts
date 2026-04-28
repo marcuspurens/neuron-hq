@@ -25,11 +25,11 @@ describe('auroraSpeakerIdentitiesCommand', () => {
   it('lists identities with confidence and counts', async () => {
     mockListSpeakerIdentities.mockResolvedValue([
       {
-        id: 'speaker-marcus', name: 'Marcus', confidence: 0.90, confirmations: 5,
+        id: 'speaker-marcus', displayName: 'Marcus', confidence: 0.90, confirmations: 5,
         autoTagThreshold: 0.90, confirmedVoicePrints: ['vp-1', 'vp-2', 'vp-3'],
       },
       {
-        id: 'speaker-anna', name: 'Anna', confidence: 0.60, confirmations: 2,
+        id: 'speaker-anna', displayName: 'Anna', confidence: 0.60, confirmations: 2,
         autoTagThreshold: 0.90, confirmedVoicePrints: ['vp-4'],
       },
     ]);
