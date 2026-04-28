@@ -809,8 +809,6 @@ export async function ingestVideo(
     {
       const ytTags = (extractMeta.ytTags as string[]) ?? [];
       const categories = (extractMeta.categories as string[]) ?? [];
-      const videoDesc = (extractMeta.videoDescription as string) ?? '';
-
       const domainTag = (() => {
         try {
           return new URL(url).hostname.replace(/^(www\.|m\.)/, '');
