@@ -627,7 +627,8 @@ async def extract_entities(
             "prompt": ENTITY_EXTRACTION_PROMPT + text,
             "stream": False,
             "format": "json",
-            "options": {"temperature": 0.0},
+            "think": False,
+            "options": {"temperature": 0.0, "num_predict": 1024},
         }).encode()
 
         req = urllib.request.Request(
