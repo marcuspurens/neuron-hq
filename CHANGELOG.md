@@ -7,6 +7,17 @@ Sessions are listed newest-first.
 
 ---
 
+## [Session 25] — 2026-04-28
+
+### Added
+- `.claude/skills/transkribera/SKILL.md` — new OpenCode skill documenting the two-pass transcription pipeline: fast draft (int8/beam=1) → LLM entity extraction (Gemma4 via Ollama) → quality re-transcription (float32/beam=5) with extracted terms as `initial_prompt`.
+
+### Fixed
+- `aurora-workers/mcp_server.py` — `extract_entities` Ollama call now includes `"think": false` and `"num_predict": 1024`. Gemma4's thinking mode caused infinite repetition loops when combined with `format: "json"`, producing corrupted unterminated JSON.
+- `src/aurora/video.ts` — removed unused `videoDesc` variable at line 812 (pre-existing lint noise).
+
+---
+
 ## [Session 24] — 2026-04-28
 
 ### Added

@@ -887,3 +887,23 @@ Handoff: `docs/handoffs/HANDOFF-2026-04-27-opencode-session23-whisper-params-ent
 **Next**: Create `.claude/skills/transkribera/SKILL.md` (deferred from S23 AND S24 — must be first task in S25). Test `extract_entities` live against Ollama. Fix `video.ts:812` unused `videoDesc` variable. Begin Tier 2 skills (briefing pipeline, memory contradiction prompt) if time.
 
 Handoff: `docs/handoffs/HANDOFF-2026-04-28-opencode-session24-llm-config-centralization.md`
+
+---
+
+## 2026-04-28 — Session 25
+
+**Changes**: `.claude/skills/transkribera/SKILL.md`: NEW — 7-step two-pass transcription skill; `aurora-workers/mcp_server.py`: FIX — `extract_entities` added `think: false` + `num_predict: 1024` to prevent Gemma4 degeneration; `src/aurora/video.ts`: FIX — removed unused `videoDesc` variable (line 812)
+
+**New interfaces**: None. Python MCP tool `extract_entities` same external interface, only internal Ollama call params changed.
+
+**Decisions**: `think: false` mandatory for Gemma4 + `format: "json"` (thinking-mode consumes num_predict budget, causes infinite repetition); skill calls `aurora-media` tools directly not via job queue (queue doesn't expose `initial_prompt`); no standalone briefing skill (already covered by `researcha-amne` and `kunskapscykel`); memory contradiction prompt already extracted in S24
+
+**Gotchas**: Gemma4 with `format: "json"` on `/api/generate` degenerates without `think: false`. Debugging: use `/api/chat` which separates `thinking` from `content` in response. Session 24 handoff references `prompts/briefing-narrative.md` but file doesn't exist — code uses `prompts/briefing-summary.md`. `initial_prompt` 224-char limit still unverified against WhisperX source.
+
+**Dead ends**: `num_predict` alone didn't fix degeneration (model still degenerates within budget). `repeat_penalty: 1.5` didn't help with `format: "json"`. Dropping `format: "json"` gave empty response (Gemma4 needs structured output constraint). Only `think: false` resolved the issue.
+
+**Tests**: 319/319, 4254/4254. typecheck: PASS. No new tests.
+
+**Next**: End-to-end test of two-pass pipeline on real video. Copy release notes to Obsidian vault. Verify 224-char initial_prompt limit against WhisperX source. Consider skill-lint tests.
+
+Handoff: `docs/handoffs/HANDOFF-2026-04-28-opencode-session25-transkribera-skill.md`

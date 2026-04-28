@@ -877,3 +877,49 @@ Det mesta gick faktiskt rätt smidigt tekniskt sett — den tyngsta delen var at
 2. **Testa `extract_entities` live** mot Ollama med ett riktigt transkript.
 3. **Städa `video.ts` rad 812** — en oanvänd variabel som hängt kvar sedan tidigare sessioner.
 4. **Tier 2-skills** om tid finns — `briefing.ts` och `memory.ts`.
+
+---
+
+## 2026-04-28 — Session 25: Transkribera-skillen äntligen klar, och en bugg som inte borde ha funnits
+
+### Vad hände?
+
+**1. Transkribera-skillen är äntligen klar.**
+
+Det vi velat göra sedan session 23 är nu gjort. Systemet har en textfil (`.claude/skills/transkribera/SKILL.md`) som beskriver steg för steg hur en tvåstegs-transkribering ska gå till. Idén är enkel: gör en snabb, slarvig transkribering först. Låt sedan en AI-modell läsa utkastet och plocka ut alla namn och facktermer. Kör sedan transkriberingen igen med full kvalitet — men den här gången vet Whisper hur "Marcus Purens" och "SecOC" stavas.
+
+Skillen har sju steg, inklusive ett valfritt steg där du som användare kan granska och korrigera de termer som AI:n hittade innan den slutgiltiga transkriberingen körs.
+
+**2. Vi testade entity extraction — och hittade en bugg.**
+
+`extract_entities`-verktyget (som bygger på Gemma 4 via Ollama) hade aldrig testats mot en riktig AI-instans. Session 23 byggde det, session 24 fokuserade på annat. I den här sessionen körde vi det på riktigt.
+
+Det fungerade inte. Gemma 4 startade bra — den hittade "SecOC", "AUTOSAR Classic", "Marcus Purens" — men sedan fastnade den. Den upprepade "ImobMgr-modulen" hundratals gånger och producerade ogiltig data som aldrig avslutades.
+
+Felsökningen tog fem iterationer. Vi testade att begränsa svarslängden, att straffa upprepningar, att byta API-format. Genomslaget kom när vi bytte till ett annat API (chat istället för generate) och upptäckte att Gemma 4 har ett inbyggt "tänkläge" som äter upp svarsutrymmet internt. Modellen tänkte i 2 288 tecken — men producerade noll tecken faktiskt svar.
+
+Lösningen var att stänga av tänkläget för just den här uppgiften. Med en rad tillagd (`"think": false`) fungerade allt perfekt: 28 termer extraherade rent och korrekt.
+
+**3. En liten städning.**
+
+En oanvänd variabel (`videoDesc`) i videofilen som legat där sedan tidigare sessioner togs bort. Tre rader, noll risk.
+
+### Vad funkade inte?
+
+**Att buggen ens fanns.** `extract_entities` byggdes i session 23 och borde ha testats direkt. Istället gick det två hela sessioner innan någon körde det mot en riktig Ollama-instans. Det är två sessioner med en verktyg som ser korrekt ut i koden men inte fungerar i praktiken. Hade vi testat live i session 23 hade vi hittat och fixat det då.
+
+**Felsökningen var utforskande, inte systematisk.** De fyra första försöken (num_predict, repeat_penalty, byta API-format, öka tokens) var alla rimliga gissningar — men det var fortfarande gissningar. Genomslaget kom från att inspektera `message.thinking`-fältet i chat-API:ets svar, som avslöjade var token-budgeten gick. I efterhand borde det ha varit steg ett, inte steg fyra.
+
+### Vad bestämdes?
+
+| Beslut | Varför |
+|---|---|
+| `think: false` för entity extraction | Tänkläget tillför inget vid strukturerad JSON-extraktion och förstör `format: "json"` |
+| Ingen standalone briefing-skill | `researcha-amne` och `kunskapscykel` täcker redan behovet |
+| Memory contradiction prompt-extraktion inte gjord | Redan klar sedan session 24 |
+
+### Vad är planen framöver?
+
+1. **Testa hela kedjan end-to-end** — kör transkribera-skillen på en riktig video och jämför resultatet med en vanlig enstegs-transkribering.
+2. **Kopiera release notes till Obsidian** — valvet hittades inte från denna sessions terminalläge.
+3. **Verifiera 224-teckens-gränsen** mot WhisperX:s faktiska källkod.

@@ -1612,3 +1612,60 @@ Pre-session failures were in two categories:
 
 typecheck: PASS — 0 errors
 tests: PASS — 319 files, 4254 tests, 0 failures (was 24 failures at session start)
+
+---
+
+## 2026-04-28 (session 25) — Transkribera-skill + Gemma4 thinking-mode fix
+
+### Transkribera-skill (`.claude/skills/transkribera/SKILL.md`)
+
+Skillen dokumenterar tvåstegs-pipelinen: snabb draft (int8/beam=1) → entity extraction (Gemma4 via Ollama) → quality pass (float32/beam=5 med `initial_prompt`). Sju steg totalt, inklusive valfri user review av extraherade entiteter.
+
+Designval: skillen anropar `aurora-media` MCP-tools direkt (`transcribe_audio`, `extract_entities`) istället för att gå via `aurora_ingest_video` + jobbkö. Anledning: `aurora_ingest_video` exponerar inte `initial_prompt`-parametern. Om man vill ha jobbkö-stöd för tvåstegs behöver `startVideoIngestJob()` utökas med `initialPrompt` i input-schemat.
+
+### Gemma4 degeneration med `format: "json"` — root cause
+
+`extract_entities` i `mcp_server.py` anropade Ollama `/api/generate` med `format: "json"` och `temperature: 0.0`. Gemma4:26b degenererade till oändlig repetition — startade bra men fastnade på 3:e-4:e entiteten.
+
+**Root cause:** Gemma4 har thinking-mode aktiverat som default. Via `/api/generate` blandas thinking-tokens in i `response`-fältet (inget separat fält). Med `format: "json"` suppressas thinking-output men modellen förbrukar fortfarande tokens internt på att "tänka". Resultatet: modellen når aldrig en naturlig `stop`-token.
+
+**Bevis:** Bytte till `/api/chat` → `message.thinking` = 2288 chars, `message.content` = 0 chars, `done_reason: length`. Thinking konsumerade hela `num_predict`-budgeten.
+
+**Fix:** `"think": false` i payload till `/api/generate`. Med det: 10-28 entiteter, valid JSON, `done_reason: stop`. `num_predict: 1024` som safety net.
+
+**Implikation för all framtida Gemma4-användning:** Alla Ollama-anrop med `format: "json"` till Gemma4 (och troligen andra thinking-models) MÅSTE ha `think: false`. Utan det fungerar det ibland (korta svar) men degenererar vid längre output. Kontrollerat att detta är enda stället i kodbasen som använder `format: "json"` mot Ollama.
+
+### videoDesc cleanup
+
+`video.ts:812` — `const videoDesc = (extractMeta.videoDescription as string) ?? ''` deklarerades men användes aldrig. `ytTags` och `categories` från samma block användes. Troligen var `videoDesc` tänkt att inkluderas i tag-generering men glömdes.
+
+### Tier 2 — utredning
+
+Undersökte om briefing-skill och memory contradiction prompt-extraktion behövdes:
+- `briefing.ts` prompten är redan extraherad (`prompts/briefing-summary.md`, laddas via `getBriefingSummaryPrompt()`)
+- `memory.ts` contradiction-prompten är redan extraherad (`prompts/memory-contradiction.md`, laddas via `getContradictionPrompt()`)
+- Standalone briefing-skill redundant — `researcha-amne` och `kunskapscykel` använder redan `aurora_briefing`
+
+Notering: session 24 handoff nämner `prompts/briefing-narrative.md` som ny fil, men den existerar inte. Koden refererar till `prompts/briefing-summary.md` som existerar. Dokumentationsfel i session 24 handoff/LLM release note.
+
+### Mönster etablerade
+
+- **Gemma4 + `format: "json"` = `think: false` obligatoriskt**: Annars degenererar modellen. Gäller `/api/generate`. `/api/chat` separerar thinking men har samma budget-problem.
+- **Diagnostisera Ollama-problem via `/api/chat`**: Chat-API:t visar `thinking` vs `content` separat. Generate-API:t blandar allt. Använd chat för debugging, generate för produktion.
+- **Testa MCP tools live tidigt**: `extract_entities` var "klar" i session 23 men fungerade aldrig i praktiken. Undvik att låta otestat verktyg passera fler än en session.
+
+| Tid | Typ | Vad |
+|-----|-----|-----|
+| 00:15 | ORIENT | Handoff, baseline, skill-mönster |
+| 00:30 | FIX | `videoDesc` unused variable |
+| 01:30 | FEAT | `transkribera/SKILL.md` |
+| 02:45 | DEBUG | 5 iterationer Gemma4 degeneration |
+| 03:00 | FIX | `mcp_server.py` think:false |
+| 03:15 | VERIFY | typecheck + test suite |
+| 03:30 | AUDIT | Tier 2 — redan gjort |
+| 03:45 | DOCS | Session close |
+
+### Baseline
+
+typecheck: PASS — 0 errors
+tests: PASS — 319 files, 4254 tests, 0 failures (unchanged)
